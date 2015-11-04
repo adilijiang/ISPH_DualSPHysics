@@ -1,0 +1,60 @@
+#DualSPHysics v4 Re (03-10-2015)
+
+#=============== Cluster selection ===============
+CLUSTER=EPH
+### EPH -> Uses g++ compiler
+### CSF -> Uses g++ compiler
+### BSC -> Uses icpc compiler 
+### EME -> To use icpc: module load intel/12.1
+
+#=============== Config other flags to compile ===============
+#CCMOREFLAGS= -D_CODE_FAST
+#CCMOREFLAGS= -D_CODE_FASTBALANCING
+
+#=============== Files to compile ===============
+OBJ_BASIC=main.o Functions.o FunctionsMath.o JArraysCpu.o JBinaryData.o JCellDivCpu.o JCfgRun.o JException.o
+OBJ_BASIC:=$(OBJ_BASIC) JLinearValue.o JLog2.o JObject.o JPartDataBi4.o JPartFloatBi4.o JPartOutBi4Save.o JPartsOut.o 
+OBJ_BASIC:=$(OBJ_BASIC) JRadixSort.o JRangeFilter.o JSaveDt.o JSpaceCtes.o JSpaceEParms.o JSpaceParts.o 
+OBJ_BASIC:=$(OBJ_BASIC) JSpaceProperties.o JSph.o JSphCpu.o JSphDtFixed.o JSphVarAcc.o JSphVisco.o randomc.o
+OBJ_BASIC:=$(OBJ_BASIC) JTimersStep.o
+OBJ_CPU_SINGLE=JCellDivCpuSingle.o JSphCpuSingle.o JPartsLoad4.o
+OBJECTS=$(OBJ_BASIC) $(OBJ_CPU_SINGLE)
+
+#=============== DualSPHysics libs to include ===============
+JLIBS=-L./ -ljxml_64 -ljformatfiles2_64 -ljsphmotion_64 -ljwavegen_64
+
+#=============== To compile CPU code ===============
+### para AMD usar: CCFLAGS := $(CCFLAGS) -mtune=amdfam10
+CC=g++
+CCFLAGS=-c -O3 -fopenmp
+CCLINKFLAGS=-fopenmp -lgomp
+ifeq ($(CLUSTER),EPH)
+  CCLINKFLAGS:=$(CCLINKFLAGS)
+endif
+ifneq (,$(filter $(CLUSTER),BSC EME))
+  CC=icpc
+  CCFLAGS=-c -O3 -openmp
+  CCLINKFLAGS=-openmp
+endif
+CCFLAGS := $(CCFLAGS) $(CCMOREFLAGS)
+
+
+all:dualsphysics4cpu 
+	rm -rf *.o
+	@echo "  --- Compiled CPU version for the cluster $(CLUSTER) ---"
+
+dualsphysics4cpu:  $(OBJECTS)
+	$(CC) $(CCLINKFLAGS) $(OBJECTS) -o $@ $(JLIBS)
+
+.cpp.o: 
+	$(CC) $(CCFLAGS) $< 
+
+clean:
+	rm -rf *.o dualsphysics4cpu
+
+help:
+	@echo "  make CLUSTER=[EPH,CSF,BSC,EME]"
+	@echo "    EPH: Ephyslab - Universidad de Vigo"
+	@echo "    CSF: University of Manchester"
+	@echo "    BSC: Barcelona Supercomputing Center"
+	@echo "    EME: Emerald - e-Infrastructure South"

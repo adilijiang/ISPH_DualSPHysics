@@ -1,0 +1,360 @@
+[04-08-2013]
+  - Mejora y simplificacion de DualSPHysics3_v4_posdouble_130521.
+  - Usa precision doble en todos los calculos menos en la interaccion de particulas.
+  - Sin Cubic pero con DeltaSPH for DBC.
+
+[06-09-2013]
+  - JTimersStep corregido para reanudacion de simulaciones.
+
+[13-09-2013]
+  - Corrige error al inicializar a cero las variables PeriXinc, PeriYinc y PeriZinc.
+
+[20-11-2013]
+  - Corrige error en JSph::CodeSetType(), se usaba '!' en lugar de '~' como operador binario.
+
+[28-11-2013]
+  - Cambio de formato de salida, se remplaza bi2/bi3 por bi4. (24-11-2013)
+  - Cambio de formato de entrada, se remplaza bi2/bi3 por bi4. (28-11-2013)
+  - Paso de algunas variables y clases como JPiston o JSphDtFixed a double. (28-11-2013)
+
+[17-12-2013]
+  - En JPartOutBi4Save se corrigieron los valores BLOCKNOUTMIN/MAX. (02-12-2013)
+  - JSpaceParts gestiona ahora propiedades de las particulas. (17-12-2013)
+  - Actualizacion de ficheros varios. (17-12-2013)
+
+[20-12-2013]
+  - Empezando con Inlet conditions. (20-12-2013)
+
+[02-01-2014]
+  - Actualizacion de ficheros varios. (01-01-2014)
+  - Empezando con Inlet conditions v2. (02-01-2014)
+  - Mejor ajuste de la zona Inlet. (02-01-2014)
+
+[05-01-2014]
+  - No se cuentan las particulas inlet que no puedean crearse. (03-01-2014)
+  - Calculo de pos en GPU para inlet. (03-01-2014)
+  - Simplificacion del calculo de pos con solo una fase. (03-01-2014)
+  - Se volvio a introducir el usod de varias fases. (04-01-2014)
+  - Hay 4 metodos disponibles para el calculo de la altura. (04-01-2014)
+  - Permite variar el inflow durante la simulacion. (05-01-2014)
+
+[07-01-2014]
+  - Graba valor de NpDynamic y NpTotal en PARTS. (07-01-2014)
+
+[09-01-2014]
+  - Permite reanudar simulaciones con inlet conditions, aunque el reinicio 
+    no puede ser perfecto. (09-01-2014)
+
+[12-01-2014]
+  - Ahora el fichero PartInfo.ibi4 contiene los datos general de la simulacion. (12-01-2014)
+  - Error corregido en JSphInlet al calcular las particulas por litro. (12-01-2014)
+  - Permite leer el numero de particulas por litro en lugar de calcularlo a partir del dp. (12-01-2014)
+
+[15-01-2014]
+  - Error corregido al calcular limites de dominio con condiciones periodicas. (13-01-2014)
+  - Implementacion de open barriers. (13-01-2014)
+  - Actualizacion de JSpaceProperties. (15-01-2014)
+
+[20-01-2014]
+  - Error corregido en KerComputeInletPrecise1(), solo buscaba en 2 celdas cuando 
+    suelen ser 3 al usar celdas de tamaño h. (16-01-2014)
+  - Opcion CELLMODE_4H eliminada. (20-01-2014)
+  - Nuevo objeto JPressAction para aplicar presion a una zona. (20-01-2014)
+
+[05-03-2014]
+  - Estructura InfoDt y opcion SvDt eliminadas. (19-02-2014)
+  - Eliminacion de la opcion SvSteps. (26-02-2014)
+  - Eliminacion de opcion placement=fast en JSphInlet. (27-02-2014)
+  - Simplificacion de condiciones periodicas. (04-03-2014)
+  - Error corregido en cusph::PeriodicMakeList(). (05-03-2014)
+
+[08-03-2014]
+  - Calcula nueva posicion de particulas en dos pasos para simplificar kernels. (06-03-2014)
+  - Limpieza y simplificacion de kernels en JSphGpu_ker. (06-03-2014)
+  - Timer para creacion de particulas periodicas. (07-03-2014)
+  - Error corregido en cusph::KerMoveLinBound(). (07-03-2014)
+  - Error corregido cuando se usa "-sv:none". (07-03-2014)
+  - Eliminar blocksize para periodic y computestep. (07-03-2014)
+  - Error corregido para symplectic. (08-03-2014)
+
+[14-03-2014]
+  - Implementacion basica de la version CPU. (12-03-2014)
+
+[08-04-2014]
+  - Error corregido en JCellDivCpuSingle::MakeSortFull() y MakeSortFluid(). (19-03-2014)
+  - Texto "capbility" corregido. (21-03-2014)
+  - Detecta particulas con pos NAN marcandolas como out. (21-03-2014)
+  - Mejora en la creacion de las lista de triangulos por celda. (02-04-2014)
+  - Implementacion GPU v0. (05-04-2014)
+  - Ajuste automatico de BlockSize para interaccion con triangulos en GPU. (06-04-2014)
+  - Grabacion de tiempo de interaccion con triangulos. (06-04-2014)
+  - Error corregido en JArraysCpuSize::FreeMemory() que usaba delete directamente. (06-04-2014)
+  - Permite grabar triangulos usados en interaccion para cada PART. (06-04-2014)
+
+[01-05-2014]
+  - Error corregido al calcular el tamaño de bloque para Symplectic. (09-04-2014)
+  - Cambios de Georgios aplicados a GPU y CPU code. (15-04-2014)
+  - Eliminacion de DeltaSPH en la interaccion con triangulos. (15-04-2014)
+  - Eliminacion de XSPH cuando el valor de Eps es cero para GBound. (15-04-2014)
+  - Uso de ALMOSTZERO para la interseccion con los triangulos en el borde. (16-04-2014)
+  - Tres nuevos modos de interaccion con Gbound: SpTri, SpList y SpTriSh. (16-04-2014)
+  - Nuevo modo de interaccion con Gbound: SpTriShSimple. (17-04-2014)
+  - Nuevo modo de interaccion con Gbound: SpListSh. (17-04-2014)
+  - Recodificacion de modos Gbound: Basic,BasicSh,TriList,TriListSh,SpList,SpListSh. (17-04-2014)
+  - Implementacion de floating bodies en CPU. (28-04-2014)
+  - Fusion de kernels pos-simple y pos-double en GPU. (28-04-2014)
+  - Calculo de DtVariable a partir de dt1 y dt2, en lugar de solo dt2. (29-04-2014)
+  - Implementacion de floating bodies en GPU. (29-04-2014)
+  - Ultimos cambios de Anxo en JPressAction. (30-04-2014)
+  - Se añadio JMooring para Gpu y Cpu teniendo en cuenta CellOrder. (30-04-2014)
+  - Implementacion de PressAction para CPU y mejoras en GPU. (01-05-2014)
+  - MakeFiles para Linux con libreria de JMoorings. (01-05-2014)
+
+[02-05-2014]
+  - Integracion de JPressLink para Coupling. (02-05-2014)
+
+[06-05-2014]
+  - Creacion de zonas de amortiguacion con JDamping en CPU y GPU. (05-05-2014)
+  - Error corregido: Al usar abs() en linux puede dar lugar a resultados int. (06-05-2014)
+  - Se sustituyo abs() por fabs() en todos los ficheros. (06-05-2014)
+
+[07-05-2014]
+  - Error corregido: No calculaba prrhopp2 en GPU con -pdouble. (07-05-2014)
+
+[13-05-2014]
+  - Mejoras en JLog2. (07-05-2014)
+  - Actualizacion de ficheros varios. (08-05-2014)
+  - Nueva implementacion de Pistones de velocidad, ahora permite usar varios. (13-05-2014)
+  - Implementacion de pistones 3D de velocidad. (13-05-2014)
+
+[17-05-2014]
+  - Generacion de oleaje regular mediante pistones o flaps. (16-05-2014)
+  - Varios errores corregiodos en la generacion de oleaje regular. (17-05-2014)
+
+[22-05-2014]
+  - Generacion de oleaje irregular segun espectros JONSWAP o Pierson-Moskowitz. (21-05-2014)
+  - Calculo iterativo y mas preciso de longitud de onda. (22-05-2014)
+
+[24-07-2014]
+  - Eliminacion de codigo JInletWave. (23-06-2014)
+  - Amarres con puntos de anclaje distintos del centro (**INCOMPLETO**). (25-06-2014)
+  - Uses a random number generator of type Mersenne twister, independiente de las 
+    librerias de compilacion. (26/06/2014)
+  - Correccion del calculo de inercias en floating bodies. (07-07-2014)
+  - Mejora en JWavePaddles: Genera fichero CSV con altura y periodo de olas <saveserieheight>. (20-07-2014)
+  - Mejora en JWavePaddles: Calcula la longitud de la serie sin repetir mucho mas rapido. (20-07-2014)
+  - Los Moorings ya funcionan! (21-07-2014)
+  - Ahora JPressActionZoneCpu y JPressActionZoneGpu reciben pascales en lugar de atmosferas. (23-07-2014)
+  - Error corregido: En ComputeAceMax() se usaba OpenMP para una reduccion. (23-07-2014)
+  - JWavePaddles: Se remplazo <saveserieheight> con <saveseriewaves>. (24/07/2014)
+
+[01-09-2014]
+  - Formulacion preliminar de DEM en codigo CPU. (31/07/2014)
+  - Formulacion preliminar de Laminar+SPS en codigo CPU. (04/08/2014)
+  - Cuando Eps es cero ignora VelXcorr[]. (05/08/2014)
+  - Formulacion preliminar de Laminar+SPS en codigo GPU. (19/08/2014)
+  - Se muestra si hay stack frame ademas de los registros del kernel GPU. (20/08/2014)
+  - Error corregido en DEM con GPU: El calculo de nu_mass estaba mal. (30-08-2014)  
+  - Ampliacion para usar Compute Capability 3.5. (01-09-2014)  
+  - Version con multiples versiones de codigo activadas en types.h mediante #define. (01-09-2014)  
+
+[10-09-2014]
+  - Limpieza de codigo Laminar+SPS y DEM, solo queda la versión optima. (10-09-2014)  
+  - Nueva implementacion de Damping mas sencilla con la opcion de especificar cada 
+    cuanto tiempo se aplica. (10-09-2014)
+
+[07-10-2014]
+  - Actualizacion de ficheros varios. (12-09-2014)
+  - Modificacion de moorings para guardar su estado en CSV compatible con TestMoorings. SIN TERMINAR... (07-10-2014)
+
+[03-12-2014]
+  - Implementacion de distintos modos de Shifting en CPU y GPU. (31-10-2014)
+  - Mejora en Damping: Muestra verctor normal del plano para facilitar su comprension. (26-11-2014)
+  - Mejora en Damping: Se puede aplicar un factor de amortiguacion para cada componente. (26-11-2014)
+  - Implementacion de splitting en CPU y GPU. (03-12-2014)
+
+[23-12-2014]
+  - Se elimino la implementacion del XSPH, eliminando velxcor,awen,eps,CteA2... (04-12-2014)
+  - Reinicio de simulaciones con floating bodies SPH o DEM. (04-12-2014)
+  - JGauges: Permite definir puntos de medicion de velocidad durante la simulacion. (09-12-2014)
+  - Se quito hdiv como opcion de template ya que no aporta ventajas en el rendimiento y si incrementa el tiempo de compilacion. (09-12-2014)
+  - Error corregido (en Cpu y Gpu) al generar particulas periodicas usando visco Laminar y Splitting. (11-12-2014)
+  - Mejora en floatings bodies para permitir que atraviesen las condiciones periodicas. (11-12-2014)
+  - Se elimino de JGauges. (13-12-2014)
+  - Implementacion preliminar de Awas sin calculo de correccion final. (13-12-2014)
+  - Implementacion de Awas con correcion sobre la posicion de piston. (15-12-2014)
+  - Awas aplica una correccion de velocidad en lugar de posicion. (21-12-2014)
+  - Error corregido en Awas al calcular el desplazamiento por dt. (22-12-2014)
+  - Aceleracion de floatings en CPU con OpenMP y optimizacion en GPU. (23-12-2014)
+
+[14-01-2015]
+  - Muestra una advertencia si el valor de Eps no es cero. (08-01-2015)
+  - Si no se indica explicitamente el valor de DtIni se calcula usando dtini=h/cs0. (08-01-2015)
+  - Si no se indica explicitamente el valor de DtMin se calcula usando dtmin=(h/cs0)*coefdtmin. (08-01-2015)
+  - Awas tb graba la velocidad del piston. (09-01-2015)
+  - Nueva opcion para grabar informacion del Dt. (12-01-2015)
+  - Nueva opcion para grabar todos los valores del Dt. (13-01-2015)
+  - Nueva opcion para grabar todos mas datos relacionados con el Dt. (14-01-2015)
+  
+[26-01-2015]
+  - Csound de las particulas pasa a ser la constante Cs0. (15-01-2015)
+  - Se cambio la ecuación de momento por la variational form. (22-01-2015)
+
+[10-03-2015]
+  - Cuando se usa Splitting se graba mass[] y hvar[] en ficheros bi4. (27-01-2015)
+  - Nuevo modo Compact para Splitting en 2-D. (28-01-2015)
+  - No se aplica la correccion del kernel en el calculo de velocidad para el AWAS. (04-02-2015)
+  - Implementacion de AWAS de Didier 2012. (06-02-2015)
+  - JWaveDidier: Error corregido en el calculo de velocidad de la rampa. (08-02-2015)
+  - JWaveDidier: Error corregido en el calculo de Ztarget, ya no hace falta ajuste. (09-02-2015)
+  - JWaveDidier: Nueva opcion para indicar una fase inicial. (09-02-2015)
+  - Error corregido en JWavePaddleRegular::CalcElevation(). (09-02-2015)
+  - JWaveAwas: La correccion calculada se trata como correccion de desplazamiento en lugar de velocidad. (11-02-2015)
+  - Splitting: Permite configuracion y uso de 2 niveles. (17-02-2015)
+  - Splitting: Calculo correcto de interaccion con 2 niveles en CPU y GPU. (18-02-2015)
+  - Actualizacion de ficheros varios. (18-02-2015)
+  - JWaveAwas: Graba datos detallados de movimiento del piston. (18-02-2015)
+  - Nuevas clases JGaugeVel y JGaugeZsurf para realizar mediciones en fluido. (18-02-2015)
+  - Mejora de la codificacion de JWaveAwas que ahora se llama JWaveAwasVel. (18-02-2015)
+  - JWaveAwasVel y JWaveDidier usan JGaugeVel y JGaugeZsurf respectivamente. (18-02-2015)
+  - Se creo JWaveAwasZsurf basado en JWaveDidier pero integrado con JWavePaddles. (25-02-2015)
+  - Implementacion de JWaveAwasZsurf tambien para oleaje irregular. (25-02-2015)
+  - Gestión correcta de JWaveAwasZsurf cuando el oleaje no empieza en t=0. (26-02-2015)
+  - Nueva implementacion de JWaveAwasVel basada en desplazamiento y mas sencilla. (27-02-2015)
+  - JWaveAwasVel: La correccion no se acumula y es suavizada. (04-03-2015)
+  - JWaveAwasZsurf: Graba variacion de Zsurf. (06-03-2015)
+  - JWaveAwasZsurf: Graba info de Zsurf por step. (10-03-2015)
+
+[12-03-2015]
+  - Se elimino el codigo de JWaveDidier. (11-03-2015)
+  - Se desactivo las opciones de grabacion detallada de info en JWaveAwasZsurf. (11-03-2015)
+  - Todos los codigos de generacion de oleaje fueron encapsulados en la libreria JWaveGen. (11-03-2015)
+  - Se elimino el codigo de JPressAction y JPressLink. (12-03-2015)
+
+[01-07-2015]
+  - Actualizacion de ficheros varios. (24-03-2015)
+  - Implementacion de Coalescing en CPU. (16-04-2015)
+  - En splitting y coalescing la rhop se calcula mediante el suavizado de las vecinas. (16-04-2015)
+  - Hay tres modos para calcular rhop en splitting: Parent density, Hydrostatic formulation, Interpolation. (18-04-2015)
+  - Se puede indicar en el XML cada cuantos pasos se ejecuta Splitting y Coalescing. (18-04-2015)
+  - Splitting y Coalescing implementados en CPU y GPU para 2D y 3D. (18-04-2015)
+  - Opcion en XML para indicar el H de las particulas boundary. (22-04-2015)
+  - Error corregido: No funcionaba bien el splitting de 2 niveles en GPU. (23-04-2015)
+  - En la configuracion de splitting se puede establecer nuevos valores de h y masa por mk de particula. (06-05-2015)
+  - El calculo de fuerzas con splitting (CPU y GPU) usa siempre la masa de splitmass[] incluso con floatings. (06-05-2015)
+  - Enlazar dominio de splitting con movimiento de MK o floating. (06-05-2015)
+  - Se sustituyo abs() por fabs() en todos los ficheros porque en Linux puede dar lugar a int. (11-05-2015)
+  - Se utiliza una structura mixta para la carga de valores en FtoDatag[] porque daba problemas en Linux. (11-05-2015)
+  - En el calculo del dt, VelMax se multiplica por 10. (25-05-2015)
+  - Combinar pistones de Swash con AWAS. Implementado pero falta probarlo y corregir errores. (25-05-2015)
+  - Se corrigio un error en el AWAS con SWASH por el cual usaba un valor de profundidad erroneo. Sigue sin funcionar bien. (27-05-2015)
+  - Error corregido en uso de viscosidad laminar (su efecto se multiplicaba por 4). (12-06-2015)
+  - Codigo y makefiles corregidos para compilacion en el BSC. (01-07-2015)
+  
+[24-09-2015]
+  - Actualizacion de ficheros varios. (14-07-2015)
+  - JWaveSpectrum: Se crearon 4 modos de discretizacion del espectro (regular, random, stretched y cosstretched). (20-08-2015)
+  - JWavePaddle: Permite generar CSVs con elevacion de 1º y 2º orden en un punto concreto. (22-08-2015)
+  - JWavePaddle: Error corregido en calculo de elevacion cuando x es distinto de cero. (24-08-2015)
+  - Correccion de Ren et al para DBC en CPU. (15-09-2015)
+  - Correccion de Ren et al para DBC en GPU. (16-09-2015)
+  - Movimiento de rotacion en eje fijo (x,z)=(0,0) a partir de fichero (JRotationFile). (16-09-2015)
+  - Movimiento de rotacion en eje fijo (x,z)=(0,0) a partir de fichero (JRotationFile). (16-09-2015)
+  - Actulalizacion de cabeceras con licencia GPL. (18-09-2015)
+  - Homogenizacion de ficheros con el resto de programas. (18-09-2015)
+  - Error corregido en JException: mostraba mal el mensaje de error. (20-09-2015)
+  - Error corregido en JWaveAwasZsurf::Init(): El valor de Depth estaba mal en el
+    fichero _WD_FreeSurf.csv porque se grababa antes de ajustar este valor. (22-09-2015)
+  - JWaveGen: Implementacion de generacion con teoria de 2º orden. (22-09-2015)
+  - JWaveGen: El calculo de elevacion para AWAS puede ser con teoria de 1º o 2º orden. (22-09-2015)
+  - JWaveGen: Formulas corregidas para desplazamiento y elevacion. (23-09-2015)
+  - JWaveGen: Calculo de velocidad en oleaje regular. (23-09-2015)
+  - JWaveGen: Inclusion de warnings en oleaje irregular. (23-09-2015)
+  - JWaveGen: Calculo de velocidad en oleaje irregular. (23-09-2015)
+  - JWaveGen: Grabacion de velocidad en fichero CSV. (23-09-2015)
+
+[29-09-2015]
+  - Nueva version para limpieza y preparacion del proximo release. (29-09-2015)
+  - 001. Eliminacion de ficheros MPI y opciones MPI en el proyecto. (29-09-2015)
+  - 002. Eliminacion de referencias MPI en resto de ficheros: _WITHMPI,_CODE_FASTBALANCING. (29-09-2015)
+  - 003. Eliminacion de codigo SWASH (SwashPistons, MovePiston). (29-09-2015)
+  - 004. Eliminacion de codigo Damping. (29-09-2015)
+  - 005. Eliminacion de codigo Open barrrier (OpenBarrier, ComputeBarrier). (29-09-2015)
+  - 006. Eliminacion de codigo y libreria de Moorings. (29-09-2015)
+  - 007. Eliminacion de codigo de LUST (HIDE_GBOUND, Gboundary, Gbound). (29-09-2015)
+  - 008. Eliminacion de codigo de Inlet. (29-09-2015)
+  - 009. Eliminacion de codigo JShapeVtk. (29-09-2015)
+  - 010. Eliminacion de codigo de AWAS y JGauge (HIDE_AWAS, UseAWAS). (29-09-2015)
+  - 011. Eliminacion de codigo de Splitting (HIDE_SPLITTING, splitting, split). (29-09-2015)
+  - 012. Revision de cabeceras con licencia GPL. (29-09-2015)
+  - 012. Cambiar cabecera y licencia en main.cpp. (29-09-2015)
+  - 013. Eliminacion de codigo JRotationFile. (29-09-2015)
+  - 014. Cambios varios. (30-09-2015)
+
+[30-09-2015]
+  - Preparing initial files to share with GIT. (30-09-2015)
+  - Cleaning Types.h. (v4.0.001 / 30-09-2015)
+  - Review timers. (v4.0.001 / 30-09-2015)
+  - Error solved when DT_ALLPARTICLES was disabled. (v4.0.002 / 30-09-2015)
+  - Now DT_ALLPARTICLES is an option in XML file. (v4.0.002 / 30-09-2015)
+  - Replaces long long by llong to improve uniformity of the code. (v4.0.003 / 01-10-2015)
+  - Link SaveMapCellsVtk with option SvDomainVtk but limited by number of cells. (v4.0.004 / 01-10-2015)
+  - Now CELLDIV_OVERMEMORYCELLS is really used to allocate memory for cells. (v4.0.005 / 01-10-2015)
+  - Minor changes. (v4.0.006 / 01-10-2015)
+  - JWaveGen: Uses HIDE_2NDORDER to hide 2nd order wave theory because it is under review. (v4.0.007 / 01-10-2015)
+  - JWaveGen: Correction of errors in recording velocity in CSV. (v4.0.007 / 01-10-2015)
+  - Minor changes. (v4.0.007 / 01-10-2015)
+  - Use ALMOSTZERO instead of 1e-18f. (v4.0.008 / 02-10-2015)
+  - Use Resety() after calculating Ace. (v4.0.008 / 02-10-2015)
+  - Use of inline function GetKernel() and GetInteractionCells() on CPU to mimic GPU code. (v4.0.008 / 02-10-2015)
+  - Add timers for Shifting. (v4.0.009 / 02-10-2015)
+  - Remove old code for floatings. (v4.0.009 / 02-10-2015)
+  - Cleaning code. (v4.0.010 / 02-10-2015)
+  - Remove RHOPCERO and OVERRHOPCERO. (v4.0.011 / 02-10-2015)
+  - Add external forces code from DualSPHysics v3. (v4.0.012 / 02-10-2015)
+  - Add new external forces code with centripetal and coriolis acceleartion. (v4.0.013 / 03-10-2015)
+  - Use of double precision for external forces. (v4.0.013 / 03-10-2015)
+  - Remove JSaveCsv and JDgKerPrint. (v4.0.013 / 03-10-2015)
+  - Update Makefile and Makefile_cpu for Linux. (v4.0.014 / 03-10-2015)
+  - Remove JBuffer. (v4.0.014 / 03-10-2015)
+  - Replace tabs with spaces. (v4.0.015 / 03-10-2015)
+  - Include Corrado Altomare. (v4.0.015 / 03-10-2015)
+  
+  
+Remaining issues:
+==================
+- Option for rotation from data file.
+- Use of SDAT_info?
+- Example with DtFixed.
+- Examples with DomainLimits
+- Configure project with debug.
+- Check restart with floatings and DEM.
+- Test performance with other CUDA versions.
+- Replace ptxasinfo by CUDA functions.
+- Test performance using psimple and pdouble. Remove code for psimple?
+- Use radixsort algorithm (with OpenMP) in celldivide on CPU.
+- Remove JTimersStep before creating release.  
+- Usar thrust en? diferencia en rendimiento?
+  //-Calcula VelMax: Se incluyen las particulas floatings y no afecta el uso de condiciones periodicas.
+  const unsigned pini=(DtAllParticles? 0: Npb);
+  cusph::ComputeVelMod(Np-pini,Velrhopg+pini,ViscDtg);
+  float velmax=cusph::ReduMaxFloat(Np-pini,0,ViscDtg,CellDiv->GetAuxMem(cusph::ReduMaxFloatSize(Np-pini)));
+- Usar thrust en? diferencia en rendimiento?
+  if(Np-Npb)acemax=cusph::ReduMaxFloat(Np-Npb,0,auxmem,CellDivSingle->GetAuxMem(cusph::ReduMaxFloatSize(Np-Npb)));
+
+x Remove JSaveCsv before creating release.  
+x Remove JDgKerPrint before creating release.  
+x Remove KPrint, ik.
+x Remove DGSAVE.  
+x Test periodic one-axis.
+x Is FtPause ok? yes
+x Remove //Log->Print //print if(0)
+x Update GenCase with new parameters (Shifting and RigidAlgorithm).
+x MkList, when is it used? LoadCodeParticles
+x Check timers for Shifting.
+x Remove RunFloating_Old().
+x TDeltaSph, when is DynamicExt used?
+x Check timers for Ren correction or remove Ren correction...
+x Remove "---> DivideFull:"
+x Remove references to MapMove.
+

@@ -1,0 +1,256 @@
+
+
+<DUALSPHYSICS> Copyright (C) 2015 by Dr Jose M. Dominguez, Dr Alejandro Crespo,
+Prof. M. Gomez Gesteira, Dr Anxo Barreiro, Dr Ricardo Canelas, Dr C. Altomare
+Dr Benedict Rogers, Dr Georgios Fourtakas, Dr Athanasios Mokos,
+Dr Stephen Longshaw, Dr Renato Vacondio
+
+EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo
+School of Mechanical, Aerospace and Civil Engineering, University of Manchester
+
+DualSPHysics is free software: you can redistribute it and/or
+modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation, either version 3 of
+the License, or (at your option) any later version.
+
+DualSPHysics is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License,
+along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>.
+
+
+DualSPHysics Re v4.0.015 (03-10-2015)
+======================================
+Threads by host for parallel execution: 8
+[Initialising JSphCpuSingle v0.70  30-10-2015 15:58:46]
+
+*** Attention: Eps value is not used (this correction is deprecated).
+
+**Basic case configuration is loaded
+**Special case configuration is loaded
+Loading initial state of particles...
+Loaded particles: 21001
+MapRealPos(border)=(-1.41421e-005,-1.41421e-005,-1.41421e-005)-(4.00001,1.41421e-005,3.00001)
+MapRealPos(final)=(-1.41421e-005,-1.41421e-005,-1.41421e-005)-(4.00001,1.41421e-005,4.50003)
+**Initial state of particles is loaded
+**2D-Simulation parameters:
+CaseName="CaseDamBreak"
+RunName="CaseDamBreak"
+SvDouble=False
+SvTimers=True
+SvTimersStep=0.000000
+StepAlgorithm="Verlet"
+VerletSteps=40
+Kernel="Wendland"
+Viscosity="Artificial"
+Visco=0.020000
+ViscoBoundFactor=1.000000
+DeltaSph="None"
+Shifting="None"
+RenCorrection=0.000000
+FloatingFormulation="None"
+FloatingCount=0
+CaseNp=21001
+CaseNbound=1001
+CaseNfixed=1001
+CaseNmoving=0
+CaseNfloat=0
+CaseNfluid=20000
+PeriodicActive=0
+Dx=0.01
+H=0.014142
+CoefficientH=1
+CteB=1115537.125000
+Gamma=7.000000
+RhopZero=1000.000000
+Eps=0
+Cs0=88.3672
+CFLnumber=0.200000
+DtIni=0.0001
+DtMin=1e-005
+DtAllParticles=False
+MassFluid=0.100000
+MassBound=0.100000
+Bwen (wendland)=-984716.812500
+TimeMax=5
+TimePart=0.05
+Gravity=(0.000000,0.000000,-9.810000)
+NpMinimum=1001
+RhopOut=True
+RhopOutMin=700.000000
+RhopOutMax=1300.000000
+**Requested cpu memory for 21001 particles: 2.6 MB.
+CellOrder="XYZ"
+CellMode="2H"
+Hdiv=1
+MapCells=(142,1,160)
+DomCells=(142,1,160)
+DomCellCode="13_7_12"
+**CellDiv: Requested cpu memory for 22051 particles: 0.7 MB.
+**CellDiv: Requested cpu memory for 5548 cells (CellMode=2H): 0.1 MB.
+RunMode="Pos-Simple, OpenMP(Threads:8)"
+Allocated memory in CPU: 3570572 (3.41 MB)
+Part_0000        21001 particles successfully stored
+
+[Initialising simulation (ub3dj0l2)  30-10-2015 15:58:46]
+PART       PartTime      TotalSteps    Steps    Time/Seg   Finish time        
+=========  ============  ============  =======  =========  ===================
+Part_0001      0.050013          1571     1571     166.49  30-10-2015 16:12:38
+Part_0002      0.100001          3149     1578     171.85  30-10-2015 16:12:51
+Part_0003      0.150028          4735     1586     177.00  30-10-2015 16:13:04
+Part_0004      0.200019          6325     1590     177.80  30-10-2015 16:13:11
+Part_0005      0.250029          7923     1598     179.69  30-10-2015 16:13:18
+Part_0006      0.300001          9519     1596     178.79  30-10-2015 16:13:21
+Part_0007      0.350012         11123     1604     179.62  30-10-2015 16:13:24
+Part_0008      0.400014         12733     1610     183.88  30-10-2015 16:13:29
+Part_0009      0.450001         14335     1602     192.48  30-10-2015 16:13:38
+Part_0010      0.500016         15937     1602     200.37  30-10-2015 16:13:49
+Part_0011      0.550020         17545     1608     186.10  30-10-2015 16:13:51
+Part_0012      0.600013         19150     1605     181.56  30-10-2015 16:13:51
+**CellDiv: Requested cpu memory for 11508 cells (CellMode=2H): 0.2 MB.
+Part_0013      0.650009         20753     1603     180.10  30-10-2015 16:13:51
+Part_0014      0.700003         23131     2378     267.37  30-10-2015 16:14:22
+Part_0015      0.750020         25786     2655     301.09  30-10-2015 16:15:00
+Part_0016      0.800005         28237     2451     276.78  30-10-2015 16:15:26
+Part_0017      0.850005         30584     2347     264.88  30-10-2015 16:15:45
+**CellDiv: Requested cpu memory for 23738 cells (CellMode=2H): 0.4 MB.
+Part_0018      0.900005         32826     2242     255.58  30-10-2015 16:15:59
+Part_0019      0.950020         34982     2156     249.96  30-10-2015 16:16:10
+Part_0020      1.000023         37045     2063     240.87  30-10-2015 16:16:18
+Part_0021      1.050025         39021     1976     231.74  30-10-2015 16:16:23
+Part_0022      1.100013         40869     1848     209.91  30-10-2015 16:16:23
+  Particles out: 21  (total: 21)
+Part_0023      1.150009         42482     1613     181.55  30-10-2015 16:16:16
+  Particles out: 112  (total: 133)
+Part_0024      1.200005         44092     1610     180.20  30-10-2015 16:16:10
+  Particles out: 50  (total: 183)
+Part_0025      1.250020         45699     1607     179.50  30-10-2015 16:16:04
+  Particles out: 49  (total: 232)
+Part_0026      1.300022         47308     1609     179.50  30-10-2015 16:15:58
+  Particles out: 39  (total: 271)
+Part_0027      1.350017         48912     1604     178.87  30-10-2015 16:15:53
+  Particles out: 42  (total: 313)
+Part_0028      1.400016         50513     1601     178.44  30-10-2015 16:15:48
+  Particles out: 42  (total: 355)
+Part_0029      1.450011         52111     1598     178.20  30-10-2015 16:15:44
+  Particles out: 30  (total: 385)
+Part_0030      1.500001         53706     1595     177.63  30-10-2015 16:15:40
+  Particles out: 34  (total: 419)
+Part_0031      1.550031         55300     1594     177.12  30-10-2015 16:15:36
+  Particles out: 19  (total: 438)
+Part_0032      1.600027         56888     1588     176.66  30-10-2015 16:15:32
+  Particles out: 12  (total: 450)
+Part_0033      1.650029         58474     1586     176.41  30-10-2015 16:15:28
+  Particles out: 6  (total: 456)
+Part_0034      1.700018         60057     1583     176.37  30-10-2015 16:15:24
+  Particles out: 1  (total: 457)
+Part_0035      1.750017         61645     1588     176.78  30-10-2015 16:15:21
+Part_0036      1.800005         63261     1616     180.04  30-10-2015 16:15:18
+  Particles out: 2  (total: 459)
+Part_0037      1.850010         64873     1612     179.64  30-10-2015 16:15:16
+  Particles out: 15  (total: 474)
+Part_0038      1.900018         66495     1622     180.25  30-10-2015 16:15:13
+  Particles out: 10  (total: 484)
+Part_0039      1.950025         68152     1657     184.13  30-10-2015 16:15:11
+  Particles out: 13  (total: 497)
+Part_0040      2.000019         70285     2133     237.25  30-10-2015 16:15:16
+  Particles out: 7  (total: 504)
+Part_0041      2.050006         72339     2054     228.02  30-10-2015 16:15:21
+  Particles out: 24  (total: 528)
+Part_0042      2.100021         74242     1903     215.47  30-10-2015 16:15:22
+  Particles out: 14  (total: 542)
+Part_0043      2.150002         76169     1927     212.74  30-10-2015 16:15:24
+  Particles out: 6  (total: 548)
+Part_0044      2.200008         78087     1918     210.85  30-10-2015 16:15:25
+  Particles out: 1  (total: 549)
+Part_0045      2.250007         79916     1829     201.58  30-10-2015 16:15:26
+  Particles out: 6  (total: 555)
+Part_0046      2.300013         81722     1806     198.12  30-10-2015 16:15:25
+Part_0047      2.350018         84103     2381     261.42  30-10-2015 16:15:32
+Part_0048      2.400020         86219     2116     231.27  30-10-2015 16:15:34
+Part_0049      2.450013         88174     1955     213.46  30-10-2015 16:15:36
+Part_0050      2.500012         90048     1874     204.64  30-10-2015 16:15:36
+Part_0051      2.550000         92088     2040     222.53  30-10-2015 16:15:38
+Part_0052      2.600015         94156     2068     225.01  30-10-2015 16:15:41
+Part_0053      2.650002         95953     1797     195.96  30-10-2015 16:15:39
+Part_0054      2.700014         97690     1737     189.65  30-10-2015 16:15:39
+Part_0055      2.750009         99545     1855     203.04  30-10-2015 16:15:38
+Part_0056      2.800013        101242     1697     185.51  30-10-2015 16:15:37
+Part_0057      2.850015        102940     1698     186.11  30-10-2015 16:15:36
+Part_0058      2.900001        104621     1681     184.79  30-10-2015 16:15:34
+Part_0059      2.950026        106306     1685     185.93  30-10-2015 16:15:33
+Part_0060      3.000006        107979     1673     186.05  30-10-2015 16:15:31
+Part_0061      3.050008        109670     1691     187.42  30-10-2015 16:15:30
+Part_0062      3.100015        111360     1690     186.66  30-10-2015 16:15:29
+Part_0063      3.150015        113006     1646     182.42  30-10-2015 16:15:27
+Part_0064      3.200012        114661     1655     185.34  30-10-2015 16:15:27
+Part_0065      3.250011        116288     1627     180.69  30-10-2015 16:15:25
+Part_0066      3.300020        117913     1625     179.85  30-10-2015 16:15:24
+Part_0067      3.350018        119554     1641     182.94  30-10-2015 16:15:23
+Part_0068      3.400004        121170     1616     179.01  30-10-2015 16:15:21
+Part_0069      3.450007        122795     1625     180.50  30-10-2015 16:15:20
+Part_0070      3.500002        124437     1642     181.95  30-10-2015 16:15:18
+Part_0071      3.550015        126141     1704     188.25  30-10-2015 16:15:17
+Part_0072      3.600026        127817     1676     185.53  30-10-2015 16:15:16
+Part_0073      3.650023        129462     1645     181.66  30-10-2015 16:15:16
+Part_0074      3.700019        131145     1683     185.60  30-10-2015 16:15:15
+Part_0075      3.750018        132772     1627     179.88  30-10-2015 16:15:14
+Part_0076      3.800014        134425     1653     184.37  30-10-2015 16:15:12
+Part_0077      3.850007        136121     1696     187.15  30-10-2015 16:15:11
+Part_0078      3.900014        137723     1602     176.38  30-10-2015 16:15:10
+Part_0079      3.950014        139318     1595     175.44  30-10-2015 16:15:09
+Part_0080      4.000029        140909     1591     174.34  30-10-2015 16:15:08
+Part_0081      4.050008        142507     1598     175.20  30-10-2015 16:15:06
+Part_0082      4.100031        144100     1593     174.51  30-10-2015 16:15:05
+Part_0083      4.150022        145699     1599     175.44  30-10-2015 16:15:04
+Part_0084      4.200027        147305     1606     194.34  30-10-2015 16:15:04
+Part_0085      4.250007        149019     1714     187.58  30-10-2015 16:15:03
+Part_0086      4.300011        150875     1856     202.83  30-10-2015 16:15:03
+Part_0087      4.350017        152575     1700     185.92  30-10-2015 16:15:03
+Part_0088      4.400003        154230     1655     181.62  30-10-2015 16:15:03
+Part_0089      4.450015        155870     1640     179.34  30-10-2015 16:15:02
+Part_0090      4.500029        157469     1599     174.99  30-10-2015 16:15:00
+Part_0091      4.550020        159069     1600     175.54  30-10-2015 16:14:59
+Part_0092      4.600023        160671     1602     175.95  30-10-2015 16:14:58
+Part_0093      4.650001        162272     1601     176.08  30-10-2015 16:14:58
+Part_0094      4.700029        163874     1602     176.36  30-10-2015 16:14:56
+Part_0095      4.750001        165466     1592     174.64  30-10-2015 16:14:55
+Part_0096      4.800031        167065     1599     176.04  30-10-2015 16:14:54
+Part_0097      4.850026        168663     1598     176.87  30-10-2015 16:14:54
+Part_0098      4.900001        170267     1604     176.78  30-10-2015 16:14:53
+Part_0099      4.950000        171863     1596     175.22  30-10-2015 16:14:51
+Part_0100      5.000029        173492     1629     179.42  30-10-2015 16:14:51
+
+[Simulation finished  30-10-2015 16:14:51]
+Particles of simulation (initial): 21001
+DTs adjusted to DtMin............: 0
+Excluded particles...............: 555
+Total Runtime....................: 965.783630 sec.
+Simulation Runtime...............: 965.760864 sec.
+Time per second of simulation....: 193.151047 sec.
+Steps per second.................: 179.642822
+Steps of simulation..............: 173492
+PART files.......................: 101
+Maximum number of particles......: 21001
+Maximum number of cells..........: 22720
+CPU Memory.......................: 3861612 (3.68 MB)
+
+[CPU Timers]
+VA-Init..........................: 0.022883 sec.
+NL-Limits........................: 27.647390 sec.
+NL-MakeSort......................: 42.685535 sec.
+NL-SortData......................: 53.468094 sec.
+NL-OutCheck......................: 0.006948 sec.
+CF-PreForces.....................: 137.127380 sec.
+CF-Forces........................: 573.507324 sec.
+SU-Shifting......................: 0.000000 sec.
+SU-ComputeStep...................: 130.417496 sec.
+SU-Floating......................: 0.000000 sec.
+SU-Motion........................: 0.000000 sec.
+SU-Periodic......................: 0.000000 sec.
+SU-ResizeNp......................: 0.000000 sec.
+SU-SavePart......................: 0.743347 sec.
+ 

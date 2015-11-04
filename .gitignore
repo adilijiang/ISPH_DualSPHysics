@@ -1,0 +1,44 @@
+## Seleccion de ficheros para DualSPHysics4 
+##
+## Ignora todos los ficheros del raiz excepto gitignore y 
+## ficheros de gestion de proyectos en Visual Studio 2010.
+/*.*
+!/.gitignore
+!/*.vcxproj
+!/*.vcxproj.user
+!/*.vcxproj.filters
+!/*.sln
+## !/*.suo  Descartado pq cambia cada vez que se abre el proyecto y es bastante pesado.
+
+## Ignora carpetas temporales de compilacion de Visual Studio 2010.
+Intermediate/
+ipch/
+
+## Ignora otras carpetas
+Addons/
+
+## Ignora todo del directorio Run excepto lo basico.
+Run/*
+!/Run/__Runx.bat
+!/Run/_partvtk4.bat
+!/Run/_isosurface.bat
+!/Run/runv4s.bat
+!/Run/tail.bat
+
+## Ignora todo del directorio Doxy excepto lo basico.
+Doxy/*
+!/Doxy/Doxyfile_DSPH
+!/Doxy/logoDSPH.png
+
+## Excluye librerias y codigo temporal.
+Libs/
+LibsLinux/
+/Source/*.a
+/Source/JSaveCsv.*
+/Source/JDgKerPrint*.*
+/Source/JBuffer*.*
+
+## Tambien añade cualquier fichero (tipicamente zip o binario) 
+## que empiece por "ToGit_".
+!ToGit_*
+
