@@ -38,6 +38,7 @@ protected:
 
   //-Number of particles in domain / Numero de particulas del dominio.
   unsigned Np;     //-Total number of particles (including periodic duplicates) / Numero total de particulas (incluidas las duplicadas periodicas).
+  unsigned Npf;	   //-Total number of fluid particles
   unsigned Npb;    //-Total number of boundary particles (including periodic boundaries) / Numero de particulas contorno (incluidas las contorno periodicas).
   unsigned NpbOk;  //-Total number of boundary particles near fluid (including periodic duplicates) / Numero de particulas contorno cerca del fluido (incluidas las contorno periodicas).
 

@@ -603,13 +603,13 @@ double JSphCpuSingle::ComputeStep_Sym(){
   DemDtForce=dt;                          //(DEM)
   RunCellDivide(true);
   Interaction_Forces(INTER_ForcesCorr);   //Interaction / Interaccion
-  const double ddt_c=DtVariable(true);    //-Calculate dt of corrector step / Calcula dt del corrector
+  //const double ddt_c=DtVariable(true);    //-Calculate dt of corrector step / Calcula dt del corrector
   if(TShifting)RunShifting(dt);           //-Shifting
   ComputeSymplecticCorr(dt);              //-Apply Symplectic-Corrector to particles / Aplica Symplectic-Corrector a las particulas
   if(CaseNfloat)RunFloating(dt,false);    //-Control of floating bodies / Gestion de floating bodies
   PosInteraction_Forces();                //-Free memory used for interaction / Libera memoria de interaccion
 
-  DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep
+ // DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep
   return(dt);
 }
 

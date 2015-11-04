@@ -1,0 +1,88 @@
+
+
+ <GENCASE>  Copyright (C) 2015 by Dr Jose M. Dominguez
+ All rights reserved.
+
+ DualSPHysics is an international collaboration between University of Vigo 
+ (Spain) and University of Manchester (UK). 
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ * Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+ * Neither the name of the DualSPHysics nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER BE LIABLE FOR ANY
+ DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+
+
+GenCase v2.10 (21-07-2015) 
+============================
+OmpThreads: 8
+
+[LoadXML]
+List: MAIN
+
+Total operations: 5
+[LoadXML-End  time:0.001s]
+
+[Draw]
+Mk size: 1 bytes
+Case limits: (-1,0,-1) - (4.5,0,3.5)
+Distance between points: 0.01
+Case domain: (0,0,0)-(549,0,449)
+Domain points: 550 x 1 x 450 = 247500
+Case parts: 1 x 450z
+Memory: 0.00Gb 0.24Mb (247500)
+
+> MAIN
+<MAIN (Operations= 3+2+0 = 5)
+
+Triangles: 22 (0 ignored)
+[Draw-End  time:0.002s]
+
+[PreparePoints]
+BitSizeTot: 20 (1 + 9+1+9)
+Points loaded: 21001
+Sorting points by Z...
+Sorting points by Mk...
+
+List of Points:
+Points -> Fixed-Boundary particles:
+  block[  0] (mk: 11):   1001  -->    1001
+Points -> Fluid particles:
+  block[  1] (mk:  1):  20000  -->   20000
+
+Total particles: 21001 (bound=1001 (fx=1001 mv=0 ft=0) fluid=20000)
+
+Maximum depth: 1.99 (automatic)
+Speed of system: 4.41836 (automatic)
+Speed of sound: max(coefsound*speedsystem,10*sqrt(g*depth))
+Speed of sound: 88.3672 max(88.3672,44.1836)
+
+Coefh:1.000000 (hdp:1.414214)
+
+[PreparePoints-End  time:0.005s]
+
+[SaveCase2D]
+CaseDamBreakISPH.bi4<double>  (time: 0.005s)
+CaseDamBreakISPH_out/CaseDamBreakISPH_All.vtk  (time: 0.005s)
+CaseDamBreakISPH_out/CaseDamBreakISPH.xml  (time: 0.003s)
+
+Save files time: 0.013s
+[SaveCase2D-End  time:0.015s]
+
