@@ -591,23 +591,24 @@ double JSphCpuSingle::ComputeStep_Sym(){
   const double dt=DtPre;
   //-Predictor
   //-----------
-  DemDtForce=dt*0.5f;                     //(DEM)
+  //DemDtForce=dt*0.5f;                     //(DEM)
+  cout << "hello1";
   Interaction_Forces(INTER_Forces);       //-Interaction / Interaccion
-  const double ddt_p=DtVariable(false);   //-Calculate dt of predictor step / Calcula dt del predictor
-  if(TShifting)RunShifting(dt*.5);        //-Shifting
+  //const double ddt_p=DtVariable(false);   //-Calculate dt of predictor step / Calcula dt del predictor
+  //if(TShifting)RunShifting(dt*.5);        //-Shifting
   ComputeSymplecticPre(dt);               //-Apply Symplectic-Predictor to particles / Aplica Symplectic-Predictor a las particulas
-  if(CaseNfloat)RunFloating(dt*.5,true);  //-Control of floating bodies / Gestion de floating bodies
+  //if(CaseNfloat)RunFloating(dt*.5,true);  //-Control of floating bodies / Gestion de floating bodies
   PosInteraction_Forces();                //-Free memory used for interaction / Libera memoria de interaccion
   //-Corrector
   //-----------
-  DemDtForce=dt;                          //(DEM)
-  RunCellDivide(true);
+  //DemDtForce=dt;                          //(DEM)
+  RunCellDivide(true); 
   Interaction_Forces(INTER_ForcesCorr);   //Interaction / Interaccion
   //const double ddt_c=DtVariable(true);    //-Calculate dt of corrector step / Calcula dt del corrector
-  if(TShifting)RunShifting(dt);           //-Shifting
+  //if(TShifting)RunShifting(dt);           //-Shifting
   ComputeSymplecticCorr(dt);              //-Apply Symplectic-Corrector to particles / Aplica Symplectic-Corrector a las particulas
-  if(CaseNfloat)RunFloating(dt,false);    //-Control of floating bodies / Gestion de floating bodies
-  PosInteraction_Forces();                //-Free memory used for interaction / Libera memoria de interaccion
+  //if(CaseNfloat)RunFloating(dt,false);    //-Control of floating bodies / Gestion de floating bodies
+  PosInteraction_Forces();             //-Free memory used for interaction / Libera memoria de interaccion
 
  // DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep
   return(dt);

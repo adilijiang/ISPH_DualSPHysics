@@ -506,7 +506,7 @@ void JSphCpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
   if(ShiftPosc)memset(ShiftPosc,0,sizeof(tfloat3)*np);               //ShiftPosc[]=0
   if(ShiftDetectc)memset(ShiftDetectc,0,sizeof(float)*np);           //ShiftDetectc[]=0
   memset(Acec,0,sizeof(tfloat3)*npb);                                //Acec[]=(0,0,0) for bound / para bound
-  for(unsigned p=npb;p<np;p++)Acec[p]=Gravity;                       //Acec[]=Gravity for fluid / para fluid
+  //for(unsigned p=npb;p<np;p++)Acec[p]=Gravity;                       //Acec[]=Gravity for fluid / para fluid
   if(SpsGradvelc)memset(SpsGradvelc+npb,0,sizeof(tsymatrix3f)*npf);  //SpsGradvelc[]=(0,0,0,0,0,0).
 
   //-Apply the extra forces to the correct particle sets.
@@ -514,13 +514,13 @@ void JSphCpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
 
   //-Prepare values of rhop for interaction / Prepara datos derivados de rhop para interaccion.
   const int n=int(np);
-  #ifdef _WITHOMP
+ /* #ifdef _WITHOMP
     #pragma omp parallel for schedule (static) if(n>LIMIT_PREINTERACTION_OMP)
   #endif
   for(int p=0;p<n;p++){
     const float rhop=Velrhopc[p].w,rhop_r0=rhop/RhopZero;
     Pressc[p]=CteB*(pow(rhop_r0,Gamma)-1.0f);
-  }
+  }*/
 }
 
 //==============================================================================
@@ -529,6 +529,15 @@ void JSphCpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
 //==============================================================================
 void JSphCpu::PreInteraction_Forces(TpInter tinter){
   TmcStart(Timers,TMC_CfPreForces);
+  cout << "hello2";
+  if(tinter==1){////////////////////////////REMOVE LATER AND MAKE PREINTERACTION_FORCES FUNCTION ONLY WHEN tinter==1
+  //-Assign memory to variables Pre / Asigna memoria a variables Pre.
+  PosPrec=ArraysCpu->ReserveDouble3();
+  VelrhopPrec=ArraysCpu->ReserveFloat4();
+  //-Change data to variables Pre to calculate new data / Cambia datos a variables Pre para calcular nuevos datos.
+  swap(PosPrec,Posc);         //Put value of Pos[] in PosPre[] / Es decir... PosPre[] <= Pos[]
+  swap(VelrhopPrec,Velrhopc); //Put value of Velrhop[] in VelrhopPre[] / Es decir... VelrhopPre[] <= Velrhop[]
+  }
   //-Assign memory / Asigna memoria.
   Arc=ArraysCpu->ReserveFloat();
   Acec=ArraysCpu->ReserveFloat3();
@@ -563,6 +572,17 @@ void JSphCpu::PreInteraction_Forces(TpInter tinter){
   }
   VelMax=sqrt(velmax);
   ViscDtMax=0;
+  cout << "hello3";
+  if(tinter==1){////////////////////////////REMOVE LATER AND MAKE PREINTERACTION_FORCES FUNCTION ONLY WHEN tinter==1
+  for(unsigned p=Npb;p<Npb+Npf;p++){
+	const tdouble3 pos=PosPrec[p];
+	const tfloat4 v=VelrhopPrec[p];
+	Posc[p].x=pos.x+DtPre*v.x;
+	Posc[p].y=pos.y+DtPre*v.y;
+	Posc[p].z=pos.z+DtPre*v.z;
+  }
+  }
+  cout << "hello4";
   TmcStop(Timers,TMC_CfPreForces);
 }
 
@@ -1513,15 +1533,8 @@ void JSphCpu::ComputeSymplecticPre(double dt){
 //==============================================================================
 template<bool shift> void JSphCpu::ComputeSymplecticPreT(double dt){
   TmcStart(Timers,TMC_SuComputeStep);
-  //-Assign memory to variables Pre / Asigna memoria a variables Pre.
-  PosPrec=ArraysCpu->ReserveDouble3();
-  VelrhopPrec=ArraysCpu->ReserveFloat4();
-  //-Change data to variables Pre to calculate new data / Cambia datos a variables Pre para calcular nuevos datos.
-  swap(PosPrec,Posc);         //Put value of Pos[] in PosPre[] / Es decir... PosPre[] <= Pos[]
-  swap(VelrhopPrec,Velrhopc); //Put value of Velrhop[] in VelrhopPre[] / Es decir... VelrhopPre[] <= Velrhop[]
   //-Calculate new values of particles / Calcula nuevos datos de particulas.
   const double dt05=dt*.5;
-  
   //-Calculate new density for boundary and copy velocity / Calcula nueva densidad para el contorno y copia velocidad.
   const int npb=int(Npb);
   #ifdef _WITHOMP

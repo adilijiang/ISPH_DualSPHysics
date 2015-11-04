@@ -226,6 +226,7 @@ protected:
 
   void ComputeVerlet(double dt);
   template<bool shift> void ComputeSymplecticPreT(double dt);
+  void SwapPosVel();
   void ComputeSymplecticPre(double dt);
   template<bool shift> void ComputeSymplecticCorrT(double dt);
   void ComputeSymplecticCorr(double dt);
