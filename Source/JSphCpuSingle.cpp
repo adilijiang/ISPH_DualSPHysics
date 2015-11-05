@@ -592,7 +592,6 @@ double JSphCpuSingle::ComputeStep_Sym(){
   //-Predictor
   //-----------
   //DemDtForce=dt*0.5f;                     //(DEM)
-  cout << "hello1";
   Interaction_Forces(INTER_Forces);       //-Interaction / Interaccion
   //const double ddt_p=DtVariable(false);   //-Calculate dt of predictor step / Calcula dt del predictor
   //if(TShifting)RunShifting(dt*.5);        //-Shifting

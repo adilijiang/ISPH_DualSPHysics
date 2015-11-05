@@ -529,7 +529,6 @@ void JSphCpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
 //==============================================================================
 void JSphCpu::PreInteraction_Forces(TpInter tinter){
   TmcStart(Timers,TMC_CfPreForces);
-  cout << "hello2";
   if(tinter==1){////////////////////////////REMOVE LATER AND MAKE PREINTERACTION_FORCES FUNCTION ONLY WHEN tinter==1
   //-Assign memory to variables Pre / Asigna memoria a variables Pre.
   PosPrec=ArraysCpu->ReserveDouble3();
@@ -572,7 +571,6 @@ void JSphCpu::PreInteraction_Forces(TpInter tinter){
   }
   VelMax=sqrt(velmax);
   ViscDtMax=0;
-  cout << "hello3";
   if(tinter==1){////////////////////////////REMOVE LATER AND MAKE PREINTERACTION_FORCES FUNCTION ONLY WHEN tinter==1
   for(unsigned p=Npb;p<Npb+Npf;p++){
 	const tdouble3 pos=PosPrec[p];
@@ -582,7 +580,6 @@ void JSphCpu::PreInteraction_Forces(TpInter tinter){
 	Posc[p].z=pos.z+DtPre*v.z;
   }
   }
-  cout << "hello4";
   TmcStop(Timers,TMC_CfPreForces);
 }
 
