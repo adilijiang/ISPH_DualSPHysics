@@ -81,6 +81,9 @@ void JSphCpu::InitVars(){
   RidpMove=NULL; 
   FtRidp=NULL;
   FtoForces=NULL;
+  POrder=NULL;
+  MatrixA=NULL;
+  MatrixB=NULL;
   FreeCpuMemoryParticles();
   FreeCpuMemoryFixed();
 }
@@ -216,6 +219,7 @@ void JSphCpu::ResizeCpuMemoryParticles(unsigned npnew){
   CpuParticlesSize=npnew;
   MemCpuParticles=ArraysCpu->GetAllocMemoryCpu();
 }
+
 
 //==============================================================================
 /// Saves a CPU array in CPU memory. 
@@ -1865,4 +1869,105 @@ void JSphCpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
   }
 }
 
+//===============================================================================
+///Matrix order for PPE
+//===============================================================================
+void JSphCpu::MatrixOrder(){
+	int index = 0;
+	for(int i=0;i<int(Np);i++)
+	{
+		POrder[index] = i;
+		index++;
+	}
+}
+
+void JSphCpu::PopulateMatrix(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
+	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,
+	const tfloat4 *velrhop,const double dt)const{
+
+  const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
+  //-Initial execution with OpenMP / Inicia ejecucion con OpenMP.
+  const int pfin=int(pinit+n);
+  const int np=int(Np);
+
+  #ifdef _WITHOMP
+    #pragma omp parallel for schedule (guided)
+  #endif
+  for(int p1=int(pinit);p1<pfin;p1++){
+    //-Obtain data of particle p1 / Obtiene datos de particula p1.
+    const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
+	const tdouble3 posp1=pos[p1];
+
+	//-Particle order in Matrix
+	int oi;
+	for(int ip=0;ip<np;ip++)if(POrder[ip]==p1)oi=ip;
+
+    //-Obtain interaction limits / Obtiene limites de interaccion
+    int cxini,cxfin,yini,yfin,zini,zfin;
+    GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+
+    //-Search for neighbours in adjacent cells / Busqueda de vecinos en celdas adyacentes.
+    for(int z=zini;z<zfin;z++){
+      const int zmod=(nc.w)*z+cellinitial; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
+      for(int y=yini;y<yfin;y++){
+        int ymod=zmod+nc.x*y;
+        const unsigned pini=beginendcell[cxini+ymod];
+        const unsigned pfin=beginendcell[cxfin+ymod];
+
+        //-Interaction of Fluid with type Fluid or Bound / Interaccion de Fluid con varias Fluid o Bound.
+        //------------------------------------------------
+        for(unsigned p2=pini;p2<pfin;p2++){
+          const float drx=float(posp1.x-pos[p2].x);
+          const float dry=float(posp1.y-pos[p2].y);
+          const float drz=float(posp1.z-pos[p2].z);
+          const float rr2=drx*drx+dry*dry+drz*drz;
+          if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
+            //-Wendland kernel.
+            float frx,fry,frz;
+            GetKernel(rr2,drx,dry,drz,frx,fry,frz);
+            
+			//===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
+            float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
+			const float volume=massp2/RhopZero; //Volume of particle j
+			
+			//=====MatrixB - Divergence of velocity====
+			const float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
+			const float temp=dvx*frx+dvy*fry+dvz*frz;
+			MatrixB[oi]-=volume*temp;
+		  }
+		}
+
+		for(int i=0;i<np;i++)MatrixB[i]=float(double(MatrixB[i])/dt);
+        
+		for(unsigned p2=pini;p2<pfin;p2++){
+          const float drx=float(posp1.x-pos[p2].x);
+          const float dry=float(posp1.y-pos[p2].y);
+          const float drz=float(posp1.z-pos[p2].z);
+          const float rr2=drx*drx+dry*dry+drz*drz;
+          if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
+            //-Wendland kernel.
+            float frx,fry,frz;
+            GetKernel(rr2,drx,dry,drz,frx,fry,frz);
+			
+			//-Particle order in Matrix
+			int oj;
+			for(int jp=0;jp<np;jp++)if(POrder[jp]==p2)oj=jp;
+            
+			//===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
+            float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
+			const float volume=massp2/RhopZero; //Volume of particle j
+		  }
+	    }
+	  }
+    }
+  }
+
+
+}
+
+void JSphCpu::FreeSurfaceMark(){
+	ArraysCpu->Free(POrder);
+	ArraysCpu->Free(MatrixA);
+	ArraysCpu->Free(MatrixB);
+}
 

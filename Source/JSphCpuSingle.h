@@ -67,6 +67,8 @@ protected:
   void SaveData();
   void FinishRun(bool stop);
 
+  void SolvePPE(double dt);
+
 public:
   JSphCpuSingle();
   ~JSphCpuSingle();

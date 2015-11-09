@@ -597,6 +597,9 @@ double JSphCpuSingle::ComputeStep_Sym(){
   ComputeSymplecticPre(dt);               //-Apply Symplectic-Predictor to particles / Aplica Symplectic-Predictor a las particulas
   //if(CaseNfloat)RunFloating(dt*.5,true);  //-Control of floating bodies / Gestion de floating bodies
   PosInteraction_Forces();                //-Free memory used for interaction / Libera memoria de interaccion
+  //-Pressure Poisson equation
+  //-----------
+  SolvePPE(dt);							  //-Solve pressure Poisson equation
   //-Corrector
   //-----------
   //DemDtForce=dt;                          //(DEM)
@@ -919,3 +922,18 @@ void JSphCpuSingle::FinishRun(bool stop){
   if(SvRes)SaveRes(tsim,ttot,hinfo,dinfo);
 }
 
+void JSphCpuSingle::SolvePPE(double dt){
+  tuint3 cellmin=CellDivSingle->GetCellDomainMin();
+  tuint3 ncells=CellDivSingle->GetNcells();
+  const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
+  const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
+  const int hdiv=(CellMode==CELLMODE_H? 2: 1);
+
+  POrder=ArraysCpu->ReserveUint();
+  MatrixA=ArraysCpu->ReserveFloat3();
+  MatrixB=ArraysCpu->ReserveFloat();
+
+  MatrixOrder();
+  PopulateMatrix(Np,0,nc,hdiv,0,CellDivSingle->GetBeginCell(),cellzero,Dcellc,Posc,Velrhopc,dt); //-Populate Matrix
+  FreeSurfaceMark();
+}

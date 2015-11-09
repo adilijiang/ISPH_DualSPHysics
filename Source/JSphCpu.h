@@ -247,6 +247,18 @@ protected:
   std::string TimerGetName(unsigned ct)const{ return(TmcGetName((CsTypeTimerCPU)ct)); }
   std::string TimerToText(unsigned ct)const{ return(JSph::TimerToText(TimerGetName(ct),TimerGetValue(ct))); }
 
+  ///////////////////////////////
+  //PPE Functions and variables//
+  ///////////////////////////////
+  void MatrixOrder();
+  void PopulateMatrix(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop, const double dt)const;
+  void FreeSurfaceMark();
+
+  unsigned *POrder;
+  tfloat3 *MatrixA;
+  float *MatrixB;
+
 public:
   JSphCpu(bool withmpi);
   ~JSphCpu();
