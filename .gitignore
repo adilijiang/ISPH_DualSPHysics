@@ -1,4 +1,4 @@
-## Seleccion de ficheros para DualSPHysics4 
+﻿## Seleccion de ficheros para DualSPHysics4 
 ##
 ## Ignora todos los ficheros del raiz excepto gitignore y 
 ## ficheros de gestion de proyectos en Visual Studio 2010.
@@ -41,4 +41,3 @@ LibsLinux/
 ## Tambien añade cualquier fichero (tipicamente zip o binario) 
 ## que empiece por "ToGit_".
 !ToGit_*
-

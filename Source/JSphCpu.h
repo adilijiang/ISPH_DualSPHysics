@@ -177,7 +177,7 @@ protected:
     ,float &viscdt,float *ar)const;
 
   template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> void InteractionForcesFluid
-    (unsigned n,unsigned pini,tint4 nc,int hdiv,unsigned cellfluid,float visco
+    (TpInter tinter, unsigned n,unsigned pini,tint4 nc,int hdiv,unsigned cellfluid,float visco
     ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
     ,const tsymatrix3f* tau,tsymatrix3f* gradvel
     ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,const word *code,const unsigned *idp
@@ -193,7 +193,7 @@ protected:
     ,float &viscdt,tfloat3 *ace)const;
 
   template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> void Interaction_ForcesT
-    (unsigned np,unsigned npb,unsigned npbok
+    (TpInter tinter,unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,const word *code,const unsigned *idp
     ,const float *press
@@ -201,7 +201,7 @@ protected:
     ,tsymatrix3f *spstau,tsymatrix3f *spsgradvel
     ,TpShifting tshifting,tfloat3 *shiftpos,float *shiftdetect)const;
 
-  void Interaction_Forces(unsigned np,unsigned npb,unsigned npbok
+  void Interaction_Forces(TpInter tinter,unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tdouble3 *pos,const tfloat4 *velrhop,const unsigned *idp,const word *code
     ,const float *press
@@ -209,7 +209,7 @@ protected:
     ,tsymatrix3f *spstau,tsymatrix3f *spsgradvel
     ,tfloat3 *shiftpos,float *shiftdetect)const;
 
-  void InteractionSimple_Forces(unsigned np,unsigned npb,unsigned npbok
+  void InteractionSimple_Forces(TpInter tinter,unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tfloat3 *pspos,const tfloat4 *velrhop,const unsigned *idp,const word *code
     ,const float *press
