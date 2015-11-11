@@ -515,7 +515,8 @@ void JSphCpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
   if(Deltac)memset(Deltac,0,sizeof(float)*np);                       //Deltac[]=0
   if(ShiftPosc)memset(ShiftPosc,0,sizeof(tfloat3)*np);               //ShiftPosc[]=0
   if(ShiftDetectc)memset(ShiftDetectc,0,sizeof(float)*np);           //ShiftDetectc[]=0
-  memset(Acec,0,sizeof(tfloat3)*npb);                                //Acec[]=(0,0,0) for bound / para bound
+  memset(Acec,0,sizeof(tfloat3)*npb);     
+  //Acec[]=(0,0,0) for bound / para bound
   //for(unsigned p=npb;p<np;p++)Acec[p]=Gravity;                       //Acec[]=Gravity for fluid / para fluid
   if(SpsGradvelc)memset(SpsGradvelc+npb,0,sizeof(tsymatrix3f)*npf);  //SpsGradvelc[]=(0,0,0,0,0,0).
 
@@ -887,7 +888,7 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
     tsymatrix3f gradvelp1={0,0,0,0,0,0};
     tfloat3 shiftposp1=TFloat3(0);
     float shiftdetectp1=0;
-
+	
     //-Obtain data of particle p1 in case of floating objects / Obtiene datos de particula p1 en caso de existir floatings.
     bool ftp1=false;     //-Indicate if it is floating / Indica si es floating.
     float ftmassp1=1.f;  //-Contains floating particle mass or 1.0f if it is fluid / Contiene masa de particula floating o 1.0f si es fluid.
@@ -900,10 +901,10 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
 
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
     const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
-    const float rhopp1=velrhop[p1].w;
+    //const float rhopp1=velrhop[p1].w;
     const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
     const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
-    const float pressp1=press[p1];
+    const float pressp1=velrhop[p1].w;
     const tsymatrix3f taup1=(lamsps? tau[p1]: gradvelp1);
 
     //-Obtain interaction limits / Obtiene limites de interaccion
@@ -932,7 +933,7 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
 
             //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
             float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
-			const float volume=massp2/RhopZero; //Volume of particle j
+			const float volumep2=massp2/RhopZero; //Volume of particle j
             bool ftp2=false;    //-Indicate if it is floating / Indica si es floating.
             bool compute=true;  //-Deactivate when using DEM and if it is of type float-float or float-bound /  Se desactiva cuando se usa DEM y es float-float o float-bound.
             if(USE_FLOATING){
@@ -946,9 +947,15 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
             //===== Acceleration from viscous forces ===== 
             if(compute && tinter==1){
 			  const float rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
-			  const float temp=volume*2.0f*visco*rDivW/(rr2+Eta2);
+			  const float temp=volumep2*2.0f*visco*rDivW/(rr2+Eta2);
 			  const float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
               acep1.x+=temp*dvx; acep1.y+=temp*dvy; acep1.z+=temp*dvz;
+            }
+
+			//===== Acceleration from pressure gradient ===== 
+            if(compute && tinter==2){
+			  const float temp=volumep2*(pressp1-velrhop[p2].w);
+              acep1.x+=temp*frx; acep1.y+=temp*fry; acep1.z+=temp*frz;
             }
 
             //-Density derivative
@@ -1025,7 +1032,8 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
       //if(tdelta==DELTA_Dynamic&&deltap1!=FLT_MAX)arp1+=deltap1;
       //if(tdelta==DELTA_DynamicExt)delta[p1]=(delta[p1]==FLT_MAX || deltap1==FLT_MAX? FLT_MAX: delta[p1]+deltap1);
       //ar[p1]+=arp1;
-      ace[p1]=ace[p1]+acep1;
+      if(tinter==1)ace[p1]=ace[p1]+acep1;
+	  if(tinter==2)ace[p1]=ace[p1]+(acep1/RhopZero)-Gravity;
       const int th=omp_get_thread_num();
       if(visc>viscth[th*STRIDE_OMP])viscth[th*STRIDE_OMP]=visc;
       /*if(lamsps){
@@ -1618,14 +1626,14 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
   
   //-Calculate rhop of boudary and set velocity=0 / Calcula rhop de contorno y vel igual a cero.
   const int npb=int(Npb);
-  #ifdef _WITHOMP
+  /*#ifdef _WITHOMP
     #pragma omp parallel for schedule (static) if(npb>LIMIT_COMPUTESTEP_OMP)
   #endif
   for(int p=0;p<npb;p++){
     const double epsilon_rdot=(-double(Arc[p])/double(Velrhopc[p].w))*dt;
     const float rhopnew=float(double(VelrhopPrec[p].w) * (2.-epsilon_rdot)/(2.+epsilon_rdot));
     Velrhopc[p]=TFloat4(0,0,0,(rhopnew<RhopZero? RhopZero: rhopnew));//-Avoid fluid particles being absorbed by boundary ones / Evita q las boundary absorvan a las fluidas.
-  }
+  }*/
 
   //-Calculate fluid values / Calcula datos de fluido.
   const double dt05=dt*.5;
@@ -1634,29 +1642,29 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
     #pragma omp parallel for schedule (static) if(np>LIMIT_COMPUTESTEP_OMP)
   #endif
   for(int p=npb;p<np;p++){
-    const double epsilon_rdot=(-double(Arc[p])/double(Velrhopc[p].w))*dt;
-    const float rhopnew=float(double(VelrhopPrec[p].w) * (2.-epsilon_rdot)/(2.+epsilon_rdot));
+    //const double epsilon_rdot=(-double(Arc[p])/double(Velrhopc[p].w))*dt;
+    //const float rhopnew=float(double(VelrhopPrec[p].w) * (2.-epsilon_rdot)/(2.+epsilon_rdot));
     if(!WithFloating || CODE_GetType(Codec[p])==CODE_TYPE_FLUID){//-Particulas: Fluid
       //-Update velocity & density / Actualiza velocidad y densidad.
-      Velrhopc[p].x=float(double(VelrhopPrec[p].x) + double(Acec[p].x) * dt); 
-      Velrhopc[p].y=float(double(VelrhopPrec[p].y) + double(Acec[p].y) * dt); 
-      Velrhopc[p].z=float(double(VelrhopPrec[p].z) + double(Acec[p].z) * dt); 
-      Velrhopc[p].w=rhopnew;
+      Velrhopc[p].x-=float(double(Acec[p].x)*dt); 
+      Velrhopc[p].y-=float(double(Acec[p].y)*dt);  
+      Velrhopc[p].z-=float(double(Acec[p].z)*dt); 
+      //Velrhopc[p].w=rhopnew;
       //-Calculate displacement and update position / Calcula desplazamiento y actualiza posicion.
-      double dx=(double(VelrhopPrec[p].x)+double(Velrhopc[p].x)) * dt05; 
-      double dy=(double(VelrhopPrec[p].y)+double(Velrhopc[p].y)) * dt05; 
-      double dz=(double(VelrhopPrec[p].z)+double(Velrhopc[p].z)) * dt05;
+      double dx=(double(VelrhopPrec[p].x)+double(Velrhopc[p].x))*dt05; 
+      double dy=(double(VelrhopPrec[p].y)+double(Velrhopc[p].y))*dt05; 
+      double dz=(double(VelrhopPrec[p].z)+double(Velrhopc[p].z))*dt05;
       if(shift){
         dx+=double(ShiftPosc[p].x);
         dy+=double(ShiftPosc[p].y);
         dz+=double(ShiftPosc[p].z);
       }
-      bool outrhop=(rhopnew<RhopOutMin||rhopnew>RhopOutMax);
+      bool outrhop=false;//(rhopnew<RhopOutMin||rhopnew>RhopOutMax);
       UpdatePos(PosPrec[p],dx,dy,dz,outrhop,p,Posc,Dcellc,Codec);
     }
     else{//-Floating Particles / Particulas: Floating
       Velrhopc[p]=VelrhopPrec[p];
-      Velrhopc[p].w=(rhopnew<RhopZero? RhopZero: rhopnew); //-Avoid fluid particles being absorbed by floating ones / Evita q las floating absorvan a las fluidas.
+      //Velrhopc[p].w=(rhopnew<RhopZero? RhopZero: rhopnew); //-Avoid fluid particles being absorbed by floating ones / Evita q las floating absorvan a las fluidas.
       //-Copy position / Copia posicion.
       Posc[p]=PosPrec[p];
     }
