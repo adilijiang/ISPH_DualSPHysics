@@ -929,11 +929,9 @@ void JSphCpuSingle::SolvePPE(double dt){
   const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
   const int hdiv=(CellMode==CELLMODE_H? 2: 1);
 
-  POrder=ArraysCpu->ReserveUint();
-  MatrixA=ArraysCpu->ReserveFloat3();
-  MatrixB=ArraysCpu->ReserveFloat();
-
-  MatrixOrder();
+ /* MatrixOrder();
   PopulateMatrix(Np,0,nc,hdiv,0,CellDivSingle->GetBeginCell(),cellzero,Dcellc,Posc,Velrhopc,dt); //-Populate Matrix
   FreeSurfaceMark();
+  SolveMatrix();*/
+  PressureAssign(Np,0,Posc,Velrhopc);
 }

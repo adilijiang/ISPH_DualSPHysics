@@ -254,9 +254,11 @@ protected:
   void PopulateMatrix(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
 	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop, const double dt)const;
   void FreeSurfaceMark();
+  void SolveMatrix();
+  void PressureAssign(unsigned n,unsigned pinit,const tdouble3 *pos,tfloat4 *velrhop);
 
   unsigned *POrder;
-  tfloat3 *MatrixA;
+  float *MatrixA;
   float *MatrixB;
 
 public:
