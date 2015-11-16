@@ -53,6 +53,7 @@ protected:
   unsigned CpuParticlesSize;  //-Number of particles with reserved memory on the CPU / Numero de particulas para las cuales se reservo memoria en cpu.
   llong MemCpuParticles;      //-Memory reserved for particles' vectors / Mermoria reservada para vectores de datos de particulas.
   llong MemCpuFixed;          //-Memory reserved in AllocMemoryFixed / Mermoria reservada en AllocMemoryFixed.
+  llong MemCpuPPE;			  //-Max memory used for PPE
 
   //-Particle Position according to id / Posicion de particula segun id.
   unsigned *RidpMove;//-Only for moving boundary particles [CaseNmoving] and when CaseNmoving!=0 / Solo para boundary moving particles [CaseNmoving] y cuando CaseNmoving!=0 
@@ -108,6 +109,7 @@ protected:
 
   void FreeCpuMemoryFixed();
   void AllocCpuMemoryFixed();
+  void AllocCpuMemoryPPE();
   void FreeCpuMemoryParticles();
   void AllocCpuMemoryParticles(unsigned np,float over);
 
@@ -134,7 +136,7 @@ protected:
 
 
   llong GetAllocMemoryCpu()const;
-  void PrintAllocMemory(llong mcpu)const;
+  void PrintAllocMemory(llong mcpu,llong PPE)const;
 
   unsigned GetParticlesData(unsigned n,unsigned pini,bool cellorderdecode,bool onlynormal
     ,unsigned *idp,tdouble3 *pos,tfloat3 *vel,float *rhop,word *code);
@@ -250,16 +252,32 @@ protected:
   ///////////////////////////////
   //PPE Functions and variables//
   ///////////////////////////////
-  void MatrixOrder();
+  void InitPPEVars(unsigned n);
+  void MatrixOrder(unsigned n,unsigned pinit);
   void PopulateMatrix(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop, const double dt)const;
-  void FreeSurfaceMark();
-  void SolveMatrix();
-  void PressureAssign(unsigned n,unsigned pinit,const tdouble3 *pos,tfloat4 *velrhop);
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,const unsigned *id, const double dt)const;
+  void FreeSurfaceFind(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,float *divr)const;
+  void FreeSurfaceMark(float *matrixa,float *matrixb,const float *divr,const unsigned *id);
+  void SolveMatrix(unsigned n,unsigned pinit,const unsigned *porder,const tfloat4 *velrhop);
+  float l2norm(unsigned pinit,int pfin,const float *residual);
+  void PressureAssign(unsigned n,unsigned pinit,const float *x,tfloat4 *velrhop);
+
+  float *DivR;
 
   unsigned *POrder;
   float *MatrixA;
   float *MatrixB;
+
+  float *r;
+  float *rBar;
+  float *v;
+  float *p;
+  float *s;
+  float *t;
+  float *y;
+  float *z;
+  float *X;
+  float *Xerror;
 
 public:
   JSphCpu(bool withmpi);

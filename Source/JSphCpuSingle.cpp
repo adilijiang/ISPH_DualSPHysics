@@ -134,10 +134,13 @@ void JSphCpuSingle::ConfigDomain(){
   const char* met="ConfigDomain";
   //-Calculate number of particles / Calcula numero de particulas.
   Np=PartsLoaded->GetCount(); Npb=CaseNpb; NpbOk=Npb;
+   
   //-Reserve fixed memory for moving & floating particles / Reserva memoria fija para moving y floating.
   AllocCpuMemoryFixed();
   //-Reserve memory in CPU for particles / Reserva memoria en Cpu para particulas.
   AllocCpuMemoryParticles(Np,0);
+  //-Reserve memory in CPU for PPE solver
+  //AllocCpuMemoryPPE();
 
   //-Copy particle values / Copia datos de particulas.
   ReserveBasicArraysCpu();
@@ -427,6 +430,7 @@ void JSphCpuSingle::RunCellDivide(bool updateperiodic){
   CellDivSingle->SortArray(Dcellc);
   CellDivSingle->SortArray(Posc);
   CellDivSingle->SortArray(Velrhopc);
+  //CellDivSingle->SortArray(DivR);
   if(TStep==STEP_Verlet){
     CellDivSingle->SortArray(VelrhopM1c);
   }
@@ -506,7 +510,7 @@ void JSphCpuSingle::RunRenCorrection(){
 //==============================================================================
 void JSphCpuSingle::Interaction_Forces(TpInter tinter){
   const char met[]="Interaction_Forces";	
-  PreInteraction_Forces(tinter);	
+  	
   TmcStart(Timers,TMC_CfForces);
   if(RenCorrection)RunRenCorrection();
 
@@ -591,7 +595,12 @@ double JSphCpuSingle::ComputeStep_Sym(){
   //-Predictor
   //-----------
   //DemDtForce=dt*0.5f;                     //(DEM)
+  cout << Velrhopc[0].z << "STart\n";
+  PreInteraction_Forces(INTER_Forces);
+  cout << Velrhopc[0].z << "\n";
+  RunCellDivide(true); 
   Interaction_Forces(INTER_Forces);       //-Interaction / Interaccion
+  cout << Velrhopc[0].z << "\n";
   //const double ddt_p=DtVariable(false);   //-Calculate dt of predictor step / Calcula dt del predictor
   //if(TShifting)RunShifting(dt*.5);        //-Shifting
   ComputeSymplecticPre(dt);               //-Apply Symplectic-Predictor to particles / Aplica Symplectic-Predictor a las particulas
@@ -599,14 +608,17 @@ double JSphCpuSingle::ComputeStep_Sym(){
   PosInteraction_Forces();                //-Free memory used for interaction / Libera memoria de interaccion
   //-Pressure Poisson equation
   //-----------
+  cout << Velrhopc[0].z << "\n";
   SolvePPE(dt);							  //-Solve pressure Poisson equation
   //-Corrector
   //-----------
   //DemDtForce=dt;                          //(DEM)
-  RunCellDivide(true); 
+  PreInteraction_Forces(INTER_ForcesCorr);
+  cout << Velrhopc[0].z << "\n";
   Interaction_Forces(INTER_ForcesCorr);   //Interaction / Interaccion
   //const double ddt_c=DtVariable(true);    //-Calculate dt of corrector step / Calcula dt del corrector
   //if(TShifting)RunShifting(dt);           //-Shifting
+ cout << Velrhopc[0].z << "\n";
   ComputeSymplecticCorr(dt);              //-Apply Symplectic-Corrector to particles / Aplica Symplectic-Corrector a las particulas
   //if(CaseNfloat)RunFloating(dt,false);    //-Control of floating bodies / Gestion de floating bodies
   PosInteraction_Forces();             //-Free memory used for interaction / Libera memoria de interaccion
@@ -811,7 +823,7 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   //-------------------------------------------
   InitRun();
   UpdateMaxValues();
-  PrintAllocMemory(GetAllocMemoryCpu());
+  PrintAllocMemory(GetAllocMemoryCpu(),MemCpuPPE);
   SaveData(); 
   TmcResetValues(Timers);
   TmcStop(Timers,TMC_Init);
@@ -829,7 +841,7 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
     double stepdt=ComputeStep();
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
     if(CaseNmoving)RunMotion(stepdt);
-    RunCellDivide(true);
+    //RunCellDivide(true);
     TimeStep+=stepdt;
     partoutstop=(Np<NpMinimum || !Np);
     if((TimeStep-TimeStepIni)-TimePart*((Part-PartIni)-1)>=TimePart || partoutstop){
@@ -922,16 +934,27 @@ void JSphCpuSingle::FinishRun(bool stop){
   if(SvRes)SaveRes(tsim,ttot,hinfo,dinfo);
 }
 
-void JSphCpuSingle::SolvePPE(double dt){
+void JSphCpuSingle::SolvePPE(double dt){ 
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
   tuint3 ncells=CellDivSingle->GetNcells();
   const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
+  const unsigned cellfluid=nc.w*nc.z+1;
   const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
   const int hdiv=(CellMode==CELLMODE_H? 2: 1);
+  const unsigned *begincell = CellDivSingle->GetBeginCell();
 
- /* MatrixOrder();
-  PopulateMatrix(Np,0,nc,hdiv,0,CellDivSingle->GetBeginCell(),cellzero,Dcellc,Posc,Velrhopc,dt); //-Populate Matrix
-  FreeSurfaceMark();
-  SolveMatrix();*/
-  PressureAssign(Np,0,Posc,Velrhopc);
+  //InitPPEVars(Np);
+  const unsigned npf=Np-Npb;
+  //MatrixOrder(npf,Npb);
+  //-Populate Matrix
+  /*PopulateMatrix(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,Idpc,dt); //-Fluid-Fluid
+  PopulateMatrix(npf,Npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Velrhopc,Idpc,dt); //-Fluid-Bound
+  //-Mark free-surface
+  FreeSurfaceFind(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,DivR); //-Fluid-Fluid
+  FreeSurfaceFind(npf,Npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,DivR); //-Fluid-Bound
+  FreeSurfaceMark(MatrixA,MatrixB,DivR,Idpc);
+  cout <<"Hello\n";
+  SolveMatrix(Np,0,POrder,Velrhopc);*/
+  PressureAssign(npf,Npb,X,Velrhopc);
+  cout<<"Pressure\n";
 }
