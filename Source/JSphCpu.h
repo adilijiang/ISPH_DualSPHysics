@@ -109,7 +109,6 @@ protected:
 
   void FreeCpuMemoryFixed();
   void AllocCpuMemoryFixed();
-  void AllocCpuMemoryPPE();
   void FreeCpuMemoryParticles();
   void AllocCpuMemoryParticles(unsigned np,float over);
 
@@ -253,31 +252,31 @@ protected:
   //PPE Functions and variables//
   ///////////////////////////////
   void InitPPEVars(unsigned n);
-  void MatrixOrder(unsigned n,unsigned pinit);
+  void MatrixOrder(unsigned n,unsigned pinit,unsigned *porder)const;
   void PopulateMatrix(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,const unsigned *id, const double dt)const;
-  void FreeSurfaceFind(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,float *divr)const;
-  void FreeSurfaceMark(float *matrixa,float *matrixb,const float *divr,const unsigned *id);
-  void SolveMatrix(unsigned n,unsigned pinit,const unsigned *porder,const tfloat4 *velrhop);
-  float l2norm(unsigned pinit,int pfin,const float *residual);
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,const double dt)const;
+  void FreeSurfaceFind(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,
+	const float *Divr,const double dt)const;
+  void FreeSurfaceMark(unsigned n,unsigned pinit,float *matrixa,float *matrixb);
+  void SolveMatrix(unsigned n,unsigned pinit,float *r, float *rBar, float *v,float *p, float *s, float *t, float *y, float *z, float *X, float *Xerror);
+  float l2norm(const unsigned pinit,const int pfin,const float *residual);
   void PressureAssign(unsigned n,unsigned pinit,const float *x,tfloat4 *velrhop);
-
-  float *DivR;
 
   unsigned *POrder;
   float *MatrixA;
   float *MatrixB;
+  float *Divr;
 
-  float *r;
-  float *rBar;
-  float *v;
-  float *p;
-  float *s;
-  float *t;
-  float *y;
-  float *z;
-  float *X;
-  float *Xerror;
+  float *rM;
+  float *rBarM;
+  float *vM;
+  float *pM;
+  float *sM;
+  float *tM;
+  float *yM;
+  float *zM;
+  float *XM;
+  float *XerrorM;
 
 public:
   JSphCpu(bool withmpi);
