@@ -939,14 +939,14 @@ void JSphCpuSingle::SolvePPE(double dt){
   InitPPEVars(npf);
   MatrixOrder(npf,Npb,POrder);
   //-Populate Matrix
-  PopulateMatrix(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dt); //-Fluid-Fluid
-  PopulateMatrix(npf,Npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Velrhopc,dt); //-Fluid-Bound
-  //-Mark free-surface
-  FreeSurfaceFind(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,dt); //-Fluid-Fluid
-  FreeSurfaceFind(npf,Npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Divr,dt); //-Fluid-Bound
-  FreeSurfaceMark(npf,Npb,MatrixA,MatrixB);
-  cout <<"Hello\n";
-  //SolveMatrix(npf,0,rM,rBarM,vM,pM,sM,tM,yM,zM,XM,XerrorM);
+  PopulateMatrixB(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixB,Idpc,dt); //-Fluid-Fluid
+  PopulateMatrixA(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixA,MatrixB,Idpc,dt); //-Fluid-Fluid
+  PopulateMatrixA(npf,Npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixA,MatrixB,Idpc,dt); //-Fluid-Bound
+  writeMatrix();
+  FreeSurfaceFind(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,Idpc,dt); //-Fluid-Fluid
+  FreeSurfaceFind(npf,Npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Divr,Idpc,dt); //-Fluid-Bound
+  FreeSurfaceMark(npf,Npb,MatrixA,MatrixB,Idpc);
+  writeMatrix();
+  SolveMatrix(npf,rM,rBarM,vM,pM,sM,tM,yM,zM,XM,XerrorM);
   PressureAssign(npf,Npb,XM,Velrhopc);
-  cout<<"Pressure\n";
 }

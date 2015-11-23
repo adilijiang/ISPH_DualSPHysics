@@ -251,17 +251,19 @@ protected:
   ///////////////////////////////
   //PPE Functions and variables//
   ///////////////////////////////
-  void InitPPEVars(unsigned n);
+  void InitPPEVars(const unsigned n);
   void MatrixOrder(unsigned n,unsigned pinit,unsigned *porder)const;
-  void PopulateMatrix(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,const double dt)const;
+  void PopulateMatrixB(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,float *matrixb,unsigned *idpc,const double dt)const;
+  void PopulateMatrixA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,float *matrixa,float *matrixb,unsigned *idpc,const double dt)const;
   void FreeSurfaceFind(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,
-	const float *Divr,const double dt)const;
-  void FreeSurfaceMark(unsigned n,unsigned pinit,float *matrixa,float *matrixb);
-  void SolveMatrix(unsigned n,unsigned pinit,float *r, float *rBar, float *v,float *p, float *s, float *t, float *y, float *z, float *X, float *Xerror);
-  float l2norm(const unsigned pinit,const int pfin,const float *residual);
+	const float *Divr,unsigned *idpc,const double dt)const;
+  void FreeSurfaceMark(unsigned n,unsigned pinit,float *matrixa,float *matrixb,unsigned *idpc);
+  void SolveMatrix(unsigned n,float *r,float *rBar,float *v,float *p,float *s,float *t,float *y,float *z,float *X,float *Xerror);
+  float l2norm(const int npf,const float *residual);
   void PressureAssign(unsigned n,unsigned pinit,const float *x,tfloat4 *velrhop);
-
+  void writeMatrix();
   unsigned *POrder;
   float *MatrixA;
   float *MatrixB;
