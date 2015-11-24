@@ -1964,7 +1964,7 @@ void JSphCpu::MatrixOrder(unsigned n,unsigned pinit, unsigned *porder)const{
 //===============================================================================
 void JSphCpu::PopulateMatrixB(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
 	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,
-	const tfloat4 *velrhop,float *matrixb,unsigned *idpc,const double dt)const{
+	const tfloat4 *velrhop,float *matrixb,unsigned *idpc,const double dt,double &closestZ,int &closestp)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -2023,6 +2023,13 @@ void JSphCpu::PopulateMatrixB(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsign
 		}
 	  }
 	}
+
+	if(posp1.z < closestZ)
+	{
+		closestZ = posp1.z;
+		closestp = idpc[p1];
+	}
+
 	matrixb[oi]=float(double(matrixb[oi])/dt);
   } 
 }
@@ -2032,7 +2039,7 @@ void JSphCpu::PopulateMatrixB(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsign
 //===============================================================================
 void JSphCpu::PopulateMatrixA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
 	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,
-	const tfloat4 *velrhop,float *matrixa,float *matrixb,unsigned *idpc,const double dt)const{
+	const tfloat4 *velrhop,float *matrixa,float *matrixb,unsigned *idpc,const double dt,const double closestZ,const int closestp)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -2070,8 +2077,14 @@ void JSphCpu::PopulateMatrixA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsign
           const float rr2=drx*drx+dry*dry+drz*drz;
           if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
 			unsigned oj;
-			if(boundp2) oj=oi;
+			if(boundp2){
+				if(pos[p2].z <=ALMOSTZERO){ 
+				  for(unsigned jp=0;jp<n;jp++) if(POrder[jp]==closestp)oj=jp;
+				}
+				else oj=oi;
+			}
 			else for(unsigned jp=0;jp<n;jp++)if(POrder[jp]==idpc[p2])oj=jp;
+
 			//-Wendland kernel.
             float frx,fry,frz;
             GetKernel(rr2,drx,dry,drz,frx,fry,frz);
@@ -2083,13 +2096,15 @@ void JSphCpu::PopulateMatrixA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsign
 			//===== Laplacian operator =====
 			const float rDivW=drx*frx+dry*fry+drz*frz;
 			float temp=2.0f*rDivW/(RhopZero*(rr2+Eta2));
-			matrixa[oi*(n+1)]+=temp*volume;
-			matrixa[oi*n+oj]-=temp*volume;
 
-			if(boundp2 && pos[p2].z <=ALMOSTZERO)
-			{
-				temp = temp * RhopZero * fabs(Gravity.z) * drz;
-				matrixb[oi]+=volume*temp;
+			if(oi!=oj){
+			  matrixa[oi*(n+1)]+=temp*volume;
+			  matrixa[oi*n+oj]-=temp*volume;
+			}
+
+			if(boundp2 && pos[p2].z <=ALMOSTZERO){
+			  temp = temp * RhopZero * fabs(Gravity.z) * float(closestZ-pos[p2].z);
+			  matrixb[oi]+=volume*temp;
 			}
 		  }
 		}
@@ -2435,31 +2450,59 @@ float JSphCpu::l2norm(const int npf,const float *residual){
 //===============================================================================
 ///Reorder pressure for particles
 //===============================================================================
-void JSphCpu::PressureAssign(unsigned n,unsigned pinit,const float *x,tfloat4 *velrhop){
-	const int pfin=int(pinit+n);
-	for(unsigned p1=Npb;p1<Np;p1++) for(unsigned ip=0;ip<n;ip++)if(POrder[ip]==Idpc[p1]) velrhop[p1].w=x[ip];
+void JSphCpu::PressureAssign(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
+	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,
+	tfloat4 *velrhop,unsigned *idpc,const float *x)const{
 
-	
-	for(unsigned p1=0;p1<Npb;p1++){
-	  unsigned closestp2;
-	  float smallestdist = 3 * H;
-	  
-	  for(unsigned p2=Npb;p2<Np;p2++){
-        const float drz=float(Posc[p1].z-Posc[p2].z);
-		
-		if(drz<smallestdist){
-		  smallestdist=drz;
-		  closestp2=p2;
+  const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
+  const int pfin=int(pinit+n);
+  
+  for(int p1=int(pinit);p1<pfin;p1++) for(unsigned ip=0;ip<n;ip++)if(POrder[ip]==idpc[p1]) velrhop[p1].w=x[ip];
+ /* #ifdef _WITHOMP
+    #pragma omp parallel for schedule (guided)
+  #endif*/
+  for(int p1=0;p1<int(pinit);p1++){
+    //-Obtain data of particle p1 / Obtiene datos de particula p1.
+	const tdouble3 posp1=pos[p1];
+
+    //-Obtain interaction limits / Obtiene limites de interaccion
+    int cxini,cxfin,yini,yfin,zini,zfin;
+    GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+
+	float smallestdist = 4 * H;
+	float hydrostatic = 0.0;
+
+    //-Search for neighbours in adjacent cells / Busqueda de vecinos en celdas adyacentes.
+    for(int z=zini;z<zfin;z++){
+      const int zmod=(nc.w)*z+cellinitial; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
+      for(int y=yini;y<yfin;y++){
+        int ymod=zmod+nc.x*y;
+        const unsigned pini=beginendcell[cxini+ymod];
+        const unsigned pfin=beginendcell[cxfin+ymod];
+
+        //-Interactions
+        //------------------------------------------------
+        for(unsigned p2=pini;p2<pfin;p2++){
+          const float drx=float(posp1.x-pos[p2].x);
+          const float dry=float(posp1.y-pos[p2].y);
+          const float drz=float(posp1.z-pos[p2].z);
+          const float rr2=drx*drx+dry*dry+drz*drz;
+
+		  if(drz<smallestdist){
+		    smallestdist=drz;
+			hydrostatic=float(velrhop[p2].w+drz*RhopZero*Gravity.z);
+		  }
 		}
 	  }
-
-	  velrhop[p1].w=float(velrhop[closestp2].w-(Posc[closestp2].z-Posc[p1].z)*RhopZero*Gravity.z);
 	}
+
+	velrhop[p1].w=hydrostatic;
+  }
 }
 
 void JSphCpu::writeMatrix()
 {
-	/*std::ofstream FileOutput;
+	std::ofstream FileOutput;
     std::string file;
 	int npf=int(Np-Npb);
     file =  "Matrix.txt";
@@ -2493,9 +2536,9 @@ void JSphCpu::writeMatrix()
 		FileOutput << "\n";
     }
 
-    FileOutput.close();*/
+    FileOutput.close();
 
-	std::ofstream FileOutput;
+	/*std::ofstream FileOutput;
     std::string file;
 	int npf=int(Np-Npb);
     file =  "MatrixA.txt";
@@ -2530,6 +2573,6 @@ void JSphCpu::writeMatrix()
 		FileOutput << "\n";
     }
 
-    FileOutput.close();
+    FileOutput.close();*/
 }
 
