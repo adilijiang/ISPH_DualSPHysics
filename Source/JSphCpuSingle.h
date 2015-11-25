@@ -56,7 +56,7 @@ protected:
   void Interaction_Forces(TpInter tinter);
   double ComputeAceMax();
 
-  double ComputeStep(){ return(TStep==STEP_Verlet? ComputeStep_Ver(): ComputeStep_Sym()); }
+  //double ComputeStep(){ return(TStep==STEP_Verlet? ComputeStep_Ver(): ComputeStep_Sym()); }
   double ComputeStep_Ver();
   double ComputeStep_Sym();
 

@@ -1501,7 +1501,7 @@ void JSphCpu::UpdatePos(tdouble3 rpos,double movx,double movy,double movz
 /// Calcula nuevos valores de posicion, velocidad y densidad para el fluido (usando Verlet).
 /// Calculate new values of position, velocity & density for fluid (using Verlet).
 //==============================================================================
-template<bool shift> void JSphCpu::ComputeVerletVarsFluid(const tfloat4 *velrhop1,const tfloat4 *velrhop2,double dt,double dt2
+/*template<bool shift> void JSphCpu::ComputeVerletVarsFluid(const tfloat4 *velrhop1,const tfloat4 *velrhop2,double dt,double dt2
   ,tdouble3 *pos,unsigned *dcell,word *code,tfloat4 *velrhopnew)const
 {
   const double dt205=0.5*dt*dt;
@@ -1578,7 +1578,7 @@ void JSphCpu::ComputeVerlet(double dt){
   //-New values are calculated en VelrhopM1c / Los nuevos valores se calculan en VelrhopM1c.
   swap(Velrhopc,VelrhopM1c);     //-Swap Velrhopc & VelrhopM1c / Intercambia Velrhopc y VelrhopM1c.
   TmcStop(Timers,TMC_SuComputeStep);
-}
+}*/
 
 //==============================================================================
 /// Actualizacion de particulas segun fuerzas y dt usando Symplectic-Predictor.
@@ -1966,9 +1966,8 @@ void JSphCpu::MatrixOrder(unsigned n,unsigned pinit, unsigned *porder)const{
 //===============================================================================
 void JSphCpu::PopulateMatrixB(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
 	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,
-	const tfloat4 *velrhop,float *matrixb,unsigned *idpc,const double dt,double &closestZ,int &closestp)const{
+	const tfloat4 *velrhop,float *matrixb,const unsigned *porder,const unsigned *idpc,const double dt,double &closestZ,int &closestp)const{
 
-  const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
 
   /*#ifdef _WITHOMP
@@ -2005,13 +2004,13 @@ void JSphCpu::PopulateMatrixB(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsign
 
           if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
 			unsigned oj;
-			for(unsigned jp=0;jp<n;jp++)if(POrder[jp]==idpc[p2])oj=jp;
+			for(unsigned jp=0;jp<n;jp++)if(porder[jp]==idpc[p2])oj=jp;
 			//-Wendland kernel.
             float frx,fry,frz;
             GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 
 			//===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
-            float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
+            float massp2=MassFluid; //-Contiene masa de particula segun sea bound o fluid.
 			const float volume=massp2/RhopZero; //Volume of particle j
 			
 			//=====Divergence of velocity==========
@@ -2041,7 +2040,7 @@ void JSphCpu::PopulateMatrixB(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsign
 //===============================================================================
 void JSphCpu::PopulateMatrixA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
 	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,
-	const tfloat4 *velrhop,float *matrixa,float *matrixb,unsigned *idpc,const double dt,const double closestZ,const int closestp)const{
+	const tfloat4 *velrhop,float *matrixa,float *matrixb,const unsigned *porder,const unsigned *idpc,const double dt,const double closestZ,const int closestp)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -2081,11 +2080,11 @@ void JSphCpu::PopulateMatrixA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsign
 			unsigned oj;
 			if(boundp2){
 				if(pos[p2].z <=ALMOSTZERO){ 
-				  for(unsigned jp=0;jp<n;jp++) if(POrder[jp]==closestp)oj=jp;
+				  for(unsigned jp=0;jp<n;jp++) if(porder[jp]==closestp)oj=jp;
 				}
 				else oj=oi;
 			}
-			else for(unsigned jp=0;jp<n;jp++)if(POrder[jp]==idpc[p2])oj=jp;
+			else for(unsigned jp=0;jp<n;jp++)if(porder[jp]==idpc[p2])oj=jp;
 
 			//-Wendland kernel.
             float frx,fry,frz;
@@ -2176,12 +2175,12 @@ void JSphCpu::FreeSurfaceFind(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsign
 //===============================================================================
 ///Mark free surface
 //===============================================================================
-void JSphCpu::FreeSurfaceMark(unsigned n,unsigned pinit,float *matrixa,float *matrixb,unsigned *idpc){
+void JSphCpu::FreeSurfaceMark(unsigned n,unsigned pinit,float *matrixa,float *matrixb,const unsigned *porder,const unsigned *idpc){
 	const int pfin=int(pinit+n);
 	for(int p1=int(pinit);p1<pfin;p1++)
 	{
 	  unsigned oi;
-	  for(unsigned ip=0;ip<n;ip++)if(POrder[ip]==idpc[p1])oi=ip;
+	  for(unsigned ip=0;ip<n;ip++)if(porder[ip]==idpc[p1])oi=ip;
 
 	  if(Divr[oi]<1.6f){
 	  //-Particle order in Matrix
@@ -2453,13 +2452,12 @@ float JSphCpu::l2norm(const int npf,const float *residual){
 ///Reorder pressure for particles
 //===============================================================================
 void JSphCpu::PressureAssign(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
-	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,
-	tfloat4 *velrhop,unsigned *idpc,const float *x)const{
+  const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const float h,const tdouble3 *pos,
+  tfloat4 *velrhop,unsigned *idpc,const unsigned *porder,const float *x)const{
 
-  const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
   
-  for(int p1=int(pinit);p1<pfin;p1++) for(unsigned ip=0;ip<n;ip++)if(POrder[ip]==idpc[p1]) velrhop[p1].w=x[ip];
+  for(int p1=int(pinit);p1<pfin;p1++) for(unsigned ip=0;ip<n;ip++)if(porder[ip]==idpc[p1]) velrhop[p1].w=x[ip];
  /* #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif*/
@@ -2498,80 +2496,3 @@ void JSphCpu::PressureAssign(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigne
 	velrhop[p1].w=hydrostatic;
   }
 }
-
-void JSphCpu::writeMatrix()
-{
-	std::ofstream FileOutput;
-    std::string file;
-	int npf=int(Np-Npb);
-    file =  "Matrix.txt";
-
-    FileOutput.open(file.c_str());
-	
-	for(int i = 0; i < npf; i++)
-    {
-		FileOutput << "\t" << POrder[i];
-	}
-
-	FileOutput << "\n";
-
-    for(int i = 0; i < npf; i++)
-    {
-		FileOutput << POrder[i] << "\t";
-		
-		for(int j = 0; j < npf; j++)
-		{
-			if(MatrixA[i * npf + j] == 0.0)
-			{
-				FileOutput << std::fixed << std::setprecision(0) << MatrixA[i * npf + j] << "\t";
-			}
-			else
-			{
-				FileOutput << std::fixed << std::setprecision(3) << MatrixA[i * npf + j] << "\t";
-			}
-		}
-
-		FileOutput << "|" << std::fixed << std::setprecision(3) << MatrixB[i];
-		FileOutput << "\n";
-    }
-
-    FileOutput.close();
-
-	/*std::ofstream FileOutput;
-    std::string file;
-	int npf=int(Np-Npb);
-    file =  "MatrixA.txt";
-
-    FileOutput.open(file.c_str());
-	
-
-    for(int i = 0; i < npf; i++)
-    {
-		for(int j = 0; j < npf; j++)
-		{
-			if(MatrixA[i * npf + j] == 0.0)
-			{
-				FileOutput << std::fixed << std::setprecision(0) << MatrixA[i * npf + j] << "\n";
-			}
-			else
-			{
-				FileOutput << std::fixed << std::setprecision(7) << MatrixA[i * npf + j] << "\n";
-			}
-		}
-    }
-
-    FileOutput.close();
-
-    file =  "MatrixB.txt";
-
-    FileOutput.open(file.c_str());
-	
-	for(int i = 0; i < npf; i++)
-    {
-		FileOutput << std::fixed << std::setprecision(7) << MatrixB[i];
-		FileOutput << "\n";
-    }
-
-    FileOutput.close();*/
-}
-

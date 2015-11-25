@@ -568,7 +568,7 @@ double JSphCpuSingle::ComputeAceMax(){
 /// Perform interactions and updates of particles according to forces 
 /// calculated in the interaction using Verlet.
 //==============================================================================
-double JSphCpuSingle::ComputeStep_Ver(){
+/*double JSphCpuSingle::ComputeStep_Ver(){
   Interaction_Forces(INTER_Forces);    //-Interaction / Interaccion
   const double dt=DtVariable(true);    //-Calculate new dt / Calcula nuevo dt
   DemDtForce=dt;                       //(DEM)
@@ -577,7 +577,7 @@ double JSphCpuSingle::ComputeStep_Ver(){
   if(CaseNfloat)RunFloating(dt,false); //-Control of floating bodies / Gestion de floating bodies
   PosInteraction_Forces();             //-Free memory used for interaction / Libera memoria de interaccion
   return(dt);
-}
+}*/
 
 //==============================================================================
 /// (ES):
@@ -830,7 +830,7 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   PrintHeadPart();
   while(TimeStep<TimeMax){
     if(ViscoTime)Visco=ViscoTime->GetVisco(float(TimeStep));
-    double stepdt=ComputeStep();
+    double stepdt=ComputeStep_Sym();
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
     if(CaseNmoving)RunMotion(stepdt);
     //RunCellDivide(true);
@@ -942,13 +942,12 @@ void JSphCpuSingle::SolvePPE(double dt){
   InitPPEVars(npf);
   MatrixOrder(npf,Npb,POrder);
   //-Populate Matrix
-  PopulateMatrixB(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixB,Idpc,dt,closestZ,closestp); //-Fluid-Fluid
-  PopulateMatrixA(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixA,MatrixB,Idpc,dt,closestZ,closestp); //-Fluid-Fluid
-  PopulateMatrixA(npf,Npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixA,MatrixB,Idpc,dt,closestZ,closestp); //-Fluid-Bound
+  PopulateMatrixB(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixB,POrder,Idpc,dt,closestZ,closestp); //-Fluid-Fluid
+  PopulateMatrixA(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixA,MatrixB,POrder,Idpc,dt,closestZ,closestp); //-Fluid-Fluid
+  PopulateMatrixA(npf,Npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixA,MatrixB,POrder,Idpc,dt,closestZ,closestp); //-Fluid-Bound
   FreeSurfaceFind(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,Idpc,dt); //-Fluid-Fluid
   FreeSurfaceFind(npf,Npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Divr,Idpc,dt); //-Fluid-Bound
-  FreeSurfaceMark(npf,Npb,MatrixA,MatrixB,Idpc);
-  writeMatrix();
+  FreeSurfaceMark(npf,Npb,MatrixA,MatrixB,POrder,Idpc);
   SolveMatrix(npf,rM,rBarM,vM,pM,sM,tM,yM,zM,XM,XerrorM);
-  PressureAssign(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,Idpc,XM);
+  PressureAssign(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,H,Posc,Velrhopc,Idpc,POrder,XM);
 }

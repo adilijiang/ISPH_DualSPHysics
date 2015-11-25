@@ -222,10 +222,10 @@ protected:
   void ComputeSpsTau(unsigned n,unsigned pini,const tfloat4 *velrhop,const tsymatrix3f *gradvel,tsymatrix3f *tau)const;
 
   void UpdatePos(tdouble3 pos0,double dx,double dy,double dz,bool outrhop,unsigned p,tdouble3 *pos,unsigned *cell,word *code)const;
-  template<bool shift> void ComputeVerletVarsFluid(const tfloat4 *velrhop1,const tfloat4 *velrhop2,double dt,double dt2,tdouble3 *pos,unsigned *cell,word *code,tfloat4 *velrhopnew)const;
-  void ComputeVelrhopBound(const tfloat4* velrhopold,double armul,tfloat4* velrhopnew)const;
+  //template<bool shift> void ComputeVerletVarsFluid(const tfloat4 *velrhop1,const tfloat4 *velrhop2,double dt,double dt2,tdouble3 *pos,unsigned *cell,word *code,tfloat4 *velrhopnew)const;
+  //void ComputeVelrhopBound(const tfloat4* velrhopold,double armul,tfloat4* velrhopnew)const;
 
-  void ComputeVerlet(double dt);
+  //void ComputeVerlet(double dt);
   template<bool shift> void ComputeSymplecticPreT(double dt);
   void ComputeSymplecticPre(double dt);
   template<bool shift> void ComputeSymplecticCorrT(double dt);
@@ -254,17 +254,17 @@ protected:
   void InitPPEVars(const unsigned n);
   void MatrixOrder(unsigned n,unsigned pinit,unsigned *porder)const;
   void PopulateMatrixB(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,float *matrixb,unsigned *idpc,const double dt,double &closestZ,int &closestp)const;
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,float *matrixb,const unsigned *porder,const unsigned *idpc,const double dt,double &closestZ,int &closestp)const;
   void PopulateMatrixA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,float *matrixa,float *matrixb,unsigned *idpc,const double dt,const double closestZ,const int closestp)const;
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,float *matrixa,float *matrixb,const unsigned *porder,const unsigned *idpc,const double dt,const double closestZ,const int closestp)const;
   void FreeSurfaceFind(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,
 	const float *Divr,unsigned *idpc,const double dt)const;
-  void FreeSurfaceMark(unsigned n,unsigned pinit,float *matrixa,float *matrixb,unsigned *idpc);
+  void FreeSurfaceMark(unsigned n,unsigned pinit,float *matrixa,float *matrixb,const unsigned *porder,const unsigned *idpc);
   void SolveMatrix(unsigned n,float *r,float *rBar,float *v,float *p,float *s,float *t,float *y,float *z,float *X,float *Xerror);
   float l2norm(const int npf,const float *residual);
-  void PressureAssign(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,
-	  tfloat4 *velrhop,unsigned *idpc,const float *x)const;
-  void writeMatrix();
+  void PressureAssign(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const float h,const tdouble3 *pos,
+	  tfloat4 *velrhop,unsigned *idpc,const unsigned *porder,const float *x)const;
+
   unsigned *POrder;
   float *MatrixA;
   float *MatrixB;
