@@ -982,7 +982,7 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
 
 			//===== Acceleration from pressure gradient ===== 
             if(compute && tinter==2){
-			  const float temp=volumep2*(pressp1-velrhop[p2].w);
+			  const float temp=volumep2*(velrhop[p2].w-pressp1);
               acep1.x+=temp*frx; acep1.y+=temp*fry; acep1.z+=temp*frz;
             }
 
@@ -1061,7 +1061,9 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
       //if(tdelta==DELTA_DynamicExt)delta[p1]=(delta[p1]==FLT_MAX || deltap1==FLT_MAX? FLT_MAX: delta[p1]+deltap1);
       //ar[p1]+=arp1;
       if(tinter==1)ace[p1]=ace[p1]+acep1;
-	  if(tinter==2)ace[p1]=ace[p1]+(acep1/RhopZero)-Gravity;
+	  if(tinter==2){
+		  ace[p1]=ace[p1]+acep1/RhopZero;
+	  }
       const int th=omp_get_thread_num();
       if(visc>viscth[th*STRIDE_OMP])viscth[th*STRIDE_OMP]=visc;
       /*if(lamsps){
@@ -1675,9 +1677,9 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
     //const float rhopnew=float(double(VelrhopPrec[p].w) * (2.-epsilon_rdot)/(2.+epsilon_rdot));
     if(!WithFloating || CODE_GetType(Codec[p])==CODE_TYPE_FLUID){//-Particulas: Fluid
       //-Update velocity & density / Actualiza velocidad y densidad.
-      Velrhopc[p].x-=float(double(Acec[p].x)*dt); 
-      Velrhopc[p].y-=float(double(Acec[p].y)*dt);  
-      Velrhopc[p].z-=float(double(Acec[p].z)*dt); 
+      Velrhopc[p].x-=float(double(Acec[p].x-Gravity.x)*dt); 
+      Velrhopc[p].y-=float(double(Acec[p].y-Gravity.y)*dt);  
+      Velrhopc[p].z-=float(double(Acec[p].z-Gravity.z)*dt); 
       //Velrhopc[p].w=rhopnew;
       //-Calculate displacement and update position / Calcula desplazamiento y actualiza posicion.
       double dx=(double(VelrhopPrec[p].x)+double(Velrhopc[p].x))*dt05; 
@@ -2483,12 +2485,9 @@ void JSphCpu::PressureAssign(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigne
         //-Interactions
         //------------------------------------------------
         for(unsigned p2=pini;p2<pfin;p2++){
-          const float drx=float(posp1.x-pos[p2].x);
-          const float dry=float(posp1.y-pos[p2].y);
           const float drz=float(posp1.z-pos[p2].z);
-          const float rr2=drx*drx+dry*dry+drz*drz;
 
-		  if(drz<smallestdist){
+		  if(fabs(drz)<smallestdist){
 		    smallestdist=drz;
 			hydrostatic=float(velrhop[p2].w+drz*RhopZero*Gravity.z);
 		  }

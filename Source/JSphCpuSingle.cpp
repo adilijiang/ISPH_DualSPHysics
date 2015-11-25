@@ -610,6 +610,7 @@ double JSphCpuSingle::ComputeStep_Sym(){
   Interaction_Forces(INTER_ForcesCorr);   //Interaction / Interaccion
   //const double ddt_c=DtVariable(true);    //-Calculate dt of corrector step / Calcula dt del corrector
   //if(TShifting)RunShifting(dt);           //-Shifting
+ 
   ComputeSymplecticCorr(dt);              //-Apply Symplectic-Corrector to particles / Aplica Symplectic-Corrector a las particulas
   //if(CaseNfloat)RunFloating(dt,false);    //-Control of floating bodies / Gestion de floating bodies
   PosInteraction_Forces();             //-Free memory used for interaction / Libera memoria de interaccion
