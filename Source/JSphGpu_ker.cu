@@ -2697,9 +2697,40 @@ void AddVarAcc(unsigned n,unsigned pini,word codesel
   }
 }
 
-
-
+//==========================
+///Initial advection - r*
+//==========================
+template<bool floating> __global__ void KerComputeRStar(unsigned n,unsigned npb,const float4 *velrhoppre,double dtm,word *code,double2 *movxy,double *movz)
+{
+  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
+  if(p<n){
+    if(p>=npb){//-Particulas: Fixed & Moving //-Particles: Fixed & Moving
+      float4 rvelrhop=velrhoppre[p];
+      
+      if(!floating || CODE_GetType(code[p])==CODE_TYPE_FLUID){//-Particulas: Fluid //-Particles: Fluid
+        //-Calcula y graba desplazamiento de posicion.
+		//-Computes and stores position displacement.
+        double dx=double(rvelrhop.x)*dtm;
+        double dy=double(rvelrhop.y)*dtm;
+        double dz=double(rvelrhop.z)*dtm;
+        
+        movxy[p]=make_double2(dx,dy);
+        movz[p]=dz;  
+      }
+    }
+  }
 }
 
+//==============================================================================
+///Initial advection - r*
+//==============================================================================   
+void ComputeRStar(bool floating,unsigned np,unsigned npb,const float4 *velrhoppre,double dtm,word *code,double2 *movxy,double *movz)
+{
+  if(np){
+    dim3 sgrid=GetGridSize(np,SPHBSIZE);
+    if(floating)KerComputeRStar<true> <<<sgrid,SPHBSIZE>>> (np,npb,velrhoppre,dtm,code,movxy,movz);
+    else        KerComputeRStar<false><<<sgrid,SPHBSIZE>>> (np,npb,velrhoppre,dtm,code,movxy,movz);
+  }
+}
 
-
+}

@@ -57,7 +57,7 @@ protected:
   double ComputeAceMax();
 
   //double ComputeStep(){ return(TStep==STEP_Verlet? ComputeStep_Ver(): ComputeStep_Sym()); }
-  double ComputeStep_Ver();
+  //double ComputeStep_Ver();
   double ComputeStep_Sym();
 
   inline tfloat3 FtPeriodicDist(const tdouble3 &pos,const tdouble3 &center,float radius)const;

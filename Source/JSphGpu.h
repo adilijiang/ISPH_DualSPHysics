@@ -220,7 +220,7 @@ protected:
   void AddVarAcc();
 
   void PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb);
-  void PreInteraction_Forces(TpInter tinter);
+  void PreInteraction_Forces(TpInter tinter,double dt);
   void PosInteraction_Forces();
   
   void ComputeVerlet(double dt);

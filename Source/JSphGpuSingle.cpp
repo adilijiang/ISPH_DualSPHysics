@@ -448,9 +448,9 @@ void JSphGpuSingle::RunRenCorrection(){
 /// Interaccion para el calculo de fuerzas.
 /// Interaction for force computation.
 //==============================================================================
-void JSphGpuSingle::Interaction_Forces(TpInter tinter){
+void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   const char met[]="Interaction_Forces";
-  PreInteraction_Forces(tinter);
+  PreInteraction_Forces(tinter,dt);
   TmgStart(Timers,TMG_CfForces);
   if(RenCorrection)RunRenCorrection();
 
@@ -508,7 +508,7 @@ double JSphGpuSingle::ComputeAceMax(float *auxmem){
 /// Particle interaction and update of particle data according to
 /// the computed forces using the Verlet time stepping scheme
 //==============================================================================
-double JSphGpuSingle::ComputeStep_Ver(){
+/*double JSphGpuSingle::ComputeStep_Ver(){
   Interaction_Forces(INTER_Forces);     //-Interaccion //-Interaction
   const double dt=DtVariable(true);     //-Calcula nuevo dt //-Calculate new dt
   DemDtForce=dt;                        //(DEM)
@@ -517,7 +517,7 @@ double JSphGpuSingle::ComputeStep_Ver(){
   if(CaseNfloat)RunFloating(dt,false); //-Gestion de floating bodies //-Management of floating bodies
   PosInteraction_Forces();              //-Libera memoria de interaccion //-Releases memory of interaction
   return(dt);
-}
+}*/
 
 //==============================================================================
 /// ES:
@@ -532,25 +532,25 @@ double JSphGpuSingle::ComputeStep_Sym(){
   const double dt=DtPre;
   //-Predictor
   //-----------
-  DemDtForce=dt*0.5f;                     //(DEM)
-  Interaction_Forces(INTER_Forces);       //-Interaccion //-Interaction
-  const double ddt_p=DtVariable(false);   //-Calcula dt del predictor //-Computes dt in the predictor step
-  if(TShifting)RunShifting(dt*.5);        //-Shifting
+ // DemDtForce=dt*0.5f;                     //(DEM)
+  Interaction_Forces(INTER_Forces,dt);       //-Interaccion //-Interaction
+  //const double ddt_p=DtVariable(false);   //-Calcula dt del predictor //-Computes dt in the predictor step
+  //if(TShifting)RunShifting(dt*.5);        //-Shifting
   ComputeSymplecticPre(dt);               //-Aplica Symplectic-Predictor a las particulas //Applies Symplectic-Predictor to the particles
-  if(CaseNfloat)RunFloating(dt*.5,true);  //-Gestion de floating bodies //-Management of the floating bodies
+  //if(CaseNfloat)RunFloating(dt*.5,true);  //-Gestion de floating bodies //-Management of the floating bodies
   PosInteraction_Forces();                //-Libera memoria de interaccion //-Releases memory of the interaction
   //-Corrector
   //-----------
-  DemDtForce=dt;                          //(DEM)
+  //DemDtForce=dt;                          //(DEM)
   RunCellDivide(true);
-  Interaction_Forces(INTER_ForcesCorr);   //-Interaccion //-interaction
-  const double ddt_c=DtVariable(true);    //-Calcula dt del corrector //Computes dt in the corrector step
-  if(TShifting)RunShifting(dt);           //-Shifting
+  Interaction_Forces(INTER_ForcesCorr,dt);   //-Interaccion //-interaction
+  //const double ddt_c=DtVariable(true);    //-Calcula dt del corrector //Computes dt in the corrector step
+  //if(TShifting)RunShifting(dt);           //-Shifting
   ComputeSymplecticCorr(dt);              //-Aplica Symplectic-Corrector a las particulas //Applies Symplectic-Corrector to the particles
-  if(CaseNfloat)RunFloating(dt,false);    //-Gestion de floating bodies //-Management of the floating bodies
+  //if(CaseNfloat)RunFloating(dt,false);    //-Gestion de floating bodies //-Management of the floating bodies
   PosInteraction_Forces();                //-Libera memoria de interaccion //-Releases memory of the interaction
 
-  DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep //-Computes dt for the next ComputeStep
+  //DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep //-Computes dt for the next ComputeStep
   return(dt);
 }
 
@@ -626,7 +626,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   PrintHeadPart();
   while(TimeStep<TimeMax){
     if(ViscoTime)Visco=ViscoTime->GetVisco(float(TimeStep));
-    double stepdt=ComputeStep();
+    double stepdt=ComputeStep_Sym();
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
     if(CaseNmoving)RunMotion(stepdt);
     RunCellDivide(true);

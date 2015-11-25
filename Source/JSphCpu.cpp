@@ -551,9 +551,8 @@ void JSphCpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
   if(Deltac)memset(Deltac,0,sizeof(float)*np);                       //Deltac[]=0
   if(ShiftPosc)memset(ShiftPosc,0,sizeof(tfloat3)*np);               //ShiftPosc[]=0
   if(ShiftDetectc)memset(ShiftDetectc,0,sizeof(float)*np);           //ShiftDetectc[]=0
-  memset(Acec,0,sizeof(tfloat3)*npb);     
-  //Acec[]=(0,0,0) for bound / para bound
-  //for(unsigned p=npb;p<np;p++)Acec[p]=Gravity;                       //Acec[]=Gravity for fluid / para fluid
+  memset(Acec,0,sizeof(tfloat3)*npb);								 //Acec[]=(0,0,0) for bound / para bound
+  //for(unsigned p=npb;p<np;p++)Acec[p]=Gravity;                     //Acec[]=Gravity for fluid / para fluid
   if(SpsGradvelc)memset(SpsGradvelc+npb,0,sizeof(tsymatrix3f)*npf);  //SpsGradvelc[]=(0,0,0,0,0,0).
 
   //-Apply the extra forces to the correct particle sets.
@@ -620,8 +619,8 @@ void JSphCpu::PreInteraction_Forces(TpInter tinter){
   VelMax=sqrt(velmax);
   ViscDtMax=0;
 
-  if(tinter==1){////////////////////////////REMOVE LATER AND MAKE PREINTERACTION_FORCES FUNCTION ONLY WHEN tinter==1
-    for(unsigned p=Npb;p<Npb+Npf;p++){
+  if(tinter==1){
+    for(unsigned p=Npb;p<Np;p++){
  	  const tdouble3 pos=PosPrec[p];
 	  const tfloat4 v=VelrhopPrec[p];
 	  Posc[p].x=pos.x+DtPre*v.x;

@@ -886,7 +886,7 @@ void JSphGpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
   if(ShiftPosg)cudaMemset(ShiftPosg,0,sizeof(tfloat3)*np);               //ShiftPosg[]=0
   if(ShiftDetectg)cudaMemset(ShiftDetectg,0,sizeof(float)*np);           //ShiftDetectg[]=0
   cudaMemset(Aceg,0,sizeof(tfloat3)*npb);                                //Aceg[]=(0,0,0) para bound //Aceg[]=(0,0,0) for the boundary
-  cusph::InitArray(npf,Aceg+npb,Gravity);                                //Aceg[]=Gravity para fluid //Aceg[]=Gravity for the fluid
+  //cusph::InitArray(npf,Aceg+npb,Gravity);                                //Aceg[]=Gravity para fluid //Aceg[]=Gravity for the fluid
   if(SpsGradvelg)cudaMemset(SpsGradvelg+npb,0,sizeof(tsymatrix3f)*npf);  //SpsGradvelg[]=(0,0,0,0,0,0).
 
   //-Apply the extra forces to the correct particle sets.
@@ -897,8 +897,24 @@ void JSphGpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
 /// Prepara variables para interaccion "INTER_Forces" o "INTER_ForcesCorr".
 /// Prepares variables for interaction "INTER_Forces" or "INTER_ForcesCorr".
 //==============================================================================
-void JSphGpu::PreInteraction_Forces(TpInter tinter){
+void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
   TmgStart(Timers,TMG_CfPreForces);
+  //-Asigna memoria a variables Pre.
+  //-Allocates memory to predictor variables.
+  if(tinter==1){
+    PosxyPreg=ArraysGpu->ReserveDouble2();
+    PoszPreg=ArraysGpu->ReserveDouble();
+    VelrhopPreg=ArraysGpu->ReserveFloat4();
+    //-Cambia datos a variables Pre para calcular nuevos datos.
+    //-Changes data of predictor variables for calculating the new data
+    swap(PosxyPreg,Posxyg);      //Es decir... PosxyPre[] <= Posxy[] //i.e. PosxyPre[] <= Posxy[]
+    swap(PoszPreg,Poszg);        //Es decir... PoszPre[] <= Posz[] //i.e. PoszPre[] <= Posz[]
+    swap(VelrhopPreg,Velrhopg);  //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
+	//-Copia posicion anterior del contorno.
+    //-Copies previous position of the boundaries.
+    cudaMemcpy(Posxyg,PosxyPreg,sizeof(double2)*Npb,cudaMemcpyDeviceToDevice);
+    cudaMemcpy(Poszg,PoszPreg,sizeof(double)*Npb,cudaMemcpyDeviceToDevice);
+  }
   //-Asigna memoria.
   //-Allocates memory.
   ViscDtg=ArraysGpu->ReserveFloat();
@@ -930,6 +946,18 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter){
   cudaMemset(ViscDtg,0,sizeof(float)*Np);           //ViscDtg[]=0
   ViscDtMax=0;
   CheckCudaError("PreInteraction_Forces","Failed calculating VelMax.");
+
+  //-Compute initial advection, r*
+  if(tinter==1){
+    double2 *movxyg=ArraysGpu->ReserveDouble2();
+    double *movzg=ArraysGpu->ReserveDouble();
+    
+    cusph::ComputeRStar(WithFloating,Np,Npb,VelrhopPreg,dt,Codeg,movxyg,movzg);
+	cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
+
+    ArraysGpu->Free(movxyg);   movxyg=NULL;
+    ArraysGpu->Free(movzg);    movzg=NULL;
+  }
   TmgStop(Timers,TMG_CfPreForces);
 }
 
@@ -992,16 +1020,6 @@ void JSphGpu::ComputeVerlet(double dt){  //pdtedom
 void JSphGpu::ComputeSymplecticPre(double dt){
   TmgStart(Timers,TMG_SuComputeStep);
   const bool shift=TShifting!=SHIFT_None;
-  //-Asigna memoria a variables Pre.
-  //-Allocates memory to predictor variables.
-  PosxyPreg=ArraysGpu->ReserveDouble2();
-  PoszPreg=ArraysGpu->ReserveDouble();
-  VelrhopPreg=ArraysGpu->ReserveFloat4();
-  //-Cambia datos a variables Pre para calcular nuevos datos.
-  //-Changes data of predictor variables for calculating the new data
-  swap(PosxyPreg,Posxyg);      //Es decir... PosxyPre[] <= Posxy[] //i.e. PosxyPre[] <= Posxy[]
-  swap(PoszPreg,Poszg);        //Es decir... PoszPre[] <= Posz[] //i.e. PoszPre[] <= Posz[]
-  swap(VelrhopPreg,Velrhopg);  //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
   //-Asigna memoria para calcular el desplazamiento.
   //-Allocate memory to compute the diplacement
   double2 *movxyg=ArraysGpu->ReserveDouble2();
@@ -1017,10 +1035,6 @@ void JSphGpu::ComputeSymplecticPre(double dt){
   //-Releases memory allocated for the displacement
   ArraysGpu->Free(movxyg);   movxyg=NULL;
   ArraysGpu->Free(movzg);    movzg=NULL;
-  //-Copia posicion anterior del contorno.
-  //-Copies previous position of the boundaries.
-  cudaMemcpy(Posxyg,PosxyPreg,sizeof(double2)*Npb,cudaMemcpyDeviceToDevice);
-  cudaMemcpy(Poszg,PoszPreg,sizeof(double)*Npb,cudaMemcpyDeviceToDevice);
   TmgStop(Timers,TMG_SuComputeStep);
 }
 
