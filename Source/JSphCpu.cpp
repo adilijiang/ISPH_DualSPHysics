@@ -551,7 +551,7 @@ void JSphCpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
   if(Deltac)memset(Deltac,0,sizeof(float)*np);                       //Deltac[]=0
   if(ShiftPosc)memset(ShiftPosc,0,sizeof(tfloat3)*np);               //ShiftPosc[]=0
   if(ShiftDetectc)memset(ShiftDetectc,0,sizeof(float)*np);           //ShiftDetectc[]=0
-  memset(Acec,0,sizeof(tfloat3)*npb);								 //Acec[]=(0,0,0) for bound / para bound
+  memset(Acec,0,sizeof(tfloat3)*np);								 //Acec[]=(0,0,0) for bound / para bound
   //for(unsigned p=npb;p<np;p++)Acec[p]=Gravity;                     //Acec[]=Gravity for fluid / para fluid
   if(SpsGradvelc)memset(SpsGradvelc+npb,0,sizeof(tsymatrix3f)*npf);  //SpsGradvelc[]=(0,0,0,0,0,0).
 
@@ -559,8 +559,8 @@ void JSphCpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
   if(VarAcc)AddVarAcc();
 
   //-Prepare values of rhop for interaction / Prepara datos derivados de rhop para interaccion.
-  const int n=int(np);
- /* #ifdef _WITHOMP
+  /*const int n=int(np);
+  #ifdef _WITHOMP
     #pragma omp parallel for schedule (static) if(n>LIMIT_PREINTERACTION_OMP)
   #endif
   for(int p=0;p<n;p++){
@@ -916,7 +916,7 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
     tsymatrix3f gradvelp1={0,0,0,0,0,0};
     tfloat3 shiftposp1=TFloat3(0);
     float shiftdetectp1=0;
-
+	
     //-Obtain data of particle p1 in case of floating objects / Obtiene datos de particula p1 en caso de existir floatings.
     bool ftp1=false;     //-Indicate if it is floating / Indica si es floating.
     float ftmassp1=1.f;  //-Contains floating particle mass or 1.0f if it is fluid / Contiene masa de particula floating o 1.0f si es fluid.
@@ -983,7 +983,7 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
             if(compute && tinter==2){
 			  const float temp=volumep2*(velrhop[p2].w-pressp1);
               acep1.x+=temp*frx; acep1.y+=temp*fry; acep1.z+=temp*frz;
-            }
+			}
 
             //-Density derivative
             /*const float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
@@ -997,7 +997,7 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
               const float dot3=(drx*frx+dry*fry+drz*frz);
               const float delta=visc_densi*dot3*massp2;
               deltap1=(boundp2? FLT_MAX: deltap1+delta);
-            }*/
+            }
 
             //-Shifting correction
             if(shift && shiftposp1.x!=FLT_MAX){
@@ -1010,7 +1010,7 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
             }
 
             //===== Viscosity ===== 
-            /*if(compute){
+            if(compute){
               const float dot=drx*dvx + dry*dvy + drz*dvz;
               const float dot_rr2=dot/(rr2+Eta2);
               visc=max(dot_rr2,visc);
@@ -1054,6 +1054,7 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
         }
       }
     }
+	
     //-Sum results together / Almacena resultados.
     if(shift||arp1||acep1.x||acep1.y||acep1.z||visc){
       //if(tdelta==DELTA_Dynamic&&deltap1!=FLT_MAX)arp1+=deltap1;
@@ -1061,10 +1062,10 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
       //ar[p1]+=arp1;
       if(tinter==1)ace[p1]=ace[p1]+acep1;
 	  if(tinter==2){
-		  ace[p1]=ace[p1]+acep1/RhopZero;
+		ace[p1]=ace[p1]+acep1/RhopZero;
 	  }
       const int th=omp_get_thread_num();
-      if(visc>viscth[th*STRIDE_OMP])viscth[th*STRIDE_OMP]=visc;
+      //if(visc>viscth[th*STRIDE_OMP])viscth[th*STRIDE_OMP]=visc;
       /*if(lamsps){
         gradvel[p1].xx+=gradvelp1.xx;
         gradvel[p1].xy+=gradvelp1.xy;
@@ -1678,7 +1679,7 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
       //-Update velocity & density / Actualiza velocidad y densidad.
       Velrhopc[p].x-=float(double(Acec[p].x-Gravity.x)*dt); 
       Velrhopc[p].y-=float(double(Acec[p].y-Gravity.y)*dt);  
-      Velrhopc[p].z-=float(double(Acec[p].z-Gravity.z)*dt); 
+      Velrhopc[p].z-=float(double(Acec[p].z-Gravity.z)*dt);
       //Velrhopc[p].w=rhopnew;
       //-Calculate displacement and update position / Calcula desplazamiento y actualiza posicion.
       double dx=(double(VelrhopPrec[p].x)+double(Velrhopc[p].x))*dt05; 
@@ -2180,7 +2181,6 @@ void JSphCpu::FreeSurfaceMark(unsigned n,unsigned pinit,float *matrixa,float *ma
 	{
 	  unsigned oi;
 	  for(unsigned ip=0;ip<n;ip++)if(porder[ip]==idpc[p1])oi=ip;
-
 	  if(Divr[oi]<1.6f){
 	  //-Particle order in Matrix
 
@@ -2460,38 +2460,51 @@ void JSphCpu::PressureAssign(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigne
  /* #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif*/
-  for(int p1=0;p1<int(pinit);p1++){
+  for(int p1=0;p1<int(NpbOk);p1++){
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
 	const tdouble3 posp1=pos[p1];
 
-    //-Obtain interaction limits / Obtiene limites de interaccion
+	double smallestZ=3*H;
+	double smallestR=3*H;
+	float hydrostatic=0.0;
+
+    //-Obtain limits of interaction / Obtiene limites de interaccion
     int cxini,cxfin,yini,yfin,zini,zfin;
     GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
 
-	float smallestdist = 4 * H;
-	float hydrostatic = 0.0;
-
     //-Search for neighbours in adjacent cells / Busqueda de vecinos en celdas adyacentes.
     for(int z=zini;z<zfin;z++){
-      const int zmod=(nc.w)*z+cellinitial; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
+      const int zmod=(nc.w)*z+cellinitial; //-Sum from start of fluid cells / Le suma donde empiezan las celdas de fluido.
       for(int y=yini;y<yfin;y++){
         int ymod=zmod+nc.x*y;
         const unsigned pini=beginendcell[cxini+ymod];
         const unsigned pfin=beginendcell[cxfin+ymod];
 
-        //-Interactions
-        //------------------------------------------------
+        //-Interaction of boundary with type Fluid/Float / Interaccion de Bound con varias Fluid/Float.
+        //----------------------------------------------
         for(unsigned p2=pini;p2<pfin;p2++){
-          const float drz=float(posp1.z-pos[p2].z);
+          const double drx=posp1.x-pos[p2].x;
+		  const double dry=posp1.y-pos[p2].y;
+		  const double drz=posp1.z-pos[p2].z;
+		  const double rr2=drx*drx+dry*dry+drz*drz;
 
-		  if(fabs(drz)<smallestdist){
-		    smallestdist=drz;
-			hydrostatic=float(velrhop[p2].w+drz*RhopZero*Gravity.z);
-		  }
+		  if(rr2<smallestR){
+		    if(abs(drz)<=smallestZ){
+			  if(drz<0){
+				smallestZ=abs(drz);
+				smallestR=rr2;
+				hydrostatic=float(velrhop[p2].w+drz*RhopZero*Gravity.z);
+			  }
+			  if(abs(drz)<=ALMOSTZERO){
+				smallestZ=abs(drz);
+				smallestR=rr2;
+				hydrostatic=velrhop[p2].w;
+			  }
+			}
+	      }
 		}
 	  }
 	}
-
 	velrhop[p1].w=hydrostatic;
   }
 }
