@@ -551,8 +551,12 @@ void JSphCpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
   if(Deltac)memset(Deltac,0,sizeof(float)*np);                       //Deltac[]=0
   if(ShiftPosc)memset(ShiftPosc,0,sizeof(tfloat3)*np);               //ShiftPosc[]=0
   if(ShiftDetectc)memset(ShiftDetectc,0,sizeof(float)*np);           //ShiftDetectc[]=0
-  memset(Acec,0,sizeof(tfloat3)*np);								 //Acec[]=(0,0,0) for bound / para bound
-  //for(unsigned p=npb;p<np;p++)Acec[p]=Gravity;                     //Acec[]=Gravity for fluid / para fluid
+  if(tinter==1){
+	memset(Acec,0,sizeof(tfloat3)*np);								 //Acec[]=(0,0,0) for bound / para bound
+    for(unsigned p=npb;p<np;p++)Acec[p]=Gravity;                     //Acec[]=Gravity for fluid / para fluid
+  }
+  else memset(Acec,0,sizeof(tfloat3)*np);
+
   if(SpsGradvelc)memset(SpsGradvelc+npb,0,sizeof(tsymatrix3f)*npf);  //SpsGradvelc[]=(0,0,0,0,0,0).
 
   //-Apply the extra forces to the correct particle sets.
@@ -1677,9 +1681,9 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
     //const float rhopnew=float(double(VelrhopPrec[p].w) * (2.-epsilon_rdot)/(2.+epsilon_rdot));
     if(!WithFloating || CODE_GetType(Codec[p])==CODE_TYPE_FLUID){//-Particulas: Fluid
       //-Update velocity & density / Actualiza velocidad y densidad.
-      Velrhopc[p].x-=float(double(Acec[p].x-Gravity.x)*dt); 
-      Velrhopc[p].y-=float(double(Acec[p].y-Gravity.y)*dt);  
-      Velrhopc[p].z-=float(double(Acec[p].z-Gravity.z)*dt);
+      Velrhopc[p].x-=float(double(Acec[p].x)*dt); 
+      Velrhopc[p].y-=float(double(Acec[p].y)*dt);  
+      Velrhopc[p].z-=float(double(Acec[p].z)*dt);
       //Velrhopc[p].w=rhopnew;
       //-Calculate displacement and update position / Calcula desplazamiento y actualiza posicion.
       double dx=(double(VelrhopPrec[p].x)+double(Velrhopc[p].x))*dt05; 
