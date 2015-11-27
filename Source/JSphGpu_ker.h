@@ -80,7 +80,7 @@ void PreInteractionSimple(unsigned np,const double2 *posxy,const double *posz
 void Interaction_Forces(bool psimple,bool floating,bool usedem,bool lamsps
   ,TpDeltaSph tdelta,TpCellMode cellmode
   ,float viscob,float viscof,unsigned bsbound,unsigned bsfluid
-  ,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
+  ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
   ,const float4 *velrhop,const word *code,const unsigned *idp
