@@ -513,8 +513,8 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter){
   
   //-Interaction of Fluid-Fluid/Bound & Bound-Fluid (forces and DEM) / Interaccion Fluid-Fluid/Bound & Bound-Fluid (forces and DEM).
   float viscdt=0;
-  if(Psimple)JSphCpu::InteractionSimple_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,PsPosc,Velrhopc,Idpc,Codec,Pressc,viscdt,Arc,Acec,Deltac,SpsTauc,SpsGradvelc,ShiftPosc,ShiftDetectc);
-  else JSphCpu::Interaction_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,Codec,Pressc,viscdt,Arc,Acec,Deltac,SpsTauc,SpsGradvelc,ShiftPosc,ShiftDetectc);
+  if(Psimple)JSphCpu::InteractionSimple_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,PsPosc,Velrhopc,Idpc,dWxCorr,dWzCorr,Codec,Pressc,viscdt,Arc,Acec,Deltac,SpsTauc,SpsGradvelc,ShiftPosc,ShiftDetectc);
+  else JSphCpu::Interaction_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,dWxCorr,dWzCorr,Codec,Pressc,viscdt,Arc,Acec,Deltac,SpsTauc,SpsGradvelc,ShiftPosc,ShiftDetectc);
 
   //-For 2-D simulations zero the 2nd component / Para simulaciones 2D anula siempre la 2º componente
   if(Simulate2D)for(unsigned p=Npb;p<Np;p++)Acec[p].y=0;
@@ -588,18 +588,21 @@ double JSphCpuSingle::ComputeAceMax(){
 /// calculated in the interaction using Symplectic.
 //==============================================================================
 double JSphCpuSingle::ComputeStep_Sym(){
+  //const double dt=0.2*H/sqrt(abs(Gravity.z));
+  //TimePart=dt;
   const double dt=DtPre;
   //-Predictor
   //-----------
   //DemDtForce=dt*0.5f;                     //(DEM)
   PreInteraction_Forces(INTER_Forces);
-  RunCellDivide(true); 
-  Interaction_Forces(INTER_Forces);       //-Interaction / Interaccion
+  RunCellDivide(true);
+  KernelCorrection(false);
+  Interaction_Forces(INTER_Forces);      //-Interaction / Interaccion
   //const double ddt_p=DtVariable(false);   //-Calculate dt of predictor step / Calcula dt del predictor
   //if(TShifting)RunShifting(dt*.5);        //-Shifting
   ComputeSymplecticPre(dt);               //-Apply Symplectic-Predictor to particles / Aplica Symplectic-Predictor a las particulas
   //if(CaseNfloat)RunFloating(dt*.5,true);  //-Control of floating bodies / Gestion de floating bodies
-  PosInteraction_Forces();                //-Free memory used for interaction / Libera memoria de interaccion
+  PosInteraction_Forces(INTER_Forces);          //-Free memory used for interaction / Libera memoria de interaccion
   //-Pressure Poisson equation
   //-----------
   SolvePPE(dt);							  //-Solve pressure Poisson equation
@@ -607,13 +610,13 @@ double JSphCpuSingle::ComputeStep_Sym(){
   //-----------
   //DemDtForce=dt;                          //(DEM)
   PreInteraction_Forces(INTER_ForcesCorr);
+  KernelCorrection(true);
   Interaction_Forces(INTER_ForcesCorr);   //Interaction / Interaccion
   //const double ddt_c=DtVariable(true);    //-Calculate dt of corrector step / Calcula dt del corrector
-  //if(TShifting)RunShifting(dt);           //-Shifting
- 
+  if(TShifting)RunShifting(dt);           //-Shifting
   ComputeSymplecticCorr(dt);              //-Apply Symplectic-Corrector to particles / Aplica Symplectic-Corrector a las particulas
   //if(CaseNfloat)RunFloating(dt,false);    //-Control of floating bodies / Gestion de floating bodies
-  PosInteraction_Forces();             //-Free memory used for interaction / Libera memoria de interaccion
+  PosInteraction_Forces(INTER_ForcesCorr);             //-Free memory used for interaction / Libera memoria de interaccion
   // DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep
   return(dt);
 }
@@ -935,19 +938,43 @@ void JSphCpuSingle::SolvePPE(double dt){
   const int hdiv=(CellMode==CELLMODE_H? 2: 1);
   const unsigned *begincell = CellDivSingle->GetBeginCell();
 
-  double closestZ=3*H;
-  int closestp;
-  
-  const unsigned npf=Np-Npb;
-  InitPPEVars(npf);
+  const unsigned npb=Npb;
+  const unsigned npf=Np-npb;
+
+  InitPPEVars(npf,npb);
   MatrixOrder(npf,Npb,POrder);
   //-Populate Matrix
-  PopulateMatrixB(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixB,POrder,Idpc,dt,closestZ,closestp); //-Fluid-Fluid
-  PopulateMatrixA(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixA,MatrixB,POrder,Idpc,dt,closestZ,closestp); //-Fluid-Fluid
-  PopulateMatrixA(npf,Npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixA,MatrixB,POrder,Idpc,dt,closestZ,closestp); //-Fluid-Bound
-  FreeSurfaceFind(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,Idpc,dt); //-Fluid-Fluid
-  FreeSurfaceFind(npf,Npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Divr,Idpc,dt); //-Fluid-Bound
-  FreeSurfaceMark(npf,Npb,MatrixA,MatrixB,POrder,Idpc);
+  FindClosestFluid(npb,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Idpc,ClosestFluid);
+  PopulateMatrixB(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorr,dWzCorr,MatrixB,POrder,Idpc,dt); //-Fluid-Fluid
+  PopulateMatrixA(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixA,MatrixB,POrder,Idpc,ClosestFluid,dt); //-Fluid-Fluid
+  PopulateMatrixA(npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixA,MatrixB,POrder,Idpc,ClosestFluid,dt); //-Fluid-Bound
+  FreeSurfaceFind(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,Idpc,dt); //-Fluid-Fluid
+  FreeSurfaceFind(npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Divr,Idpc,dt); //-Fluid-Bound
+  FreeSurfaceMark(npf,npb,MatrixA,MatrixB,POrder,Idpc);
   SolveMatrix(npf,rM,rBarM,vM,pM,sM,tM,yM,zM,XM,XerrorM);
-  PressureAssign(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,H,Posc,Velrhopc,Idpc,POrder,XM);
+  PressureAssign(npf,npb,Posc,Velrhopc,Idpc,ClosestFluid,POrder,XM);
+}
+
+void JSphCpuSingle::KernelCorrection(bool boundary){ 
+  tuint3 cellmin=CellDivSingle->GetCellDomainMin();
+  tuint3 ncells=CellDivSingle->GetNcells();
+  const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
+  const unsigned cellfluid=nc.w*nc.z+1;
+  const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
+  const int hdiv=(CellMode==CELLMODE_H? 2: 1);
+  const unsigned *begincell = CellDivSingle->GetBeginCell();
+
+  const unsigned npf=Np-Npb;
+
+  if(!boundary){
+    dWxCorr=ArraysCpu->ReserveFloat3();
+    dWzCorr=ArraysCpu->ReserveFloat3();
+  }
+
+  memset(dWxCorr,0,sizeof(tfloat3)*Np);						
+  memset(dWzCorr,0,sizeof(tfloat3)*Np);								
+
+  JSphCpu::KernelCorrection(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,dWxCorr,dWzCorr); //-Fluid-Fluid
+  if(boundary)JSphCpu::KernelCorrection(npf,Npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,dWxCorr,dWzCorr); //-Fluid-Bound
+  JSphCpu::InverseCorrection(npf,Npb,dWxCorr,dWzCorr);
 }

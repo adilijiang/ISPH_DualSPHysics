@@ -127,6 +127,7 @@ typedef enum{
 
 ///Types of kernel function.
 typedef enum{ 
+  KERNEL_Quintic=3,		       ///<Quintic kernel.
   KERNEL_Wendland=2,         ///<Wendland kernel.
   //KERNEL_Cubic=1,          ///<Cubic Spline kernel.
   KERNEL_None=0 

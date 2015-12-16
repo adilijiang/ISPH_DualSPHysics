@@ -149,7 +149,7 @@ protected:
 
   void PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb);
   void PreInteraction_Forces(TpInter tinter);
-  void PosInteraction_Forces();
+  void PosInteraction_Forces(TpInter tinter);
 
   inline void GetKernel(float rr2,float drx,float dry,float drz,float &frx,float &fry,float &frz)const;
   inline float GetKernelWab(float rr2)const;
@@ -180,7 +180,7 @@ protected:
     (TpInter tinter, unsigned n,unsigned pini,tint4 nc,int hdiv,unsigned cellfluid,float visco
     ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
     ,const tsymatrix3f* tau,tsymatrix3f* gradvel
-    ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,const word *code,const unsigned *idp
+    ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,const word *code,const unsigned *idp
     ,const float *press
     ,float &viscdt,float *ar,tfloat3 *ace,float *delta
     ,TpShifting tshifting,tfloat3 *shiftpos,float *shiftdetect)const;
@@ -195,7 +195,7 @@ protected:
   template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> void Interaction_ForcesT
     (TpInter tinter,unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
-    ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,const word *code,const unsigned *idp
+    ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,const word *code,const unsigned *idp
     ,const float *press
     ,float &viscdt,float* ar,tfloat3 *ace,float *delta
     ,tsymatrix3f *spstau,tsymatrix3f *spsgradvel
@@ -203,7 +203,7 @@ protected:
 
   void Interaction_Forces(TpInter tinter,unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
-    ,const tdouble3 *pos,const tfloat4 *velrhop,const unsigned *idp,const word *code
+    ,const tdouble3 *pos,const tfloat4 *velrhop,const unsigned *idp,tfloat3 *dwxcorr,tfloat3 *dwzcorr,const word *code
     ,const float *press
     ,float &viscdt,float* ar,tfloat3 *ace,float *delta
     ,tsymatrix3f *spstau,tsymatrix3f *spsgradvel
@@ -211,7 +211,7 @@ protected:
 
   void InteractionSimple_Forces(TpInter tinter,unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
-    ,const tfloat3 *pspos,const tfloat4 *velrhop,const unsigned *idp,const word *code
+    ,const tfloat3 *pspos,const tfloat4 *velrhop,const unsigned *idp,tfloat3 *dwxcorr,tfloat3 *dwzcorr,const word *code
     ,const float *press
     ,float &viscdt,float* ar,tfloat3 *ace,float *delta
     ,tsymatrix3f *spstau,tsymatrix3f *spsgradvel
@@ -250,24 +250,25 @@ protected:
   ///////////////////////////////
   //PPE Functions and variables//
   ///////////////////////////////
-  void InitPPEVars(const unsigned n);
+  void InitPPEVars(const unsigned n,const unsigned npb);
   void MatrixOrder(unsigned n,unsigned pinit,unsigned *porder)const;
+  void FindClosestFluid(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	  const unsigned *dcell,const tdouble3 *pos,const unsigned *idpc,unsigned *closestfluid)const;
   void PopulateMatrixB(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,float *matrixb,const unsigned *porder,const unsigned *idpc,const double dt,double &closestZ,int &closestp)const;
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,float *matrixb,const unsigned *porder,const unsigned *idpc,const double dt)const;
   void PopulateMatrixA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,float *matrixa,float *matrixb,const unsigned *porder,const unsigned *idpc,const double dt,const double closestZ,const int closestp)const;
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,float *matrixa,float *matrixb,const unsigned *porder,const unsigned *idpc,const unsigned *ClosestFluid,const double dt)const;
   void FreeSurfaceFind(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,
 	const float *Divr,unsigned *idpc,const double dt)const;
   void FreeSurfaceMark(unsigned n,unsigned pinit,float *matrixa,float *matrixb,const unsigned *porder,const unsigned *idpc);
   void SolveMatrix(unsigned n,float *r,float *rBar,float *v,float *p,float *s,float *t,float *y,float *z,float *X,float *Xerror);
   float l2norm(const int npf,const float *residual);
-  void PressureAssign(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const float h,const tdouble3 *pos,
-	  tfloat4 *velrhop,unsigned *idpc,const unsigned *porder,const float *x)const;
+  void PressureAssign(unsigned n,unsigned pinit,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,const unsigned *closestfluid,const unsigned *porder,const float *x)const;
 
-  unsigned *POrder;
-  float *MatrixA;
-  float *MatrixB;
-  float *Divr;
+  unsigned *POrder; //Order of particles in the matrix
+  float *MatrixA; //LHS of PPE
+  float *MatrixB; //RHS of PPE
+  float *Divr; //Divergence of position
 
   float *rM;
   float *rBarM;
@@ -279,6 +280,15 @@ protected:
   float *zM;
   float *XM;
   float *XerrorM;
+
+  tfloat3 *dWxCorr; //Kernel correction in the x direction
+  tfloat3 *dWzCorr; //Kernel correction in the z direction
+  unsigned *ClosestFluid; //The closest fluid particle, j, for a boundary particle, i
+
+  void KernelCorrection(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	  const unsigned *dcell,const tdouble3 *pos,tfloat3 *dwxcorr,tfloat3 *dwzcorr)const;
+  void InverseCorrection(unsigned n, unsigned pinit,tfloat3 *dwxcorr,tfloat3 *dwzcorr)const;
+  void writeMatrix();
 
 public:
   JSphCpu(bool withmpi);

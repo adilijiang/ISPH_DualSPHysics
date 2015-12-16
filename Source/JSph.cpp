@@ -377,7 +377,13 @@ void JSph::LoadCaseConfig(){
     default: RunException(met,"Step algorithm is not valid.");
   }
   VerletSteps=eparms.GetValueInt("VerletSteps",true,40);
-  if(eparms.GetValueInt("Kernel",true,2)!=2)RunException(met,"Kernel choice is not valid. Only Wendland is valid.");
+  
+  switch(eparms.GetValueInt("Kernel",true,2)){
+    case 2:  TKernel=KERNEL_Wendland; break;
+    case 3:  TKernel=KERNEL_Quintic;  break;
+    default: RunException(met,"Kernel choice is not valid.");
+  }
+
   switch(eparms.GetValueInt("ViscoTreatment",true,1)){
     case 1:  TVisco=VISCO_Artificial;  break;
     case 2:  TVisco=VISCO_LaminarSPS;  break;
@@ -726,12 +732,20 @@ void JSph::ConfigConstants(bool simulate2d){
       Awen=float(0.557/(h*h));
       Bwen=float(-2.7852/(h*h*h));
     }
+	  if(TKernel==KERNEL_Quintic){
+	    Awen=float(7.0/(478.0*PI*h*h));
+	    Bwen=float(7.0/(478.0*PI*h*h*h));
+	  }
   }
   else{
     if(TKernel==KERNEL_Wendland){
       Awen=float(0.41778/(h*h*h));
       Bwen=float(-2.08891/(h*h*h*h));
     }
+	  if(TKernel==KERNEL_Quintic){
+	    Awen=float(3.0/(359.0*PI*h*h*h));
+	    Bwen=float(1.0/(7898.0*PI*h*h*h*h));
+	  }
   }
   //-Constants for Laminar viscosity + SPS turbulence model.
   if(TVisco==VISCO_LaminarSPS){  
@@ -1443,6 +1457,7 @@ std::string JSph::GetStepName(TpStep tstep){
 std::string JSph::GetKernelName(TpKernel tkernel){
   string tx;
   if(tkernel==KERNEL_Wendland)tx="Wendland";
+  else if(tkernel==KERNEL_Quintic)tx="Quintic";
   else tx="???";
   return(tx);
 }
