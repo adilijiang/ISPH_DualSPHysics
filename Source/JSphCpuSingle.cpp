@@ -596,7 +596,6 @@ double JSphCpuSingle::ComputeStep_Sym(){
   //DemDtForce=dt*0.5f;                     //(DEM)
   PreInteraction_Forces(INTER_Forces);
   RunCellDivide(true);
-  KernelCorrection(false);
   Interaction_Forces(INTER_Forces);      //-Interaction / Interaccion
   //const double ddt_p=DtVariable(false);   //-Calculate dt of predictor step / Calcula dt del predictor
   //if(TShifting)RunShifting(dt*.5);        //-Shifting
@@ -605,6 +604,7 @@ double JSphCpuSingle::ComputeStep_Sym(){
   PosInteraction_Forces(INTER_Forces);          //-Free memory used for interaction / Libera memoria de interaccion
   //-Pressure Poisson equation
   //-----------
+  KernelCorrection(false);
   SolvePPE(dt);							  //-Solve pressure Poisson equation
   //-Corrector
   //-----------
@@ -831,6 +831,9 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   TimerPart.Start();
   Log->Print(string("\n[Initialising simulation (")+RunCode+")  "+fun::GetDateTime()+"]");
   PrintHeadPart();
+  //-finding dummy particle relations to wall particles
+  RunCellDivide(true);
+  FindIrelation(); 
   while(TimeStep<TimeMax){
     //if(ViscoTime)Visco=ViscoTime->GetVisco(float(TimeStep));
     double stepdt=ComputeStep_Sym();
@@ -929,6 +932,17 @@ void JSphCpuSingle::FinishRun(bool stop){
   if(SvRes)SaveRes(tsim,ttot,hinfo,dinfo);
 }
 
+void JSphCpuSingle::FindIrelation(){
+  tuint3 cellmin=CellDivSingle->GetCellDomainMin();
+  tuint3 ncells=CellDivSingle->GetNcells();
+  const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
+  const unsigned cellfluid=nc.w*nc.z+1;
+  const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
+  const int hdiv=(CellMode==CELLMODE_H? 2: 1);
+  const unsigned *begincell = CellDivSingle->GetBeginCell();
+  JSphCpu::FindIrelation(Npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Idpc,Irelationc,Codec); 
+}
+
 void JSphCpuSingle::SolvePPE(double dt){ 
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
   tuint3 ncells=CellDivSingle->GetNcells();
@@ -938,21 +952,21 @@ void JSphCpuSingle::SolvePPE(double dt){
   const int hdiv=(CellMode==CELLMODE_H? 2: 1);
   const unsigned *begincell = CellDivSingle->GetBeginCell();
 
+  const unsigned np = Np;
   const unsigned npb=Npb;
-  const unsigned npf=Np-npb;
+  const unsigned npf = np - npb;
+  unsigned PPEDim=0;
+  unsigned Index=0;
 
-  InitPPEVars(npf,npb);
-  MatrixOrder(npf,Npb,POrder);
+  MatrixOrder(Np,0,POrder,Codec,PPEDim);
+  InitPPEVars(PPEDim);
   //-Populate Matrix
-  FindClosestFluid(npb,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Idpc,ClosestFluid);
-  PopulateMatrixB(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorr,dWzCorr,MatrixB,POrder,Idpc,dt); //-Fluid-Fluid
-  PopulateMatrixA(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixA,MatrixB,POrder,Idpc,ClosestFluid,dt); //-Fluid-Fluid
-  PopulateMatrixA(npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixA,MatrixB,POrder,Idpc,ClosestFluid,dt); //-Fluid-Bound
-  FreeSurfaceFind(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,Idpc,dt); //-Fluid-Fluid
-  FreeSurfaceFind(npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Divr,Idpc,dt); //-Fluid-Bound
-  FreeSurfaceMark(npf,npb,MatrixA,MatrixB,POrder,Idpc);
-  SolveMatrix(npf,rM,rBarM,vM,pM,sM,tM,yM,zM,XM,XerrorM);
-  PressureAssign(npf,npb,Posc,Velrhopc,Idpc,ClosestFluid,POrder,XM);
+  PopulateMatrixB(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorr,dWzCorr,MatrixB,POrder,Idpc,dt,PPEDim); //-Fluid-Fluid
+  PopulateMatrixA(np,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixADiag,MatrixAIndex,MatrixACol,MatrixAInteract,MatrixB,POrder,Idpc,Codec,Irelationc,dt,PPEDim,Index); //-Bound
+  FreeSurfaceFind(np,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,Idpc,Codec,PPEDim,dt); //-Fluid-Fluid
+  FreeSurfaceMark(np,0,MatrixADiag,MatrixAIndex,MatrixACol,MatrixAInteract,MatrixB,POrder,Idpc,Codec,Index,PPEDim);
+  SolveMatrix(PPEDim,rM,rBarM,vM,pM,sM,tM,yM,zM,XM,XerrorM,MatrixADiag,MatrixAIndex,MatrixACol,MatrixAInteract,MatrixB,Index);
+  PressureAssign(np,0,Posc,Velrhopc,Idpc,Irelationc,POrder,XM, Codec);
 }
 
 void JSphCpuSingle::KernelCorrection(bool boundary){ 

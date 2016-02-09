@@ -590,7 +590,7 @@ void JSph::ResetMkInfo(){
   delete[] MkList; MkList=NULL;
   MkListSize=MkListFixed=MkListMoving=MkListFloat=MkListBound=MkListFluid=0;
 }
-
+#include <iostream>
 //==============================================================================
 /// Load MK information of particles.
 //==============================================================================
@@ -726,7 +726,7 @@ void JSph::ConfigConstants(bool simulate2d){
   Dosh=float(h*2); 
   H2=float(h*h);
   Fourh2=float(h*h*4); 
-  Eta2=float((h*0.1)*(h*0.1));
+  Eta2=float((h*1e-5f)*(h*1e-5f));
   if(simulate2d){
     if(TKernel==KERNEL_Wendland){
       Awen=float(0.557/(h*h));

@@ -68,6 +68,7 @@ protected:
   void FinishRun(bool stop);
 
   void SolvePPE(double dt);
+  void FindIrelation();
   void KernelCorrection(bool boundary);
 
 public:
