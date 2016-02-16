@@ -250,7 +250,7 @@ protected:
   ///////////////////////////////
   //PPE Functions and variables//
   ///////////////////////////////
-  void MatrixOrder(unsigned n,unsigned pinit,unsigned *porder,word *code,unsigned &ppeDim)const;
+  void MatrixOrder(unsigned n,unsigned pinit,unsigned *porder,word *code,unsigned &ppeDim);
   void InitPPEVars(const unsigned ppedim);
   void FindIrelation(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
 	  const unsigned *dcell,const tdouble3 *pos,const unsigned *idpc,unsigned *irelation,const word *code)const;
@@ -263,10 +263,18 @@ protected:
 	float *Divr,unsigned *idpc,const word *code,const unsigned ppedim,const double dt)const;
   void FreeSurfaceMark(unsigned n,unsigned pinit,float *matrixaDiag,float *matrixaIndex,unsigned *matrixaCol,unsigned *matrixaInteract,
     float *matrixb,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned index,const unsigned ppedim);
-  void SolveMatrix(const unsigned ppedim,float *r,float *rBar,float *v,float *p,float *s,float *t,float *y,float *z,float *X,float *Xerror,float *matrixaDiag,float *matrixaIndex,
+  void SolveMatrixCPU(const unsigned ppedim,float *r,float *rBar,float *v,float *p,float *s,float *t,float *y,float *z,float *X,float *Xerror,float *matrixaDiag,float *matrixaIndex,
     unsigned *matrixaCol,unsigned *matrixaInteract, float *matrixb,const unsigned index);
   float l2norm(const unsigned ppedim,const float *residual);
-  void PressureAssign(unsigned n,unsigned pinit,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,const unsigned *irelation,const unsigned *porder,const float *x,const word *code)const;
+  void PressureAssign(unsigned n,unsigned pinit,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,const unsigned *irelation,const unsigned *porder,const float *x,const word *code,const unsigned npb)const;
+
+  void solveMatrixCULA();
+  void PopulateMatrixBCULA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,std::vector<float>& matrixb,const unsigned *porder,const unsigned *idpc,const double dt,const unsigned ppedim)const;
+  void PopulateMatrixACULA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,float *divr,std::vector<float>& matrixInd,std::vector<int>& row,std::vector<int>& col,std::vector<float>& b,
+    const unsigned *porder,const unsigned *idpc,const word *code,const unsigned *irelation,const double dt,const unsigned ppedim,unsigned &index)const;
+  void PressureAssignCULA(unsigned n,unsigned pinit,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,const unsigned *irelation,const unsigned *porder,std::vector<float>& x,const word *code,const unsigned npb)const;
 
   unsigned *POrder; //Order of particles in the matrix
   float *MatrixADiag; //LHS of PPE

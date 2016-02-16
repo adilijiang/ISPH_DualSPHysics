@@ -956,7 +956,7 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
     double *movzg=ArraysGpu->ReserveDouble();
     
     cusph::ComputeRStar(WithFloating,Np,Npb,VelrhopPreg,dt,Codeg,movxyg,movzg);
-	cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
+	  cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
 
     ArraysGpu->Free(movxyg);   movxyg=NULL;
     ArraysGpu->Free(movzg);    movzg=NULL;

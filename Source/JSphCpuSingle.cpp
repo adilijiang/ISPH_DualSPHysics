@@ -605,7 +605,8 @@ double JSphCpuSingle::ComputeStep_Sym(){
   //-Pressure Poisson equation
   //-----------
   KernelCorrection(false);
-  SolvePPE(dt);							  //-Solve pressure Poisson equation
+  //SolvePPECPU(dt);							  //-Solve pressure Poisson equation
+  SolvePPECULA(dt);
   //-Corrector
   //-----------
   //DemDtForce=dt;                          //(DEM)
@@ -902,6 +903,7 @@ void JSphCpuSingle::SaveData(){
     TimerSim.Stop();
     infoplus.timesim=TimerSim.GetElapsedTimeD()/1000.;
   }
+
   //-Record particle values / Graba datos de particulas.
   const tdouble3 vdom[2]={OrderDecode(CellDivSingle->GetDomainLimits(true)),OrderDecode(CellDivSingle->GetDomainLimits(false))};
   JSph::SaveData(npsave,idp,pos,vel,rhop,1,vdom,&infoplus);
@@ -943,7 +945,7 @@ void JSphCpuSingle::FindIrelation(){
   JSphCpu::FindIrelation(Npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Idpc,Irelationc,Codec); 
 }
 
-void JSphCpuSingle::SolvePPE(double dt){ 
+void JSphCpuSingle::SolvePPECPU(double dt){ 
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
   tuint3 ncells=CellDivSingle->GetNcells();
   const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
@@ -965,8 +967,8 @@ void JSphCpuSingle::SolvePPE(double dt){
   PopulateMatrixA(np,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixADiag,MatrixAIndex,MatrixACol,MatrixAInteract,MatrixB,POrder,Idpc,Codec,Irelationc,dt,PPEDim,Index); //-Bound
   FreeSurfaceFind(np,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,Idpc,Codec,PPEDim,dt); //-Fluid-Fluid
   FreeSurfaceMark(np,0,MatrixADiag,MatrixAIndex,MatrixACol,MatrixAInteract,MatrixB,POrder,Idpc,Codec,Index,PPEDim);
-  SolveMatrix(PPEDim,rM,rBarM,vM,pM,sM,tM,yM,zM,XM,XerrorM,MatrixADiag,MatrixAIndex,MatrixACol,MatrixAInteract,MatrixB,Index);
-  PressureAssign(np,0,Posc,Velrhopc,Idpc,Irelationc,POrder,XM, Codec);
+  SolveMatrixCPU(PPEDim,rM,rBarM,vM,pM,sM,tM,yM,zM,XM,XerrorM,MatrixADiag,MatrixAIndex,MatrixACol,MatrixAInteract,MatrixB,Index);
+  PressureAssign(np,0,Posc,Velrhopc,Idpc,Irelationc,POrder,XM,Codec,npb);
 }
 
 void JSphCpuSingle::KernelCorrection(bool boundary){ 
@@ -991,4 +993,116 @@ void JSphCpuSingle::KernelCorrection(bool boundary){
   JSphCpu::KernelCorrection(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,dWxCorr,dWzCorr); //-Fluid-Fluid
   if(boundary)JSphCpu::KernelCorrection(npf,Npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,dWxCorr,dWzCorr); //-Fluid-Bound
   JSphCpu::InverseCorrection(npf,Npb,dWxCorr,dWzCorr);
+}
+
+void JSphCpuSingle::SolvePPECULA(double dt){ 
+  tuint3 cellmin=CellDivSingle->GetCellDomainMin();
+  tuint3 ncells=CellDivSingle->GetNcells();
+  const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
+  const unsigned cellfluid=nc.w*nc.z+1;
+  const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
+  const int hdiv=(CellMode==CELLMODE_H? 2: 1);
+  const unsigned *begincell = CellDivSingle->GetBeginCell();
+
+  const unsigned np = Np;
+  const unsigned npb=Npb;
+  const unsigned npf = np - npb;
+  unsigned PPEDim=0;
+  unsigned nnz=0;
+
+  // string buffer
+  const int bufsize = 512;
+  char buffer[bufsize];
+
+  // initialize cula sparse library
+  culaSparseHandle handle;
+  if (culaSparseCreate(&handle) != culaSparseNoError)
+  {
+    // this should only fail under extreme conditions
+    std::cout << "fatal error: failed to create library handle!" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  // error handling class
+  StatusChecker sc(handle);
+
+  // create a plan
+  culaSparsePlan plan;
+  sc = culaSparseCreatePlan(handle, &plan);
+  MatrixOrder(Np,0,POrder,Codec,PPEDim);
+  FreeSurfaceFind(np,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,Idpc,Codec,PPEDim,dt); //-Fluid-Fluid
+  // create matrix
+  std::vector<float> values;
+  std::vector<int> colInd;
+  std::vector<float> b(PPEDim, 0.0);
+  std::vector<int> rowInd(PPEDim+1);
+  PopulateMatrixBCULA(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim); //-Fluid-Fluid
+  PopulateMatrixACULA(np,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,Divr,values,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,dt,PPEDim,nnz); //-Bound
+
+  // allocate vectors
+  std::vector<float> x(PPEDim);
+
+  // set data coordinate format (null_ptr will use default options) 
+  sc = culaSparseSetScsrData(handle, plan, 0, PPEDim, nnz, &values[0], &rowInd[0], &colInd[0], &x[0], &b[0]);
+
+  // set configuration
+  culaSparseConfig config;
+  sc = culaSparseConfigInit(handle, &config);
+  config.relativeTolerance = 1e-6;
+  config.maxIterations = 500;
+
+  // perform solve (cg + no preconditioner on host)
+  culaSparseResult result;
+
+  // this will gracefully return an error if no cuda platform is found
+  if (culaSparsePreinitializeCuda(handle) == culaSparseNoError)
+  {
+    // change to cuda accelerated platform
+    sc = culaSparseSetCudaPlatform(handle, plan, 0);
+
+    //set Preconditioner
+    sc = culaSparseSetJacobiPreconditioner(handle, plan, 0);
+
+    // change solver
+    // this avoids preconditioner regeneration by using data cached by the plan
+    sc = culaSparseSetBicgstabSolver(handle, plan, 0);
+    
+    // perform solve (bicgstab + fainv on cuda)
+    // the timing results should indicate minimal overhead and preconditioner generation time
+    sc = culaSparseExecutePlan(handle, plan, &config, &result);
+    //sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
+    //std::cout << buffer << std::endl;
+  }
+  else
+  {
+    std::cout << "alert: no cuda capable gpu found" << std::endl;
+  }
+
+  // cleanup plan
+  culaSparseDestroyPlan(plan);
+
+  // cleanup handle
+  culaSparseDestroy(handle);
+
+  PressureAssignCULA(np,0,Posc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb);
+
+  values.clear(); colInd.clear(); rowInd.clear(); b.clear();
+}
+
+StatusChecker::StatusChecker(culaSparseHandle handle) : handle_(handle) {}
+
+void StatusChecker::operator=(culaSparseStatus status)
+{
+    // expected cases
+    if (status == culaSparseNoError || status == culaSparseNonConvergence)
+        return;
+
+    // there was an error; get additional information
+    const int buffer_size = 256;
+    char buffer[buffer_size];
+
+    if (culaSparseGetLastStatusString(handle_, buffer, buffer_size) != culaSparseNoError)
+        std::cout << "error: could not retrieve status string" << std::endl;
+    else
+        std::cout << "error: " << buffer << std::endl;
 }

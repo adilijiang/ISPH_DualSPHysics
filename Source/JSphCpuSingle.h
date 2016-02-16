@@ -21,6 +21,7 @@
 #include "Types.h"
 #include "JSphCpu.h"
 #include <string>
+#include <cula_sparse.h>
 
 class JCellDivCpuSingle;
 class JPartsLoad4;
@@ -67,7 +68,8 @@ protected:
   void SaveData();
   void FinishRun(bool stop);
 
-  void SolvePPE(double dt);
+  void SolvePPECPU(double dt);
+  void SolvePPECULA(double dt);
   void FindIrelation();
   void KernelCorrection(bool boundary);
 
@@ -76,6 +78,16 @@ public:
   ~JSphCpuSingle();
   void Run(std::string appname,JCfgRun *cfg,JLog2 *log);
 
+};
+
+class StatusChecker
+{
+public:
+    StatusChecker(culaSparseHandle handle);
+    void operator=(culaSparseStatus status);
+
+private:
+    culaSparseHandle handle_;
 };
 
 #endif
