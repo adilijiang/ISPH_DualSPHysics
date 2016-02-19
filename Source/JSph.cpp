@@ -378,9 +378,8 @@ void JSph::LoadCaseConfig(){
   }
   VerletSteps=eparms.GetValueInt("VerletSteps",true,40);
   
-  switch(eparms.GetValueInt("Kernel",true,2)){
-    case 2:  TKernel=KERNEL_Wendland; break;
-    case 3:  TKernel=KERNEL_Quintic;  break;
+  switch(eparms.GetValueInt("Kernel",true,1)){
+    case 1:  TKernel=KERNEL_Wendland; break;
     default: RunException(met,"Kernel choice is not valid.");
   }
 
@@ -725,27 +724,15 @@ void JSph::ConfigConstants(bool simulate2d){
   if(!DtMin)DtMin=(h/Cs0)*CoefDtMin;
   Dosh=float(h*2); 
   H2=float(h*h);
-  Fourh2=float(h*h*4); 
-  Eta2=float((h*1e-5f)*(h*1e-5f));
+  Fourh2=float(h*h*4.0f); 
+  Eta2=float((h*1.0e-5)*(h*1.0e-5));
   if(simulate2d){
-    if(TKernel==KERNEL_Wendland){
-      Awen=float(0.557/(h*h));
-      Bwen=float(-2.7852/(h*h*h));
-    }
-	  if(TKernel==KERNEL_Quintic){
-	    Awen=float(7.0/(478.0*PI*h*h));
-	    Bwen=float(7.0/(478.0*PI*h*h*h));
-	  }
+    Awen=float(0.557f/(h*h));
+    Bwen=float(-2.7852f/(h*h*h));
   }
   else{
-    if(TKernel==KERNEL_Wendland){
-      Awen=float(0.41778/(h*h*h));
-      Bwen=float(-2.08891/(h*h*h*h));
-    }
-	  if(TKernel==KERNEL_Quintic){
-	    Awen=float(3.0/(359.0*PI*h*h*h));
-	    Bwen=float(1.0/(7898.0*PI*h*h*h*h));
-	  }
+    Awen=float(0.41778f/(h*h*h));
+    Bwen=float(-2.08891f/(h*h*h*h));
   }
   //-Constants for Laminar viscosity + SPS turbulence model.
   if(TVisco==VISCO_LaminarSPS){  
@@ -1457,7 +1444,6 @@ std::string JSph::GetStepName(TpStep tstep){
 std::string JSph::GetKernelName(TpKernel tkernel){
   string tx;
   if(tkernel==KERNEL_Wendland)tx="Wendland";
-  else if(tkernel==KERNEL_Quintic)tx="Quintic";
   else tx="???";
   return(tx);
 }

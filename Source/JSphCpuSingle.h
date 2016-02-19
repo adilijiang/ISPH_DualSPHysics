@@ -68,7 +68,6 @@ protected:
   void SaveData();
   void FinishRun(bool stop);
 
-  void SolvePPECPU(double dt);
   void SolvePPECULA(double dt);
   void FindIrelation();
   void KernelCorrection(bool boundary);

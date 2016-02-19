@@ -52,7 +52,6 @@ protected:
   unsigned CpuParticlesSize;  //-Number of particles with reserved memory on the CPU / Numero de particulas para las cuales se reservo memoria en cpu.
   llong MemCpuParticles;      //-Memory reserved for particles' vectors / Mermoria reservada para vectores de datos de particulas.
   llong MemCpuFixed;          //-Memory reserved in AllocMemoryFixed / Mermoria reservada en AllocMemoryFixed.
-  llong MemCpuPPE;			  //-Max memory used for PPE
 
   //-Particle Position according to id / Posicion de particula segun id.
   unsigned *RidpMove;//-Only for moving boundary particles [CaseNmoving] and when CaseNmoving!=0 / Solo para boundary moving particles [CaseNmoving] y cuando CaseNmoving!=0 
@@ -134,7 +133,7 @@ protected:
 
 
   llong GetAllocMemoryCpu()const;
-  void PrintAllocMemory(llong mcpu,llong PPE)const;
+  void PrintAllocMemory(llong mcpu)const;
 
   unsigned GetParticlesData(unsigned n,unsigned pini,bool cellorderdecode,bool onlynormal
     ,unsigned *idp,tdouble3 *pos,tfloat3 *vel,float *rhop,word *code);
@@ -247,61 +246,33 @@ protected:
   std::string TimerGetName(unsigned ct)const{ return(TmcGetName((CsTypeTimerCPU)ct)); }
   std::string TimerToText(unsigned ct)const{ return(JSph::TimerToText(TimerGetName(ct),TimerGetValue(ct))); }
 
-  ///////////////////////////////
-  //PPE Functions and variables//
-  ///////////////////////////////
-  void MatrixOrder(unsigned n,unsigned pinit,unsigned *porder,word *code,unsigned &ppeDim);
-  void InitPPEVars(const unsigned ppedim);
-  void FindIrelation(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const unsigned *idpc,unsigned *irelation,const word *code)const;
-  void PopulateMatrixB(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,float *matrixb,const unsigned *porder,const unsigned *idpc,const double dt,const unsigned ppedim)const;
-  void PopulateMatrixA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,float *matrixaDiag,float *matrixaIndex,unsigned *matrixaCol,unsigned *matrixaInteract,
-    float *matrixb,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned *irelation,const double dt,const unsigned ppedim,unsigned &index)const;
-  void FreeSurfaceFind(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,
-	float *Divr,unsigned *idpc,const word *code,const unsigned ppedim,const double dt)const;
-  void FreeSurfaceMark(unsigned n,unsigned pinit,float *matrixaDiag,float *matrixaIndex,unsigned *matrixaCol,unsigned *matrixaInteract,
-    float *matrixb,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned index,const unsigned ppedim);
-  void SolveMatrixCPU(const unsigned ppedim,float *r,float *rBar,float *v,float *p,float *s,float *t,float *y,float *z,float *X,float *Xerror,float *matrixaDiag,float *matrixaIndex,
-    unsigned *matrixaCol,unsigned *matrixaInteract, float *matrixb,const unsigned index);
-  float l2norm(const unsigned ppedim,const float *residual);
-  void PressureAssign(unsigned n,unsigned pinit,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,const unsigned *irelation,const unsigned *porder,const float *x,const word *code,const unsigned npb)const;
-
-  void solveMatrixCULA();
-  void PopulateMatrixBCULA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,std::vector<float>& matrixb,const unsigned *porder,const unsigned *idpc,const double dt,const unsigned ppedim)const;
-  void PopulateMatrixACULA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,float *divr,std::vector<float>& matrixInd,std::vector<int>& row,std::vector<int>& col,std::vector<float>& b,
-    const unsigned *porder,const unsigned *idpc,const word *code,const unsigned *irelation,const double dt,const unsigned ppedim,unsigned &index)const;
-  void PressureAssignCULA(unsigned n,unsigned pinit,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,const unsigned *irelation,const unsigned *porder,std::vector<float>& x,const word *code,const unsigned npb)const;
-
-  unsigned *POrder; //Order of particles in the matrix
-  float *MatrixADiag; //LHS of PPE
-  float *MatrixAIndex; //LHS of PPE
-  unsigned *MatrixACol; //Length of matrixAIndex, corresponds to column in matrix
-  unsigned *MatrixAInteract; //Of length PPEDim to tell which position in matrixAIndex to look in for an interaction 
-  float *MatrixB; //RHS of PPE
-  float *Divr; //Divergence of position
-
-  float *rM;
-  float *rBarM;
-  float *vM;
-  float *pM;
-  float *sM;
-  float *tM;
-  float *yM;
-  float *zM;
-  float *XM;
-  float *XerrorM;
-
+  ///////////////////////////////////////////////
+  //PPE Functions, variables, Kernel Correction//
+  ///////////////////////////////////////////////
+  unsigned *Irelationc; //The closest fluid particle, j, for a boundary particle, i
   tfloat3 *dWxCorr; //Kernel correction in the x direction
   tfloat3 *dWzCorr; //Kernel correction in the z direction
-  unsigned *Irelationc; //The closest fluid particle, j, for a boundary particle, i
+  float *Divr; //Divergence of position
 
   void KernelCorrection(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
 	  const unsigned *dcell,const tdouble3 *pos,tfloat3 *dwxcorr,tfloat3 *dwzcorr)const;
   void InverseCorrection(unsigned n, unsigned pinit,tfloat3 *dwxcorr,tfloat3 *dwzcorr)const;
+  void FindIrelation(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	  const unsigned *dcell,const tdouble3 *pos,const unsigned *idpc,unsigned *irelation,const word *code)const;
+
+  void solveMatrixCULA();
+  void MatrixOrder(unsigned n,unsigned pinit,std::vector<unsigned>& porder,word *code,unsigned &ppeDim);
+  void FreeSurfaceFind(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
+     const tdouble3 *pos,float *Divr,unsigned *idpc,std::vector<unsigned>& porder,const word *code,const unsigned ppedim,const double dt)const;
+  void PopulateMatrixBCULA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,std::vector<float>& matrixb,std::vector<unsigned>& porder,
+    const unsigned *idpc,const double dt,const unsigned ppedim)const;
+  void PopulateMatrixACULA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,float *divr,std::vector<float>& matrixInd,std::vector<int>& row,std::vector<int>& col,
+    std::vector<float>& b,std::vector<unsigned>& porder,const unsigned *idpc,const word *code,const unsigned *irelation,const double dt,const unsigned ppedim,
+    unsigned &index)const;
+  void PressureAssignCULA(unsigned n,unsigned pinit,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,const unsigned *irelation,std::vector<unsigned>& porder,
+    std::vector<float>& x,const word *code,const unsigned npb)const;
 
 public:
   JSphCpu(bool withmpi);

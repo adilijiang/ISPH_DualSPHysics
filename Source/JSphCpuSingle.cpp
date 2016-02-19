@@ -510,12 +510,12 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter){
   	
   TmcStart(Timers,TMC_CfForces);
   if(RenCorrection)RunRenCorrection();
-  
+
   //-Interaction of Fluid-Fluid/Bound & Bound-Fluid (forces and DEM) / Interaccion Fluid-Fluid/Bound & Bound-Fluid (forces and DEM).
   float viscdt=0;
   if(Psimple)JSphCpu::InteractionSimple_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,PsPosc,Velrhopc,Idpc,dWxCorr,dWzCorr,Codec,Pressc,viscdt,Arc,Acec,Deltac,SpsTauc,SpsGradvelc,ShiftPosc,ShiftDetectc);
   else JSphCpu::Interaction_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,dWxCorr,dWzCorr,Codec,Pressc,viscdt,Arc,Acec,Deltac,SpsTauc,SpsGradvelc,ShiftPosc,ShiftDetectc);
-
+  
   //-For 2-D simulations zero the 2nd component / Para simulaciones 2D anula siempre la 2º componente
   if(Simulate2D)for(unsigned p=Npb;p<Np;p++)Acec[p].y=0;
 
@@ -596,6 +596,7 @@ double JSphCpuSingle::ComputeStep_Sym(){
   //DemDtForce=dt*0.5f;                     //(DEM)
   PreInteraction_Forces(INTER_Forces);
   RunCellDivide(true);
+
   Interaction_Forces(INTER_Forces);      //-Interaction / Interaccion
   //const double ddt_p=DtVariable(false);   //-Calculate dt of predictor step / Calcula dt del predictor
   //if(TShifting)RunShifting(dt*.5);        //-Shifting
@@ -819,7 +820,7 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   //-------------------------------------------
   InitRun();
   UpdateMaxValues();
-  PrintAllocMemory(GetAllocMemoryCpu(),MemCpuPPE);
+  PrintAllocMemory(GetAllocMemoryCpu());
   SaveData(); 
   TmcResetValues(Timers);
   TmcStop(Timers,TMC_Init);
@@ -945,32 +946,6 @@ void JSphCpuSingle::FindIrelation(){
   JSphCpu::FindIrelation(Npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Idpc,Irelationc,Codec); 
 }
 
-void JSphCpuSingle::SolvePPECPU(double dt){ 
-  tuint3 cellmin=CellDivSingle->GetCellDomainMin();
-  tuint3 ncells=CellDivSingle->GetNcells();
-  const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
-  const unsigned cellfluid=nc.w*nc.z+1;
-  const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
-  const int hdiv=(CellMode==CELLMODE_H? 2: 1);
-  const unsigned *begincell = CellDivSingle->GetBeginCell();
-
-  const unsigned np = Np;
-  const unsigned npb=Npb;
-  const unsigned npf = np - npb;
-  unsigned PPEDim=0;
-  unsigned Index=0;
-
-  MatrixOrder(Np,0,POrder,Codec,PPEDim);
-  InitPPEVars(PPEDim);
-  //-Populate Matrix
-  PopulateMatrixB(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorr,dWzCorr,MatrixB,POrder,Idpc,dt,PPEDim); //-Fluid-Fluid
-  PopulateMatrixA(np,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,MatrixADiag,MatrixAIndex,MatrixACol,MatrixAInteract,MatrixB,POrder,Idpc,Codec,Irelationc,dt,PPEDim,Index); //-Bound
-  FreeSurfaceFind(np,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,Idpc,Codec,PPEDim,dt); //-Fluid-Fluid
-  FreeSurfaceMark(np,0,MatrixADiag,MatrixAIndex,MatrixACol,MatrixAInteract,MatrixB,POrder,Idpc,Codec,Index,PPEDim);
-  SolveMatrixCPU(PPEDim,rM,rBarM,vM,pM,sM,tM,yM,zM,XM,XerrorM,MatrixADiag,MatrixAIndex,MatrixACol,MatrixAInteract,MatrixB,Index);
-  PressureAssign(np,0,Posc,Velrhopc,Idpc,Irelationc,POrder,XM,Codec,npb);
-}
-
 void JSphCpuSingle::KernelCorrection(bool boundary){ 
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
   tuint3 ncells=CellDivSingle->GetNcells();
@@ -994,7 +969,9 @@ void JSphCpuSingle::KernelCorrection(bool boundary){
   if(boundary)JSphCpu::KernelCorrection(npf,Npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,dWxCorr,dWzCorr); //-Fluid-Bound
   JSphCpu::InverseCorrection(npf,Npb,dWxCorr,dWzCorr);
 }
-
+//==============================================================================
+/// PPE Solver in CULA
+//==============================================================================
 void JSphCpuSingle::SolvePPECULA(double dt){ 
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
   tuint3 ncells=CellDivSingle->GetNcells();
@@ -1013,7 +990,7 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   // string buffer
   const int bufsize = 512;
   char buffer[bufsize];
-
+  
   // initialize cula sparse library
   culaSparseHandle handle;
   if (culaSparseCreate(&handle) != culaSparseNoError)
@@ -1029,8 +1006,9 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   // create a plan
   culaSparsePlan plan;
   sc = culaSparseCreatePlan(handle, &plan);
+  std::vector<unsigned> POrder;
   MatrixOrder(Np,0,POrder,Codec,PPEDim);
-  FreeSurfaceFind(np,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,Idpc,Codec,PPEDim,dt); //-Fluid-Fluid
+  FreeSurfaceFind(np,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,Idpc,POrder,Codec,PPEDim,dt); //-Fluid-Fluid
   // create matrix
   std::vector<float> values;
   std::vector<int> colInd;
@@ -1048,14 +1026,14 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   // set configuration
   culaSparseConfig config;
   sc = culaSparseConfigInit(handle, &config);
-  config.relativeTolerance = 1e-6;
+  config.relativeTolerance = 1e-7;
   config.maxIterations = 500;
 
   // perform solve (cg + no preconditioner on host)
   culaSparseResult result;
 
   // this will gracefully return an error if no cuda platform is found
-  if (culaSparsePreinitializeCuda(handle) == culaSparseNoError)
+  /*if (culaSparsePreinitializeCuda(handle) == culaSparseNoError)
   {
     // change to cuda accelerated platform
     sc = culaSparseSetCudaPlatform(handle, plan, 0);
@@ -1074,9 +1052,23 @@ void JSphCpuSingle::SolvePPECULA(double dt){
     //std::cout << buffer << std::endl;
   }
   else
-  {
-    std::cout << "alert: no cuda capable gpu found" << std::endl;
-  }
+  {*/
+    // change to cuda accelerated platform
+    sc = culaSparseSetHostPlatform(handle, plan, 0);
+
+    //set Preconditioner
+    sc = culaSparseSetJacobiPreconditioner(handle, plan, 0);
+
+    // change solver
+    // this avoids preconditioner regeneration by using data cached by the plan
+    sc = culaSparseSetBicgstabSolver(handle, plan, 0);
+    
+    // perform solve (bicgstab + fainv on cuda)
+    // the timing results should indicate minimal overhead and preconditioner generation time
+    sc = culaSparseExecutePlan(handle, plan, &config, &result);
+    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
+    std::cout << buffer << std::endl;
+  //}
 
   // cleanup plan
   culaSparseDestroyPlan(plan);
@@ -1085,8 +1077,8 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   culaSparseDestroy(handle);
 
   PressureAssignCULA(np,0,Posc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb);
-
-  values.clear(); colInd.clear(); rowInd.clear(); b.clear();
+  //for(int i=0;i<int(Np);i++)Velrhopc[i].w=fabs(float(float(1.0-Posc[i].z)*RhopZero*fabs(Gravity.z)-Velrhopc[i].w));
+  values.clear(); colInd.clear(); rowInd.clear(); b.clear(); POrder.clear();
 }
 
 StatusChecker::StatusChecker(culaSparseHandle handle) : handle_(handle) {}
