@@ -263,14 +263,15 @@ protected:
   void solveMatrixCULA();
   void MatrixOrder(unsigned n,unsigned pinit,std::vector<unsigned>& porder,word *code,unsigned &ppeDim);
   void FreeSurfaceFind(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
-     const tdouble3 *pos,float *Divr,unsigned *idpc,std::vector<unsigned>& porder,const word *code,const unsigned ppedim,const double dt)const;
+    const tdouble3 *pos,float *Divr,unsigned *idpc,std::vector<unsigned>& porder,const word *code,const unsigned ppedim,const double dt)const;
+  unsigned MatrixStorageCULA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,
+	  float *divr,std::vector<int>& row,std::vector<unsigned>& porder,const unsigned *idpc,const word *code,const unsigned ppedim)const;
   void PopulateMatrixBCULA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
 	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,std::vector<float>& matrixb,std::vector<unsigned>& porder,
     const unsigned *idpc,const double dt,const unsigned ppedim)const;
   void PopulateMatrixACULA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
 	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,float *divr,std::vector<float>& matrixInd,std::vector<int>& row,std::vector<int>& col,
-    std::vector<float>& b,std::vector<unsigned>& porder,const unsigned *idpc,const word *code,const unsigned *irelation,const double dt,const unsigned ppedim,
-    unsigned &index)const;
+    std::vector<float>& b,std::vector<unsigned>& porder,const unsigned *idpc,const word *code,const unsigned *irelation,const double dt,const unsigned ppedim)const;
   void PressureAssignCULA(unsigned n,unsigned pinit,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,const unsigned *irelation,std::vector<unsigned>& porder,
     std::vector<float>& x,const word *code,const unsigned npb)const;
 

@@ -943,7 +943,7 @@ void JSphCpuSingle::FindIrelation(){
   const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
   const int hdiv=(CellMode==CELLMODE_H? 2: 1);
   const unsigned *begincell = CellDivSingle->GetBeginCell();
-  JSphCpu::FindIrelation(Npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Idpc,Irelationc,Codec); 
+  JSphCpu::FindIrelation(Psimple,Npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Idpc,Irelationc,Codec); 
 }
 
 void JSphCpuSingle::KernelCorrection(bool boundary){ 
@@ -985,7 +985,6 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   const unsigned npb=Npb;
   const unsigned npf = np - npb;
   unsigned PPEDim=0;
-  unsigned nnz=0;
 
   // string buffer
   const int bufsize = 512;
@@ -1009,25 +1008,28 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   std::vector<unsigned> POrder;
   MatrixOrder(Np,0,POrder,Codec,PPEDim);
   FreeSurfaceFind(np,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,Idpc,POrder,Codec,PPEDim,dt); //-Fluid-Fluid
-  // create matrix
+  // create matrixa
+  std::cout<<"Creating Matrix\n";
   std::vector<float> values;
   std::vector<int> colInd;
   std::vector<float> b(PPEDim, 0.0);
   std::vector<int> rowInd(PPEDim+1);
   PopulateMatrixBCULA(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim); //-Fluid-Fluid
-  PopulateMatrixACULA(np,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,Divr,values,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,dt,PPEDim,nnz); //-Bound
-
+  const unsigned nnz = MatrixStorageCULA(np,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);
+  colInd.resize(nnz,PPEDim);
+  values.resize(nnz,0.0);
+  PopulateMatrixACULA(np,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,Divr,values,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,dt,PPEDim); //-Bound
+  std::cout<<"Solving Matrix\n";
   // allocate vectors
   std::vector<float> x(PPEDim);
-
   // set data coordinate format (null_ptr will use default options) 
   sc = culaSparseSetScsrData(handle, plan, 0, PPEDim, nnz, &values[0], &rowInd[0], &colInd[0], &x[0], &b[0]);
 
   // set configuration
   culaSparseConfig config;
   sc = culaSparseConfigInit(handle, &config);
-  config.relativeTolerance = 1e-7;
-  config.maxIterations = 500;
+  config.relativeTolerance = 1e-4;
+  config.maxIterations = 5000;
 
   // perform solve (cg + no preconditioner on host)
   culaSparseResult result;
@@ -1054,7 +1056,7 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   else
   {*/
     // change to cuda accelerated platform
-    sc = culaSparseSetHostPlatform(handle, plan, 0);
+    sc = culaSparseSetCudaPlatform(handle, plan, 0);
 
     //set Preconditioner
     sc = culaSparseSetJacobiPreconditioner(handle, plan, 0);
@@ -1077,7 +1079,7 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   culaSparseDestroy(handle);
 
   PressureAssignCULA(np,0,Posc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb);
-  //for(int i=0;i<int(Np);i++)Velrhopc[i].w=fabs(float(float(1.0-Posc[i].z)*RhopZero*fabs(Gravity.z)-Velrhopc[i].w));
+
   values.clear(); colInd.clear(); rowInd.clear(); b.clear(); POrder.clear();
 }
 
