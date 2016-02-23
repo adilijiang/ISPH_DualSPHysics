@@ -594,6 +594,7 @@ double JSphCpuSingle::ComputeStep_Sym(){
   //-Predictor
   //-----------
   //DemDtForce=dt*0.5f;                     //(DEM)
+  
   PreInteraction_Forces(INTER_Forces);
   RunCellDivide(true);
 
@@ -943,7 +944,7 @@ void JSphCpuSingle::FindIrelation(){
   const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
   const int hdiv=(CellMode==CELLMODE_H? 2: 1);
   const unsigned *begincell = CellDivSingle->GetBeginCell();
-  JSphCpu::FindIrelation(Psimple,Npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Idpc,Irelationc,Codec); 
+  JSphCpu::FindIrelation(Npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Idpc,Irelationc,Codec); 
 }
 
 void JSphCpuSingle::KernelCorrection(bool boundary){ 
@@ -965,8 +966,8 @@ void JSphCpuSingle::KernelCorrection(bool boundary){
   memset(dWxCorr,0,sizeof(tfloat3)*Np);						
   memset(dWzCorr,0,sizeof(tfloat3)*Np);								
 
-  JSphCpu::KernelCorrection(npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,dWxCorr,dWzCorr); //-Fluid-Fluid
-  if(boundary)JSphCpu::KernelCorrection(npf,Npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,dWxCorr,dWzCorr); //-Fluid-Bound
+  JSphCpu::KernelCorrection(Psimple,npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Fluid-Fluid
+  if(boundary)JSphCpu::KernelCorrection(Psimple,npf,Npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Fluid-Bound
   JSphCpu::InverseCorrection(npf,Npb,dWxCorr,dWzCorr);
 }
 //==============================================================================
@@ -1006,29 +1007,43 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   culaSparsePlan plan;
   sc = culaSparseCreatePlan(handle, &plan);
   std::vector<unsigned> POrder;
+  
   MatrixOrder(Np,0,POrder,Codec,PPEDim);
-  FreeSurfaceFind(np,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,Idpc,POrder,Codec,PPEDim,dt); //-Fluid-Fluid
+  FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Idpc,POrder,Codec,PPEDim,dt); //-Fluid-Fluid
+  FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Idpc,POrder,Codec,PPEDim,dt); //-Fluid-Bound
+  FreeSurfaceFind(Psimple,npb,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Idpc,POrder,Codec,PPEDim,dt); //-Bound-Fluid
+  FreeSurfaceFind(Psimple,npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Idpc,POrder,Codec,PPEDim,dt); //-Bound-Bound
   // create matrixa
-  std::cout<<"Creating Matrix\n";
-  std::vector<float> values;
+  std::cout<<"Creating Matrix B\n";
+  std::vector<double> values;
   std::vector<int> colInd;
-  std::vector<float> b(PPEDim, 0.0);
-  std::vector<int> rowInd(PPEDim+1);
-  PopulateMatrixBCULA(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim); //-Fluid-Fluid
-  const unsigned nnz = MatrixStorageCULA(np,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);
-  colInd.resize(nnz,PPEDim);
-  values.resize(nnz,0.0);
-  PopulateMatrixACULA(np,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,Divr,values,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,dt,PPEDim); //-Bound
+  std::vector<double> b(PPEDim, 0.0);
+  std::vector<int> rowInd(PPEDim+1,0);
+  PopulateMatrixBCULA(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim); //-Fluid-Fluid
+  std::cout<<"Creating Matrix Storage\n";
+  unsigned Nnz=0;
+  MatrixStorageCULA(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);
+  MatrixStorageCULA(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);
+  MatrixStorageCULA(Psimple,npb,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);
+  MatrixStorageCULA(Psimple,npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);
+  MatrixASetupCULA(PPEDim,Nnz,rowInd);
+  colInd.resize(Nnz,PPEDim);
+  values.resize(Nnz,0.0);
+  std::cout<<"Creating Matrix A\n";
+  PopulateMatrixACULA(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,dt,PPEDim);
+  PopulateMatrixACULA(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,dt,PPEDim); 
+  PopulateMatrixACULA(Psimple,npb,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,dt,PPEDim); 
+  PopulateMatrixACULA(Psimple,npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,dt,PPEDim); 
   std::cout<<"Solving Matrix\n";
   // allocate vectors
-  std::vector<float> x(PPEDim);
+  std::vector<double> x(PPEDim);
   // set data coordinate format (null_ptr will use default options) 
-  sc = culaSparseSetScsrData(handle, plan, 0, PPEDim, nnz, &values[0], &rowInd[0], &colInd[0], &x[0], &b[0]);
+  sc = culaSparseSetDcsrData(handle, plan, 0, PPEDim, Nnz, &values[0], &rowInd[0], &colInd[0], &x[0], &b[0]);
 
   // set configuration
   culaSparseConfig config;
   sc = culaSparseConfigInit(handle, &config);
-  config.relativeTolerance = 1e-4;
+  config.relativeTolerance = 1e-5;
   config.maxIterations = 5000;
 
   // perform solve (cg + no preconditioner on host)
@@ -1078,7 +1093,7 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   // cleanup handle
   culaSparseDestroy(handle);
 
-  PressureAssignCULA(np,0,Posc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb);
+  PressureAssignCULA(Psimple,np,0,Posc,PsPosc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb);
 
   values.clear(); colInd.clear(); rowInd.clear(); b.clear(); POrder.clear();
 }

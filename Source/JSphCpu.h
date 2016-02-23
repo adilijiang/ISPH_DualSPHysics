@@ -254,26 +254,27 @@ protected:
   tfloat3 *dWzCorr; //Kernel correction in the z direction
   float *Divr; //Divergence of position
 
-  void KernelCorrection(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,tfloat3 *dwxcorr,tfloat3 *dwzcorr)const;
+  void KernelCorrection(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,tfloat3 *dwxcorr,tfloat3 *dwzcorr)const;
   void InverseCorrection(unsigned n, unsigned pinit,tfloat3 *dwxcorr,tfloat3 *dwzcorr)const;
   void FindIrelation(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
 	  const unsigned *dcell,const tdouble3 *pos,const unsigned *idpc,unsigned *irelation,const word *code)const;
 
   void solveMatrixCULA();
   void MatrixOrder(unsigned n,unsigned pinit,std::vector<unsigned>& porder,word *code,unsigned &ppeDim);
-  void FreeSurfaceFind(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
-    const tdouble3 *pos,float *Divr,unsigned *idpc,std::vector<unsigned>& porder,const word *code,const unsigned ppedim,const double dt)const;
-  unsigned MatrixStorageCULA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,
+  void FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
+    const tdouble3 *pos,const tfloat3 *pspos,float *Divr,unsigned *idpc,std::vector<unsigned>& porder,const word *code,const unsigned ppedim,const double dt)const;
+  void MatrixStorageCULA(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
 	  float *divr,std::vector<int>& row,std::vector<unsigned>& porder,const unsigned *idpc,const word *code,const unsigned ppedim)const;
-  void PopulateMatrixBCULA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,std::vector<float>& matrixb,std::vector<unsigned>& porder,
+  void MatrixASetupCULA(const unsigned ppedim,unsigned &nnz,std::vector<int>& row)const;
+  void PopulateMatrixBCULA(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,std::vector<double>& matrixb,std::vector<unsigned>& porder,
     const unsigned *idpc,const double dt,const unsigned ppedim)const;
-  void PopulateMatrixACULA(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,float *divr,std::vector<float>& matrixInd,std::vector<int>& row,std::vector<int>& col,
-    std::vector<float>& b,std::vector<unsigned>& porder,const unsigned *idpc,const word *code,const unsigned *irelation,const double dt,const unsigned ppedim)const;
-  void PressureAssignCULA(unsigned n,unsigned pinit,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,const unsigned *irelation,std::vector<unsigned>& porder,
-    std::vector<float>& x,const word *code,const unsigned npb)const;
+  void PopulateMatrixACULA(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double>& matrixInd,std::vector<int>& row,std::vector<int>& col,
+    std::vector<double>& b,std::vector<unsigned>& porder,const unsigned *idpc,const word *code,const unsigned *irelation,const double dt,const unsigned ppedim)const;
+  void PressureAssignCULA(bool psimple,unsigned n,unsigned pinit,const tdouble3 *pos,const tfloat3 *pspos,tfloat4 *velrhop,const unsigned *idpc,const unsigned *irelation,std::vector<unsigned>& porder,
+    std::vector<double>& x,const word *code,const unsigned npb)const;
 
 public:
   JSphCpu(bool withmpi);
