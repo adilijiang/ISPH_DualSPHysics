@@ -594,10 +594,8 @@ double JSphCpuSingle::ComputeStep_Sym(){
   //-Predictor
   //-----------
   //DemDtForce=dt*0.5f;                     //(DEM)
-  
   PreInteraction_Forces(INTER_Forces);
   RunCellDivide(true);
-
   Interaction_Forces(INTER_Forces);      //-Interaction / Interaccion
   //const double ddt_p=DtVariable(false);   //-Calculate dt of predictor step / Calcula dt del predictor
   //if(TShifting)RunShifting(dt*.5);        //-Shifting
@@ -607,8 +605,7 @@ double JSphCpuSingle::ComputeStep_Sym(){
   //-Pressure Poisson equation
   //-----------
   KernelCorrection(false);
-  //SolvePPECPU(dt);							  //-Solve pressure Poisson equation
-  SolvePPECULA(dt);
+  SolvePPECULA(dt); //-Solve pressure Poisson equation
   //-Corrector
   //-----------
   //DemDtForce=dt;                          //(DEM)
@@ -834,6 +831,7 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   TimerPart.Start();
   Log->Print(string("\n[Initialising simulation (")+RunCode+")  "+fun::GetDateTime()+"]");
   PrintHeadPart();
+
   //-finding dummy particle relations to wall particles
   RunCellDivide(true);
   FindIrelation(); 
@@ -944,7 +942,7 @@ void JSphCpuSingle::FindIrelation(){
   const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
   const int hdiv=(CellMode==CELLMODE_H? 2: 1);
   const unsigned *begincell = CellDivSingle->GetBeginCell();
-  JSphCpu::FindIrelation(Npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Idpc,Irelationc,Codec); 
+  JSphCpu::FindIrelation(Psimple,Npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Idpc,Irelationc,Codec); 
 }
 
 void JSphCpuSingle::KernelCorrection(bool boundary){ 
@@ -956,23 +954,26 @@ void JSphCpuSingle::KernelCorrection(bool boundary){
   const int hdiv=(CellMode==CELLMODE_H? 2: 1);
   const unsigned *begincell = CellDivSingle->GetBeginCell();
 
-  const unsigned npf=Np-Npb;
+  const unsigned np=Np;
+  const unsigned npb=Npb;
+  const unsigned npf=np-npb;
 
   if(!boundary){
     dWxCorr=ArraysCpu->ReserveFloat3();
     dWzCorr=ArraysCpu->ReserveFloat3();
   }
 
-  memset(dWxCorr,0,sizeof(tfloat3)*Np);						
-  memset(dWzCorr,0,sizeof(tfloat3)*Np);								
+  memset(dWxCorr,0,sizeof(tfloat3)*np);						
+  memset(dWzCorr,0,sizeof(tfloat3)*np);								
 
-  JSphCpu::KernelCorrection(Psimple,npf,Npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Fluid-Fluid
-  if(boundary)JSphCpu::KernelCorrection(Psimple,npf,Npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Fluid-Bound
-  JSphCpu::InverseCorrection(npf,Npb,dWxCorr,dWzCorr);
+  JSphCpu::KernelCorrection(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Fluid-Fluid
+  if(boundary)JSphCpu::KernelCorrection(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Fluid-Bound
+  JSphCpu::InverseCorrection(npf,npb,dWxCorr,dWzCorr);
 }
 //==============================================================================
 /// PPE Solver in CULA
 //==============================================================================
+#include <time.h>
 void JSphCpuSingle::SolvePPECULA(double dt){ 
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
   tuint3 ncells=CellDivSingle->GetNcells();
@@ -1001,7 +1002,7 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   }
 
   // error handling class
-  StatusChecker sc(handle);
+  StatusCheckerCpu sc(handle);
 
   // create a plan
   culaSparsePlan plan;
@@ -1030,10 +1031,14 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   colInd.resize(Nnz,PPEDim);
   values.resize(Nnz,0.0);
   std::cout<<"Creating Matrix A\n";
-  PopulateMatrixACULA(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,dt,PPEDim);
-  PopulateMatrixACULA(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,dt,PPEDim); 
-  PopulateMatrixACULA(Psimple,npb,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,dt,PPEDim); 
-  PopulateMatrixACULA(Psimple,npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,dt,PPEDim); 
+  clock_t start = clock(); 
+  PopulateMatrixACULAInteractFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,POrder,Idpc,Codec,PPEDim);
+  PopulateMatrixACULAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); 
+  PopulateMatrixACULAInteractFluid(Psimple,npb,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,POrder,Idpc,Codec,PPEDim); 
+  PopulateMatrixACULAInteractBound(Psimple,npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); 
+  clock_t stop = clock();   
+  double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
+  cout<<"Time = " << dif << "ms\n";
   std::cout<<"Solving Matrix\n";
   // allocate vectors
   std::vector<double> x(PPEDim);
@@ -1085,6 +1090,21 @@ void JSphCpuSingle::SolvePPECULA(double dt){
     sc = culaSparseExecutePlan(handle, plan, &config, &result);
     sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
     std::cout << buffer << std::endl;
+    sc = culaSparseExecutePlan(handle, plan, &config, &result);
+    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
+    std::cout << buffer << std::endl;
+    sc = culaSparseExecutePlan(handle, plan, &config, &result);
+    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
+    std::cout << buffer << std::endl;
+    sc = culaSparseExecutePlan(handle, plan, &config, &result);
+    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
+    std::cout << buffer << std::endl;
+    sc = culaSparseExecutePlan(handle, plan, &config, &result);
+    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
+    std::cout << buffer << std::endl;
+    sc = culaSparseExecutePlan(handle, plan, &config, &result);
+    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
+    std::cout << buffer << std::endl;
   //}
 
   // cleanup plan
@@ -1098,9 +1118,9 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   values.clear(); colInd.clear(); rowInd.clear(); b.clear(); POrder.clear();
 }
 
-StatusChecker::StatusChecker(culaSparseHandle handle) : handle_(handle) {}
+StatusCheckerCpu::StatusCheckerCpu(culaSparseHandle handle) : handle_(handle) {}
 
-void StatusChecker::operator=(culaSparseStatus status)
+void StatusCheckerCpu::operator=(culaSparseStatus status)
 {
     // expected cases
     if (status == culaSparseNoError || status == culaSparseNonConvergence)

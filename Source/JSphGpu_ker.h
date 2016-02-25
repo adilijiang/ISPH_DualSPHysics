@@ -179,16 +179,25 @@ void AddVarAcc(unsigned n,unsigned pini,word codesel
   ,tdouble3 acclin,tdouble3 accang,tdouble3 centre,tdouble3 velang,tdouble3 vellin,bool setgravity
   ,tfloat3 gravity,const word *code,const double2 *posxy,const double *posz,const float4 *velrhop,float3 *ace);
 
-//# Functions and Kernels for initial advection
+//# Kernels for initial advection
 void ComputeRStar(bool floating,unsigned np,unsigned npb,const float4 *velrhoppre,double dtm,word *code,double2 *movxy,double *movz);
+
+//# Kernels for finding a dummy particles corresponding wall particle
+void FindIrelation(bool psimple,TpCellMode cellmode
+  ,const unsigned bsbound,unsigned npbok,tuint3 ncells
+  ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
+  ,const double2 *posxy,const double *posz,const float4 *pospress
+  ,const float4 *velrhop,const word *code,const unsigned *idp,unsigned *irelationg);
+
+//# Kernels for kernel Correction
+void KernelCorrection(bool psimple,bool boundary,TpCellMode cellmode
+  ,const unsigned bsfluid,unsigned np,unsigned npb,tuint3 ncells
+  ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
+  ,const double2 *posxy,const double *posz,const float4 *pospress
+  ,const float4 *velrhop,float3 *dwxcorrg,float3 *dwzcorrg);
 }
 
-
-
 #endif
-
-
-
 
 
 

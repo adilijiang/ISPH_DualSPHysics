@@ -221,7 +221,7 @@ protected:
 
   void PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb);
   void PreInteraction_Forces(TpInter tinter,double dt);
-  void PosInteraction_Forces();
+  void PosInteraction_Forces(TpInter tinter);
   
   void ComputeVerlet(double dt);
   void ComputeSymplecticPre(double dt);
@@ -240,6 +240,16 @@ protected:
   std::string TimerGetName(unsigned ct)const{ return(TmgGetName((CsTypeTimerGPU)ct)); }
   std::string TimerToText(unsigned ct)const{ return(JSph::TimerToText(TimerGetName(ct),TimerGetValue(ct))); }
 
+  ///////////////////////////////////////////////
+  //PPE Functions, variables, Kernel Correction//
+  ///////////////////////////////////////////////
+  unsigned *Irelationg; //The closest fluid particle, j, for a boundary particle, i
+  float3 *dWxCorrg; //Kernel correction in the x direction
+  float3 *dWzCorrg; //Kernel correction in the z direction
+  float *Divrg; //Divergence of position
+
+  void MatrixOrder(unsigned n,unsigned pinit,std::vector<unsigned>& porder,word *code,unsigned &ppeDim);
+  
 public:
   JSphGpu(bool withmpi);
   ~JSphGpu();

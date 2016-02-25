@@ -366,7 +366,6 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
   //-Inicia Divide.
   //-Initiates Divide.
   CellDivSingle->Divide(Npb,Np-Npb-NpbPer-NpfPer,NpbPer,NpfPer,BoundChanged,Dcellg,Codeg,Timers,Posxyg,Poszg,Idpg);
-
   //-Ordena datos de particulas
   //-Sorts particle data
   TmgStart(Timers,TMG_NlSortData);
@@ -450,7 +449,7 @@ void JSphGpuSingle::RunRenCorrection(){
 //==============================================================================
 void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   const char met[]="Interaction_Forces";
-  PreInteraction_Forces(tinter,dt);
+  
   TmgStart(Timers,TMG_CfForces);
   if(RenCorrection)RunRenCorrection();
 
@@ -532,23 +531,31 @@ double JSphGpuSingle::ComputeStep_Sym(){
   const double dt=DtPre;
   //-Predictor
   //-----------
+  PreInteraction_Forces(INTER_Forces,dt);
+  RunCellDivide(true);
+  Log->Print("\ncool\n");
  // DemDtForce=dt*0.5f;                     //(DEM)
   Interaction_Forces(INTER_Forces,dt);       //-Interaccion //-Interaction
   //const double ddt_p=DtVariable(false);   //-Calcula dt del predictor //-Computes dt in the predictor step
   //if(TShifting)RunShifting(dt*.5);        //-Shifting
   ComputeSymplecticPre(dt);               //-Aplica Symplectic-Predictor a las particulas //Applies Symplectic-Predictor to the particles
   //if(CaseNfloat)RunFloating(dt*.5,true);  //-Gestion de floating bodies //-Management of the floating bodies
-  PosInteraction_Forces();                //-Libera memoria de interaccion //-Releases memory of the interaction
+  PosInteraction_Forces(INTER_Forces);                //-Libera memoria de interaccion //-Releases memory of the interaction
+  //-Pressure Poisson equation
+  //-----------
+  KernelCorrection(true);
+  SolvePPE(dt); //-Solve pressure Poisson equation
   //-Corrector
   //-----------
   //DemDtForce=dt;                          //(DEM)
-  RunCellDivide(true);
+  PreInteraction_Forces(INTER_ForcesCorr,dt);
+  KernelCorrection(true);
   Interaction_Forces(INTER_ForcesCorr,dt);   //-Interaccion //-interaction
   //const double ddt_c=DtVariable(true);    //-Calcula dt del corrector //Computes dt in the corrector step
-  //if(TShifting)RunShifting(dt);           //-Shifting
+  if(TShifting)RunShifting(dt);           //-Shifting
   ComputeSymplecticCorr(dt);              //-Aplica Symplectic-Corrector a las particulas //Applies Symplectic-Corrector to the particles
   //if(CaseNfloat)RunFloating(dt,false);    //-Gestion de floating bodies //-Management of the floating bodies
-  PosInteraction_Forces();                //-Libera memoria de interaccion //-Releases memory of the interaction
+  PosInteraction_Forces(INTER_ForcesCorr);                //-Libera memoria de interaccion //-Releases memory of the interaction
 
   //DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep //-Computes dt for the next ComputeStep
   return(dt);
@@ -625,7 +632,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   Log->Print(string("\n[Initialising simulation (")+RunCode+")  "+fun::GetDateTime()+"]");
   PrintHeadPart();
   RunCellDivide(true);
-  //FindIrelation(); 
+  FindIrelation();
   while(TimeStep<TimeMax){
     //if(ViscoTime)Visco=ViscoTime->GetVisco(float(TimeStep));
     double stepdt=ComputeStep_Sym();
@@ -731,7 +738,77 @@ void JSphGpuSingle::FinishRun(bool stop){
   Log->Print(" ");
   if(SvRes)SaveRes(tsim,ttot,hinfo,dinfo);
 }
+void JSphGpuSingle::FindIrelation(){
+  const unsigned bsbound=BlockSizes.forcesbound;
+  cusph::FindIrelation(Psimple,CellMode,bsbound,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,Irelationg);
+}
 
+void JSphGpuSingle::KernelCorrection(bool boundary){
+  const unsigned bsfluid=BlockSizes.forcesfluid;
+
+  if(!boundary){
+    dWxCorrg=ArraysGpu->ReserveFloat3();
+    dWzCorrg=ArraysGpu->ReserveFloat3();
+  }
+
+  cudaMemset(dWxCorrg,0,sizeof(float3)*Np);						
+  cudaMemset(dWzCorrg,0,sizeof(float3)*Np);
+
+  cusph::KernelCorrection(Psimple,boundary,CellMode,bsfluid,Np,Npb,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,dWxCorrg,dWzCorrg);
+}
+
+//==============================================================================
+/// PPE Solver in CULA
+//==============================================================================
+
+void JSphGpuSingle::SolvePPE(double dt){ 
+
+  const unsigned np = Np;
+  const unsigned npb=Npb;
+  const unsigned npf = np - npb;
+  unsigned PPEDim=0;
+  
+  // string buffer
+  const int bufsize = 512;
+  char buffer[bufsize];
+  
+  // initialize cula sparse library
+  culaSparseHandle handle;
+  if (culaSparseCreate(&handle) != culaSparseNoError)
+  {
+    // this should only fail under extreme conditions
+    std::cout << "fatal error: failed to create library handle!" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  // error handling class
+  StatusCheckerGpu sc(handle);
+
+  // create a plan
+  culaSparsePlan plan;
+  sc = culaSparseCreatePlan(handle, &plan);
+  std::vector<unsigned> POrderg;
+
+  MatrixOrder(Np,0,POrderg,Codeg,PPEDim);
+}
+
+StatusCheckerGpu::StatusCheckerGpu(culaSparseHandle handle) : handle_(handle) {}
+
+void StatusCheckerGpu::operator=(culaSparseStatus status)
+{
+    // expected cases
+    if (status == culaSparseNoError || status == culaSparseNonConvergence)
+        return;
+
+    // there was an error; get additional information
+    const int buffer_size = 256;
+    char buffer[buffer_size];
+
+    if (culaSparseGetLastStatusString(handle_, buffer, buffer_size) != culaSparseNoError)
+        std::cout << "error: could not retrieve status string" << std::endl;
+    else
+        std::cout << "error: " << buffer << std::endl;
+}
 
 
 

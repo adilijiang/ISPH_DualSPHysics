@@ -21,6 +21,7 @@
 #include "Types.h"
 #include "JSphGpu.h"
 #include <string>
+#include <cula_sparse.h>
 
 class JCellDivGpuSingle;
 class JPartsLoad4;
@@ -58,10 +59,24 @@ protected:
   void SaveData();
   void FinishRun(bool stop);
 
+  void FindIrelation();
+  void KernelCorrection(bool boundary);
+  void SolvePPE(double dt);
+
 public:
   JSphGpuSingle();
   ~JSphGpuSingle();
   void Run(std::string appname,JCfgRun *cfg,JLog2 *log);
+};
+
+class StatusCheckerGpu
+{
+public:
+    StatusCheckerGpu(culaSparseHandle handle);
+    void operator=(culaSparseStatus status);
+
+private:
+    culaSparseHandle handle_;
 };
 
 #endif

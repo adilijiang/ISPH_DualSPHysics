@@ -79,10 +79,10 @@ public:
 
 };
 
-class StatusChecker
+class StatusCheckerCpu
 {
 public:
-    StatusChecker(culaSparseHandle handle);
+    StatusCheckerCpu(culaSparseHandle handle);
     void operator=(culaSparseStatus status);
 
 private:
