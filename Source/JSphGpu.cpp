@@ -903,26 +903,6 @@ void JSphGpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
 //==============================================================================
 void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
   TmgStart(Timers,TMG_CfPreForces);
-  //-Asigna memoria a variables Pre.
-  //-Allocates memory to predictor variables.
-  if(tinter==1){
-    PosxyPreg=ArraysGpu->ReserveDouble2();
-    PoszPreg=ArraysGpu->ReserveDouble();
-    VelrhopPreg=ArraysGpu->ReserveFloat4();
-    ////////////////////////
-    //POSSIBLE BUG        //-see CPU version
-    ////////////////////////
-    //-Cambia datos a variables Pre para calcular nuevos datos.
-    //-Changes data of predictor variables for calculating the new data
-    swap(PosxyPreg,Posxyg);      //Es decir... PosxyPre[] <= Posxy[] //i.e. PosxyPre[] <= Posxy[]
-    swap(PoszPreg,Poszg);        //Es decir... PoszPre[] <= Posz[] //i.e. PoszPre[] <= Posz[]
-    swap(VelrhopPreg,Velrhopg);  //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
-	//-Copia posicion anterior del contorno.
-    //-Copies previous position of the boundaries.
-    cudaMemcpy(Posxyg,PosxyPreg,sizeof(double2)*Npb,cudaMemcpyDeviceToDevice);
-    cudaMemcpy(Poszg,PoszPreg,sizeof(double)*Npb,cudaMemcpyDeviceToDevice);
-  }
-
   //-Asigna memoria.
   //-Allocates memory.
   ViscDtg=ArraysGpu->ReserveFloat();
@@ -935,21 +915,9 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
   }   
   if(TVisco==VISCO_LaminarSPS)SpsGradvelg=ArraysGpu->ReserveSymatrix3f();
 
-  //-Compute initial advection, r*
-  if(tinter==1){
-    double2 *movxyg=ArraysGpu->ReserveDouble2();
-    double *movzg=ArraysGpu->ReserveDouble();
-    
-    cusph::ComputeRStar(WithFloating,Np,Npb,VelrhopPreg,dt,Codeg,movxyg,movzg);
-	  cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
-
-    ArraysGpu->Free(movxyg);   movxyg=NULL;
-    ArraysGpu->Free(movzg);    movzg=NULL;
-  }
-
   //-Prepara datos para interaccion Pos-Simple.
   //-Prepares data for interation Pos-Simple.
-  if(Psimple){
+  if(tinter==1&&Psimple){
     PsPospressg=ArraysGpu->ReserveFloat4();
     cusph::PreInteractionSimple(Np,Posxyg,Poszg,Velrhopg,PsPospressg,CteB,Gamma);
   }
@@ -959,14 +927,15 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
 
   //-Calcula VelMax: Se incluyen las particulas floatings y no afecta el uso de condiciones periodicas.
   //-Computes VelMax: Includes the particles from floating bodies and does not affect the periodic conditions.
-  const unsigned pini=(DtAllParticles? 0: Npb);
-  cusph::ComputeVelMod(Np-pini,Velrhopg+pini,ViscDtg);
-  float velmax=cusph::ReduMaxFloat(Np-pini,0,ViscDtg,CellDiv->GetAuxMem(cusph::ReduMaxFloatSize(Np-pini)));
-  VelMax=sqrt(velmax);
-  cudaMemset(ViscDtg,0,sizeof(float)*Np);           //ViscDtg[]=0
-  ViscDtMax=0;
-  CheckCudaError("PreInteraction_Forces","Failed calculating VelMax.");
-
+  if(tinter==1){
+    const unsigned pini=(DtAllParticles? 0: Npb);
+    cusph::ComputeVelMod(Np-pini,Velrhopg+pini,ViscDtg);
+    float velmax=cusph::ReduMaxFloat(Np-pini,0,ViscDtg,CellDiv->GetAuxMem(cusph::ReduMaxFloatSize(Np-pini)));
+    VelMax=sqrt(velmax);
+    cudaMemset(ViscDtg,0,sizeof(float)*Np);           //ViscDtg[]=0
+    ViscDtMax=0;
+    CheckCudaError("PreInteraction_Forces","Failed calculating VelMax.");
+  }
 
   TmgStop(Timers,TMG_CfPreForces);
 }

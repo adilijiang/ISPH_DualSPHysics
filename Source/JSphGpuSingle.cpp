@@ -362,7 +362,6 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
   //-Crea nuevas particulas periodicas y marca las viejas para ignorarlas.
   //-Creates new periodic particles and marks the old ones to be ignored.
   if(updateperiodic && PeriActive)RunPeriodic();
-
   //-Inicia Divide.
   //-Initiates Divide.
   CellDivSingle->Divide(Npb,Np-Npb-NpbPer-NpfPer,NpbPer,NpfPer,BoundChanged,Dcellg,Codeg,Timers,Posxyg,Poszg,Idpg);
@@ -449,7 +448,7 @@ void JSphGpuSingle::RunRenCorrection(){
 //==============================================================================
 void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   const char met[]="Interaction_Forces";
-  
+  PreInteraction_Forces(tinter,dt);
   TmgStart(Timers,TMG_CfForces);
   if(RenCorrection)RunRenCorrection();
 
@@ -531,9 +530,11 @@ double JSphGpuSingle::ComputeStep_Sym(){
   const double dt=DtPre;
   //-Predictor
   //-----------
-  PreInteraction_Forces(INTER_Forces,dt);
+  Log->Print("\ngood\n");
+  InitAdvection(dt);
+  Log->Print("\ngood\n");
   RunCellDivide(true);
-  Log->Print("\ncool\n");
+  Log->Print("\ngood\n");
  // DemDtForce=dt*0.5f;                     //(DEM)
   Interaction_Forces(INTER_Forces,dt);       //-Interaccion //-Interaction
   //const double ddt_p=DtVariable(false);   //-Calcula dt del predictor //-Computes dt in the predictor step
@@ -543,20 +544,22 @@ double JSphGpuSingle::ComputeStep_Sym(){
   PosInteraction_Forces(INTER_Forces);                //-Libera memoria de interaccion //-Releases memory of the interaction
   //-Pressure Poisson equation
   //-----------
-  KernelCorrection(true);
+  KernelCorrection(false); //POSIBLE BUG??? Doesn't work when bool is true here
   SolvePPE(dt); //-Solve pressure Poisson equation
   //-Corrector
   //-----------
   //DemDtForce=dt;                          //(DEM)
-  PreInteraction_Forces(INTER_ForcesCorr,dt);
   KernelCorrection(true);
+  Log->Print("\nkernel\n");
   Interaction_Forces(INTER_ForcesCorr,dt);   //-Interaccion //-interaction
+  Log->Print("\ninter\n");
   //const double ddt_c=DtVariable(true);    //-Calcula dt del corrector //Computes dt in the corrector step
-  if(TShifting)RunShifting(dt);           //-Shifting
+  //if(TShifting)RunShifting(dt);           //-Shifting
   ComputeSymplecticCorr(dt);              //-Aplica Symplectic-Corrector a las particulas //Applies Symplectic-Corrector to the particles
   //if(CaseNfloat)RunFloating(dt,false);    //-Gestion de floating bodies //-Management of the floating bodies
+ Log->Print("\nPrePos\n");
   PosInteraction_Forces(INTER_ForcesCorr);                //-Libera memoria de interaccion //-Releases memory of the interaction
-
+  Log->Print("\nPostpos\n");
   //DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep //-Computes dt for the next ComputeStep
   return(dt);
 }
@@ -631,7 +634,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   TimerPart.Start();
   Log->Print(string("\n[Initialising simulation (")+RunCode+")  "+fun::GetDateTime()+"]");
   PrintHeadPart();
-  RunCellDivide(true);
+  //-finding dummy particle relations to wall particles
   FindIrelation();
   while(TimeStep<TimeMax){
     //if(ViscoTime)Visco=ViscoTime->GetVisco(float(TimeStep));
@@ -740,7 +743,7 @@ void JSphGpuSingle::FinishRun(bool stop){
 }
 void JSphGpuSingle::FindIrelation(){
   const unsigned bsbound=BlockSizes.forcesbound;
-  cusph::FindIrelation(Psimple,CellMode,bsbound,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,Irelationg);
+  cusph::FindIrelation(CellMode,bsbound,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Codeg,Idpg,Irelationg);
 }
 
 void JSphGpuSingle::KernelCorrection(bool boundary){
@@ -755,6 +758,30 @@ void JSphGpuSingle::KernelCorrection(bool boundary){
   cudaMemset(dWzCorrg,0,sizeof(float3)*Np);
 
   cusph::KernelCorrection(Psimple,boundary,CellMode,bsfluid,Np,Npb,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,dWxCorrg,dWzCorrg);
+}
+
+void JSphGpuSingle::InitAdvection(double dt){
+    PosxyPreg=ArraysGpu->ReserveDouble2();
+    PoszPreg=ArraysGpu->ReserveDouble();
+    VelrhopPreg=ArraysGpu->ReserveFloat4();
+    //-Cambia datos a variables Pre para calcular nuevos datos.
+    //-Changes data of predictor variables for calculating the new data
+    cudaMemcpy(PosxyPreg,Posxyg,sizeof(double2)*Np,cudaMemcpyDeviceToDevice);     //Es decir... PosxyPre[] <= Posxy[] //i.e. PosxyPre[] <= Posxy[]
+    cudaMemcpy(PoszPreg,Poszg,sizeof(double)*Np,cudaMemcpyDeviceToDevice);        //Es decir... PoszPre[] <= Posz[] //i.e. PoszPre[] <= Posz[]
+    cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*Np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
+	  //-Copia posicion anterior del contorno.
+    //-Copies previous position of the boundaries.
+    cudaMemcpy(Posxyg,PosxyPreg,sizeof(double2)*Npb,cudaMemcpyDeviceToDevice);
+    cudaMemcpy(Poszg,PoszPreg,sizeof(double)*Npb,cudaMemcpyDeviceToDevice);
+
+    double2 *movxyg=ArraysGpu->ReserveDouble2();
+    double *movzg=ArraysGpu->ReserveDouble();
+    
+    cusph::ComputeRStar(WithFloating,Np,Npb,VelrhopPreg,dt,Codeg,movxyg,movzg);
+	  cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
+
+    ArraysGpu->Free(movxyg);   movxyg=NULL;
+    ArraysGpu->Free(movzg);    movzg=NULL;
 }
 
 //==============================================================================
@@ -789,7 +816,13 @@ void JSphGpuSingle::SolvePPE(double dt){
   sc = culaSparseCreatePlan(handle, &plan);
   std::vector<unsigned> POrderg;
 
-  MatrixOrder(Np,0,POrderg,Codeg,PPEDim);
+  //MatrixOrde  // cleanup plan
+  culaSparseDestroyPlan(plan);
+
+  // cleanup handle
+  culaSparseDestroy(handle);
+
+  POrderg.clear();
 }
 
 StatusCheckerGpu::StatusCheckerGpu(culaSparseHandle handle) : handle_(handle) {}

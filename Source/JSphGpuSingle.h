@@ -59,6 +59,7 @@ protected:
   void SaveData();
   void FinishRun(bool stop);
 
+  void InitAdvection(double dt);
   void FindIrelation();
   void KernelCorrection(bool boundary);
   void SolvePPE(double dt);

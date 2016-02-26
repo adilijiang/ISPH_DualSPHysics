@@ -2862,13 +2862,36 @@ void ComputeRStar(bool floating,unsigned np,unsigned npb,const float4 *velrhoppr
 //==============================================================================
 ///Find Irelation
 //==============================================================================
-template<bool psimple> __device__ void KerFindIrelationCalc
-  (unsigned p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz,const float4 *pospress
-  ,const word *code,const unsigned *idp,float massp2,double3 posdp1,float3 posp1,unsigned idpg1,unsigned *irelationg,float closestr)
+//------------------------------------------------------------------------------
+/// Devuelve drx, dry y drz entre dos particulas.
+/// Returns drx, dry and drz between the particles.
+//------------------------------------------------------------------------------
+__device__ void KerGetParticlesIrelationDr(int p2
+  ,const double2 *posxy,const double *posz,const double3 &posdp1
+  ,float &drx,float &dry,float &drz)
+{
+  double2 posp2=posxy[p2];
+  drx=float(posdp1.x-posp2.x);
+  dry=float(posdp1.y-posp2.y);
+  drz=float(posdp1.z-posz[p2]);
+}
+//------------------------------------------------------------------------------
+/// Returns postion and vel of a particle.
+//------------------------------------------------------------------------------
+__device__ void KerGetParticleDataIrelation(unsigned p1
+  ,const double2 *posxy,const double *posz,double3 &posdp1)
+{
+  double2 pxy=posxy[p1];
+  posdp1=make_double3(pxy.x,pxy.y,posz[p1]);
+}
+
+__device__ void KerFindIrelationCalc
+  (unsigned p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
+  ,const word *code,const unsigned *idp,float massp2,double3 posdp1,unsigned idpg1,unsigned *irelationg,float closestr)
 {
   for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==0){
-    float drx,dry,drz,pressp2;
-    KerGetParticlesDr<psimple> (p2,posxy,posz,pospress,posdp1,posp1,drx,dry,drz,pressp2);
+    float drx,dry,drz;
+    KerGetParticlesIrelationDr(p2,posxy,posz,posdp1,drx,dry,drz);
     float rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=closestr){
 	    closestr=rr2;
@@ -2877,17 +2900,16 @@ template<bool psimple> __device__ void KerFindIrelationCalc
   }
 }
 
-template<bool psimple> __global__ void KerFindIrelation
+__global__ void KerFindIrelation
   (unsigned n,int hdiv,uint4 nc,const int2 *begincell,int3 cellzero,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop,const word *code,const unsigned *idp,unsigned *irelationg)
+  ,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,unsigned *irelationg)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<n&&CODE_GetTypeValue(code[p1])==1){
     //-Carga datos de particula p1.
 	  //-Loads particle p1 data.
     double3 posdp1;
-    float3 posp1,velp1;
-    KerGetParticleData<psimple>(p1,posxy,posz,pospress,velrhop,velp1,posdp1,posp1);
+    KerGetParticleDataIrelation(p1,posxy,posz,posdp1);
     unsigned idpg1=idp[p1];
     irelationg[idpg1]=n;
     float closestR=CTE.fourh2;
@@ -2910,17 +2932,16 @@ template<bool psimple> __global__ void KerFindIrelation
             pfin=cbeg.y;
           }
         }
-        if(pfin)KerFindIrelationCalc<psimple>(p1,pini,pfin,posxy,posz,pospress,code,idp,CTE.massf,posdp1,posp1,idpg1,irelationg,closestR);
+        if(pfin)KerFindIrelationCalc(p1,pini,pfin,posxy,posz,code,idp,CTE.massf,posdp1,idpg1,irelationg,closestR);
       }
     }
   }
 }
 
-void FindIrelation(bool psimple,TpCellMode cellmode
+void FindIrelation(TpCellMode cellmode
   ,const unsigned bsbound,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,const float4 *velrhop,const word *code,const unsigned *idp,unsigned *irelationg){
+  ,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,unsigned *irelationg){
 
   int hdiv=(cellmode==CELLMODE_H? 2: 1);
   uint4 nc=make_uint4(ncells.x,ncells.y,ncells.z,ncells.x*ncells.y);
@@ -2929,8 +2950,7 @@ void FindIrelation(bool psimple,TpCellMode cellmode
   //-Interaction Fluid-Fluid & Fluid-Bound
   if(npbok){
     dim3 sgridb=GetGridSize(npbok,bsbound);
-    if(psimple) KerFindIrelation<true> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,pospress,velrhop,code,idp,irelationg);
-    else        KerFindIrelation<false> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,pospress,velrhop,code,idp,irelationg);
+    KerFindIrelation <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,code,idp,irelationg);
   }
 }
 
