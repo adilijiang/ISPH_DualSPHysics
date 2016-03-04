@@ -515,7 +515,7 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter){
   float viscdt=0;
   if(Psimple)JSphCpu::InteractionSimple_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,PsPosc,Velrhopc,Idpc,dWxCorr,dWzCorr,Codec,Pressc,viscdt,Arc,Acec,Deltac,SpsTauc,SpsGradvelc,ShiftPosc,ShiftDetectc);
   else JSphCpu::Interaction_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,dWxCorr,dWzCorr,Codec,Pressc,viscdt,Arc,Acec,Deltac,SpsTauc,SpsGradvelc,ShiftPosc,ShiftDetectc);
-  
+
   //-For 2-D simulations zero the 2nd component / Para simulaciones 2D anula siempre la 2º componente
   if(Simulate2D)for(unsigned p=Npb;p<Np;p++)Acec[p].y=0;
 
@@ -941,7 +941,7 @@ void JSphCpuSingle::FindIrelation(){
   const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
   const int hdiv=(CellMode==CELLMODE_H? 2: 1);
   const unsigned *begincell = CellDivSingle->GetBeginCell();
-  JSphCpu::FindIrelation(Npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Idpc,Irelationc,Codec); 
+  JSphCpu::FindIrelation(Npb,0,Posc,Idpc,Irelationc,Codec); 
 }
 
 void JSphCpuSingle::KernelCorrection(bool boundary){ 
@@ -1009,22 +1009,22 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   std::cout<<"Finding Free Surface\n";
   clock_t start = clock(); 
   POrder=ArraysCpu->ReserveUint();
-  memset(POrder,Np,sizeof(unsigned)*np);
+  memset(POrder,np,sizeof(unsigned)*np);
   Divr=ArraysCpu->ReserveFloat();
   memset(Divr,0,sizeof(float)*np);
-  MatrixOrder(Np,0,POrder,Idpc,Irelationc,Codec,PPEDim);
+  MatrixOrder(np,0,POrder,Idpc,Irelationc,Codec,PPEDim);
   FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Fluid
   FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Bound
   FreeSurfaceFind(Psimple,npb,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Bound-Fluid
   FreeSurfaceFind(Psimple,npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Bound-Bound
-  // create matrixa
+  // create matrix 
   std::cout<<"Creating Matrix B\n";
-  std::vector<double> values;
-  std::vector<int> colInd;
   std::vector<double> b(PPEDim, 0.0);
-  std::vector<int> rowInd(PPEDim+1,0);
   PopulateMatrixBCULA(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim); //-Fluid-Fluid
   std::cout<<"Creating Matrix Storage\n";
+  std::vector<double> values;
+  std::vector<int> colInd;
+  std::vector<int> rowInd(PPEDim+1,0);
   unsigned Nnz=0;
   MatrixStorageCULA(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);
   MatrixStorageCULA(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);
@@ -1034,7 +1034,6 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   colInd.resize(Nnz,PPEDim);
   values.resize(Nnz,0.0);
   std::cout<<"Creating Matrix A\n";
-  
   PopulateMatrixACULAInteractFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,POrder,Idpc,Codec,PPEDim);
   PopulateMatrixACULAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); 
   PopulateMatrixACULAInteractFluid(Psimple,npb,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,POrder,Idpc,Codec,PPEDim); 
@@ -1042,6 +1041,7 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   clock_t stop = clock();   
   double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
   cout<<"Time = " << dif << "ms\n";
+
   std::cout<<"Solving Matrix\n";
   // allocate vectors
   std::vector<double> x(PPEDim);
@@ -1058,13 +1058,13 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   culaSparseResult result;
 
   // this will gracefully return an error if no cuda platform is found
-  /*if (culaSparsePreinitializeCuda(handle) == culaSparseNoError)
+  if (culaSparsePreinitializeCuda(handle) == culaSparseNoError)
   {
-    // change to cuda accelerated platform
+    // set platform
     sc = culaSparseSetCudaPlatform(handle, plan, 0);
 
     //set Preconditioner
-    sc = culaSparseSetJacobiPreconditioner(handle, plan, 0);
+    sc = culaSparseSetBlockJacobiPreconditioner(handle, plan, 0);
 
     // change solver
     // this avoids preconditioner regeneration by using data cached by the plan
@@ -1073,46 +1073,16 @@ void JSphCpuSingle::SolvePPECULA(double dt){
     // perform solve (bicgstab + fainv on cuda)
     // the timing results should indicate minimal overhead and preconditioner generation time
     sc = culaSparseExecutePlan(handle, plan, &config, &result);
-    //sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
-    //std::cout << buffer << std::endl;
+    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
+    std::cout << buffer << std::endl;
   }
   else
-  {*/
+  {
     // change to cuda accelerated platform
-    sc = culaSparseSetCudaPlatform(handle, plan, 0);
-
-    //set Preconditioner
-    sc = culaSparseSetJacobiPreconditioner(handle, plan, 0);
-
-    // change solver
-    // this avoids preconditioner regeneration by using data cached by the plan
-    sc = culaSparseSetBicgstabSolver(handle, plan, 0);
-    
-    // perform solve (bicgstab + fainv on cuda)
-    // the timing results should indicate minimal overhead and preconditioner generation time
-    sc = culaSparseExecutePlan(handle, plan, &config, &result);
-    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
-    std::cout << buffer << std::endl;
-   /* sc = culaSparseExecutePlan(handle, plan, &config, &result);
-    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
-    std::cout << buffer << std::endl;
-    sc = culaSparseExecutePlan(handle, plan, &config, &result);
-    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
-    std::cout << buffer << std::endl;
-    sc = culaSparseExecutePlan(handle, plan, &config, &result);
-    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
-    std::cout << buffer << std::endl;
-    sc = culaSparseExecutePlan(handle, plan, &config, &result);
-    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
-    std::cout << buffer << std::endl;
-    sc = culaSparseExecutePlan(handle, plan, &config, &result);
-    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
-    std::cout << buffer << std::endl;
-  //}
     sc = culaSparseSetHostPlatform(handle, plan, 0);
 
     //set Preconditioner
-    sc = culaSparseSetJacobiPreconditioner(handle, plan, 0);
+    sc = culaSparseSetBlockJacobiPreconditioner(handle, plan, 0);
 
     // change solver
     // this avoids preconditioner regeneration by using data cached by the plan
@@ -1123,21 +1093,8 @@ void JSphCpuSingle::SolvePPECULA(double dt){
     sc = culaSparseExecutePlan(handle, plan, &config, &result);
     sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
     std::cout << buffer << std::endl;
-    sc = culaSparseExecutePlan(handle, plan, &config, &result);
-    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
-    std::cout << buffer << std::endl;
-    sc = culaSparseExecutePlan(handle, plan, &config, &result);
-    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
-    std::cout << buffer << std::endl;
-    sc = culaSparseExecutePlan(handle, plan, &config, &result);
-    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
-    std::cout << buffer << std::endl;
-    sc = culaSparseExecutePlan(handle, plan, &config, &result);
-    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
-    std::cout << buffer << std::endl;
-    sc = culaSparseExecutePlan(handle, plan, &config, &result);
-    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
-    std::cout << buffer << std::endl;*/
+  }
+   
   // cleanup plan
   culaSparseDestroyPlan(plan);
 

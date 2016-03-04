@@ -36,7 +36,7 @@ using namespace std;
 //==============================================================================
 JSphGpu::JSphGpu(bool withmpi):JSph(false,withmpi){
   ClassName="JSphGpu";
-  Idp=NULL; Code=NULL; Dcell=NULL; Posxy=NULL; Posz=NULL; Velrhop=NULL;
+  Idp=NULL; Code=NULL; Dcell=NULL; Posxy=NULL; Posz=NULL; Velrhop=NULL; POrderc=NULL; rowCpu=NULL;
   AuxPos=NULL; AuxVel=NULL; AuxRhop=NULL;
   FtoForces=NULL; FtoCenter=NULL;   //-Floatings.
   CellDiv=NULL;
@@ -76,9 +76,19 @@ void JSphGpu::InitVars(){
   PsPospressg=NULL;                                //-Interaccion Pos-Simple. //-Interaction Pos-Simple
   SpsTaug=NULL; SpsGradvelg=NULL;                  //-Laminar+SPS. 
   ViscDtg=NULL; 
-  Arg=NULL; Aceg=NULL; Deltag=NULL;
+  Arg=NULL; Aceg=NULL; Deltag=NULL; 
+  POrderg=NULL;
+  b=NULL;
+  values=NULL;
+  colInd=NULL;
+  rowInd=NULL;
+  x=NULL;
   dWxCorrg=NULL; dWzCorrg=NULL;
+  POrderg=NULL;  POrderc=NULL;
+  rowCpu=NULL;
+  Divrg=NULL;
   ShiftPosg=NULL; ShiftDetectg=NULL; //-Shifting.
+  Irelationg=NULL;
   RidpMoveg=NULL;
   FtRidpg=NULL;    FtoMasspg=NULL;               //-Floatings.
   FtoDatag=NULL;   FtoForcesg=NULL;              //-Calculo de fuerzas en floatings.  //-Calculates forces on floating bodies
@@ -113,6 +123,7 @@ void JSphGpu::CheckCudaError(const std::string &method,const std::string &msg){
 //==============================================================================
 void JSphGpu::FreeGpuMemoryFixed(){
   MemGpuFixed=0;
+  if(Irelationg)cudaFree(Irelationg);               Irelationg=NULL;
   if(RidpMoveg)cudaFree(RidpMoveg);   RidpMoveg=NULL;
   if(FtRidpg)cudaFree(FtRidpg);       FtRidpg=NULL;
   if(FtoMasspg)cudaFree(FtoMasspg);   FtoMasspg=NULL;
@@ -129,14 +140,17 @@ void JSphGpu::FreeGpuMemoryFixed(){
 //==============================================================================
 void JSphGpu::AllocGpuMemoryFixed(){
   MemGpuFixed=0;
+
+  size_t m=sizeof(unsigned)*Npb;
+  cudaMalloc((void**)&Irelationg,m);    MemGpuFixed+=m;
   //-Allocates memory for moving objects.
   if(CaseNmoving){
-    size_t m=sizeof(unsigned)*CaseNmoving;
+    m=sizeof(unsigned)*CaseNmoving;
     cudaMalloc((void**)&RidpMoveg,m);   MemGpuFixed+=m;
   }
   //-Allocates memory for floating bodies.
   if(CaseNfloat){
-    size_t m=sizeof(unsigned)*CaseNfloat;
+    m=sizeof(unsigned)*CaseNfloat;
     cudaMalloc((void**)&FtRidpg,m);     MemGpuFixed+=m;
     m=sizeof(float)*FtCount;
     cudaMalloc((void**)&FtoMasspg,m);   MemGpuFixed+=m;
@@ -152,7 +166,7 @@ void JSphGpu::AllocGpuMemoryFixed(){
     cudaMalloc((void**)&FtoOmegag,m);   MemGpuFixed+=m;
   }
   if(UseDEM){ //(DEM)
-    size_t m=sizeof(float4)*DemObjsSize;
+    m=sizeof(float4)*DemObjsSize;
     cudaMalloc((void**)&DemDatag,m);    MemGpuFixed+=m;
   }
 }
@@ -175,6 +189,8 @@ void JSphGpu::FreeCpuMemoryParticles(){
   delete[] AuxRhop;    AuxRhop=NULL;
   delete[] FtoForces;  FtoForces=NULL;
   delete[] FtoCenter;  FtoCenter=NULL;
+  delete[] POrderc;    POrderc=NULL;
+  delete[] rowCpu;     rowCpu=NULL;
 }
 
 //==============================================================================
@@ -196,6 +212,8 @@ void JSphGpu::AllocCpuMemoryParticles(unsigned np){
       AuxPos=new tdouble3[np];   MemCpuParticles+=sizeof(tdouble3)*np; 
       AuxVel=new tfloat3[np];    MemCpuParticles+=sizeof(tfloat3)*np;
       AuxRhop=new float[np];     MemCpuParticles+=sizeof(float)*np;
+      POrderc=new unsigned[np];  MemCpuParticles+=sizeof(unsigned)*np;
+      rowCpu=new int[np];        MemCpuParticles+=sizeof(unsigned)*np;
       //-Memoria auxiliar para floatings.
 	  //-Auxiliary memory for floating bodies.
       FtoForces=new StFtoForces[FtCount];  MemCpuParticles+=sizeof(StFtoForces)*FtCount;
@@ -232,7 +250,7 @@ void JSphGpu::AllocGpuMemoryParticles(unsigned np,float over){
   //-Compute total number of arrays
   ArraysGpu->SetArraySize(np2);
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_2B,2);  //-code,code2
-  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,4);  //-idp,ar,viscdt,dcell
+  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,6);  //-idp,ar,viscdt,dcell,porderg,divrg
   if(TDeltaSph==DELTA_DynamicExt)ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,1);  //-delta
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,3); //-ace, dWxCorrg,dWzCorrg
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,4); //-velrhop,posxy
@@ -947,21 +965,20 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
 void JSphGpu::PosInteraction_Forces(TpInter tinter){
   //-Libera memoria asignada en PreInteraction_Forces().
   //-Releases memory allocated in PreInteraction_Forces().
-  ArraysGpu->Free(Arg);          Arg=NULL;
-  ArraysGpu->Free(Aceg);         Aceg=NULL;
-  ArraysGpu->Free(ViscDtg);      ViscDtg=NULL;
+  ArraysGpu->Free(Arg);             Arg=NULL;
+  ArraysGpu->Free(Aceg);            Aceg=NULL;
+  ArraysGpu->Free(ViscDtg);         ViscDtg=NULL;
 
-  ArraysGpu->Free(Deltag);       Deltag=NULL;
+  ArraysGpu->Free(Deltag);          Deltag=NULL;
   if(tinter==2){
-    ArraysGpu->Free(ShiftPosg);    ShiftPosg=NULL;
-    ArraysGpu->Free(ShiftDetectg); ShiftDetectg=NULL;
-    ArraysGpu->Free(Divrg);		 Divrg=NULL;
-	  ArraysGpu->Free(dWxCorrg);	 dWxCorrg=NULL;
-	  ArraysGpu->Free(dWzCorrg);	 dWzCorrg=NULL;
-    ArraysGpu->Free(PsPospressg);  PsPospressg=NULL;
+    ArraysGpu->Free(ShiftPosg);     ShiftPosg=NULL;
+    ArraysGpu->Free(ShiftDetectg);  ShiftDetectg=NULL;
+	  ArraysGpu->Free(dWxCorrg);	    dWxCorrg=NULL;
+	  ArraysGpu->Free(dWzCorrg);	    dWzCorrg=NULL;
+    ArraysGpu->Free(PsPospressg);   PsPospressg=NULL;
   }
   
-  ArraysGpu->Free(SpsGradvelg);  SpsGradvelg=NULL;
+  ArraysGpu->Free(SpsGradvelg);     SpsGradvelg=NULL;
 }
 
 //==============================================================================
@@ -1012,8 +1029,8 @@ void JSphGpu::ComputeSymplecticPre(double dt){
   double *movzg=ArraysGpu->ReserveDouble();
   //-Calcula desplazamiento, velocidad y densidad.
   //-Compute displacement, velocity and density.
-  const double dt05=dt*.5;
-  cusph::ComputeStepSymplecticPre(WithFloating,shift,Np,Npb,VelrhopPreg,Arg,Aceg,ShiftPosg,dt05,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velrhopg);
+  //const double dt05=dt*.5;
+  cusph::ComputeStepSymplecticPre(WithFloating,shift,Np,Npb,VelrhopPreg,Arg,Aceg,ShiftPosg,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velrhopg);
   //-Aplica desplazamiento a las particulas fluid no periodicas.
   //-Applies displacement to non-periodic fluid particles.
   cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
@@ -1038,6 +1055,11 @@ void JSphGpu::ComputeSymplecticCorr(double dt){
   //-Calcula desplazamiento, velocidad y densidad.
   //-Computes displacement, velocity and density.
   const double dt05=dt*.5;
+  /*Debug=new float3[Np];
+  cudaMemcpy(Debug,Aceg,sizeof(float3)*Np,cudaMemcpyDeviceToHost);
+  cudaMemcpy(Idp,Idpg,sizeof(unsigned)*Np,cudaMemcpyDeviceToHost);
+  for(int i = 0; i <int(Np);i++)if(Idp[i]==2186||Idp[i]==1419)std::cout<<Idp[i]<<"\t"<<Debug[i].z<<"\n";
+  delete[] Debug; Debug=NULL;*/
   cusph::ComputeStepSymplecticCor(WithFloating,shift,Np,Npb,VelrhopPreg,Arg,Aceg,ShiftPosg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velrhopg);
   //-Aplica desplazamiento a las particulas fluid no periodicas.
   //-Applies displacement to non-periodic fluid particles.
@@ -1166,13 +1188,45 @@ void JSphGpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
     dinfo=dinfo+";"+fun::FloatStr(TimerGetValue(c)/1000.f);
   }
 }
-
-void JSphGpu::MatrixOrder(unsigned n,unsigned pinit,std::vector<unsigned>& porder,word *code, unsigned &ppedim){
+//===============================================================================
+///Matrix Order
+//===============================================================================
+void JSphGpu::MatrixOrder(unsigned n,unsigned pinit,unsigned bsbound,unsigned *porder,tuint3 ncells,const int2 *begincell,tuint3 cellmin,
+  const unsigned *dcell,const unsigned *idpg,const unsigned *irelationg,word *code, unsigned &ppedim){
 	const int pfin=int(pinit+n);
 
-	for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(code[p1])==0) porder.push_back(Idpg[p1]); 
-
-  ppedim = int(porder.size());
-  Divrg=ArraysGpu->ReserveFloat();
-  cudaMemset(Divrg,0,sizeof(float)*ppedim);
+  cudaMemcpy(Code,Codeg,sizeof(word)*n ,cudaMemcpyDeviceToHost);
+  unsigned index=0;
+	for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(Code[p1])==0){
+    POrderc[p1]=index;
+    index++;
+  }
+  cudaMemcpy(porder,POrderc,sizeof(unsigned)*n,cudaMemcpyHostToDevice);
+  
+  cusph::MatrixOrderDummy(CellMode,bsbound,Npb,ncells,begincell,cellmin,dcell,Codeg,Idpg,irelationg,porder);
+  
+  ppedim = index;
 }
+
+//===============================================================================
+///Matrix storage
+//===============================================================================
+unsigned JSphGpu::MatrixASetup(const unsigned ppedim,int *rowGpu){
+ 
+  unsigned nnz=0;
+  cudaMemcpy(rowCpu,rowGpu,sizeof(int)*(ppedim+1),cudaMemcpyDeviceToHost);
+
+  for(unsigned i=0;i<ppedim;i++){
+    unsigned nnzOld=nnz;
+    nnz += rowCpu[i]+1;
+    rowCpu[i] = nnzOld;
+  }
+  rowCpu[ppedim]=nnz;
+
+  cudaMemcpy(rowGpu,rowCpu,sizeof(int)*(ppedim+1),cudaMemcpyHostToDevice); 
+  
+
+  return nnz;
+}
+
+

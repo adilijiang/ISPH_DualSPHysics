@@ -458,7 +458,8 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
 
   //-Interaccion Fluid-Fluid/Bound & Bound-Fluid.
   //-Interaction Fluid-Fluid/Bound & Bound-Fluid.
-  cusph::Interaction_Forces(Psimple,WithFloating,UseDEM,lamsps,TDeltaSph,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,FtoMasspg,SpsTaug,SpsGradvelg,ViscDtg,Arg,Aceg,Deltag,TShifting,ShiftPosg,ShiftDetectg,Simulate2D);
+  
+  cusph::Interaction_Forces(Psimple,WithFloating,UseDEM,lamsps,TDeltaSph,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,dWxCorrg,dWzCorrg,FtoMasspg,SpsTaug,SpsGradvelg,ViscDtg,Arg,Aceg,Deltag,TShifting,ShiftPosg,ShiftDetectg,Simulate2D);
   
   //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
   //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
@@ -530,11 +531,8 @@ double JSphGpuSingle::ComputeStep_Sym(){
   const double dt=DtPre;
   //-Predictor
   //-----------
-  Log->Print("\ngood\n");
   InitAdvection(dt);
-  Log->Print("\ngood\n");
   RunCellDivide(true);
-  Log->Print("\ngood\n");
  // DemDtForce=dt*0.5f;                     //(DEM)
   Interaction_Forces(INTER_Forces,dt);       //-Interaccion //-Interaction
   //const double ddt_p=DtVariable(false);   //-Calcula dt del predictor //-Computes dt in the predictor step
@@ -550,16 +548,12 @@ double JSphGpuSingle::ComputeStep_Sym(){
   //-----------
   //DemDtForce=dt;                          //(DEM)
   KernelCorrection(true);
-  Log->Print("\nkernel\n");
   Interaction_Forces(INTER_ForcesCorr,dt);   //-Interaccion //-interaction
-  Log->Print("\ninter\n");
   //const double ddt_c=DtVariable(true);    //-Calcula dt del corrector //Computes dt in the corrector step
   //if(TShifting)RunShifting(dt);           //-Shifting
   ComputeSymplecticCorr(dt);              //-Aplica Symplectic-Corrector a las particulas //Applies Symplectic-Corrector to the particles
   //if(CaseNfloat)RunFloating(dt,false);    //-Gestion de floating bodies //-Management of the floating bodies
- Log->Print("\nPrePos\n");
   PosInteraction_Forces(INTER_ForcesCorr);                //-Libera memoria de interaccion //-Releases memory of the interaction
-  Log->Print("\nPostpos\n");
   //DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep //-Computes dt for the next ComputeStep
   return(dt);
 }
@@ -741,11 +735,18 @@ void JSphGpuSingle::FinishRun(bool stop){
   Log->Print(" ");
   if(SvRes)SaveRes(tsim,ttot,hinfo,dinfo);
 }
+
+//==============================================================================
+/// Irelation - Dummy particles' respective Wall particle
+//==============================================================================
 void JSphGpuSingle::FindIrelation(){
   const unsigned bsbound=BlockSizes.forcesbound;
-  cusph::FindIrelation(CellMode,bsbound,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Codeg,Idpg,Irelationg);
+  cusph::FindIrelation(bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,Irelationg);
 }
 
+//==============================================================================
+/// Kernel Gradient Correction
+//==============================================================================
 void JSphGpuSingle::KernelCorrection(bool boundary){
   const unsigned bsfluid=BlockSizes.forcesfluid;
 
@@ -756,10 +757,13 @@ void JSphGpuSingle::KernelCorrection(bool boundary){
 
   cudaMemset(dWxCorrg,0,sizeof(float3)*Np);						
   cudaMemset(dWzCorrg,0,sizeof(float3)*Np);
-
+  
   cusph::KernelCorrection(Psimple,boundary,CellMode,bsfluid,Np,Npb,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,dWxCorrg,dWzCorrg);
 }
 
+//==============================================================================
+/// Initial advection
+//==============================================================================
 void JSphGpuSingle::InitAdvection(double dt){
     PosxyPreg=ArraysGpu->ReserveDouble2();
     PoszPreg=ArraysGpu->ReserveDouble();
@@ -787,13 +791,49 @@ void JSphGpuSingle::InitAdvection(double dt){
 //==============================================================================
 /// PPE Solver in CULA
 //==============================================================================
-
+#include <time.h>
 void JSphGpuSingle::SolvePPE(double dt){ 
+  tuint3 ncells=CellDivSingle->GetNcells();
+  const int2 *begincell=CellDivSingle->GetBeginCell();
+  tuint3 cellmin=CellDivSingle->GetCellDomainMin();
 
+  const unsigned *dcell=Dcellg;
   const unsigned np = Np;
   const unsigned npb=Npb;
   const unsigned npf = np - npb;
   unsigned PPEDim=0;
+  const unsigned bsbound=BlockSizes.forcesbound;
+  const unsigned bsfluid=BlockSizes.forcesfluid;
+  
+  std::cout<<"Finding Free Surface\n";
+  clock_t start = clock(); 
+  POrderg=ArraysGpu->ReserveUint(); cusph::InitArrayPOrder(np,POrderg,np);
+  Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
+
+  MatrixOrder(np,0,bsbound,POrderg,ncells,begincell,cellmin,Dcellg,Idpg,Irelationg,Codeg,PPEDim);  // cleanup plan
+  cusph::FreeSurfaceFind(Psimple,CellMode,bsbound,bsfluid,np,npb,ncells,begincell,cellmin,Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,Divrg);
+  //Create matrix
+  cudaMalloc((void**)&b,sizeof(double)*PPEDim); cudaMemset(b,0,sizeof(double)*PPEDim);
+  cudaMalloc((void**)&x,sizeof(double)*PPEDim); cudaMemset(x,0,sizeof(double)*PPEDim);
+  cudaMalloc((void**)&rowInd,sizeof(int)*(PPEDim+1)); cudaMemset(rowInd,0,sizeof(int)*(PPEDim+1));
+
+  std::cout<<"Creating Matrix B\n";
+  cusph::PopulateMatrixB(Psimple,CellMode,bsfluid,np,npb,ncells,begincell,cellmin,Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,dWxCorrg,dWzCorrg,b,POrderg,Idpg,dt,PPEDim,Divrg);
+
+  std::cout<<"Creating Matrix Storage\n";
+  cusph::MatrixStorage(Psimple,CellMode,bsbound,bsfluid,np,npb,ncells,begincell,cellmin,Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,Divrg,POrderg,rowInd);
+  unsigned Nnz=MatrixASetup(PPEDim,rowInd);
+  cudaMalloc((void**)&values,sizeof(double)*Nnz); cudaMemset(values,0,sizeof(double)*Nnz);
+  cudaMalloc((void**)&colInd,sizeof(int)*Nnz); cusph::InitArrayCol(Nnz,colInd,int(PPEDim));
+
+  std::cout<<"Creating Matrix A\n";
+  cusph::PopulateMatrixA(Psimple,CellMode,bsbound,bsfluid,np,npb,ncells,begincell,cellmin,Dcellg,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,values,b,rowInd,colInd,POrderg,Idpg,PPEDim,Divrg,Codeg,Irelationg);
+  
+  cudaDeviceSynchronize(); clock_t stop = clock();   
+  double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
+  cout<<"Time = " << dif << "ms\n";
+
+  std::cout<<"Solving Matrix\n";
   
   // string buffer
   const int bufsize = 512;
@@ -811,18 +851,49 @@ void JSphGpuSingle::SolvePPE(double dt){
   // error handling class
   StatusCheckerGpu sc(handle);
 
+  //initialise CUDA Device platform options
+  culaSparseCudaDeviceOptions platformOpts;
+  platformOpts.debug=0;
+  platformOpts.deviceId=GpuSelect;
+  platformOpts.useHybridFormat=0;
+
   // create a plan
   culaSparsePlan plan;
   sc = culaSparseCreatePlan(handle, &plan);
-  std::vector<unsigned> POrderg;
+  // set platform
+  sc = culaSparseSetCudaDevicePlatform(handle, plan, &platformOpts);
 
-  //MatrixOrde  // cleanup plan
+  // set data coordinate format (null_ptr will use default options) 
+  sc = culaSparseSetDcsrData(handle, plan, 0, PPEDim, Nnz, &values[0], &rowInd[0], &colInd[0], &x[0], &b[0]);
+
+  // set configuration
+  culaSparseConfig config;
+  sc = culaSparseConfigInit(handle, &config);
+  config.relativeTolerance = 1e-5;
+  config.maxIterations = 5000;
+
+  // perform solve (cg + no preconditioner on host)
+  culaSparseResult result;
+  
+  //set Preconditioner
+  sc = culaSparseSetBlockJacobiPreconditioner(handle, plan, 0);
+  //set solver
+  sc = culaSparseSetBicgstabSolver(handle, plan, 0);
+   
+  sc = culaSparseExecutePlan(handle, plan, &config, &result);
+  sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
+  std::cout << buffer << std::endl;
+
   culaSparseDestroyPlan(plan);
 
   // cleanup handle
   culaSparseDestroy(handle);
+  
+  cusph::PressureAssign(Psimple,bsbound,bsfluid,np,npb,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,x,POrderg,Idpg,Codeg,Irelationg);
 
-  POrderg.clear();
+  ArraysGpu->Free(POrderg);       POrderg=NULL;
+  ArraysGpu->Free(Divrg);		      Divrg=NULL;
+  cudaFree(b); cudaFree(x); cudaFree(values); cudaFree(rowInd); cudaFree(colInd);
 }
 
 StatusCheckerGpu::StatusCheckerGpu(culaSparseHandle handle) : handle_(handle) {}

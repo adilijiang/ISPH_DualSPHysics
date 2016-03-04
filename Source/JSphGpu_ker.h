@@ -83,7 +83,7 @@ void Interaction_Forces(bool psimple,bool floating,bool usedem,bool lamsps
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,const float4 *velrhop,const word *code,const unsigned *idp
+  ,const float4 *velrhop,const word *code,const unsigned *idp,float3 *dwxcorrg,float3 *dwzcorrg
   ,const float *ftomassp,const tsymatrix3f *tau,tsymatrix3f *gradvel
   ,float *viscdt,float* ar,float3 *ace,float *delta
   ,TpShifting tshifting,float3 *shiftpos,float *shiftdetect
@@ -183,9 +183,7 @@ void AddVarAcc(unsigned n,unsigned pini,word codesel
 void ComputeRStar(bool floating,unsigned np,unsigned npb,const float4 *velrhoppre,double dtm,word *code,double2 *movxy,double *movz);
 
 //# Kernels for finding a dummy particles corresponding wall particle
-void FindIrelation(TpCellMode cellmode
-  ,const unsigned bsbound,unsigned npbok,tuint3 ncells
-  ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
+void FindIrelation(const unsigned bsbound,unsigned npbok
   ,const double2 *posxy,const double *posz
   ,const word *code,const unsigned *idp,unsigned *irelationg);
 
@@ -195,8 +193,53 @@ void KernelCorrection(bool psimple,bool boundary,TpCellMode cellmode
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
   ,const float4 *velrhop,float3 *dwxcorrg,float3 *dwzcorrg);
-}
 
+//# Kernels Dummy Particle matrix order
+void MatrixOrderDummy(TpCellMode cellmode
+  ,const unsigned bsbound,unsigned npb,tuint3 ncells
+  ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
+  ,const word *code,const unsigned *idp,const unsigned *irelationg,unsigned *porder);
+
+
+//# Kernels for finding the freesurface
+void FreeSurfaceFind(bool psimple,TpCellMode cellmode
+  ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,tuint3 ncells
+  ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
+  ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop
+  ,const word *code,const unsigned *idp,float *divr);
+
+//# Kernels for Populating matrix B
+void PopulateMatrixB(bool psimple,TpCellMode cellmode
+  ,const unsigned bsfluid,unsigned np,unsigned npb,tuint3 ncells
+  ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
+  ,const double2 *posxy,const double *posz,const float4 *pospress
+  ,const float4 *velrhop,float3 *dwxcorrg,float3 *dwzcorrg,double *matrixb
+  ,const unsigned *porder,const unsigned *idp,const double dt,const unsigned ppedim,const float *divr);
+
+//# Kernels for matrix storage
+void MatrixStorage(bool psimple,TpCellMode cellmode
+  ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,tuint3 ncells
+  ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
+  ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop
+  ,const word *code,const unsigned *idp,float *divr,const unsigned *porder,int *row);
+
+//# Kernels for Populating matrix A
+void PopulateMatrixA(bool psimple,TpCellMode cellmode
+  ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,tuint3 ncells
+  ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell,const tfloat3 gravity,const double2 *posxy
+  ,const double *posz,const float4 *pospress,const float4 *velrhop,double *matrixInd,double *matrixb
+  ,int *row,int *col,const unsigned *porder,const unsigned *idp,const unsigned ppedim
+  ,const float *divr,const word *code,const unsigned *irelationg);
+
+//# Kernels for Assigning Pressure
+void PressureAssign(bool psimple,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb
+  ,const tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *pospress
+ ,float4 *velrhop,double *press,const unsigned *porder,const unsigned *idp,const word *code,const unsigned *irelationg);
+
+//# Kernels for ArrayInitialisation
+void InitArrayPOrder(unsigned n,unsigned *v,unsigned value);
+void InitArrayCol(unsigned n,int *v,int value);
+}
 #endif
 
 

@@ -244,12 +244,23 @@ protected:
   //PPE Functions, variables, Kernel Correction//
   ///////////////////////////////////////////////
   unsigned *Irelationg; //The closest fluid particle, j, for a boundary particle, i
+  unsigned *POrderc;
+  int *rowCpu;
+  float3 *Debug;
+  unsigned *POrderg;
   float3 *dWxCorrg; //Kernel correction in the x direction
   float3 *dWzCorrg; //Kernel correction in the z direction
   float *Divrg; //Divergence of position
+  //matrix variables for CULA
+  double *b;
+  double *values;
+  int *colInd;
+  int *rowInd;
+  double *x;
 
-  void MatrixOrder(unsigned n,unsigned pinit,std::vector<unsigned>& porder,word *code,unsigned &ppeDim);
-  
+  void MatrixOrder(unsigned n,unsigned pinit,unsigned bsbound,unsigned *porder,tuint3 ncells,const int2 *begincell,tuint3 cellmin,
+    const unsigned *dcell,const unsigned *idpg,const unsigned *irelation,word *code, unsigned &ppedim);
+  unsigned MatrixASetup(const unsigned ppedim,int *rowGpu);
 public:
   JSphGpu(bool withmpi);
   ~JSphGpu();
