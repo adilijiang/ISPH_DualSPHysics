@@ -359,6 +359,7 @@ void JSph::LoadConfig(const JCfgRun *cfg){
 void JSph::LoadCaseConfig(){
   const char* met="LoadCaseConfig";
   FileXml=DirCase+CaseName+".xml";
+
   if(!fun::FileExists(FileXml))RunException(met,"Case configuration was not found.",FileXml);
   JXml xml; xml.LoadFile(FileXml);
   JSpaceCtes ctes;     ctes.LoadXmlRun(&xml,"case.execution.constants");

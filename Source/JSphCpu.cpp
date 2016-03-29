@@ -14,7 +14,19 @@
 
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
+#ifndef _WITHGPU
+//ViennaCL library
+#define VIENNACL_WITH_OPENMP
+#include "viennacl/vector.hpp"
+#include "viennacl/compressed_matrix.hpp"
+#include "viennacl/linalg/bicgstab.hpp"
+#include "viennacl/linalg/norm_2.hpp"
+#include "viennacl/tools/matrix_generation.hpp"
 
+#include "viennacl/linalg/amg.hpp"
+#include "viennacl/tools/timer.hpp"
+
+#endif
 #include "JSphCpu.h"
 #include "JCellDivCpu.h"
 #include "JPartFloatBi4.h"
@@ -26,19 +38,29 @@
 #include "JXml.h"
 #include "JSaveDt.h"
 #include "JSphVarAcc.h"
-#include <cula_sparse.h>
 
-#include <climits>
-#include <vector>
+#pragma warning(disable : 4267)
+#pragma warning(disable : 4244)
+#pragma warning(disable : 4996)
+#pragma warning(disable : 4089)
+#include "amgcl/adapter/crs_tuple.hpp"
+#include "amgcl/make_solver.hpp"
+#include "amgcl/solver/bicgstab.hpp"
+#include "amgcl/amg.hpp"
+#include "amgcl/coarsening/smoothed_aggregation.hpp"
+#include "amgcl/relaxation/spai0.hpp"
+#include <amgcl/profiler.hpp>
 
 #ifdef _WITHOMP
   #include <omp.h>  //Activate tb in Properties config -> C/C++ -> Language -> OpenMp
+
 #else
   #define omp_get_thread_num() 0
   #define omp_get_max_threads() 1
 #endif
 
 using namespace std;
+
 
 //==============================================================================
 // Constructor.
@@ -85,6 +107,11 @@ void JSphCpu::InitVars(){
   FtRidp=NULL;
   FtoForces=NULL;
   Irelationc=NULL;
+  a.clear();
+  b.clear();
+  x.clear();
+  colInd.clear();
+  rowInd.clear();
   FreeCpuMemoryParticles();
   FreeCpuMemoryFixed();
 }
@@ -2116,7 +2143,7 @@ void JSphCpu::FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 //===============================================================================
 void JSphCpu::PopulateMatrixBCULA(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
 	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
-	const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,std::vector<double>& matrixb,const unsigned *porder,const unsigned *idpc,const double dt, const unsigned ppedim)const{
+	const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const double dt, const unsigned ppedim)const{
 
   const int pfin=int(pinit+n);
 
@@ -2180,7 +2207,7 @@ void JSphCpu::PopulateMatrixBCULA(bool psimple,unsigned n,unsigned pinit,tint4 n
 }
 
 void JSphCpu::MatrixStorageCULA(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,float *divr,std::vector<int>& row,const unsigned *porder,const unsigned *idpc,const word *code,
+  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,float *divr,std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,
   const unsigned ppedim)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
@@ -2231,7 +2258,7 @@ void JSphCpu::MatrixStorageCULA(bool psimple,unsigned n,unsigned pinit,tint4 nc,
 //===============================================================================
 ///Matrix storage
 //===============================================================================
-void JSphCpu::MatrixASetupCULA(const unsigned ppedim,unsigned &nnz,std::vector<int>& row)const{
+void JSphCpu::MatrixASetupCULA(const unsigned ppedim,unsigned &nnz,std::vector<int> &row)const{
   for(unsigned i=0;i<ppedim;i++){
     unsigned nnzOld=nnz;
     nnz += row[i]+1;
@@ -2244,7 +2271,7 @@ void JSphCpu::MatrixASetupCULA(const unsigned ppedim,unsigned &nnz,std::vector<i
 ///Populate matrix with values for CULA
 //===============================================================================
 void JSphCpu::PopulateMatrixACULAInteractFluid(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
-  const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double>& matrixInd,std::vector<int>& row,std::vector<int>& col,
+  const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
   const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
@@ -2315,8 +2342,8 @@ void JSphCpu::PopulateMatrixACULAInteractFluid(bool psimple,unsigned n,unsigned 
 }
 
 void JSphCpu::PopulateMatrixACULAInteractBound(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
-  const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double>& matrixInd,std::vector<int>& row,std::vector<int>& col,
-  std::vector<double>& matrixb,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned *irelation,const unsigned ppedim)const{
+  const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
+  std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned *irelation,const unsigned ppedim)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -2412,7 +2439,7 @@ void JSphCpu::PopulateMatrixACULAInteractBound(bool psimple,unsigned n,unsigned 
 ///Reorder pressure for particles
 //===============================================================================
 void JSphCpu::PressureAssignCULA(bool psimple,unsigned n,unsigned pinit,const tdouble3 *pos,const tfloat3 *pspos,tfloat4 *velrhop,
-  const unsigned *idpc,const unsigned *irelation,const unsigned *porder,std::vector<double>& x,const word *code,const unsigned npb)const{
+  const unsigned *idpc,const unsigned *irelation,const unsigned *porder,std::vector<double> &x,const word *code,const unsigned npb)const{
 
   const int pfin=int(pinit+n);
 
@@ -2436,4 +2463,298 @@ void JSphCpu::PressureAssignCULA(bool psimple,unsigned n,unsigned pinit,const td
       velrhop[p1].w=float(x[porder[p1]])+RhopZero*fabs(Gravity.z)*drz;
     }
   }
+}
+//===============================================================================
+///Solve matrix with AMGCL
+//===============================================================================
+namespace amgcl {
+    profiler<> prof;
+}
+
+void JSphCpu::solveAmgCL(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,
+  std::vector<int> &col,const unsigned ppedim){
+  using amgcl::prof;
+
+  typedef amgcl::backend::builtin<double> Backend;
+  typedef amgcl::make_solver<amgcl::amg<Backend,amgcl::coarsening::smoothed_aggregation,amgcl::relaxation::spai0>,amgcl::solver::bicgstab<Backend>> Solver; 
+
+  prof.tic("build");
+  Solver solve(boost::tie(ppedim, row, col, matrixa));
+  prof.toc("build");
+  std::cout << solve.precond() << std::endl;
+
+  prof.tic("solve");
+  int iters; 
+  double resid; 
+  boost::tie(iters, resid) = solve(matrixb, matrixx);
+  prof.toc("solve");
+
+  std::cout << "Iterations: " << iters << std::endl
+            << "Error:      " << resid << std::endl
+            << std::endl;
+
+  std::cout << prof << std::endl;
+}
+
+#ifndef _WITHGPU
+/*template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
+void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,std::vector<double> &matrixx,const unsigned ppedim){ 
+  VectorType result(rhs);
+  VectorType residual(rhs);
+  viennacl::tools::timer timer;
+  timer.start();   
+  result = viennacl::linalg::solve(matrix, rhs, solver, precond);
+  viennacl::backend::finish();  
+  std::cout << "  > Solver time: " << timer.get() << std::endl;   
+  residual -= viennacl::linalg::prod(matrix, result); 
+  std::cout << "  > Relative residual: " << viennacl::linalg::norm_2(residual) / viennacl::linalg::norm_2(rhs) << std::endl;  
+  std::cout << "  > Iterations: " << solver.iters() << std::endl;
+  system("PAUSE");
+  #ifdef _WITHOMP
+    #pragma omp parallel for schedule (guided)
+  #endif
+  for(int i=0;i<int(ppedim);i++) matrixx[i]=result[i];
+}
+
+template<typename ScalarType>
+void run_amg(viennacl::linalg::bicgstab_tag & bicgstab_solver,
+             viennacl::vector<ScalarType> & vcl_vec,
+             viennacl::compressed_matrix<ScalarType> & vcl_compressed_matrix,
+             std::string info,
+             viennacl::linalg::amg_tag & amg_tag,std::vector<double> &matrixx,const unsigned ppedim)
+{
+  viennacl::linalg::amg_precond<viennacl::compressed_matrix<ScalarType> > vcl_amg(vcl_compressed_matrix, amg_tag);
+  std::cout << " * Setup phase (ViennaCL types)..." << std::endl;
+  viennacl::tools::timer timer;
+  timer.start();
+  vcl_amg.setup(); 
+  viennacl::backend::finish();
+  std::cout << "  > Setup time: " << timer.get() << std::endl;
+  std::cout << " * CG solver (ViennaCL types)..." << std::endl;
+  run_solver(vcl_compressed_matrix,vcl_vec,bicgstab_solver,vcl_amg,matrixx,ppedim);
+}*/
+template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
+void run_solver(MatrixType const & matrix, VectorType const & rhs, SolverTag const & solver, PrecondTag const & precond)
+{
+  VectorType result(rhs);
+  VectorType residual(rhs);
+
+  viennacl::tools::timer timer;
+  timer.start();
+  result = viennacl::linalg::solve(matrix, rhs, solver, precond);
+  viennacl::backend::finish();
+  std::cout << "  > Solver time: " << timer.get() << std::endl;
+  residual -= viennacl::linalg::prod(matrix, result);
+  std::cout << "  > Relative residual: " << viennacl::linalg::norm_2(residual) / viennacl::linalg::norm_2(rhs) << std::endl;
+  std::cout << "  > Iterations: " << solver.iters() << std::endl;
+}
+
+/** <h3>Compare AMG preconditioner for uBLAS and ViennaCL types</h3>
+*
+*  The AMG implementations in ViennaCL can be used with uBLAS types as well as ViennaCL types.
+*  This function compares the two in terms of execution time.
+**/
+template<typename ScalarType>
+void run_amg(viennacl::linalg::bicgstab_tag & cg_solver,
+             viennacl::vector<ScalarType> & vcl_vec,
+             viennacl::compressed_matrix<ScalarType> & vcl_compressed_matrix,
+             std::string info,
+             viennacl::linalg::amg_tag & amg_tag)
+{
+  std::cout << "-- CG with AMG preconditioner, " << info << " --" << std::endl;
+
+  viennacl::linalg::amg_precond<viennacl::compressed_matrix<ScalarType> > vcl_amg(vcl_compressed_matrix, amg_tag);
+  std::cout << " * Setup phase (ViennaCL types)..." << std::endl;
+  viennacl::tools::timer timer;
+  timer.start();
+  vcl_amg.setup();
+  viennacl::backend::finish();
+  std::cout << "  > Setup time: " << timer.get() << std::endl;
+
+  std::cout << " * CG solver (ViennaCL types)..." << std::endl;
+  run_solver(vcl_compressed_matrix, vcl_vec, cg_solver, vcl_amg);
+}
+void JSphCpu::solveVienna(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,
+  std::vector<int> &col,const unsigned ppedim,const unsigned nnz){
+   // viennacl::context ctx(viennacl::MAIN_MEMORY);
+   
+    //typedef float ScalarType;
+
+    /*viennacl::compressed_matrix<ScalarType> vcl_compressed_matrix(ctx);
+    vcl_compressed_matrix.set(&row[0],&col[0],&matrixa[0],ppedim,ppedim,nnz);
+
+    viennacl::vector<ScalarType> vcl_vec(vcl_compressed_matrix.size1(),ctx);
+    
+    #ifdef _WITHOMP
+      #pragma omp parallel for schedule (guided)
+    #endif
+    for(int i=0;i<int(ppedim);i++) vcl_vec[i]=matrixb[i];*/
+
+    //viennacl::linalg::bicgstab_tag bicgstab(1e-5,500);
+
+    /*std::cout<<"JACOBI PRECOND" <<std::endl;
+    viennacl::vector<ScalarType> vcl_result(vcl_compressed_matrix.size1(),ctx);
+    viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_compressed_matrix,viennacl::linalg::jacobi_tag());
+    run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_jacobi,matrixx,ppedim);*/
+
+
+  /*  viennacl::compressed_matrix<ScalarType> test(ctx);
+
+  viennacl::tools::generate_fdm_laplace(test, 100, 100);
+  
+  viennacl::vector<ScalarType> result(test.size1(), ctx);
+  for(int i=0; i<test.size1();i++) result[i]=1.0;
+  viennacl::vector<ScalarType> vcl_vecTest(test.size1(), ctx);
+  vcl_vecTest = viennacl::linalg::prod(test, result);
+
+    std::cout<<"AMG PRECOND" <<std::endl;
+    viennacl::context host_ctx(viennacl::MAIN_MEMORY);
+    viennacl::context target_ctx = viennacl::traits::context(test);
+
+    viennacl::linalg::amg_tag amg_tag_agg_pmis;
+    amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_MIS2_AGGREGATION);
+    amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION);
+    amg_tag_agg_pmis.set_strong_connection_threshold(0.2);
+    amg_tag_agg_pmis.set_jacobi_weight(1.0);
+    amg_tag_agg_pmis.set_presmooth_steps(1);
+    amg_tag_agg_pmis.set_postsmooth_steps(1);
+    amg_tag_agg_pmis.set_setup_context(host_ctx);
+    amg_tag_agg_pmis.set_target_context(target_ctx);
+    //int param = amg_tag_direct.get_coarse_levels();
+    //std::cout << "parameter = " << param << "\n";
+    run_amg(bicgstab,vcl_vecTest,test,"AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,matrixx,ppedim);*/
+
+     viennacl::context ctx(viennacl::MAIN_MEMORY);
+
+
+  typedef double    ScalarType;  // feel free to change this to double if supported by your device
+
+  /**
+  * Set up the matrices and vectors for the iterative solvers (cf. iterative.cpp)
+  **/
+  viennacl::compressed_matrix<ScalarType> vcl_compressed_matrix(ctx);
+
+  viennacl::tools::generate_fdm_laplace(vcl_compressed_matrix, 100, 100);
+  
+  viennacl::vector<ScalarType> vcl_vec(vcl_compressed_matrix.size1(), ctx);
+  viennacl::vector<ScalarType> vcl_result(vcl_compressed_matrix.size1(), ctx);
+
+  std::vector<ScalarType> std_vec, std_result;
+
+
+  // rhs and result vector:
+  std_vec.resize(vcl_compressed_matrix.size1());
+  std_result.resize(vcl_compressed_matrix.size1());
+  for (std::size_t i=0; i<std_result.size(); ++i)
+    std_result[i] = ScalarType(1);
+
+  // Copy to GPU
+  viennacl::copy(std_vec, vcl_vec);
+  viennacl::copy(std_result, vcl_result);
+
+  vcl_vec = viennacl::linalg::prod(vcl_compressed_matrix, vcl_result);
+
+
+  /**
+  * Instantiate a tag for the conjugate gradient solver, the AMG preconditioner tag, and create an AMG preconditioner object:
+  **/
+  viennacl::linalg::bicgstab_tag cg_solver(1e-5, 10000);
+
+  viennacl::context host_ctx(viennacl::MAIN_MEMORY);
+  viennacl::context target_ctx = viennacl::traits::context(vcl_compressed_matrix);
+
+  /**
+  * Generate the setup for an AMG preconditioner of Ruge-Stueben type with only one pass and direct interpolation (ONEPASS+DIRECT)
+  **/
+  viennacl::linalg::amg_tag amg_tag_agg_pmis;
+  amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_MIS2_AGGREGATION);
+  amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION);
+  amg_tag_agg_pmis.set_strong_connection_threshold(0.2);
+  amg_tag_agg_pmis.set_jacobi_weight(1.0);
+  amg_tag_agg_pmis.set_presmooth_steps(1);
+  amg_tag_agg_pmis.set_postsmooth_steps(1);
+  amg_tag_agg_pmis.set_setup_context(host_ctx);    // run setup on host
+  amg_tag_agg_pmis.set_target_context(target_ctx); // run solver cycles on device
+  run_amg(cg_solver, vcl_vec, vcl_compressed_matrix, "AGGREGATION COARSENING, AGGREGATION INTERPOLATION", amg_tag_agg_pmis);
+}
+#endif
+
+//===============================================================================
+///Solve matrix with CULA Sparse
+//===============================================================================
+void JSphCpu::solveCULA(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,
+  std::vector<int> &col,const unsigned ppedim,const unsigned nnz){
+
+  // string buffer
+  const int bufsize = 512;
+  char buffer[bufsize];
+  
+  // initialize cula sparse library
+  culaSparseHandle handle;
+  if (culaSparseCreate(&handle) != culaSparseNoError)
+  {
+    // this should only fail under extreme conditions
+    std::cout << "fatal error: failed to create library handle!" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  // error handling class
+  StatusCheckerCpu sc(handle);
+
+  // create a plan
+  culaSparsePlan plan;
+  sc = culaSparseCreatePlan(handle, &plan);
+
+  // set data coordinate format (null_ptr will use default options) 
+  sc = culaSparseSetDcsrData(handle, plan, 0, ppedim, nnz, &matrixa[0], &row[0], &col[0], &matrixx[0], &matrixb[0]);
+
+  // set configuration
+  culaSparseConfig config;
+  sc = culaSparseConfigInit(handle, &config);
+  config.relativeTolerance = 1e-5;
+  config.maxIterations = 5000;
+
+  // perform solve (cg + no preconditioner on host)
+  culaSparseResult result;
+
+  // change to cuda accelerated platform
+  sc = culaSparseSetHostPlatform(handle, plan, 0);
+ 
+  //set Preconditioner
+  sc = culaSparseSetBlockJacobiPreconditioner(handle, plan, 0);
+
+  // change solver
+  // this avoids preconditioner regeneration by using data cached by the plan
+  sc = culaSparseSetBicgstabSolver(handle, plan, 0);
+   
+  // perform solve (bicgstab + fainv on cuda)
+  // the timing results should indicate minimal overhead and preconditioner generation time
+  sc = culaSparseExecutePlan(handle, plan, &config, &result);
+  sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
+  std::cout << buffer << std::endl;
+
+  // cleanup plan
+  culaSparseDestroyPlan(plan);
+
+  // cleanup handle
+  culaSparseDestroy(handle);
+}
+
+StatusCheckerCpu::StatusCheckerCpu(culaSparseHandle handle) : handle_(handle) {}
+
+void StatusCheckerCpu::operator=(culaSparseStatus status)
+{
+  // expected cases
+  
+  if (status == culaSparseNoError || status == culaSparseNonConvergence)
+    return;
+
+  // there was an error; get additional information
+  const int buffer_size = 256;
+  char buffer[buffer_size];
+
+  if (culaSparseGetLastStatusString(handle_, buffer, buffer_size) != culaSparseNoError)
+    std::cout << "error: could not retrieve status string" << std::endl;
+  else
+    std::cout << "error: " << buffer << std::endl;
 }

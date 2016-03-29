@@ -27,6 +27,31 @@
 #include <thrust/device_vector.h>
 #include <thrust/sort.h>
 
+#include <cusp/csr_matrix.h>
+#include <cusp/monitor.h>
+#include <cusp/io/matrix_market.h>
+#include <cusp/krylov/bicgstab.h>
+#include <cusp/krylov/cg.h>
+#include <cusp/precond/diagonal.h>
+#include <cusp/precond/aggregation/smoothed_aggregation.h>
+#include <cusp/print.h>
+#include <cusp/array1d.h>
+
+#include <iostream>
+#include <cstdlib>
+#include <string>
+#include <cuda.h>
+#define VIENNACL_WITH_CUDA
+#include "viennacl/vector.hpp"
+#include "viennacl/compressed_matrix.hpp"
+#include "viennacl/linalg/bicgstab.hpp"
+#include "viennacl/tools/timer.hpp"
+#include "viennacl/linalg/norm_2.hpp"
+#include "viennacl/linalg/jacobi_precond.hpp"
+#include "viennacl/forwards.h"
+#include "viennacl/linalg/amg.hpp"
+#include "viennacl/linalg/prod.hpp"
+#include "viennacl/tools/matrix_generation.hpp"
 __constant__ StCteInteraction CTE;
 
 namespace cusph{
@@ -3541,13 +3566,13 @@ template<bool psimple> __global__ void KerPopulateMatrixA
     if(CODE_GetTypeValue(code[p1])==0){
       unsigned oi=porder[p1];
       const unsigned diag=row[oi];
+      col[diag]=oi;
       if(divr[p1]>1.6f){
         //-Obtiene datos basicos de particula p1.
   	    //-Obtains basic data of particle p1.
         double3 posdp1;
         float3 posp1,velp1;
         float rhopp1,pressp1;
-        col[diag]=oi;
         unsigned index=diag+1;
         KerGetParticleData<psimple>(p1,posxy,posz,pospress,velrhop,velp1,rhopp1,posdp1,posp1,pressp1);
     
@@ -3723,4 +3748,143 @@ void InitArrayCol(unsigned n,int *v,int value){
   }
 }
 
+//==============================================================================
+/// Solve matrix CUSP
+//==============================================================================
+void solveCusp(double *matrixa,double *x,double *matrixb,int *row,int *col, const unsigned Nnz,const unsigned ppedim){
+  typedef cusp::device_memory MemorySpace; 
+  typedef double ValueType;
+  // *NOTE* raw pointers must be wrapped with thrust::device_ptr!
+  thrust::device_ptr<int>   wrapped_row(row);
+  thrust::device_ptr<int>   wrapped_col(col);
+  thrust::device_ptr<ValueType> wrapped_values(matrixa);
+  thrust::device_ptr<ValueType> wrapped_b(matrixb);
+  thrust::device_ptr<ValueType> wrapped_x(x);
+
+  // use array1d_view to wrap the individual arrays
+  typedef typename cusp::array1d_view<thrust::device_ptr<int>> DeviceIndexArrayView;
+  typedef typename cusp::array1d_view<thrust::device_ptr<ValueType>> DeviceValueArrayView;
+
+  DeviceIndexArrayView row_offsets   (wrapped_row, wrapped_row + ppedim + 1);
+  DeviceIndexArrayView column_indices(wrapped_col, wrapped_col + Nnz);
+  DeviceValueArrayView values        (wrapped_values, wrapped_values + Nnz);
+  DeviceValueArrayView mb            (wrapped_b, wrapped_b + ppedim);
+  DeviceValueArrayView mx            (wrapped_x, wrapped_x + ppedim);
+
+  // combine the three array1d_views into a csr_matrix_view
+  typedef cusp::csr_matrix_view<DeviceIndexArrayView,
+                                  DeviceIndexArrayView,
+                                  DeviceValueArrayView> DeviceView;
+
+  DeviceView A(ppedim, ppedim, Nnz, row_offsets, column_indices, values);
+  
+  //Create precond, monitor and solve
+  //cusp::precond::diagonal<ValueType,MemorySpace> M(A);
+  cusp::precond::aggregation::smoothed_aggregation<int,ValueType,MemorySpace> M(A);
+  M.print();
+  cusp::verbose_monitor<ValueType> monitor(mb, 5000, 1e-5);
+  cusp::krylov::bicgstab(A,mx,mb,monitor,M);
+
+  // report solver results
+  if (monitor.converged()) 
+  {
+    std::cout << "Solver converged to " << monitor.relative_tolerance() << " relative tolerance";
+    std::cout << " after " << monitor.iteration_count() << " iterations" << std::endl;
+  }
+  else
+  {
+    std::cout << "Solver reached iteration limit " << monitor.iteration_limit() << " before converging";
+    std::cout << " to " << monitor.relative_tolerance() << " relative tolerance " << std::endl;
+  }
+
+  x=thrust::raw_pointer_cast(&mx[0]);
+}
+
+//==============================================================================
+/// Solve matrix with ViennaCL
+//==============================================================================
+template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
+void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond){ 
+  VectorType result(rhs);
+  VectorType residual(rhs);
+  viennacl::tools::timer timer;
+  timer.start();   
+  result = viennacl::linalg::solve(matrix, rhs, solver, precond);   
+  //for(int i = 0; i < matrix.size1();i++) std::cout << i << "\t" << result[i] << "\n";
+  viennacl::backend::finish();  
+  std::cout << "  > Solver time: " << timer.get() << std::endl;   
+  residual -= viennacl::linalg::prod(matrix, result); 
+  std::cout << "  > Relative residual: " << viennacl::linalg::norm_2(residual) / viennacl::linalg::norm_2(rhs) << std::endl;  
+  std::cout << "  > Iterations: " << solver.iters() << std::endl;
+}
+
+template<typename ScalarType>
+void run_amg(viennacl::linalg::bicgstab_tag & bicgstab_solver,viennacl::vector<ScalarType> & vcl_vec,viennacl::compressed_matrix<ScalarType> & matrix,
+             std::string info,viennacl::linalg::amg_tag & amg_tag){
+  viennacl::linalg::amg_precond<viennacl::compressed_matrix<ScalarType> > vcl_amg(matrix, amg_tag);
+  std::cout << " * Setup phase (ViennaCL types)..." << std::endl;
+  viennacl::tools::timer timer; 
+  timer.start(); 
+  vcl_amg.setup(); 
+  std::cout << "levels = " << vcl_amg.levels() << "\n";
+  for(int i =0; i< vcl_amg.levels();i++) std::cout << "level " << i << "\t" << "size = " << vcl_amg.size(i) << "\n";
+  viennacl::backend::finish();
+  std::cout << "  > Setup time: " << timer.get() << std::endl;
+  std::cout << " * CG solver (ViennaCL types)..." << std::endl;
+  run_solver(matrix,vcl_vec,bicgstab_solver,vcl_amg);
+}
+
+void solveVienna(double *matrixa,double *matrixx,double *matrixb,int *row,int *col,const unsigned nnz,const unsigned ppedim){
+  viennacl::context CudaCtx(viennacl::CUDA_MEMORY);
+  typedef double       ScalarType;
+  //TEMPORARY/////////////////////////////////////////
+  unsigned int *cuda_row_start;
+  unsigned int *cuda_col_indices;
+  cudaMalloc(&cuda_row_start,(ppedim+1)*sizeof(unsigned int));
+  cudaMalloc(&cuda_col_indices,nnz*sizeof(unsigned int));
+
+  cudaMemcpy(cuda_row_start,row,(ppedim+1)*sizeof(unsigned int),cudaMemcpyHostToDevice);
+  cudaMemcpy(cuda_col_indices, col, nnz * sizeof(unsigned int),cudaMemcpyHostToDevice);
+  ////////////////////////////////////////////////////
+  viennacl::compressed_matrix<ScalarType> vcl_A_cuda(cuda_row_start, cuda_col_indices, matrixa, viennacl::CUDA_MEMORY, ppedim, ppedim, nnz);
+  
+  viennacl::vector<ScalarType> vcl_vec(matrixb, viennacl::CUDA_MEMORY, ppedim);
+
+  viennacl::linalg::bicgstab_tag bicgstab(1e-5,500); 
+
+  /*viennacl::compressed_matrix<ScalarType> test(CudaCtx);
+
+  viennacl::tools::generate_fdm_laplace(test, 100, 100);
+  
+  viennacl::vector<ScalarType> result(test.size1(), CudaCtx);
+  for(int i=0; i<test.size1();i++) result[i]=1.0;
+  viennacl::vector<ScalarType> vcl_vecTest(test.size1(), CudaCtx);
+  vcl_vecTest = viennacl::linalg::prod(test, result);*/
+
+  std::cout<<"JACOBI PRECOND" <<std::endl;
+  viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_A_cuda,viennacl::linalg::jacobi_tag());
+  run_solver(vcl_A_cuda,vcl_vec,bicgstab,vcl_jacobi);
+
+  std::cout<<"AMG PRECOND"<<std::endl;
+
+  viennacl::linalg::amg_tag amg_tag_direct;
+  amg_tag_direct.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_AGGREGATION);
+  amg_tag_direct.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION);
+  /*amg_tag_direct.set_strong_connection_threshold(0.1);
+  amg_tag_direct.set_jacobi_weight(1.0);
+  amg_tag_direct.set_presmooth_steps(2);
+  amg_tag_direct.set_postsmooth_steps(2);
+  amg_tag_direct.set_coarse_levels(0);
+  amg_tag_direct.set_coarsening_cutoff(50);
+  amg_tag_direct.set_setup_context(host_ctx);
+  amg_tag_direct.set_target_context(target_ctx);*/
+  
+  /*for(int i = 0; i<20;i++){
+  float strong = i*0.01;*/
+  //amg_tag_direct.set_strong_connection_threshold(0.1);
+
+  run_amg(bicgstab,vcl_vec,vcl_A_cuda,"MIS2 AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_direct);
+  //std::cout << amg_tag_direct.get_strong_connection_threshold() << "\n";*/
+  //}
+}
 }

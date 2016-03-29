@@ -3,9 +3,15 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">
     <LocalDebuggerEnvironment>%CULASPARSE_BIN_PATH_64%(LocalDebuggerEnvironment)</LocalDebuggerEnvironment>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments>C:/Users/AlexPC/Documents/BitBucketCodes/TEST/CaseStillWaterISPH_CPU/CaseStillWaterISPH_CPU_out/CaseStillWaterISPH_CPU</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerEnvironment>%CULASPARSE_BIN_PATH_64%(LocalDebuggerEnvironment)</LocalDebuggerEnvironment>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LocalDebuggerAttach>false</LocalDebuggerAttach>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments>-gpu C:\Users\AlexPC\Documents\BitBucketCodes\TEST\CaseStillWaterISPH_CPU\CaseStillWaterISPH_CPU_out -CaseStillWaterISPH_CPU.xml</LocalDebuggerCommandArguments>
   </PropertyGroup>
 </Project>

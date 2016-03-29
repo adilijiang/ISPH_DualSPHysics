@@ -26,6 +26,9 @@
 #include "JWaveGen.h"
 #include "JSphGpu_ker.h"
 #include "JPtxasInfo.h"
+#include <time.h>
+
+#include <iostream>
 
 using namespace std;
 //==============================================================================
@@ -631,6 +634,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   //-finding dummy particle relations to wall particles
   FindIrelation();
   while(TimeStep<TimeMax){
+    clock_t start = clock(); 
     //if(ViscoTime)Visco=ViscoTime->GetVisco(float(TimeStep));
     double stepdt=ComputeStep_Sym();
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
@@ -653,6 +657,9 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
     Nstep++;
     if(TimersStep&&TimersStep->Check(float(TimeStep)))SaveTimersStep(Np,Npb,NpbOk,CellDivSingle->GetNct());
     //if(Nstep>=1)break;
+    clock_t stop = clock();   
+    double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
+    cout<<"Timestep Time = " << dif << "ms\n";
   }
   TimerSim.Stop(); TimerTot.Stop();
 
@@ -791,7 +798,7 @@ void JSphGpuSingle::InitAdvection(double dt){
 //==============================================================================
 /// PPE Solver in CULA
 //==============================================================================
-#include <time.h>
+
 void JSphGpuSingle::SolvePPE(double dt){ 
   tuint3 ncells=CellDivSingle->GetNcells();
   const int2 *begincell=CellDivSingle->GetBeginCell();
@@ -805,8 +812,6 @@ void JSphGpuSingle::SolvePPE(double dt){
   const unsigned bsbound=BlockSizes.forcesbound;
   const unsigned bsfluid=BlockSizes.forcesfluid;
   
-  std::cout<<"Finding Free Surface\n";
-  clock_t start = clock(); 
   POrderg=ArraysGpu->ReserveUint(); cusph::InitArrayPOrder(np,POrderg,np);
   Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
 
@@ -814,105 +819,31 @@ void JSphGpuSingle::SolvePPE(double dt){
   cusph::FreeSurfaceFind(Psimple,CellMode,bsbound,bsfluid,np,npb,ncells,begincell,cellmin,Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,Divrg);
   //Create matrix
   cudaMalloc((void**)&b,sizeof(double)*PPEDim); cudaMemset(b,0,sizeof(double)*PPEDim);
-  cudaMalloc((void**)&x,sizeof(double)*PPEDim); cudaMemset(x,0,sizeof(double)*PPEDim);
+  cudaMalloc((void**)&X,sizeof(double)*PPEDim); cudaMemset(X,0,sizeof(double)*PPEDim);
   cudaMalloc((void**)&rowInd,sizeof(int)*(PPEDim+1)); cudaMemset(rowInd,0,sizeof(int)*(PPEDim+1));
 
-  std::cout<<"Creating Matrix B\n";
   cusph::PopulateMatrixB(Psimple,CellMode,bsfluid,np,npb,ncells,begincell,cellmin,Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,dWxCorrg,dWzCorrg,b,POrderg,Idpg,dt,PPEDim,Divrg);
 
-  std::cout<<"Creating Matrix Storage\n";
   cusph::MatrixStorage(Psimple,CellMode,bsbound,bsfluid,np,npb,ncells,begincell,cellmin,Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,Divrg,POrderg,rowInd);
   unsigned Nnz=MatrixASetup(PPEDim,rowInd);
-  cudaMalloc((void**)&values,sizeof(double)*Nnz); cudaMemset(values,0,sizeof(double)*Nnz);
+  cudaMalloc((void**)&a,sizeof(double)*Nnz); cudaMemset(a,0,sizeof(double)*Nnz);
   cudaMalloc((void**)&colInd,sizeof(int)*Nnz); cusph::InitArrayCol(Nnz,colInd,int(PPEDim));
-
-  std::cout<<"Creating Matrix A\n";
-  cusph::PopulateMatrixA(Psimple,CellMode,bsbound,bsfluid,np,npb,ncells,begincell,cellmin,Dcellg,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,values,b,rowInd,colInd,POrderg,Idpg,PPEDim,Divrg,Codeg,Irelationg);
+  cusph::PopulateMatrixA(Psimple,CellMode,bsbound,bsfluid,np,npb,ncells,begincell,cellmin,Dcellg,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,a,b,rowInd,colInd,POrderg,Idpg,PPEDim,Divrg,Codeg,Irelationg);
   
-  cudaDeviceSynchronize(); clock_t stop = clock();   
-  double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
-  cout<<"Time = " << dif << "ms\n";
-
-  std::cout<<"Solving Matrix\n";
+  int *row; int *col; double *values;
+  row=new int[PPEDim+1]; col=new int[Nnz]; values=new double[Nnz];
+  cudaMemcpy(row,rowInd,sizeof(int)*(PPEDim+1),cudaMemcpyDeviceToHost);
+  cudaMemcpy(col,colInd,sizeof(int)*Nnz,cudaMemcpyDeviceToHost);
+  cudaMemcpy(values,a,sizeof(double)*Nnz,cudaMemcpyDeviceToHost);
   
-  // string buffer
-  const int bufsize = 512;
-  char buffer[bufsize];
-  
-  // initialize cula sparse library
-  culaSparseHandle handle;
-  if (culaSparseCreate(&handle) != culaSparseNoError)
-  {
-    // this should only fail under extreme conditions
-    std::cout << "fatal error: failed to create library handle!" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-
-  // error handling class
-  StatusCheckerGpu sc(handle);
-
-  //initialise CUDA Device platform options
-  culaSparseCudaDeviceOptions platformOpts;
-  platformOpts.debug=0;
-  platformOpts.deviceId=GpuSelect;
-  platformOpts.useHybridFormat=0;
-
-  // create a plan
-  culaSparsePlan plan;
-  sc = culaSparseCreatePlan(handle, &plan);
-  // set platform
-  sc = culaSparseSetCudaDevicePlatform(handle, plan, &platformOpts);
-
-  // set data coordinate format (null_ptr will use default options) 
-  sc = culaSparseSetDcsrData(handle, plan, 0, PPEDim, Nnz, &values[0], &rowInd[0], &colInd[0], &x[0], &b[0]);
-
-  // set configuration
-  culaSparseConfig config;
-  sc = culaSparseConfigInit(handle, &config);
-  config.relativeTolerance = 1e-5;
-  config.maxIterations = 5000;
-
-  // perform solve (cg + no preconditioner on host)
-  culaSparseResult result;
-  
-  //set Preconditioner
-  sc = culaSparseSetBlockJacobiPreconditioner(handle, plan, 0);
-  //set solver
-  sc = culaSparseSetBicgstabSolver(handle, plan, 0);
-   
-  sc = culaSparseExecutePlan(handle, plan, &config, &result);
-  sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
-  std::cout << buffer << std::endl;
-
-  culaSparseDestroyPlan(plan);
-
-  // cleanup handle
-  culaSparseDestroy(handle);
-  
-  cusph::PressureAssign(Psimple,bsbound,bsfluid,np,npb,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,x,POrderg,Idpg,Codeg,Irelationg);
+  //cusph::solveCusp(a,X,b,rowInd,colInd,Nnz,PPEDim);
+  cusph::solveVienna(a,X,b,rowInd,colInd,Nnz,PPEDim); 
+  //solveCULA(a,b,X,rowInd,colInd,PPEDim,Nnz);
+ 
+  cusph::PressureAssign(Psimple,bsbound,bsfluid,np,npb,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,X,POrderg,Idpg,Codeg,Irelationg);
 
   ArraysGpu->Free(POrderg);       POrderg=NULL;
   ArraysGpu->Free(Divrg);		      Divrg=NULL;
-  cudaFree(b); cudaFree(x); cudaFree(values); cudaFree(rowInd); cudaFree(colInd);
+  cudaFree(b); cudaFree(X); cudaFree(a); cudaFree(rowInd); cudaFree(colInd);
 }
-
-StatusCheckerGpu::StatusCheckerGpu(culaSparseHandle handle) : handle_(handle) {}
-
-void StatusCheckerGpu::operator=(culaSparseStatus status)
-{
-    // expected cases
-    if (status == culaSparseNoError || status == culaSparseNonConvergence)
-        return;
-
-    // there was an error; get additional information
-    const int buffer_size = 256;
-    char buffer[buffer_size];
-
-    if (culaSparseGetLastStatusString(handle_, buffer, buffer_size) != culaSparseNoError)
-        std::cout << "error: could not retrieve status string" << std::endl;
-    else
-        std::cout << "error: " << buffer << std::endl;
-}
-
-
 

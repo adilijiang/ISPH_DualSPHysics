@@ -21,7 +21,6 @@
 #include "Types.h"
 #include "JSphTimersGpu.h"
 #include <cuda_runtime_api.h>
-
 class JLog2;
 
 #define SPHBSIZE 256
@@ -239,6 +238,12 @@ void PressureAssign(bool psimple,const unsigned bsbound,const unsigned bsfluid,u
 //# Kernels for ArrayInitialisation
 void InitArrayPOrder(unsigned n,unsigned *v,unsigned value);
 void InitArrayCol(unsigned n,int *v,int value);
+
+//# Kernels for solving with CUSP
+void solveCusp(double *matrixa,double *x,double *matrixb,int *row,int *col,const unsigned nnz,const unsigned ppedim);
+
+//# Kernels for solving with ViennaCL
+void solveVienna(double *matrixa,double *matrixx,double *matrixb,int *row,int *col,const unsigned nnz,const unsigned ppedim);
 }
 #endif
 

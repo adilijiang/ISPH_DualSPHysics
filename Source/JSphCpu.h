@@ -22,7 +22,7 @@
 #include "JSphTimersCpu.h"
 #include "JSph.h"
 #include <string>
-
+#include <cula_sparse.h>
 class JPartsOut;
 class JArraysCpu;
 class JCellDivCpu;
@@ -254,6 +254,12 @@ protected:
   tfloat3 *dWzCorr; //Kernel correction in the z direction
   float *Divr; //Divergence of position
   unsigned *POrder; //Position in Matrix
+  //matrix variables for CULA
+  std::vector<double> b;
+  std::vector<double> a;
+  std::vector<int> colInd;
+  std::vector<int> rowInd;
+  std::vector<double> x;
 
   void KernelCorrection(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
 	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,tfloat3 *dwxcorr,tfloat3 *dwzcorr)const;
@@ -265,23 +271,36 @@ protected:
   void FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
     const tdouble3 *pos,const tfloat3 *pspos,float *Divr,const word *code)const;
   void MatrixStorageCULA(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
-	  float *divr,std::vector<int>& row,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim)const;
-  void MatrixASetupCULA(const unsigned ppedim,unsigned &nnz,std::vector<int>& row)const;
+	  float *divr,std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim)const;
+  void MatrixASetupCULA(const unsigned ppedim,unsigned &nnz,std::vector<int> &row)const;
   void PopulateMatrixBCULA(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,std::vector<double>& matrixb,const unsigned *porder,
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,
     const unsigned *idpc,const double dt,const unsigned ppedim)const;
   void PopulateMatrixACULAInteractFluid(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double>& matrixInd,std::vector<int>& row,std::vector<int>& col,
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
     const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim)const;
    void PopulateMatrixACULAInteractBound(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double>& matrixInd,std::vector<int>& row,std::vector<int>& col,
-    std::vector<double>& b,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned *irelation,const unsigned ppedim)const;
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
+    std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned *irelation,const unsigned ppedim)const;
   void PressureAssignCULA(bool psimple,unsigned n,unsigned pinit,const tdouble3 *pos,const tfloat3 *pspos,tfloat4 *velrhop,const unsigned *idpc,const unsigned *irelation,const unsigned *porder,
-    std::vector<double>& x,const word *code,const unsigned npb)const;
+    std::vector<double> &matrixx,const word *code,const unsigned npb)const;
 
+  void solveAmgCL(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim);
+  void solveVienna(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz);
+  void solveCULA(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row, std::vector<int> &col,const unsigned ppedim, const unsigned nnz);
 public:
   JSphCpu(bool withmpi);
   ~JSphCpu();
+};
+
+class StatusCheckerCpu
+{
+public:
+    StatusCheckerCpu(culaSparseHandle handle);
+    void operator=(culaSparseStatus status);
+
+private:
+    culaSparseHandle handle_;
 };
 
 #endif

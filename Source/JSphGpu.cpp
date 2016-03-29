@@ -14,7 +14,6 @@
 
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
-
 #include "JSphGpu.h"
 #include "JSphGpu_ker.h"
 #include "JPtxasInfo.h"
@@ -79,10 +78,10 @@ void JSphGpu::InitVars(){
   Arg=NULL; Aceg=NULL; Deltag=NULL; 
   POrderg=NULL;
   b=NULL;
-  values=NULL;
+  a=NULL;
   colInd=NULL;
   rowInd=NULL;
-  x=NULL;
+  X=NULL;
   dWxCorrg=NULL; dWzCorrg=NULL;
   POrderg=NULL;  POrderc=NULL;
   rowCpu=NULL;
@@ -1225,8 +1224,84 @@ unsigned JSphGpu::MatrixASetup(const unsigned ppedim,int *rowGpu){
 
   cudaMemcpy(rowGpu,rowCpu,sizeof(int)*(ppedim+1),cudaMemcpyHostToDevice); 
   
-
   return nnz;
 }
 
+//===============================================================================
+///Solve matrix using CULA Sparse
+//===============================================================================
+void JSphGpu::solveCULA(double *matrixa, double *matrixb,double *matrixx,int *row, int *col,const unsigned ppedim, const unsigned nnz){
+  // string buffer
+  const int bufsize = 512;
+  char buffer[bufsize];
+  
+  // initialize cula sparse library
+  culaSparseHandle handle;
+  if (culaSparseCreate(&handle) != culaSparseNoError)
+  {
+    // this should only fail under extreme conditions
+    std::cout << "fatal error: failed to create library handle!" << std::endl;
+    exit(EXIT_FAILURE);
+  }
 
+  // error handling class
+  StatusCheckerGpu sc(handle);
+
+  //initialise CUDA Device platform options
+  culaSparseCudaDeviceOptions platformOpts;
+  platformOpts.debug=0;
+  platformOpts.deviceId=GpuSelect;
+  platformOpts.useHybridFormat=0;
+
+  // create a plan
+  culaSparsePlan plan;
+  sc = culaSparseCreatePlan(handle, &plan);
+  // set platform
+  sc = culaSparseSetCudaDevicePlatform(handle, plan, &platformOpts);
+
+  // set data coordinate format (null_ptr will use default options) 
+  sc = culaSparseSetDcsrData(handle, plan, 0, ppedim, nnz, &matrixa[0], &row[0], &col[0], &matrixx[0], &matrixb[0]);
+
+  // set configuration
+  culaSparseConfig config;
+  sc = culaSparseConfigInit(handle, &config);
+  config.relativeTolerance = 1e-5;
+  config.maxIterations = 5000;
+
+  // perform solve (cg + no preconditioner on host)
+  culaSparseResult result;
+  
+  //set Preconditioner
+  //culaSparseBlockjacobiOptions precondOpts;
+  //precondOpts.blockSize=5;
+  sc = culaSparseSetJacobiPreconditioner(handle, plan, 0);
+  //set solver
+  sc = culaSparseSetBicgstabSolver(handle, plan, 0);
+   
+  sc = culaSparseExecutePlan(handle, plan, &config, &result);
+  sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
+  std::cout << buffer << std::endl;
+
+  culaSparseDestroyPlan(plan);
+
+  // cleanup handle
+  culaSparseDestroy(handle);
+}
+
+StatusCheckerGpu::StatusCheckerGpu(culaSparseHandle handle) : handle_(handle) {}
+
+void StatusCheckerGpu::operator=(culaSparseStatus status)
+{
+    // expected cases
+    if (status == culaSparseNoError || status == culaSparseNonConvergence)
+        return;
+
+    // there was an error; get additional information
+    const int buffer_size = 256;
+    char buffer[buffer_size];
+
+    if (culaSparseGetLastStatusString(handle_, buffer, buffer_size) != culaSparseNoError)
+        std::cout << "error: could not retrieve status string" << std::endl;
+    else
+        std::cout << "error: " << buffer << std::endl;
+}

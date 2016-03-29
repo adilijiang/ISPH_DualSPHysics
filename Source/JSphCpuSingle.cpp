@@ -26,6 +26,9 @@
 #include "JWaveGen.h"
 
 #include <climits>
+#include <time.h>
+
+#include <vector>
 
 using namespace std;
 //==============================================================================
@@ -835,6 +838,7 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   //-finding dummy particle relations to wall particles
   FindIrelation(); 
   while(TimeStep<TimeMax){
+    clock_t start = clock(); 
     //if(ViscoTime)Visco=ViscoTime->GetVisco(float(TimeStep));
     double stepdt=ComputeStep_Sym();
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
@@ -857,6 +861,9 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
     Nstep++;
     if(TimersStep&&TimersStep->Check(float(TimeStep)))SaveTimersStep(Np,Npb,NpbOk,CellDivSingle->GetNct());
     //if(Nstep>=3)break;
+    clock_t stop = clock();   
+    double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
+    cout<<"Timestep Time = " << dif << "ms\n";
   }
   TimerSim.Stop(); TimerTot.Stop();
 
@@ -972,7 +979,7 @@ void JSphCpuSingle::KernelCorrection(bool boundary){
 //==============================================================================
 /// PPE Solver in CULA
 //==============================================================================
-#include <time.h>
+
 void JSphCpuSingle::SolvePPECULA(double dt){ 
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
   tuint3 ncells=CellDivSingle->GetNcells();
@@ -987,139 +994,50 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   const unsigned npf = np - npb;
   unsigned PPEDim=0;
 
-  // string buffer
-  const int bufsize = 512;
-  char buffer[bufsize];
-  
-  // initialize cula sparse library
-  culaSparseHandle handle;
-  if (culaSparseCreate(&handle) != culaSparseNoError)
-  {
-    // this should only fail under extreme conditions
-    std::cout << "fatal error: failed to create library handle!" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-
-  // error handling class
-  StatusCheckerCpu sc(handle);
-
-  // create a plan
-  culaSparsePlan plan;
-  sc = culaSparseCreatePlan(handle, &plan);
-  std::cout<<"Finding Free Surface\n";
-  clock_t start = clock(); 
-  POrder=ArraysCpu->ReserveUint();
-  memset(POrder,np,sizeof(unsigned)*np);
-  Divr=ArraysCpu->ReserveFloat();
-  memset(Divr,0,sizeof(float)*np);
+  //Matrix Order and Free Surface
+  POrder=ArraysCpu->ReserveUint(); memset(POrder,np,sizeof(unsigned)*np);
+  Divr=ArraysCpu->ReserveFloat(); memset(Divr,0,sizeof(float)*np);
   MatrixOrder(np,0,POrder,Idpc,Irelationc,Codec,PPEDim);
   FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Fluid
   FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Bound
   FreeSurfaceFind(Psimple,npb,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Bound-Fluid
   FreeSurfaceFind(Psimple,npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Bound-Bound
-  // create matrix 
-  std::cout<<"Creating Matrix B\n";
-  std::vector<double> b(PPEDim, 0.0);
+
+  //RHS
+  b.resize(PPEDim,0);
   PopulateMatrixBCULA(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim); //-Fluid-Fluid
-  std::cout<<"Creating Matrix Storage\n";
-  std::vector<double> values;
-  std::vector<int> colInd;
-  std::vector<int> rowInd(PPEDim+1,0);
-  unsigned Nnz=0;
+  rowInd.resize(PPEDim+1,0);
+  unsigned Nnz=0; 
+
+  //Organiseing storage for parallelism
   MatrixStorageCULA(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);
   MatrixStorageCULA(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);
   MatrixStorageCULA(Psimple,npb,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);
   MatrixStorageCULA(Psimple,npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);
-  MatrixASetupCULA(PPEDim,Nnz,rowInd);
-  colInd.resize(Nnz,PPEDim);
-  values.resize(Nnz,0.0);
-  std::cout<<"Creating Matrix A\n";
-  PopulateMatrixACULAInteractFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,POrder,Idpc,Codec,PPEDim);
-  PopulateMatrixACULAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); 
-  PopulateMatrixACULAInteractFluid(Psimple,npb,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,POrder,Idpc,Codec,PPEDim); 
-  PopulateMatrixACULAInteractBound(Psimple,npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,values,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); 
-  clock_t stop = clock();   
-  double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
-  cout<<"Time = " << dif << "ms\n";
+  MatrixASetupCULA(PPEDim,Nnz,rowInd); 
+  colInd.resize(Nnz,PPEDim); 
+  a.resize(Nnz,0);
 
-  std::cout<<"Solving Matrix\n";
+  //LHS
+  PopulateMatrixACULAInteractFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim);
+  PopulateMatrixACULAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); 
+  PopulateMatrixACULAInteractFluid(Psimple,npb,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim); 
+  PopulateMatrixACULAInteractBound(Psimple,npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); 
+
   // allocate vectors
-  std::vector<double> x(PPEDim);
-  // set data coordinate format (null_ptr will use default options) 
-  sc = culaSparseSetDcsrData(handle, plan, 0, PPEDim, Nnz, &values[0], &rowInd[0], &colInd[0], &x[0], &b[0]);
+  x.resize(PPEDim,0);
 
-  // set configuration
-  culaSparseConfig config;
-  sc = culaSparseConfigInit(handle, &config);
-  config.relativeTolerance = 1e-5;
-  config.maxIterations = 5000;
-
-  // perform solve (cg + no preconditioner on host)
-  culaSparseResult result;
-
-  // this will gracefully return an error if no cuda platform is found
-  if (culaSparsePreinitializeCuda(handle) == culaSparseNoError)
-  {
-    // set platform
-    sc = culaSparseSetCudaPlatform(handle, plan, 0);
-
-    //set Preconditioner
-    sc = culaSparseSetBlockJacobiPreconditioner(handle, plan, 0);
-
-    // change solver
-    // this avoids preconditioner regeneration by using data cached by the plan
-    sc = culaSparseSetBicgstabSolver(handle, plan, 0);
-    
-    // perform solve (bicgstab + fainv on cuda)
-    // the timing results should indicate minimal overhead and preconditioner generation time
-    sc = culaSparseExecutePlan(handle, plan, &config, &result);
-    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
-    std::cout << buffer << std::endl;
-  }
-  else
-  {
-    // change to cuda accelerated platform
-    sc = culaSparseSetHostPlatform(handle, plan, 0);
-
-    //set Preconditioner
-    sc = culaSparseSetBlockJacobiPreconditioner(handle, plan, 0);
-
-    // change solver
-    // this avoids preconditioner regeneration by using data cached by the plan
-    sc = culaSparseSetBicgstabSolver(handle, plan, 0);
-    
-    // perform solve (bicgstab + fainv on cuda)
-    // the timing results should indicate minimal overhead and preconditioner generation time
-    sc = culaSparseExecutePlan(handle, plan, &config, &result);
-    sc = culaSparseGetResultString(handle, &result, buffer, bufsize);
-    std::cout << buffer << std::endl;
-  }
-   
-  // cleanup plan
-  culaSparseDestroyPlan(plan);
-
-  // cleanup handle
-  culaSparseDestroy(handle);
-
+  //solvers
+  //solveAmgCL(a,b,x,rowInd,colInd,PPEDim);
+#ifndef _WITHGPU
+  solveVienna(a,b,x,rowInd,colInd,PPEDim,Nnz);
+#endif
+  //solveCULA(a,b,x,rowInd,colInd,PPEDim,Nnz);
   PressureAssignCULA(Psimple,np,0,Posc,PsPosc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb);
-
-  values.clear(); colInd.clear(); rowInd.clear(); b.clear();
-}
-
-StatusCheckerCpu::StatusCheckerCpu(culaSparseHandle handle) : handle_(handle) {}
-
-void StatusCheckerCpu::operator=(culaSparseStatus status)
-{
-    // expected cases
-    if (status == culaSparseNoError || status == culaSparseNonConvergence)
-        return;
-
-    // there was an error; get additional information
-    const int buffer_size = 256;
-    char buffer[buffer_size];
-
-    if (culaSparseGetLastStatusString(handle_, buffer, buffer_size) != culaSparseNoError)
-        std::cout << "error: could not retrieve status string" << std::endl;
-    else
-        std::cout << "error: " << buffer << std::endl;
+ 
+  b.clear();
+  a.clear();
+  x.clear();
+  rowInd.clear();
+  colInd.clear();
 }
