@@ -387,7 +387,7 @@ protected:
   unsigned GetOutPosCount()const{ return(OutPosCount); }
   unsigned GetOutRhopCount()const{ return(OutRhopCount); }
   unsigned GetOutMoveCount()const{ return(OutMoveCount); }
-
+  void solveVienna();
 public:
   JSph(bool cpu,bool withmpi);
   ~JSph();

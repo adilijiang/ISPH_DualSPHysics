@@ -356,7 +356,7 @@ IF EXIST cg_variables.h move cg_variables.h $(Configuration)\
       <AdditionalDependencies>cudart.lib;JWaveGen_$(PlatformName).lib;JFormatFiles2_$(PlatformName).lib;JSphMotion_$(PlatformName).lib;JXml_$(PlatformName).lib;cula_sparse.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>$(CUDA_PATH_V5_5)/lib/$(PlatformName);Libs;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>false</EnableCOMDATFolding>

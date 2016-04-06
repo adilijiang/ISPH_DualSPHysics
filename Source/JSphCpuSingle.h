@@ -17,7 +17,15 @@
 
 #ifndef _JSphCpuSingle_
 #define _JSphCpuSingle_
+#define VIENNACL_WITH_OPENMP
+#include "viennacl/vector.hpp"
+#include "viennacl/compressed_matrix.hpp"
+#include "viennacl/linalg/bicgstab.hpp"
+#include "viennacl/linalg/norm_2.hpp"
+#include "viennacl/tools/matrix_generation.hpp"
 
+#include "viennacl/linalg/amg.hpp"
+#include "viennacl/tools/timer.hpp"
 #include "Types.h"
 #include "JSphCpu.h"
 #include <string>

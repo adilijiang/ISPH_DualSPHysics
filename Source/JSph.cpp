@@ -17,6 +17,7 @@
 
 /// \file JSph.cpp \brief Implements the class \ref JSph
 
+#define _CRT_RAND_S
 #include "JSph.h"
 #include "Functions.h"
 #include "JSphMotion.h"
@@ -37,12 +38,12 @@
 #include "JPartFloatBi4.h"
 #include "JPartsOut.h"
 #include <climits>
+#include <stdlib.h>
 
 //using namespace std;
 using std::string;
 using std::ofstream;
 using std::endl;
-
 //==============================================================================
 /// Constructor.
 //==============================================================================
@@ -63,6 +64,7 @@ JSph::JSph(bool cpu,bool withmpi):Cpu(cpu),WithMpi(withmpi){
   VarAcc=NULL;
   TimersStep=NULL;
   InitVars();
+  
 }
 
 //==============================================================================
@@ -187,7 +189,7 @@ void JSph::InitVars(){
 //==============================================================================
 /// Generates a random code to identify the file of the results of the execution.
 //==============================================================================
-std::string JSph::CalcRunCode()const{
+std::string JSph::CalcRunCode()const{ 
   srand((unsigned)time(NULL));
   const unsigned len=8;
   char code[len+1];
@@ -199,7 +201,7 @@ std::string JSph::CalcRunCode()const{
   return(code);
 }
 
-//==============================================================================
+//============================================================================== 
 /// Returns the code version in text format.
 //==============================================================================
 std::string JSph::GetVersionStr(){

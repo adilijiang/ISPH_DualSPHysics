@@ -27,7 +27,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/sort.h>
 
-#include <cusp/csr_matrix.h>
+/*#include <cusp/csr_matrix.h>
 #include <cusp/monitor.h>
 #include <cusp/io/matrix_market.h>
 #include <cusp/krylov/bicgstab.h>
@@ -35,7 +35,7 @@
 #include <cusp/precond/diagonal.h>
 #include <cusp/precond/aggregation/smoothed_aggregation.h>
 #include <cusp/print.h>
-#include <cusp/array1d.h>
+#include <cusp/array1d.h>*/
 
 #include <iostream>
 #include <cstdlib>
@@ -3748,7 +3748,7 @@ void InitArrayCol(unsigned n,int *v,int value){
   }
 }
 
-//==============================================================================
+/*//==============================================================================
 /// Solve matrix CUSP
 //==============================================================================
 void solveCusp(double *matrixa,double *x,double *matrixb,int *row,int *col, const unsigned Nnz,const unsigned ppedim){
@@ -3798,7 +3798,7 @@ void solveCusp(double *matrixa,double *x,double *matrixb,int *row,int *col, cons
   }
 
   x=thrust::raw_pointer_cast(&mx[0]);
-}
+}*/
 
 //==============================================================================
 /// Solve matrix with ViennaCL
@@ -3810,7 +3810,6 @@ void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag cons
   viennacl::tools::timer timer;
   timer.start();   
   result = viennacl::linalg::solve(matrix, rhs, solver, precond);   
-  //for(int i = 0; i < matrix.size1();i++) std::cout << i << "\t" << result[i] << "\n";
   viennacl::backend::finish();  
   std::cout << "  > Solver time: " << timer.get() << std::endl;   
   residual -= viennacl::linalg::prod(matrix, result); 
@@ -3852,39 +3851,19 @@ void solveVienna(double *matrixa,double *matrixx,double *matrixb,int *row,int *c
 
   viennacl::linalg::bicgstab_tag bicgstab(1e-5,500); 
 
-  /*viennacl::compressed_matrix<ScalarType> test(CudaCtx);
-
-  viennacl::tools::generate_fdm_laplace(test, 100, 100);
-  
-  viennacl::vector<ScalarType> result(test.size1(), CudaCtx);
-  for(int i=0; i<test.size1();i++) result[i]=1.0;
-  viennacl::vector<ScalarType> vcl_vecTest(test.size1(), CudaCtx);
-  vcl_vecTest = viennacl::linalg::prod(test, result);*/
-
-  std::cout<<"JACOBI PRECOND" <<std::endl;
+  /*std::cout<<"JACOBI PRECOND" <<std::endl;
   viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_A_cuda,viennacl::linalg::jacobi_tag());
-  run_solver(vcl_A_cuda,vcl_vec,bicgstab,vcl_jacobi);
+  run_solver(vcl_A_cuda,vcl_vec,bicgstab,vcl_jacobi);*/
 
   std::cout<<"AMG PRECOND"<<std::endl;
 
-  viennacl::linalg::amg_tag amg_tag_direct;
-  amg_tag_direct.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_AGGREGATION);
-  amg_tag_direct.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION);
-  /*amg_tag_direct.set_strong_connection_threshold(0.1);
-  amg_tag_direct.set_jacobi_weight(1.0);
-  amg_tag_direct.set_presmooth_steps(2);
-  amg_tag_direct.set_postsmooth_steps(2);
-  amg_tag_direct.set_coarse_levels(0);
-  amg_tag_direct.set_coarsening_cutoff(50);
-  amg_tag_direct.set_setup_context(host_ctx);
-  amg_tag_direct.set_target_context(target_ctx);*/
-  
-  /*for(int i = 0; i<20;i++){
-  float strong = i*0.01;*/
-  //amg_tag_direct.set_strong_connection_threshold(0.1);
-
-  run_amg(bicgstab,vcl_vec,vcl_A_cuda,"MIS2 AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_direct);
-  //std::cout << amg_tag_direct.get_strong_connection_threshold() << "\n";*/
-  //}
+  viennacl::linalg::amg_tag amg_tag_agg_pmis;
+  amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_MIS2_AGGREGATION);
+  amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION);
+  amg_tag_agg_pmis.set_strong_connection_threshold(0.9);
+  amg_tag_agg_pmis.set_jacobi_weight(0.9);
+  amg_tag_agg_pmis.set_presmooth_steps(1);
+  amg_tag_agg_pmis.set_postsmooth_steps(1); 
+  run_amg(bicgstab,vcl_vec,vcl_A_cuda,"MIS2 AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis);
 }
 }

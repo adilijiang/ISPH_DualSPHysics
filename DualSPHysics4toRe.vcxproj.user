@@ -8,6 +8,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerEnvironment>%CULASPARSE_BIN_PATH_64%(LocalDebuggerEnvironment)</LocalDebuggerEnvironment>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments>C:/Users/AlexPC/Documents/BitBucketCodes/TEST/CaseStillWaterISPH_GPU/CaseStillWaterISPH_GPU_out/CaseStillWaterISPH_GPU</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LocalDebuggerAttach>false</LocalDebuggerAttach>

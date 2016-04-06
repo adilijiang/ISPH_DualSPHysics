@@ -15,18 +15,18 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 #ifndef _WITHGPU
-//ViennaCL library
 #define VIENNACL_WITH_OPENMP
 #include "viennacl/vector.hpp"
 #include "viennacl/compressed_matrix.hpp"
 #include "viennacl/linalg/bicgstab.hpp"
+#include "viennacl/linalg//jacobi_precond.hpp"
 #include "viennacl/linalg/norm_2.hpp"
 #include "viennacl/tools/matrix_generation.hpp"
 
 #include "viennacl/linalg/amg.hpp"
 #include "viennacl/tools/timer.hpp"
-
 #endif
+
 #include "JSphCpu.h"
 #include "JCellDivCpu.h"
 #include "JPartFloatBi4.h"
@@ -39,17 +39,18 @@
 #include "JSaveDt.h"
 #include "JSphVarAcc.h"
 
+
 #pragma warning(disable : 4267)
 #pragma warning(disable : 4244)
 #pragma warning(disable : 4996)
 #pragma warning(disable : 4089)
-#include "amgcl/adapter/crs_tuple.hpp"
+/*#include "amgcl/adapter/crs_tuple.hpp"
 #include "amgcl/make_solver.hpp"
 #include "amgcl/solver/bicgstab.hpp"
 #include "amgcl/amg.hpp"
 #include "amgcl/coarsening/smoothed_aggregation.hpp"
 #include "amgcl/relaxation/spai0.hpp"
-#include <amgcl/profiler.hpp>
+#include <amgcl/profiler.hpp>*/
 
 #ifdef _WITHOMP
   #include <omp.h>  //Activate tb in Properties config -> C/C++ -> Language -> OpenMp
@@ -2467,7 +2468,7 @@ void JSphCpu::PressureAssignCULA(bool psimple,unsigned n,unsigned pinit,const td
 //===============================================================================
 ///Solve matrix with AMGCL
 //===============================================================================
-namespace amgcl {
+/*namespace amgcl {
     profiler<> prof;
 }
 
@@ -2494,22 +2495,22 @@ void JSphCpu::solveAmgCL(std::vector<double> &matrixa,std::vector<double> &matri
             << std::endl;
 
   std::cout << prof << std::endl;
-}
+}*/
 
 #ifndef _WITHGPU
-/*template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
+template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
 void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,std::vector<double> &matrixx,const unsigned ppedim){ 
   VectorType result(rhs);
   VectorType residual(rhs);
   viennacl::tools::timer timer;
   timer.start();   
   result = viennacl::linalg::solve(matrix, rhs, solver, precond);
-  viennacl::backend::finish();  
+  viennacl::backend::finish();    
   std::cout << "  > Solver time: " << timer.get() << std::endl;   
   residual -= viennacl::linalg::prod(matrix, result); 
   std::cout << "  > Relative residual: " << viennacl::linalg::norm_2(residual) / viennacl::linalg::norm_2(rhs) << std::endl;  
   std::cout << "  > Iterations: " << solver.iters() << std::endl;
-  system("PAUSE");
+
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
@@ -2521,7 +2522,7 @@ void run_amg(viennacl::linalg::bicgstab_tag & bicgstab_solver,
              viennacl::vector<ScalarType> & vcl_vec,
              viennacl::compressed_matrix<ScalarType> & vcl_compressed_matrix,
              std::string info,
-             viennacl::linalg::amg_tag & amg_tag,std::vector<double> &matrixx,const unsigned ppedim)
+             viennacl::linalg::amg_tag & amg_tag,std::vector<double> &matrixx,const unsigned ppedim)  
 {
   viennacl::linalg::amg_precond<viennacl::compressed_matrix<ScalarType> > vcl_amg(vcl_compressed_matrix, amg_tag);
   std::cout << " * Setup phase (ViennaCL types)..." << std::endl;
@@ -2532,157 +2533,51 @@ void run_amg(viennacl::linalg::bicgstab_tag & bicgstab_solver,
   std::cout << "  > Setup time: " << timer.get() << std::endl;
   std::cout << " * CG solver (ViennaCL types)..." << std::endl;
   run_solver(vcl_compressed_matrix,vcl_vec,bicgstab_solver,vcl_amg,matrixx,ppedim);
-}*/
-template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
-void run_solver(MatrixType const & matrix, VectorType const & rhs, SolverTag const & solver, PrecondTag const & precond)
-{
-  VectorType result(rhs);
-  VectorType residual(rhs);
-
-  viennacl::tools::timer timer;
-  timer.start();
-  result = viennacl::linalg::solve(matrix, rhs, solver, precond);
-  viennacl::backend::finish();
-  std::cout << "  > Solver time: " << timer.get() << std::endl;
-  residual -= viennacl::linalg::prod(matrix, result);
-  std::cout << "  > Relative residual: " << viennacl::linalg::norm_2(residual) / viennacl::linalg::norm_2(rhs) << std::endl;
-  std::cout << "  > Iterations: " << solver.iters() << std::endl;
 }
 
-/** <h3>Compare AMG preconditioner for uBLAS and ViennaCL types</h3>
-*
-*  The AMG implementations in ViennaCL can be used with uBLAS types as well as ViennaCL types.
-*  This function compares the two in terms of execution time.
-**/
-template<typename ScalarType>
-void run_amg(viennacl::linalg::bicgstab_tag & cg_solver,
-             viennacl::vector<ScalarType> & vcl_vec,
-             viennacl::compressed_matrix<ScalarType> & vcl_compressed_matrix,
-             std::string info,
-             viennacl::linalg::amg_tag & amg_tag)
-{
-  std::cout << "-- CG with AMG preconditioner, " << info << " --" << std::endl;
-
-  viennacl::linalg::amg_precond<viennacl::compressed_matrix<ScalarType> > vcl_amg(vcl_compressed_matrix, amg_tag);
-  std::cout << " * Setup phase (ViennaCL types)..." << std::endl;
-  viennacl::tools::timer timer;
-  timer.start();
-  vcl_amg.setup();
-  viennacl::backend::finish();
-  std::cout << "  > Setup time: " << timer.get() << std::endl;
-
-  std::cout << " * CG solver (ViennaCL types)..." << std::endl;
-  run_solver(vcl_compressed_matrix, vcl_vec, cg_solver, vcl_amg);
-}
-void JSphCpu::solveVienna(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,
-  std::vector<int> &col,const unsigned ppedim,const unsigned nnz){
-   // viennacl::context ctx(viennacl::MAIN_MEMORY);
+void JSphCpu::solveVienna(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz){
+    viennacl::context ctxOMP(viennacl::MAIN_MEMORY);
    
-    //typedef float ScalarType;
+    typedef double ScalarType;
 
-    /*viennacl::compressed_matrix<ScalarType> vcl_compressed_matrix(ctx);
+    viennacl::compressed_matrix<ScalarType> vcl_compressed_matrix(ctxOMP);
     vcl_compressed_matrix.set(&row[0],&col[0],&matrixa[0],ppedim,ppedim,nnz);
 
-    viennacl::vector<ScalarType> vcl_vec(vcl_compressed_matrix.size1(),ctx);
+    viennacl::vector<ScalarType> vcl_vec(matrixb.size(),ctxOMP);
     
     #ifdef _WITHOMP
       #pragma omp parallel for schedule (guided)
     #endif
-    for(int i=0;i<int(ppedim);i++) vcl_vec[i]=matrixb[i];*/
+    for(int i=0;i<int(ppedim);i++) vcl_vec[i]=matrixb[i];
 
-    //viennacl::linalg::bicgstab_tag bicgstab(1e-5,500);
+    viennacl::linalg::bicgstab_tag bicgstab(1e-4,200);
 
     /*std::cout<<"JACOBI PRECOND" <<std::endl;
-    viennacl::vector<ScalarType> vcl_result(vcl_compressed_matrix.size1(),ctx);
+    viennacl::vector<ScalarType> vcl_result(vcl_compressed_matrix.size1(),ctxOMP);
     viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_compressed_matrix,viennacl::linalg::jacobi_tag());
     run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_jacobi,matrixx,ppedim);*/
 
-
-  /*  viennacl::compressed_matrix<ScalarType> test(ctx);
-
-  viennacl::tools::generate_fdm_laplace(test, 100, 100);
-  
-  viennacl::vector<ScalarType> result(test.size1(), ctx);
-  for(int i=0; i<test.size1();i++) result[i]=1.0;
-  viennacl::vector<ScalarType> vcl_vecTest(test.size1(), ctx);
-  vcl_vecTest = viennacl::linalg::prod(test, result);
-
     std::cout<<"AMG PRECOND" <<std::endl;
     viennacl::context host_ctx(viennacl::MAIN_MEMORY);
-    viennacl::context target_ctx = viennacl::traits::context(test);
+    viennacl::context target_ctx = viennacl::traits::context(vcl_compressed_matrix);
 
     viennacl::linalg::amg_tag amg_tag_agg_pmis;
     amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_MIS2_AGGREGATION);
     amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION);
-    amg_tag_agg_pmis.set_strong_connection_threshold(0.2);
-    amg_tag_agg_pmis.set_jacobi_weight(1.0);
+    amg_tag_agg_pmis.set_strong_connection_threshold(0.9);
+    amg_tag_agg_pmis.set_jacobi_weight(0.9);
     amg_tag_agg_pmis.set_presmooth_steps(1);
-    amg_tag_agg_pmis.set_postsmooth_steps(1);
+    amg_tag_agg_pmis.set_postsmooth_steps(1); 
     amg_tag_agg_pmis.set_setup_context(host_ctx);
-    amg_tag_agg_pmis.set_target_context(target_ctx);
-    //int param = amg_tag_direct.get_coarse_levels();
-    //std::cout << "parameter = " << param << "\n";
-    run_amg(bicgstab,vcl_vecTest,test,"AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,matrixx,ppedim);*/
-
-     viennacl::context ctx(viennacl::MAIN_MEMORY);
-
-
-  typedef double    ScalarType;  // feel free to change this to double if supported by your device
-
-  /**
-  * Set up the matrices and vectors for the iterative solvers (cf. iterative.cpp)
-  **/
-  viennacl::compressed_matrix<ScalarType> vcl_compressed_matrix(ctx);
-
-  viennacl::tools::generate_fdm_laplace(vcl_compressed_matrix, 100, 100);
-  
-  viennacl::vector<ScalarType> vcl_vec(vcl_compressed_matrix.size1(), ctx);
-  viennacl::vector<ScalarType> vcl_result(vcl_compressed_matrix.size1(), ctx);
-
-  std::vector<ScalarType> std_vec, std_result;
-
-
-  // rhs and result vector:
-  std_vec.resize(vcl_compressed_matrix.size1());
-  std_result.resize(vcl_compressed_matrix.size1());
-  for (std::size_t i=0; i<std_result.size(); ++i)
-    std_result[i] = ScalarType(1);
-
-  // Copy to GPU
-  viennacl::copy(std_vec, vcl_vec);
-  viennacl::copy(std_result, vcl_result);
-
-  vcl_vec = viennacl::linalg::prod(vcl_compressed_matrix, vcl_result);
-
-
-  /**
-  * Instantiate a tag for the conjugate gradient solver, the AMG preconditioner tag, and create an AMG preconditioner object:
-  **/
-  viennacl::linalg::bicgstab_tag cg_solver(1e-5, 10000);
-
-  viennacl::context host_ctx(viennacl::MAIN_MEMORY);
-  viennacl::context target_ctx = viennacl::traits::context(vcl_compressed_matrix);
-
-  /**
-  * Generate the setup for an AMG preconditioner of Ruge-Stueben type with only one pass and direct interpolation (ONEPASS+DIRECT)
-  **/
-  viennacl::linalg::amg_tag amg_tag_agg_pmis;
-  amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_MIS2_AGGREGATION);
-  amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION);
-  amg_tag_agg_pmis.set_strong_connection_threshold(0.2);
-  amg_tag_agg_pmis.set_jacobi_weight(1.0);
-  amg_tag_agg_pmis.set_presmooth_steps(1);
-  amg_tag_agg_pmis.set_postsmooth_steps(1);
-  amg_tag_agg_pmis.set_setup_context(host_ctx);    // run setup on host
-  amg_tag_agg_pmis.set_target_context(target_ctx); // run solver cycles on device
-  run_amg(cg_solver, vcl_vec, vcl_compressed_matrix, "AGGREGATION COARSENING, AGGREGATION INTERPOLATION", amg_tag_agg_pmis);
-}
+    amg_tag_agg_pmis.set_target_context(host_ctx); 
+    run_amg(bicgstab,vcl_vec,vcl_compressed_matrix,"AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,matrixx,ppedim);
+}    
 #endif
 
 //===============================================================================
 ///Solve matrix with CULA Sparse
 //===============================================================================
-void JSphCpu::solveCULA(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,
+/*void JSphCpu::solveCULA(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,
   std::vector<int> &col,const unsigned ppedim,const unsigned nnz){
 
   // string buffer
@@ -2757,4 +2652,4 @@ void StatusCheckerCpu::operator=(culaSparseStatus status)
     std::cout << "error: could not retrieve status string" << std::endl;
   else
     std::cout << "error: " << buffer << std::endl;
-}
+}*/

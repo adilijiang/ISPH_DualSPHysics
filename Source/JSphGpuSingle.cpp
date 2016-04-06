@@ -834,7 +834,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   row=new int[PPEDim+1]; col=new int[Nnz]; values=new double[Nnz];
   cudaMemcpy(row,rowInd,sizeof(int)*(PPEDim+1),cudaMemcpyDeviceToHost);
   cudaMemcpy(col,colInd,sizeof(int)*Nnz,cudaMemcpyDeviceToHost);
-  cudaMemcpy(values,a,sizeof(double)*Nnz,cudaMemcpyDeviceToHost);
+  cudaMemcpy(values,a,sizeof(double)*Nnz,cudaMemcpyDeviceToHost); 
   
   //cusph::solveCusp(a,X,b,rowInd,colInd,Nnz,PPEDim);
   cusph::solveVienna(a,X,b,rowInd,colInd,Nnz,PPEDim); 

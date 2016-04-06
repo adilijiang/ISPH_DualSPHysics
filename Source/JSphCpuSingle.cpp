@@ -1030,7 +1030,7 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   //solvers
   //solveAmgCL(a,b,x,rowInd,colInd,PPEDim);
 #ifndef _WITHGPU
-  solveVienna(a,b,x,rowInd,colInd,PPEDim,Nnz);
+  solveVienna(a,b,x,rowInd,colInd,PPEDim,Nnz); 
 #endif
   //solveCULA(a,b,x,rowInd,colInd,PPEDim,Nnz);
   PressureAssignCULA(Psimple,np,0,Posc,PsPosc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb);
