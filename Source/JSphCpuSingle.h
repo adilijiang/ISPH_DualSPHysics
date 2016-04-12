@@ -75,6 +75,7 @@ protected:
   void SaveData();
   void FinishRun(bool stop);
 
+  void PreparePosSimple();
   void SolvePPECULA(double dt);
   void FindIrelation();
   void KernelCorrection(bool boundary);

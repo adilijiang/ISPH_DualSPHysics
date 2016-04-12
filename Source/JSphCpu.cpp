@@ -14,6 +14,7 @@
 
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
+
 #ifndef _WITHGPU
 #define VIENNACL_WITH_OPENMP
 #include "viennacl/vector.hpp"
@@ -39,18 +40,17 @@
 #include "JSaveDt.h"
 #include "JSphVarAcc.h"
 
-
 #pragma warning(disable : 4267)
 #pragma warning(disable : 4244)
 #pragma warning(disable : 4996)
 #pragma warning(disable : 4089)
-/*#include "amgcl/adapter/crs_tuple.hpp"
+#include "amgcl/adapter/crs_tuple.hpp"
 #include "amgcl/make_solver.hpp"
 #include "amgcl/solver/bicgstab.hpp"
 #include "amgcl/amg.hpp"
 #include "amgcl/coarsening/smoothed_aggregation.hpp"
 #include "amgcl/relaxation/spai0.hpp"
-#include <amgcl/profiler.hpp>*/
+#include <amgcl/profiler.hpp>
 
 #ifdef _WITHOMP
   #include <omp.h>  //Activate tb in Properties config -> C/C++ -> Language -> OpenMp
@@ -615,16 +615,6 @@ void JSphCpu::PreInteraction_Forces(TpInter tinter){
 	    Posc[p].y=pos.y+DtPre*v.y;
 	    Posc[p].z=pos.z+DtPre*v.z;
     }
-
-    //-Prepare values for interaction  Pos-Simpe / Prepara datos para interaccion Pos-Simple.
-    if(tinter==1&&Psimple){
-      PsPosc=ArraysCpu->ReserveFloat3();
-      const int np=int(Np);
-      #ifdef _WITHOMP
-        #pragma omp parallel for schedule (static) if(np>LIMIT_PREINTERACTION_OMP)
-      #endif
-      for(int p=0;p<np;p++){ PsPosc[p]=ToTFloat3(Posc[p]); }
-    }
   }
   
   //-Initialize Arrays / Inicializa arrays.
@@ -927,9 +917,9 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
   for(int th=0;th<OmpThreads;th++)viscth[th*STRIDE_OMP]=0;
   //-Initial execution with OpenMP / Inicia ejecucion con OpenMP.
   const int pfin=int(pinit+n);
-  #ifdef _WITHOMP
+  /*#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
-  #endif
+  #endif*/
   for(int p1=int(pinit);p1<pfin;p1++){
     //float visc=0,arp1=0,deltap1=0;
     tfloat3 acep1=TFloat3(0);
@@ -954,7 +944,7 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
     const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
     const float pressp1=velrhop[p1].w;
     //const tsymatrix3f taup1=(lamsps? tau[p1]: gradvelp1);
-
+    
     //-Obtain interaction limits / Obtiene limites de interaccion
     int cxini,cxfin,yini,yfin,zini,zfin;
     GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
@@ -2058,19 +2048,23 @@ void JSphCpu::InverseCorrection(unsigned n, unsigned pinit, tfloat3 *dwxcorr,tfl
 //===============================================================================
 ///Matrix order for PPE
 //===============================================================================
-void JSphCpu::MatrixOrder(unsigned n,unsigned pinit,unsigned *porder,const unsigned *idpc,const unsigned *irelation,word *code, unsigned &ppedim){
+void JSphCpu::MatrixOrder(unsigned n,unsigned pinit,unsigned *porder,const unsigned *idpc,const unsigned *irelation,word *code, unsigned &ppedim,const float *divr){
 	const int pfin=int(pinit+n);
-  
+
   unsigned index=0;
 	for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==0){
-    porder[p1]=index; 
-    index++;
+    if(p1<int(Npb)&&p1>=int(NpbOk)) porder[p1]=n;
+    else{
+      porder[p1]=index; 
+      index++;
+    }
   }
 
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
   for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==1){
+    porder[p1]=n;
     unsigned idp1=idpc[p1];//POSSIBLE BUG
     for(int p2=0;p2<int(Npb);p2++)if(irelation[idp1]==idpc[p2])porder[p1]=porder[p2];
   }
@@ -2088,14 +2082,13 @@ void JSphCpu::FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
   const int pfin=int(pinit+n);
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
 
-  #ifdef _WITHOMP
+  /*#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
-  #endif
+  #endif*/
   for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(code[p1])==0){
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
 	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
     const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
-    bool fluidInteract=false;
      
     //-Obtain interaction limits / Obtiene limites de interaccion
     int cxini,cxfin,yini,yfin,zini,zfin;
@@ -2108,7 +2101,7 @@ void JSphCpu::FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
         int ymod=zmod+nc.x*y;
         const unsigned pini=beginendcell[cxini+ymod];
         const unsigned pfin=beginendcell[cxfin+ymod];
-
+        
         //-Interactions
         //------------------------------------------------
         for(unsigned p2=pini;p2<pfin;p2++){
@@ -2117,7 +2110,6 @@ void JSphCpu::FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
           const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
           const float rr2=drx*drx+dry*dry+drz*drz;
           if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-            if(cellinitial) fluidInteract=true;
 			      //-Wendland kernel.
             float frx,fry,frz;
             GetKernel(rr2,drx,dry,drz,frx,fry,frz);
@@ -2133,9 +2125,6 @@ void JSphCpu::FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 		    }
       }
 	  }
-
-    if(cellinitial)if(!fluidInteract) divr[p1]=0.0;
-    //if(psposp1.z==0.0f)divr[p1]=0.0;
   }
 }
 
@@ -2144,7 +2133,7 @@ void JSphCpu::FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 //===============================================================================
 void JSphCpu::PopulateMatrixBCULA(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
 	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
-	const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const double dt, const unsigned ppedim)const{
+	const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const double dt, const unsigned ppedim,const float *divr)const{
 
   const int pfin=int(pinit+n);
 
@@ -2160,7 +2149,7 @@ void JSphCpu::PopulateMatrixBCULA(bool psimple,unsigned n,unsigned pinit,tint4 n
 	  //-Particle order in Matrix
 	  unsigned oi = porder[p1];
 
-    if(Divr[p1]>1.6f){
+    if(divr[p1]>1.6f){
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;
       GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
@@ -2281,7 +2270,7 @@ void JSphCpu::PopulateMatrixACULAInteractFluid(bool psimple,unsigned n,unsigned 
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==0){
+  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==0&&porder[p1]!=int(Np)){
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
     const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
 	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
@@ -2352,7 +2341,7 @@ void JSphCpu::PopulateMatrixACULAInteractBound(bool psimple,unsigned n,unsigned 
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(code[p1])==0){
+  for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(code[p1])==0&&porder[p1]!=int(Np)){
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
     const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
 	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
@@ -2440,19 +2429,21 @@ void JSphCpu::PopulateMatrixACULAInteractBound(bool psimple,unsigned n,unsigned 
 ///Reorder pressure for particles
 //===============================================================================
 void JSphCpu::PressureAssignCULA(bool psimple,unsigned n,unsigned pinit,const tdouble3 *pos,const tfloat3 *pspos,tfloat4 *velrhop,
-  const unsigned *idpc,const unsigned *irelation,const unsigned *porder,std::vector<double> &x,const word *code,const unsigned npb)const{
+  const unsigned *idpc,const unsigned *irelation,const unsigned *porder,std::vector<double> &x,const word *code,const unsigned npb,float *divr)const{
 
   const int pfin=int(pinit+n);
 
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==0)velrhop[p1].w=float(x[porder[p1]]);
-    
+  for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(code[p1])==0&&porder[p1]!=n) {
+    velrhop[p1].w=float(x[porder[p1]]);
+  }
+
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==1){
+  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==1&&porder[p1]!=n){
     const unsigned j=irelation[idpc[p1]];
     if(j!=npb){
       unsigned p2k;
@@ -2461,14 +2452,15 @@ void JSphCpu::PressureAssignCULA(bool psimple,unsigned n,unsigned pinit,const td
         break;
       }
       const float drz=(psimple? pspos[p2k].z-pspos[p1].z: float(pos[p2k].z-pos[p1].z));
-      velrhop[p1].w=float(x[porder[p1]])+RhopZero*fabs(Gravity.z)*drz;
+      if(divr[p2k]>0.0)velrhop[p1].w=float(x[porder[p1]])+RhopZero*fabs(Gravity.z)*drz;
+      else velrhop[p1].w=RhopZero*fabs(Gravity.z)*drz;
     }
   }
 }
 //===============================================================================
 ///Solve matrix with AMGCL
 //===============================================================================
-/*namespace amgcl {
+namespace amgcl {
     profiler<> prof;
 }
 
@@ -2495,7 +2487,7 @@ void JSphCpu::solveAmgCL(std::vector<double> &matrixa,std::vector<double> &matri
             << std::endl;
 
   std::cout << prof << std::endl;
-}*/
+}
 
 #ifndef _WITHGPU
 template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
@@ -2529,7 +2521,7 @@ void run_amg(viennacl::linalg::bicgstab_tag & bicgstab_solver,
   viennacl::tools::timer timer;
   timer.start();
   vcl_amg.setup(); 
-  viennacl::backend::finish();
+  viennacl::backend::finish(); 
   std::cout << "  > Setup time: " << timer.get() << std::endl;
   std::cout << " * CG solver (ViennaCL types)..." << std::endl;
   run_solver(vcl_compressed_matrix,vcl_vec,bicgstab_solver,vcl_amg,matrixx,ppedim);
@@ -2550,7 +2542,7 @@ void JSphCpu::solveVienna(std::vector<double> &matrixa,std::vector<double> &matr
     #endif
     for(int i=0;i<int(ppedim);i++) vcl_vec[i]=matrixb[i];
 
-    viennacl::linalg::bicgstab_tag bicgstab(1e-4,200);
+    viennacl::linalg::bicgstab_tag bicgstab(1e-5,2000);
 
     /*std::cout<<"JACOBI PRECOND" <<std::endl;
     viennacl::vector<ScalarType> vcl_result(vcl_compressed_matrix.size1(),ctxOMP);
@@ -2562,12 +2554,13 @@ void JSphCpu::solveVienna(std::vector<double> &matrixa,std::vector<double> &matr
     viennacl::context target_ctx = viennacl::traits::context(vcl_compressed_matrix);
 
     viennacl::linalg::amg_tag amg_tag_agg_pmis;
-    amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_MIS2_AGGREGATION);
+    amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_AGGREGATION);
     amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION);
-    amg_tag_agg_pmis.set_strong_connection_threshold(0.9);
-    amg_tag_agg_pmis.set_jacobi_weight(0.9);
+    amg_tag_agg_pmis.set_strong_connection_threshold(0.3);
+    amg_tag_agg_pmis.set_jacobi_weight(1.0);
     amg_tag_agg_pmis.set_presmooth_steps(1);
     amg_tag_agg_pmis.set_postsmooth_steps(1); 
+    amg_tag_agg_pmis.set_coarsening_cutoff(2500); 
     amg_tag_agg_pmis.set_setup_context(host_ctx);
     amg_tag_agg_pmis.set_target_context(host_ctx); 
     run_amg(bicgstab,vcl_vec,vcl_compressed_matrix,"AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,matrixx,ppedim);
@@ -2577,7 +2570,7 @@ void JSphCpu::solveVienna(std::vector<double> &matrixa,std::vector<double> &matr
 //===============================================================================
 ///Solve matrix with CULA Sparse
 //===============================================================================
-/*void JSphCpu::solveCULA(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,
+void JSphCpu::solveCULA(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,
   std::vector<int> &col,const unsigned ppedim,const unsigned nnz){
 
   // string buffer
@@ -2652,4 +2645,4 @@ void StatusCheckerCpu::operator=(culaSparseStatus status)
     std::cout << "error: could not retrieve status string" << std::endl;
   else
     std::cout << "error: " << buffer << std::endl;
-}*/
+}

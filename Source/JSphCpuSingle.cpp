@@ -420,10 +420,10 @@ void JSphCpuSingle::RunCellDivide(bool updateperiodic){
   const char met[]="RunCellDivide";
   //-Create new periodic particles & mark the old ones to be ignored / Crea nuevas particulas periodicas y marca las viejas para ignorarlas.
   if(updateperiodic && PeriActive)RunPeriodic();
-
+  
   //-Initial Divide / Inicia Divide.
   CellDivSingle->Divide(Npb,Np-Npb-NpbPer-NpfPer,NpbPer,NpfPer,BoundChanged,Dcellc,Codec,Idpc,Posc,Timers);
-
+  
   //-Order particle data / Ordena datos de particulas
   TmcStart(Timers,TMC_NlSortData);
   CellDivSingle->SortArray(Idpc);
@@ -440,7 +440,7 @@ void JSphCpuSingle::RunCellDivide(bool updateperiodic){
     CellDivSingle->SortArray(VelrhopPrec);
   }
   if(TVisco==VISCO_LaminarSPS)CellDivSingle->SortArray(SpsTauc);
-
+  
   //-Collect divide data / Recupera datos del divide.
   Np=CellDivSingle->GetNpFinal();
   Npb=CellDivSingle->GetNpbFinal();
@@ -581,7 +581,15 @@ double JSphCpuSingle::ComputeAceMax(){
   PosInteraction_Forces();             //-Free memory used for interaction / Libera memoria de interaccion
   return(dt);
 }*/
-
+void JSphCpuSingle::PreparePosSimple(){
+  //-Prepare values for interaction  Pos-Simpe / Prepara datos para interaccion Pos-Simple.
+  PsPosc=ArraysCpu->ReserveFloat3();
+  const int np=int(Np);
+  #ifdef _WITHOMP
+    #pragma omp parallel for schedule (static) if(np>LIMIT_PREINTERACTION_OMP)
+  #endif
+  for(int p=0;p<np;p++){ PsPosc[p]=ToTFloat3(Posc[p]); }
+}
 //==============================================================================
 /// (ES):
 /// Realiza interaccion y actualizacion de particulas segun las fuerzas 
@@ -597,9 +605,12 @@ double JSphCpuSingle::ComputeStep_Sym(){
   //-Predictor
   //-----------
   //DemDtForce=dt*0.5f;                     //(DEM)
+
   PreInteraction_Forces(INTER_Forces);
   RunCellDivide(true);
+  if(Psimple)PreparePosSimple();
   Interaction_Forces(INTER_Forces);      //-Interaction / Interaccion
+
   //const double ddt_p=DtVariable(false);   //-Calculate dt of predictor step / Calcula dt del predictor
   //if(TShifting)RunShifting(dt*.5);        //-Shifting
   ComputeSymplecticPre(dt);               //-Apply Symplectic-Predictor to particles / Aplica Symplectic-Predictor a las particulas
@@ -621,6 +632,7 @@ double JSphCpuSingle::ComputeStep_Sym(){
   //if(CaseNfloat)RunFloating(dt,false);    //-Control of floating bodies / Gestion de floating bodies
   PosInteraction_Forces(INTER_ForcesCorr);             //-Free memory used for interaction / Libera memoria de interaccion
   // DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep
+  
   return(dt);
 }
 
@@ -991,29 +1003,30 @@ void JSphCpuSingle::SolvePPECULA(double dt){
 
   const unsigned np = Np;
   const unsigned npb=Npb;
+  const unsigned npbok=NpbOk;
   const unsigned npf = np - npb;
   unsigned PPEDim=0;
 
   //Matrix Order and Free Surface
   POrder=ArraysCpu->ReserveUint(); memset(POrder,np,sizeof(unsigned)*np);
   Divr=ArraysCpu->ReserveFloat(); memset(Divr,0,sizeof(float)*np);
-  MatrixOrder(np,0,POrder,Idpc,Irelationc,Codec,PPEDim);
+  MatrixOrder(np,0,POrder,Idpc,Irelationc,Codec,PPEDim,Divr);
   FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Fluid
   FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Bound
-  FreeSurfaceFind(Psimple,npb,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Bound-Fluid
-  FreeSurfaceFind(Psimple,npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Bound-Bound
-
+  FreeSurfaceFind(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Bound-Fluid
+  FreeSurfaceFind(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Bound-Bound
+  
   //RHS
   b.resize(PPEDim,0);
-  PopulateMatrixBCULA(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim); //-Fluid-Fluid
+  PopulateMatrixBCULA(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr); //-Fluid-Fluid
   rowInd.resize(PPEDim+1,0);
   unsigned Nnz=0; 
 
-  //Organiseing storage for parallelism
-  MatrixStorageCULA(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);
-  MatrixStorageCULA(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);
-  MatrixStorageCULA(Psimple,npb,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);
-  MatrixStorageCULA(Psimple,npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);
+  //Organising storage for parallelism
+  MatrixStorageCULA(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Fluid-Fluid
+  MatrixStorageCULA(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Fluid-Fluid
+  MatrixStorageCULA(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Bound-Fluid
+  MatrixStorageCULA(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Bound-Bound
   MatrixASetupCULA(PPEDim,Nnz,rowInd); 
   colInd.resize(Nnz,PPEDim); 
   a.resize(Nnz,0);
@@ -1021,8 +1034,8 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   //LHS
   PopulateMatrixACULAInteractFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim);
   PopulateMatrixACULAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); 
-  PopulateMatrixACULAInteractFluid(Psimple,npb,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim); 
-  PopulateMatrixACULAInteractBound(Psimple,npb,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); 
+  PopulateMatrixACULAInteractFluid(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim); 
+  PopulateMatrixACULAInteractBound(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); 
 
   // allocate vectors
   x.resize(PPEDim,0);
@@ -1033,8 +1046,9 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   solveVienna(a,b,x,rowInd,colInd,PPEDim,Nnz); 
 #endif
   //solveCULA(a,b,x,rowInd,colInd,PPEDim,Nnz);
-  PressureAssignCULA(Psimple,np,0,Posc,PsPosc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb);
- 
+  
+  PressureAssignCULA(Psimple,np,0,Posc,PsPosc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb,Divr);
+
   b.clear();
   a.clear();
   x.clear();

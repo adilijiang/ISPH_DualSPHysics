@@ -3,7 +3,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">
     <LocalDebuggerEnvironment>%CULASPARSE_BIN_PATH_64%(LocalDebuggerEnvironment)</LocalDebuggerEnvironment>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>C:/Users/AlexPC/Documents/BitBucketCodes/TEST/CaseStillWaterISPH_CPU/CaseStillWaterISPH_CPU_out/CaseStillWaterISPH_CPU</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>C:/Users/AlexPC/Documents/BitBucketCodes/TEST/CaseDamBreakISPH_CPU/CaseDamBreakISPH_CPU_out/CaseDamBreakISPH_CPU</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerEnvironment>%CULASPARSE_BIN_PATH_64%(LocalDebuggerEnvironment)</LocalDebuggerEnvironment>

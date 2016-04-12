@@ -17,7 +17,6 @@
 
 /// \file JSph.cpp \brief Implements the class \ref JSph
 
-#define _CRT_RAND_S
 #include "JSph.h"
 #include "Functions.h"
 #include "JSphMotion.h"
@@ -38,12 +37,12 @@
 #include "JPartFloatBi4.h"
 #include "JPartsOut.h"
 #include <climits>
-#include <stdlib.h>
 
 //using namespace std;
 using std::string;
 using std::ofstream;
 using std::endl;
+
 //==============================================================================
 /// Constructor.
 //==============================================================================
@@ -64,7 +63,6 @@ JSph::JSph(bool cpu,bool withmpi):Cpu(cpu),WithMpi(withmpi){
   VarAcc=NULL;
   TimersStep=NULL;
   InitVars();
-  
 }
 
 //==============================================================================
