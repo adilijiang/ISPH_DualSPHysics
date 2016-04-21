@@ -22,7 +22,7 @@
 #include "JSphTimersCpu.h"
 #include "JSph.h"
 #include <string>
-#include <cula_sparse.h>
+
 class JPartsOut;
 class JArraysCpu;
 class JCellDivCpu;
@@ -285,22 +285,11 @@ protected:
   void PressureAssignCULA(bool psimple,unsigned n,unsigned pinit,const tdouble3 *pos,const tfloat3 *pspos,tfloat4 *velrhop,const unsigned *idpc,const unsigned *irelation,const unsigned *porder,
     std::vector<double> &matrixx,const word *code,const unsigned npb,float *divr)const;
 
-  void solveAmgCL(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim);
   void solveVienna(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz);
-  void solveCULA(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row, std::vector<int> &col,const unsigned ppedim, const unsigned nnz);
+ 
 public:
   JSphCpu(bool withmpi);
   ~JSphCpu();
-};
-
-class StatusCheckerCpu
-{
-public:
-    StatusCheckerCpu(culaSparseHandle handle);
-    void operator=(culaSparseStatus status);
-
-private:
-    culaSparseHandle handle_;
 };
 
 #endif

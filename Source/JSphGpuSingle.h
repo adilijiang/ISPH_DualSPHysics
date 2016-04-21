@@ -62,6 +62,7 @@ protected:
   void FindIrelation();
   void KernelCorrection(bool boundary);
   void SolvePPE(double dt);
+
 public:
   JSphGpuSingle();
   ~JSphGpuSingle();

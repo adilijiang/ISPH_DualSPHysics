@@ -22,7 +22,7 @@
 #include "JSphTimersGpu.h"
 #include "JSph.h"
 #include <string>
-#include "cula_sparse.h"
+
 class JPartsOut;
 class JArraysGpu;
 class JCellDivGpu;
@@ -261,21 +261,10 @@ protected:
   void MatrixOrder(unsigned n,unsigned pinit,unsigned bsbound,unsigned *porder,tuint3 ncells,const int2 *begincell,tuint3 cellmin,
     const unsigned *dcell,const unsigned *idpg,const unsigned *irelation,word *code, unsigned &ppedim);
   unsigned MatrixASetup(const unsigned ppedim,int *rowGpu);
-  void solveCULA(double *matrixa, double *matrixb,double *matrixx,int *row, int *col,const unsigned ppedim, const unsigned nnz);
 
 public:
   JSphGpu(bool withmpi);
   ~JSphGpu();
-};
-
-class StatusCheckerGpu
-{
-public:
-    StatusCheckerGpu(culaSparseHandle handle);
-    void operator=(culaSparseStatus status);
-
-private:
-    culaSparseHandle handle_;
 };
 
 #endif

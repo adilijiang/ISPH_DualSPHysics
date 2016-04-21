@@ -27,20 +27,11 @@
 #include <thrust/device_vector.h>
 #include <thrust/sort.h>
 
-/*#include <cusp/csr_matrix.h>
-#include <cusp/monitor.h>
-#include <cusp/io/matrix_market.h>
-#include <cusp/krylov/bicgstab.h>
-#include <cusp/krylov/cg.h>
-#include <cusp/precond/diagonal.h>
-#include <cusp/precond/aggregation/smoothed_aggregation.h>
-#include <cusp/print.h>
-#include <cusp/array1d.h>*/
-
 #include <iostream>
 #include <cstdlib>
 #include <string>
 #include <cuda.h>
+
 #define VIENNACL_WITH_CUDA
 #include "viennacl/vector.hpp"
 #include "viennacl/compressed_matrix.hpp"
@@ -51,7 +42,7 @@
 #include "viennacl/forwards.h"
 #include "viennacl/linalg/amg.hpp"
 #include "viennacl/linalg/prod.hpp"
-#include "viennacl/tools/matrix_generation.hpp"
+
 __constant__ StCteInteraction CTE;
 
 namespace cusph{
@@ -3747,58 +3738,6 @@ void InitArrayCol(unsigned n,int *v,int value){
     KerInitArrayCol <<<sgrid,SPHBSIZE>>> (n,v,value);
   }
 }
-
-/*//==============================================================================
-/// Solve matrix CUSP
-//==============================================================================
-void solveCusp(double *matrixa,double *x,double *matrixb,int *row,int *col, const unsigned Nnz,const unsigned ppedim){
-  typedef cusp::device_memory MemorySpace; 
-  typedef double ValueType;
-  // *NOTE* raw pointers must be wrapped with thrust::device_ptr!
-  thrust::device_ptr<int>   wrapped_row(row);
-  thrust::device_ptr<int>   wrapped_col(col);
-  thrust::device_ptr<ValueType> wrapped_values(matrixa);
-  thrust::device_ptr<ValueType> wrapped_b(matrixb);
-  thrust::device_ptr<ValueType> wrapped_x(x);
-
-  // use array1d_view to wrap the individual arrays
-  typedef typename cusp::array1d_view<thrust::device_ptr<int>> DeviceIndexArrayView;
-  typedef typename cusp::array1d_view<thrust::device_ptr<ValueType>> DeviceValueArrayView;
-
-  DeviceIndexArrayView row_offsets   (wrapped_row, wrapped_row + ppedim + 1);
-  DeviceIndexArrayView column_indices(wrapped_col, wrapped_col + Nnz);
-  DeviceValueArrayView values        (wrapped_values, wrapped_values + Nnz);
-  DeviceValueArrayView mb            (wrapped_b, wrapped_b + ppedim);
-  DeviceValueArrayView mx            (wrapped_x, wrapped_x + ppedim);
-
-  // combine the three array1d_views into a csr_matrix_view
-  typedef cusp::csr_matrix_view<DeviceIndexArrayView,
-                                  DeviceIndexArrayView,
-                                  DeviceValueArrayView> DeviceView;
-
-  DeviceView A(ppedim, ppedim, Nnz, row_offsets, column_indices, values);
-  
-  //Create precond, monitor and solve
-  //cusp::precond::diagonal<ValueType,MemorySpace> M(A);
-  cusp::precond::aggregation::smoothed_aggregation<int,ValueType,MemorySpace> M(A);
-  M.print();
-  cusp::verbose_monitor<ValueType> monitor(mb, 5000, 1e-5);
-  cusp::krylov::bicgstab(A,mx,mb,monitor,M);
-
-  // report solver results
-  if (monitor.converged()) 
-  {
-    std::cout << "Solver converged to " << monitor.relative_tolerance() << " relative tolerance";
-    std::cout << " after " << monitor.iteration_count() << " iterations" << std::endl;
-  }
-  else
-  {
-    std::cout << "Solver reached iteration limit " << monitor.iteration_limit() << " before converging";
-    std::cout << " to " << monitor.relative_tolerance() << " relative tolerance " << std::endl;
-  }
-
-  x=thrust::raw_pointer_cast(&mx[0]);
-}*/
 
 //==============================================================================
 /// Solve matrix with ViennaCL
