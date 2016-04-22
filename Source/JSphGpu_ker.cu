@@ -3742,8 +3742,8 @@ void InitArrayCol(unsigned n,int *v,int value){
 //==============================================================================
 /// Solve matrix with ViennaCL
 //==============================================================================
-template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
-void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond){ 
+template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag,typename ScalarType>
+void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,viennacl::vector<ScalarType> & vcl_result){ 
   VectorType result(rhs);
   VectorType residual(rhs);
   viennacl::tools::timer timer;
@@ -3754,11 +3754,12 @@ void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag cons
   residual -= viennacl::linalg::prod(matrix, result); 
   std::cout << "  > Relative residual: " << viennacl::linalg::norm_2(residual) / viennacl::linalg::norm_2(rhs) << std::endl;  
   std::cout << "  > Iterations: " << solver.iters() << std::endl;
+  viennacl::copy(result,vcl_result);
 }
 
 template<typename ScalarType>
 void run_amg(viennacl::linalg::bicgstab_tag & bicgstab_solver,viennacl::vector<ScalarType> & vcl_vec,viennacl::compressed_matrix<ScalarType> & matrix,
-             std::string info,viennacl::linalg::amg_tag & amg_tag){
+             std::string info,viennacl::linalg::amg_tag & amg_tag,viennacl::vector<ScalarType> & vcl_result){
   viennacl::linalg::amg_precond<viennacl::compressed_matrix<ScalarType> > vcl_amg(matrix, amg_tag);
   std::cout << " * Setup phase (ViennaCL types)..." << std::endl;
   viennacl::tools::timer timer; 
@@ -3769,7 +3770,7 @@ void run_amg(viennacl::linalg::bicgstab_tag & bicgstab_solver,viennacl::vector<S
   viennacl::backend::finish();
   std::cout << "  > Setup time: " << timer.get() << std::endl;
   std::cout << " * CG solver (ViennaCL types)..." << std::endl;
-  run_solver(matrix,vcl_vec,bicgstab_solver,vcl_amg);
+  run_solver(matrix,vcl_vec,bicgstab_solver,vcl_amg,vcl_result);
 }
 
 void solveVienna(double *matrixa,double *matrixx,double *matrixb,int *row,int *col,const unsigned nnz,const unsigned ppedim){
@@ -3787,6 +3788,7 @@ void solveVienna(double *matrixa,double *matrixx,double *matrixb,int *row,int *c
   viennacl::compressed_matrix<ScalarType> vcl_A_cuda(cuda_row_start, cuda_col_indices, matrixa, viennacl::CUDA_MEMORY, ppedim, ppedim, nnz);
   
   viennacl::vector<ScalarType> vcl_vec(matrixb, viennacl::CUDA_MEMORY, ppedim);
+  viennacl::vector<ScalarType> vcl_result(matrixx, viennacl::CUDA_MEMORY, ppedim);
 
   viennacl::linalg::bicgstab_tag bicgstab(1e-5,500); 
 
@@ -3798,11 +3800,11 @@ void solveVienna(double *matrixa,double *matrixx,double *matrixb,int *row,int *c
 
   viennacl::linalg::amg_tag amg_tag_agg_pmis;
   amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_MIS2_AGGREGATION);
-  amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION);
-  amg_tag_agg_pmis.set_strong_connection_threshold(0.9);
-  amg_tag_agg_pmis.set_jacobi_weight(0.9);
+  amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_SMOOTHED_AGGREGATION);
+  amg_tag_agg_pmis.set_strong_connection_threshold(0.3);
+  amg_tag_agg_pmis.set_jacobi_weight(1.0);
   amg_tag_agg_pmis.set_presmooth_steps(1);
   amg_tag_agg_pmis.set_postsmooth_steps(1); 
-  run_amg(bicgstab,vcl_vec,vcl_A_cuda,"MIS2 AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis);
+  run_amg(bicgstab,vcl_vec,vcl_A_cuda,"MIS2 AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,vcl_result);
 }
 }
