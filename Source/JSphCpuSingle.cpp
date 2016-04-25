@@ -523,13 +523,13 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter){
   if(Simulate2D)for(unsigned p=Npb;p<Np;p++)Acec[p].y=0;
 
   //-Add Delta-SPH correction to Arg[] / Añade correccion de Delta-SPH a Arg[].
-  if(Deltac){
+  /*if(Deltac){
     const int ini=int(Npb),fin=int(Np),npf=int(Np-Npb);
     #ifdef _WITHOMP
       #pragma omp parallel for schedule (static) if(npf>LIMIT_COMPUTELIGHT_OMP)
     #endif
     for(int p=ini;p<fin;p++)if(Deltac[p]!=FLT_MAX)Arc[p]+=Deltac[p];
-  }
+  }*/
 
   //-Calculates maximum value of ViscDt.
   ViscDtMax=viscdt;
@@ -605,12 +605,10 @@ double JSphCpuSingle::ComputeStep_Sym(){
   //-Predictor
   //-----------
   //DemDtForce=dt*0.5f;                     //(DEM)
-
   PreInteraction_Forces(INTER_Forces);
   RunCellDivide(true);
   if(Psimple)PreparePosSimple();
   Interaction_Forces(INTER_Forces);      //-Interaction / Interaccion
-
   //const double ddt_p=DtVariable(false);   //-Calculate dt of predictor step / Calcula dt del predictor
   //if(TShifting)RunShifting(dt*.5);        //-Shifting
   ComputeSymplecticPre(dt);               //-Apply Symplectic-Predictor to particles / Aplica Symplectic-Predictor a las particulas
@@ -619,7 +617,7 @@ double JSphCpuSingle::ComputeStep_Sym(){
   //-Pressure Poisson equation
   //-----------
   KernelCorrection(false);
-  SolvePPECULA(dt); //-Solve pressure Poisson equation
+  SolvePPE(dt); //-Solve pressure Poisson equation
   //-Corrector
   //-----------
   //DemDtForce=dt;                          //(DEM)
@@ -627,10 +625,10 @@ double JSphCpuSingle::ComputeStep_Sym(){
   KernelCorrection(true);
   Interaction_Forces(INTER_ForcesCorr);   //Interaction / Interaccion
   //const double ddt_c=DtVariable(true);    //-Calculate dt of corrector step / Calcula dt del corrector
-  if(TShifting)RunShifting(dt);           //-Shifting
   ComputeSymplecticCorr(dt);              //-Apply Symplectic-Corrector to particles / Aplica Symplectic-Corrector a las particulas
   //if(CaseNfloat)RunFloating(dt,false);    //-Control of floating bodies / Gestion de floating bodies
   PosInteraction_Forces(INTER_ForcesCorr);             //-Free memory used for interaction / Libera memoria de interaccion
+  if(TShifting)RunShifting(dt);           //-Shifting
   // DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep
   
   return(dt);
@@ -988,11 +986,12 @@ void JSphCpuSingle::KernelCorrection(bool boundary){
   if(boundary)JSphCpu::KernelCorrection(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Fluid-Bound
   JSphCpu::InverseCorrection(npf,npb,dWxCorr,dWzCorr);
 }
+
 //==============================================================================
-/// PPE Solver in CULA
+/// PPE Solver
 //==============================================================================
 
-void JSphCpuSingle::SolvePPECULA(double dt){ 
+void JSphCpuSingle::SolvePPE(double dt){ 
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
   tuint3 ncells=CellDivSingle->GetNcells();
   const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
@@ -1018,24 +1017,24 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   
   //RHS
   b.resize(PPEDim,0);
-  PopulateMatrixBCULA(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr); //-Fluid-Fluid
+  PopulateMatrixB(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr); //-Fluid-Fluid
   rowInd.resize(PPEDim+1,0);
   unsigned Nnz=0; 
 
   //Organising storage for parallelism
-  MatrixStorageCULA(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Fluid-Fluid
-  MatrixStorageCULA(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Fluid-Fluid
-  MatrixStorageCULA(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Bound-Fluid
-  MatrixStorageCULA(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Bound-Bound
-  MatrixASetupCULA(PPEDim,Nnz,rowInd); 
+  MatrixStorage(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Fluid-Fluid
+  MatrixStorage(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Fluid-Fluid
+  MatrixStorage(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Bound-Fluid
+  MatrixStorage(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Bound-Bound
+  MatrixASetup(PPEDim,Nnz,rowInd); 
   colInd.resize(Nnz,PPEDim); 
   a.resize(Nnz,0);
 
   //LHS
-  PopulateMatrixACULAInteractFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim);
-  PopulateMatrixACULAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); 
-  PopulateMatrixACULAInteractFluid(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim); 
-  PopulateMatrixACULAInteractBound(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); 
+  PopulateMatrixAInteractFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim);
+  PopulateMatrixAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); 
+  PopulateMatrixAInteractFluid(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim); 
+  PopulateMatrixAInteractBound(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); 
 
   // allocate vectors
   x.resize(PPEDim,0);
@@ -1045,11 +1044,50 @@ void JSphCpuSingle::SolvePPECULA(double dt){
   solveVienna(a,b,x,rowInd,colInd,PPEDim,Nnz); 
 #endif
   
-  PressureAssignCULA(Psimple,np,0,Posc,PsPosc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb,Divr);
+  PressureAssign(Psimple,np,0,Posc,PsPosc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb,Divr);
 
   b.clear();
   a.clear();
   x.clear();
   rowInd.clear();
   colInd.clear();
+}
+
+//==============================================================================
+/// SHIFTING
+//==============================================================================
+void JSphCpuSingle::RunShifting(double dt){
+  
+
+  unsigned int np=Np;
+  //-Assign memory to variables Pre / Asigna memoria a variables Pre.
+    PosPrec=ArraysCpu->ReserveDouble3();
+    VelrhopPrec=ArraysCpu->ReserveFloat4();
+    //-Change data to variables Pre to calculate new data / Cambia datos a variables Pre para calcular nuevos datos.
+   #ifdef _WITHOMP
+      #pragma omp parallel for schedule (static)
+    #endif
+    for(int i=0;i<int(Np);i++){
+      PosPrec[i]=Posc[i];
+      VelrhopPrec[i]=Velrhopc[i];
+    }
+    memset(Velrhopc,0,sizeof(tfloat4)*Npb);
+
+  ShiftPosc=ArraysCpu->ReserveFloat3();
+  if(ShiftTFS)ShiftDetectc=ArraysCpu->ReserveFloat();
+  memset(ShiftPosc,0,sizeof(tfloat3)*np);               //ShiftPosc[]=0
+  if(ShiftDetectc)memset(ShiftDetectc,0,sizeof(float)*np);           //ShiftDetectc[]=0
+
+  PreparePosSimple();
+
+  RunCellDivide(true);
+
+  JSphCpu::Interaction_Shifting(Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,PsPosc,Velrhopc,Idpc,Codec,ShiftPosc,ShiftDetectc);
+  JSphCpu::RunShifting(dt);
+  Shift(dt);
+  ArraysCpu->Free(PosPrec);      PosPrec=NULL;
+  ArraysCpu->Free(PsPosc);       PsPosc=NULL;
+  ArraysCpu->Free(ShiftPosc);    ShiftPosc=NULL;
+   ArraysCpu->Free(ShiftDetectc); ShiftDetectc=NULL;
+   ArraysCpu->Free(VelrhopPrec);  VelrhopPrec=NULL;
 }

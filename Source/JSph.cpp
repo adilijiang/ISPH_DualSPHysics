@@ -351,6 +351,7 @@ void JSph::LoadConfig(const JCfgRun *cfg){
   }
   RhopOut=(RhopOutMin<RhopOutMax);
   if(!RhopOut){ RhopOutMin=-FLT_MAX; RhopOutMax=FLT_MAX; }
+  //MapMove=cfg->MapMove;
 }
 
 //==============================================================================
@@ -359,7 +360,6 @@ void JSph::LoadConfig(const JCfgRun *cfg){
 void JSph::LoadCaseConfig(){
   const char* met="LoadCaseConfig";
   FileXml=DirCase+CaseName+".xml";
-
   if(!fun::FileExists(FileXml))RunException(met,"Case configuration was not found.",FileXml);
   JXml xml; xml.LoadFile(FileXml);
   JSpaceCtes ctes;     ctes.LoadXmlRun(&xml,"case.execution.constants");
@@ -378,12 +378,7 @@ void JSph::LoadCaseConfig(){
     default: RunException(met,"Step algorithm is not valid.");
   }
   VerletSteps=eparms.GetValueInt("VerletSteps",true,40);
-  
-  switch(eparms.GetValueInt("Kernel",true,1)){
-    case 1:  TKernel=KERNEL_Wendland; break;
-    default: RunException(met,"Kernel choice is not valid.");
-  }
-
+  if(eparms.GetValueInt("Kernel",true,1)!=1)RunException(met,"Kernel choice is not valid. Only Wendland is valid.");
   switch(eparms.GetValueInt("ViscoTreatment",true,1)){
     case 1:  TVisco=VISCO_Artificial;  break;
     case 2:  TVisco=VISCO_LaminarSPS;  break;

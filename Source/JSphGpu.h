@@ -251,7 +251,7 @@ protected:
   float3 *dWxCorrg; //Kernel correction in the x direction
   float3 *dWzCorrg; //Kernel correction in the z direction
   float *Divrg; //Divergence of position
-  //matrix variables for CULA
+  //matrix variables 
   double *b;
   double *a;
   int *colInd;

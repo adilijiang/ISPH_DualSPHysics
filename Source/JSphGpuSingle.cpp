@@ -796,7 +796,7 @@ void JSphGpuSingle::InitAdvection(double dt){
 }
 
 //==============================================================================
-/// PPE Solver in CULA
+/// PPE Solver
 //==============================================================================
 
 void JSphGpuSingle::SolvePPE(double dt){ 

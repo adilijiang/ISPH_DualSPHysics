@@ -68,9 +68,10 @@ protected:
   void FinishRun(bool stop);
 
   void PreparePosSimple();
-  void SolvePPECULA(double dt);
+  void SolvePPE(double dt);
   void FindIrelation();
   void KernelCorrection(bool boundary);
+  void RunShifting(double dt);
 
 public:
   JSphCpuSingle();
