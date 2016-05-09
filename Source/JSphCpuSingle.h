@@ -70,6 +70,7 @@ protected:
   void PreparePosSimple();
   void SolvePPE(double dt);
   void FindIrelation();
+  void Boundary_Velocity();
   void KernelCorrection(bool boundary);
   void RunShifting(double dt);
 

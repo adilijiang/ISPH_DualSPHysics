@@ -324,9 +324,10 @@ void JSph::LoadConfig(const JCfgRun *cfg){
   if(cfg->Shifting>=0){
     switch(cfg->Shifting){
       case 0:  TShifting=SHIFT_None;     break;
-      case 1:  TShifting=SHIFT_NoBound;  break;
+      case 1:  TShifting=SHIFT_Full;     break; 
+      /*case 1:  TShifting=SHIFT_NoBound;  break;
       case 2:  TShifting=SHIFT_NoFixed;  break;
-      case 3:  TShifting=SHIFT_Full;     break;
+      case 3:  TShifting=SHIFT_Full;     break;*/
       default: RunException(met,"Shifting mode is not valid.");
     }
     if(TShifting!=SHIFT_None){
@@ -396,9 +397,10 @@ void JSph::LoadCaseConfig(){
 
   switch(eparms.GetValueInt("Shifting",true,0)){
     case 0:  TShifting=SHIFT_None;     break;
-    case 1:  TShifting=SHIFT_NoBound;  break;
+    case 1:  TShifting=SHIFT_Full;     break;
+    /*case 1:  TShifting=SHIFT_NoBound;  break;
     case 2:  TShifting=SHIFT_NoFixed;  break;
-    case 3:  TShifting=SHIFT_Full;     break;
+    case 3:  TShifting=SHIFT_Full;     break;*/
     default: RunException(met,"Shifting mode is not valid.");
   }
   if(TShifting!=SHIFT_None){
@@ -1473,9 +1475,9 @@ std::string JSph::GetDeltaSphName(TpDeltaSph tdelta){
 std::string JSph::GetShiftingName(TpShifting tshift){
   string tx;
   if(tshift==SHIFT_None)tx="None";
-  else if(tshift==SHIFT_NoBound)tx="NoBound";
-  else if(tshift==SHIFT_NoFixed)tx="NoFixed";
-  else if(tshift==SHIFT_Full)tx="Full";
+  //else if(tshift==SHIFT_NoBound)tx="NoBound";
+  //else if(tshift==SHIFT_NoFixed)tx="NoFixed";
+  else if(tshift/*==SHIFT_Full*/)tx="Full";
   else tx="???";
   return(tx);
 }

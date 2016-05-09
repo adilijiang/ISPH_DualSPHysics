@@ -263,8 +263,13 @@ protected:
 
   void KernelCorrection(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
 	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,tfloat3 *dwxcorr,tfloat3 *dwzcorr)const;
+  void KernelCorrectionPressure(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,tfloat3 *dwxcorr,tfloat3 *dwzcorr)const;
   void InverseCorrection(unsigned n, unsigned pinit,tfloat3 *dwxcorr,tfloat3 *dwzcorr)const;
   void FindIrelation(unsigned n,unsigned pinit,const tdouble3 *pos,const unsigned *idpc,unsigned *irelation,const word *code)const;
+
+  void Boundary_Velocity(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,tfloat4 *velrhop,const word *code)const;
 
   void solveMatrix();
   void MatrixOrder(unsigned n,unsigned pinit,unsigned *porder,const unsigned *idpc,const unsigned *irelation,word *code,unsigned &ppeDim,const float *divr);

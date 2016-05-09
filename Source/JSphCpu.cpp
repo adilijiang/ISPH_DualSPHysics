@@ -633,15 +633,13 @@ void JSphCpu::PosInteraction_Forces(TpInter tinter){
 
   ArraysCpu->Free(Deltac);       Deltac=NULL;
   if(tinter==2){
-    ArraysCpu->Free(ShiftPosc);    ShiftPosc=NULL;
-    ArraysCpu->Free(ShiftDetectc); ShiftDetectc=NULL;
+    //ArraysCpu->Free(ShiftPosc);    ShiftPosc=NULL;
+    //ArraysCpu->Free(ShiftDetectc); ShiftDetectc=NULL;
 	  ArraysCpu->Free(Divr);		 Divr=NULL;
     ArraysCpu->Free(POrder);    POrder=NULL;
 	  ArraysCpu->Free(dWxCorr);	 dWxCorr=NULL;
 	  ArraysCpu->Free(dWzCorr);	 dWzCorr=NULL;
     ArraysCpu->Free(PsPosc);       PsPosc=NULL;
-    ArraysCpu->Free(PosPrec);      PosPrec=NULL;
-    ArraysCpu->Free(VelrhopPrec);  VelrhopPrec=NULL;
   }
   ArraysCpu->Free(Pressc);       Pressc=NULL;
   
@@ -907,9 +905,9 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
   for(int th=0;th<OmpThreads;th++)viscth[th*STRIDE_OMP]=0;
   //-Initial execution with OpenMP / Inicia ejecucion con OpenMP.
   const int pfin=int(pinit+n);
-  #ifdef _WITHOMP
+  /*#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
-  #endif
+  #endif*/
   for(int p1=int(pinit);p1<pfin;p1++){
     //float visc=0,arp1=0,deltap1=0;
     tfloat3 acep1=TFloat3(0);
@@ -918,14 +916,14 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
     //float shiftdetectp1=0;
 
     //-Obtain data of particle p1 in case of floating objects / Obtiene datos de particula p1 en caso de existir floatings.
-    bool ftp1=false;     //-Indicate if it is floating / Indica si es floating.
+    /*bool ftp1=false;     //-Indicate if it is floating / Indica si es floating.
     float ftmassp1=1.f;  //-Contains floating particle mass or 1.0f if it is fluid / Contiene masa de particula floating o 1.0f si es fluid.
     if(USE_FLOATING){
       ftp1=(CODE_GetType(code[p1])==CODE_TYPE_FLOATING);
       if(ftp1)ftmassp1=FtObjs[CODE_GetTypeValue(code[p1])].massp;
       //if(ftp1 && (tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt))deltap1=FLT_MAX;
       //if(ftp1 && shift)shiftposp1.x=FLT_MAX;  //-For floating objects do not calculate shifting / Para floatings no se calcula shifting.
-    }
+    }*/
 
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
     const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
@@ -961,15 +959,15 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
             //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
             float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
 			      const float volumep2=massp2/RhopZero; //Volume of particle j
-            bool ftp2=false;    //-Indicate if it is floating / Indica si es floating.
+            //bool ftp2=false;    //-Indicate if it is floating / Indica si es floating.
             bool compute=true;  //-Deactivate when using DEM and if it is of type float-float or float-bound /  Se desactiva cuando se usa DEM y es float-float o float-bound.
-            if(USE_FLOATING){
+            /*if(USE_FLOATING){
               ftp2=(CODE_GetType(code[p2])==CODE_TYPE_FLOATING);
               if(ftp2)massp2=FtObjs[CODE_GetTypeValue(code[p2])].massp;
               //if(ftp2 && (tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt))deltap1=FLT_MAX;
               //if(ftp2 && shift && tshifting==SHIFT_NoBound)shiftposp1.x=FLT_MAX; //-With floating objects do not use shifting / Con floatings anula shifting.
               //compute=!(USE_DEM && ftp1 && (boundp2 || ftp2)); //-Deactivate when using DEM and if it is of type float-float or float-bound / Se desactiva cuando se usa DEM y es float-float o float-bound.
-            }
+            }*/
 
             //===== Acceleration from viscous forces ===== 
             if(compute && tinter==1){
@@ -1084,7 +1082,7 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
     }
   }
   //-Keep max value in viscdt / Guarda en viscdt el valor maximo.
-  for(int th=0;th<OmpThreads;th++)if(viscdt<viscth[th*STRIDE_OMP])viscdt=viscth[th*STRIDE_OMP];
+  //for(int th=0;th<OmpThreads;th++)if(viscdt<viscth[th*STRIDE_OMP])viscdt=viscth[th*STRIDE_OMP];
 }
 
 //==============================================================================
@@ -1197,7 +1195,6 @@ template<bool psimple> void JSphCpu::InteractionForcesDEM
   if(viscdt<demdt)viscdt=demdt;
 }
 
-
 //==============================================================================
 /// Computes sub-particle stress tensor (Tau) for SPS turbulence model.   
 //==============================================================================
@@ -1225,7 +1222,6 @@ void JSphCpu::ComputeSpsTau(unsigned n,unsigned pini,const tfloat4 *velrhop,cons
     tau[p].zz=one_rho2*(twovisc_sps*gradvel.zz +sumsps);
   }
 }
-
 
 //==============================================================================
 /// Seleccion de parametros template para Interaction_ForcesFluidT.
@@ -1457,6 +1453,7 @@ void JSphCpu::UpdatePos(tdouble3 rpos,double movx,double movy,double movz
   double dy=rpos.y-MapRealPosMin.y;
   double dz=rpos.z-MapRealPosMin.z;
   bool out=(dx!=dx || dy!=dy || dz!=dz || dx<0 || dy<0 || dz<0 || dx>=MapRealSize.x || dy>=MapRealSize.y || dz>=MapRealSize.z);
+  if(code[p]==1693)std::cout<<out<<"\n";
   //-Adjust position according to periodic conditions and compare domain limits / Ajusta posicion segun condiciones periodicas y vuelve a comprobar los limites del dominio.
   if(PeriActive && out){
     bool xperi=((PeriActive&1)!=0),yperi=((PeriActive&2)!=0),zperi=((PeriActive&4)!=0);
@@ -1670,7 +1667,7 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
   }*/
 
   //-Calculate fluid values / Calcula datos de fluido.
-  const double dt05=dt*.5;
+  const double dt05=dt*0.5;
   const int np=int(Np);
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (static) if(np>LIMIT_COMPUTESTEP_OMP)
@@ -1683,7 +1680,7 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
       Velrhopc[p].x-=float(Acec[p].x*dt); 
       Velrhopc[p].y-=float(Acec[p].y*dt);  
       Velrhopc[p].z-=float(Acec[p].z*dt);
-      //if(Idpc[p]==172||Idpc[p]==190)std::cout<<Idpc[p]<<"\t"<<Acec[p].x<<"\t"<<Velrhopc[p].x<<"\n\n";
+
       //Velrhopc[p].w=rhopnew;
       //-Calculate displacement and update position / Calcula desplazamiento y actualiza posicion.
       double dx=(double(VelrhopPrec[p].x)+double(Velrhopc[p].x))*dt05; 
@@ -1700,6 +1697,8 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
     }
   }
 
+  ArraysCpu->Free(PosPrec);      PosPrec=NULL;
+  ArraysCpu->Free(VelrhopPrec);  VelrhopPrec=NULL;
   TmcStop(Timers,TMC_SuComputeStep);
 }
 
@@ -1728,7 +1727,7 @@ void JSphCpu::RunShifting(double dt){
   TmcStart(Timers,TMC_SuShifting);
   const double coeftfs=(Simulate2D? 2.0: 3.0)-ShiftTFS;
   const int pini=int(Npb),pfin=int(Np),npf=int(Np-Npb);
-
+  const double difThreshold=0.5*double(H)*double(H);
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (static) if(npf>LIMIT_COMPUTELIGHT_OMP)
   #endif
@@ -1737,11 +1736,10 @@ void JSphCpu::RunShifting(double dt){
     double vy=double(Velrhopc[p].y);
     double vz=double(Velrhopc[p].z);
     double umagn=double(ShiftCoef)*double(H)*sqrt(vx*vx+vy*vy+vz*vz)*dt;
-    if(ShiftDetectc){
-      if(ShiftDetectc[p]<ShiftTFS)umagn=0;
-      else umagn*=(double(ShiftDetectc[p])-ShiftTFS)/coeftfs;
-    }
-    if(ShiftPosc[p].x==FLT_MAX)umagn=0; //-Zero shifting near boundary / Anula shifting por proximidad del contorno.
+    if(abs(umagn)<difThreshold) umagn=-difThreshold;
+    if(ShiftDetectc[p]<ShiftTFS)umagn=0;
+      //else umagn*=(double(ShiftDetectc[p])-ShiftTFS)/coeftfs;
+    //if(ShiftPosc[p].x==FLT_MAX)umagn=0; //-Zero shifting near boundary / Anula shifting por proximidad del contorno.
     ShiftPosc[p]=ToTFloat3(ToTDouble3(ShiftPosc[p])*umagn);
   }
   TmcStop(Timers,TMC_SuShifting);
@@ -1954,6 +1952,64 @@ void JSphCpu::FindIrelation(unsigned n,unsigned pinit,const tdouble3 *pos,const 
   }
 }
 
+
+void JSphCpu::Boundary_Velocity(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
+  const tdouble3 *pos,const tfloat3 *pspos,tfloat4 *velrhop,const word *code)const{
+
+  const int pfin=int(pinit+n);
+
+  #ifdef _WITHOMP
+    #pragma omp parallel for schedule (guided)
+  #endif
+  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])==1){
+    //-Obtain data of particle p1 / Obtiene datos de particula p1.
+	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
+    const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
+	
+    float Sum1x=0.0;
+    float Sum1z=0.0;
+    float Sum2=0.0;
+
+    //-Obtain interaction limits / Obtiene limites de interaccion
+    int cxini,cxfin,yini,yfin,zini,zfin;
+    GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+
+    //-Search for neighbours in adjacent cells / Busqueda de vecinos en celdas adyacentes.
+    for(int z=zini;z<zfin;z++){
+      const int zmod=(nc.w)*z+cellinitial; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
+      for(int y=yini;y<yfin;y++){
+        int ymod=zmod+nc.x*y;
+        const unsigned pini=beginendcell[cxini+ymod];
+        const unsigned pfin=beginendcell[cxfin+ymod];
+
+		    //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
+        float massp2=MassFluid; //-Contiene masa de particula segun sea bound o fluid.
+		    const float volume=massp2/RhopZero; //Volume of particle j
+		
+        //-Interactions
+        //------------------------------------------------
+        for(unsigned p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(Codec[p2])==0){
+          const float drx=(psimple? psposp1.x-pspos[p2].x: float(posp1.x-pos[p2].x));
+          const float dry=(psimple? psposp1.y-pspos[p2].y: float(posp1.y-pos[p2].y));
+          const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
+		      const float rr2=drx*drx+dry*dry+drz*drz;
+		      if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
+            const float W=GetKernelWab(rr2);
+            Sum1x+=W*velrhop[p2].x;
+            Sum1z+=W*velrhop[p2].z;
+            Sum2+=W;
+          }
+        }
+      }
+    }
+
+    if(Sum2){
+      velrhop[p1].x=-Sum1x/Sum2;
+      velrhop[p1].z=-Sum1z/Sum2;
+    }
+  }
+}
+
 //===============================================================================
 ///Kernel Correction
 //===============================================================================
@@ -1966,7 +2022,57 @@ void JSphCpu::KernelCorrection(bool psimple,unsigned n,unsigned pinit,tint4 nc,i
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<pfin;p1++){
+  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])==0){
+    //-Obtain data of particle p1 / Obtiene datos de particula p1.
+	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
+    const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
+	
+    //-Obtain interaction limits / Obtiene limites de interaccion
+    int cxini,cxfin,yini,yfin,zini,zfin;
+    GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+
+    //-Search for neighbours in adjacent cells / Busqueda de vecinos en celdas adyacentes.
+    for(int z=zini;z<zfin;z++){
+      const int zmod=(nc.w)*z+cellinitial; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
+      for(int y=yini;y<yfin;y++){
+        int ymod=zmod+nc.x*y;
+        const unsigned pini=beginendcell[cxini+ymod];
+        const unsigned pfin=beginendcell[cxfin+ymod];
+
+		    //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
+        float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
+		    const float volume=massp2/RhopZero; //Volume of particle j
+		
+        //-Interactions
+        //------------------------------------------------
+        for(unsigned p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(Codec[p2])==0){
+         const float drx=(psimple? psposp1.x-pspos[p2].x: float(posp1.x-pos[p2].x));
+         const float dry=(psimple? psposp1.y-pspos[p2].y: float(posp1.y-pos[p2].y));
+         const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
+		      const float rr2=drx*drx+dry*dry+drz*drz;
+		      if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
+		        float frx,fry,frz;
+            GetKernel(rr2,drx,dry,drz,frx,fry,frz);
+
+		        dwxcorr[p1].x-=volume*frx*drx; dwxcorr[p1].z-=volume*frz*drx;
+		        dwzcorr[p1].x-=volume*frx*drz; dwzcorr[p1].z-=volume*frz*drz;
+		      }
+		    }
+	    }
+	  }
+  }
+}
+
+void JSphCpu::KernelCorrectionPressure(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,
+	tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,tfloat3 *dwxcorr,tfloat3 *dwzcorr)const{
+
+  const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
+  const int pfin=int(pinit+n);
+
+  #ifdef _WITHOMP
+    #pragma omp parallel for schedule (guided)
+  #endif
+  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])==0){
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
 	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
     const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
@@ -2014,7 +2120,7 @@ void JSphCpu::InverseCorrection(unsigned n, unsigned pinit, tfloat3 *dwxcorr,tfl
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-	for(int p1=int(pinit);p1<pfin;p1++){
+	for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])==0){
 	  const float det=1.0f/(dwxcorr[p1].x*dwzcorr[p1].z-dwxcorr[p1].z*dwzcorr[p1].x);
 	
       if(det){
@@ -2055,7 +2161,7 @@ void JSphCpu::MatrixOrder(unsigned n,unsigned pinit,unsigned *porder,const unsig
 }
 
 //===============================================================================
-///Mark free surface
+///Find free surface
 //===============================================================================
 void JSphCpu::FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
 	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
@@ -2111,18 +2217,19 @@ void JSphCpu::FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 }
 
 //===============================================================================
-///Populate matrix b with values for CULA
+///Populate matrix b with values
 //===============================================================================
 void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
 	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
 	const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const double dt, const unsigned ppedim,const float *divr)const{
 
+  const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
 
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<pfin;p1++){
+  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])==0){
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
     const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
 	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
@@ -2131,7 +2238,7 @@ void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 	  //-Particle order in Matrix
 	  unsigned oi = porder[p1];
 
-    if(divr[p1]>1.6f){
+    if(divr[p1]>1.5f){
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;
       GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
@@ -2146,7 +2253,7 @@ void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 
           //-Interactions
           //------------------------------------------------
-          for(unsigned p2=pini;p2<pfin;p2++){
+          for(unsigned p2=pini;p2<pfin;p2++) if(CODE_GetTypeValue(Codec[p2])==0){
             const float drx=(psimple? psposp1.x-pspos[p2].x: float(posp1.x-pos[p2].x));
             const float dry=(psimple? psposp1.y-pspos[p2].y: float(posp1.y-pos[p2].y));
             const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
@@ -2158,7 +2265,7 @@ void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
               GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 			
 			        //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
-              float massp2=MassFluid; //-Contiene masa de particula segun sea bound o fluid.
+              float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
 			        const float volume=massp2/RhopZero; //Volume of particle j
 
 			        //=====Divergence of velocity==========
@@ -2173,8 +2280,6 @@ void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 	      }
       }
 	  }
-    
-	  matrixb[oi]=matrixb[oi]/dt;
   } 
 }
 
@@ -2196,7 +2301,7 @@ void JSphCpu::MatrixStorage(bool psimple,unsigned n,unsigned pinit,tint4 nc,int 
 	  //-Particle order in Matrix
 	  unsigned oi = porder[p1];
 
-    if(divr[p1]>1.6){
+    if(divr[p1]>1.5f){
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;
       GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
@@ -2240,7 +2345,7 @@ void JSphCpu::MatrixASetup(const unsigned ppedim,unsigned &nnz,std::vector<int> 
 }
 
 //===============================================================================
-///Populate matrix with values for CULA
+///Populate matrix with values
 //===============================================================================
 void JSphCpu::PopulateMatrixAInteractFluid(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
@@ -2264,7 +2369,7 @@ void JSphCpu::PopulateMatrixAInteractFluid(bool psimple,unsigned n,unsigned pini
     const unsigned diag=row[oi];
     col[diag]=oi;
     unsigned index=diag+1;
-    if(divr[p1]>1.6){   
+    if(divr[p1]>1.5f){   
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;
       GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
@@ -2335,7 +2440,7 @@ void JSphCpu::PopulateMatrixAInteractBound(bool psimple,unsigned n,unsigned pini
     const unsigned diag=row[oi];
     col[diag] = oi;
     
-    if(divr[p1]>1.6){   
+    if(divr[p1]>1.5f){   
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;
       GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
@@ -2535,20 +2640,20 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
    
     tfloat3 shiftposp1=TFloat3(0);
     float shiftdetectp1=0;
-
+    float conc=0;
     //-Obtain data of particle p1 in case of floating objects / Obtiene datos de particula p1 en caso de existir floatings.
-    bool ftp1=false;     //-Indicate if it is floating / Indica si es floating.
-    float ftmassp1=1.f;  //-Contains floating particle mass or 1.0f if it is fluid / Contiene masa de particula floating o 1.0f si es fluid.
-    if(USE_FLOATING){
+    //bool ftp1=false;     //-Indicate if it is floating / Indica si es floating.
+    //float ftmassp1=1.f;  //-Contains floating particle mass or 1.0f if it is fluid / Contiene masa de particula floating o 1.0f si es fluid.
+    /*if(USE_FLOATING){
       ftp1=(CODE_GetType(code[p1])==CODE_TYPE_FLOATING);
       if(ftp1)ftmassp1=FtObjs[CODE_GetTypeValue(code[p1])].massp;
       //if(ftp1 && (tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt))deltap1=FLT_MAX;
       if(ftp1)shiftposp1.x=FLT_MAX;  //-For floating objects do not calculate shifting / Para floatings no se calcula shifting.
-    }
+    }*/
 
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
-    const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
-    //const float rhopp1=velrhop[p1].w;
+    //const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
+    
     const tfloat3 psposp1=pspos[p1];
     
     //-Obtain interaction limits / Obtiene limites de interaccion
@@ -2565,10 +2670,12 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
         //-Interaction of Fluid with type Fluid or Bound / Interaccion de Fluid con varias Fluid o Bound.
         //------------------------------------------------
         for(unsigned p2=pini;p2<pfin;p2++){
+
           const float drx=psposp1.x-pspos[p2].x;
           const float dry=psposp1.y-pspos[p2].y;
           const float drz=psposp1.z-pspos[p2].z;
           const float rr2=drx*drx+dry*dry+drz*drz;
+
           if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
             //-Wendland kernel.
             float frx,fry,frz;
@@ -2577,35 +2684,34 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
             //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
             float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
 			      const float volumep2=massp2/RhopZero; //Volume of particle j
-            bool ftp2=false;    //-Indicate if it is floating / Indica si es floating.
-            bool compute=true;  //-Deactivate when using DEM and if it is of type float-float or float-bound /  Se desactiva cuando se usa DEM y es float-float o float-bound.
-            if(USE_FLOATING){
+            //bool ftp2=false;    //-Indicate if it is floating / Indica si es floating.
+            //bool compute=true;  //-Deactivate when using DEM and if it is of type float-float or float-bound /  Se desactiva cuando se usa DEM y es float-float o float-bound.
+            /*if(USE_FLOATING){
               ftp2=(CODE_GetType(code[p2])==CODE_TYPE_FLOATING);
               if(ftp2)massp2=FtObjs[CODE_GetTypeValue(code[p2])].massp;
               //if(ftp2 && (tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt))deltap1=FLT_MAX;
               if(ftp2 && tshifting==SHIFT_NoBound)shiftposp1.x=FLT_MAX; //-With floating objects do not use shifting / Con floatings anula shifting.
               compute=!(USE_DEM && ftp1 && (boundp2 || ftp2)); //-Deactivate when using DEM and if it is of type float-float or float-bound / Se desactiva cuando se usa DEM y es float-float o float-bound.
-            }
+            }*/
 
             //-Shifting correction
-            if(shiftposp1.x!=FLT_MAX){
+            //if(shiftposp1.x!=FLT_MAX){
               const float massrhop=massp2/RhopZero;
-              const bool noshift=(boundp2 && (tshifting==SHIFT_NoBound || (tshifting==SHIFT_NoFixed && CODE_GetType(code[p2])==CODE_TYPE_FIXED)));
-              shiftposp1.x=(noshift? FLT_MAX: shiftposp1.x+massrhop*frx); //-For boundary do not use shifting / Con boundary anula shifting.
+              //const bool noshift=(boundp2 && (tshifting==SHIFT_NoBound || (tshifting==SHIFT_NoFixed && CODE_GetType(code[p2])==CODE_TYPE_FIXED)));
+              shiftposp1.x+=massrhop*frx; //-For boundary do not use shifting / Con boundary anula shifting.
               shiftposp1.y+=massrhop*fry;
               shiftposp1.z+=massrhop*frz;
               shiftdetectp1-=massrhop*(drx*frx+dry*fry+drz*frz);
-              
-            }
+            //}
           }
         }
       }
     }
       
-    if(shiftpos[p1].x!=FLT_MAX){
-      shiftpos[p1]=(shiftposp1.x==FLT_MAX? TFloat3(FLT_MAX,0,0): shiftpos[p1]+shiftposp1);   
-      if(shiftdetect)shiftdetect[p1]+=shiftdetectp1;
-    }
+    //if(shiftpos[p1].x!=FLT_MAX){
+      shiftpos[p1]=shiftpos[p1]+shiftposp1;   
+      /*if(shiftdetect)*/shiftdetect[p1]+=shiftdetectp1;
+    //}
   }
   //-Guarda en viscdt el valor maximo.
   //for(int th=0;th<OmpThreads;th++)if(viscdt<viscth[th*STRIDE_OMP])viscdt=viscth[th*STRIDE_OMP];

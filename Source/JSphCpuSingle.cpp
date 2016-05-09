@@ -581,13 +581,14 @@ double JSphCpuSingle::ComputeAceMax(){
   PosInteraction_Forces();             //-Free memory used for interaction / Libera memoria de interaccion
   return(dt);
 }*/
+
 void JSphCpuSingle::PreparePosSimple(){
   //-Prepare values for interaction  Pos-Simpe / Prepara datos para interaccion Pos-Simple.
   PsPosc=ArraysCpu->ReserveFloat3();
   const int np=int(Np);
-  #ifdef _WITHOMP
+  /*#ifdef _WITHOMP
     #pragma omp parallel for schedule (static) if(np>LIMIT_PREINTERACTION_OMP)
-  #endif
+  #endif*/
   for(int p=0;p<np;p++){ PsPosc[p]=ToTFloat3(Posc[p]); }
 }
 //==============================================================================
@@ -608,6 +609,7 @@ double JSphCpuSingle::ComputeStep_Sym(){
   PreInteraction_Forces(INTER_Forces);
   RunCellDivide(true);
   if(Psimple)PreparePosSimple();
+  Boundary_Velocity();
   Interaction_Forces(INTER_Forces);      //-Interaction / Interaccion
   //const double ddt_p=DtVariable(false);   //-Calculate dt of predictor step / Calcula dt del predictor
   //if(TShifting)RunShifting(dt*.5);        //-Shifting
@@ -627,6 +629,13 @@ double JSphCpuSingle::ComputeStep_Sym(){
   //const double ddt_c=DtVariable(true);    //-Calculate dt of corrector step / Calcula dt del corrector
   ComputeSymplecticCorr(dt);              //-Apply Symplectic-Corrector to particles / Aplica Symplectic-Corrector a las particulas
   //if(CaseNfloat)RunFloating(dt,false);    //-Control of floating bodies / Gestion de floating bodies
+  /*#ifdef _WITHOMP
+    #pragma omp parallel for schedule (guided)
+  #endif
+  for(int p1=0;p1<int(Np);p1++) if(CODE_GetTypeValue(Codec[p1])==0) {
+    Velrhopc[p1].w=
+  }*/
+
   PosInteraction_Forces(INTER_ForcesCorr);             //-Free memory used for interaction / Libera memoria de interaccion
   if(TShifting)RunShifting(dt);           //-Shifting
   // DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep
@@ -961,6 +970,17 @@ void JSphCpuSingle::FindIrelation(){
   JSphCpu::FindIrelation(Npb,0,Posc,Idpc,Irelationc,Codec); 
 }
 
+void JSphCpuSingle::Boundary_Velocity(){
+  tuint3 cellmin=CellDivSingle->GetCellDomainMin();
+  tuint3 ncells=CellDivSingle->GetNcells();
+  const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
+  const unsigned cellfluid=nc.w*nc.z+1;
+  const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
+  const int hdiv=(CellMode==CELLMODE_H? 2: 1);
+  const unsigned *begincell = CellDivSingle->GetBeginCell();
+  JSphCpu::Boundary_Velocity(Psimple,NpbOk,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Codec);
+}
+
 void JSphCpuSingle::KernelCorrection(bool boundary){ 
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
   tuint3 ncells=CellDivSingle->GetNcells();
@@ -971,6 +991,7 @@ void JSphCpuSingle::KernelCorrection(bool boundary){
   const unsigned *begincell = CellDivSingle->GetBeginCell();
 
   const unsigned np=Np;
+  const unsigned npbok=NpbOk;
   const unsigned npb=Npb;
   const unsigned npf=np-npb;
 
@@ -982,9 +1003,17 @@ void JSphCpuSingle::KernelCorrection(bool boundary){
   memset(dWxCorr,0,sizeof(tfloat3)*np);						
   memset(dWzCorr,0,sizeof(tfloat3)*np);								
 
-  JSphCpu::KernelCorrection(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Fluid-Fluid
-  if(boundary)JSphCpu::KernelCorrection(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Fluid-Bound
-  JSphCpu::InverseCorrection(npf,npb,dWxCorr,dWzCorr);
+  if(!boundary){
+    JSphCpu::KernelCorrection(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Fluid-Fluid
+    JSphCpu::KernelCorrection(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Fluid-Bound
+    JSphCpu::KernelCorrection(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Bound-Fluid
+    JSphCpu::KernelCorrection(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Bound-Bound
+  }
+  else{
+    JSphCpu::KernelCorrectionPressure(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Fluid-Fluid
+    JSphCpu::KernelCorrectionPressure(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Fluid-Bound
+  }
+  JSphCpu::InverseCorrection(np,0,dWxCorr,dWzCorr);
 }
 
 //==============================================================================
@@ -1003,7 +1032,7 @@ void JSphCpuSingle::SolvePPE(double dt){
   const unsigned np = Np;
   const unsigned npb=Npb;
   const unsigned npbok=NpbOk;
-  const unsigned npf = np - npb;
+  const unsigned npf=np -npb;
   unsigned PPEDim=0;
 
   //Matrix Order and Free Surface
@@ -1018,8 +1047,17 @@ void JSphCpuSingle::SolvePPE(double dt){
   //RHS
   b.resize(PPEDim,0);
   PopulateMatrixB(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr); //-Fluid-Fluid
+  PopulateMatrixB(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr); //-Fluid-Bound
+  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr); //-Bound-Fluid
+  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr); //-Bound-Bound
   rowInd.resize(PPEDim+1,0);
   unsigned Nnz=0; 
+
+  for(int i=0;i<int(PPEDim);i++){
+    const double bdt=b[i]/dt;
+    b[i]=bdt;
+  }
+  
 
   //Organising storage for parallelism
   MatrixStorage(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Fluid-Fluid
@@ -1058,36 +1096,36 @@ void JSphCpuSingle::SolvePPE(double dt){
 //==============================================================================
 void JSphCpuSingle::RunShifting(double dt){
   
-
   unsigned int np=Np;
   //-Assign memory to variables Pre / Asigna memoria a variables Pre.
-    PosPrec=ArraysCpu->ReserveDouble3();
-    VelrhopPrec=ArraysCpu->ReserveFloat4();
+  PosPrec=ArraysCpu->ReserveDouble3();
+  VelrhopPrec=ArraysCpu->ReserveFloat4();
     //-Change data to variables Pre to calculate new data / Cambia datos a variables Pre para calcular nuevos datos.
-   #ifdef _WITHOMP
-      #pragma omp parallel for schedule (static)
-    #endif
-    for(int i=0;i<int(Np);i++){
-      PosPrec[i]=Posc[i];
-      VelrhopPrec[i]=Velrhopc[i];
-    }
-    memset(Velrhopc,0,sizeof(tfloat4)*Npb);
 
   ShiftPosc=ArraysCpu->ReserveFloat3();
   if(ShiftTFS)ShiftDetectc=ArraysCpu->ReserveFloat();
   memset(ShiftPosc,0,sizeof(tfloat3)*np);               //ShiftPosc[]=0
   if(ShiftDetectc)memset(ShiftDetectc,0,sizeof(float)*np);           //ShiftDetectc[]=0
 
-  PreparePosSimple();
+  #ifdef _WITHOMP
+      #pragma omp parallel for schedule (static)
+    #endif
+    for(int i=0;i<int(Np);i++){
+      PosPrec[i]=Posc[i];
+      VelrhopPrec[i]=Velrhopc[i];
+  }
 
   RunCellDivide(true);
+     
+  PreparePosSimple();
 
   JSphCpu::Interaction_Shifting(Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,PsPosc,Velrhopc,Idpc,Codec,ShiftPosc,ShiftDetectc);
+
   JSphCpu::RunShifting(dt);
   Shift(dt);
   ArraysCpu->Free(PosPrec);      PosPrec=NULL;
   ArraysCpu->Free(PsPosc);       PsPosc=NULL;
   ArraysCpu->Free(ShiftPosc);    ShiftPosc=NULL;
-   ArraysCpu->Free(ShiftDetectc); ShiftDetectc=NULL;
-   ArraysCpu->Free(VelrhopPrec);  VelrhopPrec=NULL;
+  ArraysCpu->Free(ShiftDetectc); ShiftDetectc=NULL;
+  ArraysCpu->Free(VelrhopPrec);  VelrhopPrec=NULL;
 }
