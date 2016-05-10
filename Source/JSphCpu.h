@@ -289,6 +289,7 @@ protected:
     std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned *irelation,const unsigned ppedim)const;
   void PressureAssign(bool psimple,unsigned n,unsigned pinit,const tdouble3 *pos,const tfloat3 *pspos,tfloat4 *velrhop,const unsigned *idpc,const unsigned *irelation,const unsigned *porder,
     std::vector<double> &matrixx,const word *code,const unsigned npb,float *divr)const;
+  void FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,std::vector<double> &matrixInd,std::vector<double> &matrixb,std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim)const;
 
   void solveVienna(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz);
  

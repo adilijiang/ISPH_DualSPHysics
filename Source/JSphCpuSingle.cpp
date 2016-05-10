@@ -1029,7 +1029,7 @@ void JSphCpuSingle::SolvePPE(double dt){
   const int hdiv=(CellMode==CELLMODE_H? 2: 1);
   const unsigned *begincell = CellDivSingle->GetBeginCell();
 
-  const unsigned np = Np;
+  const unsigned np=Np;
   const unsigned npb=Npb;
   const unsigned npbok=NpbOk;
   const unsigned npf=np -npb;
@@ -1074,6 +1074,8 @@ void JSphCpuSingle::SolvePPE(double dt){
   PopulateMatrixAInteractFluid(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim); 
   PopulateMatrixAInteractBound(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); 
 
+  FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
+  FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
   // allocate vectors
   x.resize(PPEDim,0);
 
@@ -1122,6 +1124,12 @@ void JSphCpuSingle::RunShifting(double dt){
   JSphCpu::Interaction_Shifting(Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,PsPosc,Velrhopc,Idpc,Codec,ShiftPosc,ShiftDetectc);
 
   JSphCpu::RunShifting(dt);
+  /*#ifdef _WITHOMP
+      #pragma omp parallel for schedule (static)
+    #endif
+    for(int i=0;i<int(Np);i++){
+      Velrhopc[i].w=ShiftDetectc[i];
+  }*/
   Shift(dt);
   ArraysCpu->Free(PosPrec);      PosPrec=NULL;
   ArraysCpu->Free(PsPosc);       PsPosc=NULL;

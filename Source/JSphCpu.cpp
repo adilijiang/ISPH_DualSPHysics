@@ -799,8 +799,6 @@ void JSphCpu::ComputeRenPress(unsigned npbok,float beta,const float *presskf,tfl
   }
 }
 
-
-
 //==============================================================================
 /// Realiza interaccion entre particulas. Bound-Fluid/Float
 /// Perform interaction between particles. Bound-Fluid/Float
@@ -1453,7 +1451,6 @@ void JSphCpu::UpdatePos(tdouble3 rpos,double movx,double movy,double movz
   double dy=rpos.y-MapRealPosMin.y;
   double dz=rpos.z-MapRealPosMin.z;
   bool out=(dx!=dx || dy!=dy || dz!=dz || dx<0 || dy<0 || dz<0 || dx>=MapRealSize.x || dy>=MapRealSize.y || dz>=MapRealSize.z);
-  if(code[p]==1693)std::cout<<out<<"\n";
   //-Adjust position according to periodic conditions and compare domain limits / Ajusta posicion segun condiciones periodicas y vuelve a comprobar los limites del dominio.
   if(PeriActive && out){
     bool xperi=((PeriActive&1)!=0),yperi=((PeriActive&2)!=0),zperi=((PeriActive&4)!=0);
@@ -1726,6 +1723,7 @@ double JSphCpu::DtVariable(bool final){
 void JSphCpu::RunShifting(double dt){
   TmcStart(Timers,TMC_SuShifting);
   const double coeftfs=(Simulate2D? 2.0: 3.0)-ShiftTFS;
+  const double ShiftOffset=0.2;
   const int pini=int(Npb),pfin=int(Np),npf=int(Np-Npb);
   const double difThreshold=0.5*double(H)*double(H);
   #ifdef _WITHOMP
@@ -1736,11 +1734,45 @@ void JSphCpu::RunShifting(double dt){
     double vy=double(Velrhopc[p].y);
     double vz=double(Velrhopc[p].z);
     double umagn=double(ShiftCoef)*double(H)*sqrt(vx*vx+vy*vy+vz*vz)*dt;
-    if(abs(umagn)<difThreshold) umagn=-difThreshold;
-    if(ShiftDetectc[p]<ShiftTFS)umagn=0;
-      //else umagn*=(double(ShiftDetectc[p])-ShiftTFS)/coeftfs;
-    //if(ShiftPosc[p].x==FLT_MAX)umagn=0; //-Zero shifting near boundary / Anula shifting por proximidad del contorno.
-    ShiftPosc[p]=ToTFloat3(ToTDouble3(ShiftPosc[p])*umagn);
+    if(abs(umagn)<difThreshold) umagn=-difThreshold; //Minimum shifting
+    //if(ShiftDetectc[p]<ShiftTFS) umagn=0;
+    if(ShiftDetectc[p]<ShiftTFS){ //Particles near to free-surface, eliminate shifting in direction normal to free surface
+      double NormX=-ShiftPosc[p].x;
+      double NormZ=-ShiftPosc[p].z;
+      double temp=NormX*NormX+NormZ*NormZ;
+      temp=sqrt(temp);
+      NormX=NormX/temp;
+      NormZ=NormZ/temp;
+      double TangX=-NormZ;
+      double TangZ=NormX;
+      temp=TangX*ShiftPosc[p].x+TangZ*ShiftPosc[p].z;
+      ShiftPosc[p].x=temp*TangX;
+      ShiftPosc[p].z=temp*TangZ;
+    }
+
+    if(ShiftDetectc[p]>=ShiftTFS && ShiftDetectc[p]<=ShiftTFS+ShiftOffset){ //Particles near to free-surface, eliminate shifting in direction normal to free surface
+      double NormX=-ShiftPosc[p].x;
+      double NormZ=-ShiftPosc[p].z;
+      double temp=NormX*NormX+NormZ*NormZ;
+      temp=sqrt(temp);
+      NormX=NormX/temp;
+      NormZ=NormZ/temp;
+      double TangX=-NormZ;
+      double TangZ=NormX;
+      double temp_s=TangX*ShiftPosc[p].x+TangZ*ShiftPosc[p].z;
+      double temp_n=NormX*ShiftPosc[p].x+NormZ*ShiftPosc[p].z;
+      double FactorShift=0.5*(1-cos(PI*(ShiftDetectc[p]-ShiftTFS)/0.2));
+      //double FactorShift=-3*pow(((ShiftDetectc[p]-ShiftTFS)/ShiftOffset),4)+4*pow(((ShiftDetectc[p]-ShiftTFS)/ShiftOffset),3);
+      ShiftPosc[p].x=temp_s*TangX+temp_n*NormX*FactorShift;
+      ShiftPosc[p].z=temp_s*TangZ+temp_n*NormZ*FactorShift;
+    }
+        
+    ShiftPosc[p]=ToTFloat3(ToTDouble3(ShiftPosc[p])*umagn); //particles in fluid bulk, normal shifting
+
+    //Max Shifting
+    double temp=sqrt(ShiftPosc[p].x*ShiftPosc[p].x+ShiftPosc[p].z*ShiftPosc[p].z); 
+    if(abs(ShiftPosc[p].x)>0.1*Dp)ShiftPosc[p].x=0.1*Dp*ShiftPosc[p].x/temp;
+    if(abs(ShiftPosc[p].z)>0.1*Dp)ShiftPosc[p].z=0.1*Dp*ShiftPosc[p].z/temp;
   }
   TmcStop(Timers,TMC_SuShifting);
 }
@@ -1951,7 +1983,6 @@ void JSphCpu::FindIrelation(unsigned n,unsigned pinit,const tdouble3 *pos,const 
     }
   }
 }
-
 
 void JSphCpu::Boundary_Velocity(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const tfloat3 *pspos,tfloat4 *velrhop,const word *code)const{
@@ -2238,7 +2269,7 @@ void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 	  //-Particle order in Matrix
 	  unsigned oi = porder[p1];
 
-    if(divr[p1]>1.5f){
+    if(divr[p1]>ShiftTFS){
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;
       GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
@@ -2301,7 +2332,7 @@ void JSphCpu::MatrixStorage(bool psimple,unsigned n,unsigned pinit,tint4 nc,int 
 	  //-Particle order in Matrix
 	  unsigned oi = porder[p1];
 
-    if(divr[p1]>1.5f){
+    if(divr[p1]>ShiftTFS){
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;
       GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
@@ -2369,7 +2400,7 @@ void JSphCpu::PopulateMatrixAInteractFluid(bool psimple,unsigned n,unsigned pini
     const unsigned diag=row[oi];
     col[diag]=oi;
     unsigned index=diag+1;
-    if(divr[p1]>1.5f){   
+    if(divr[p1]>ShiftTFS){   
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;
       GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
@@ -2440,7 +2471,7 @@ void JSphCpu::PopulateMatrixAInteractBound(bool psimple,unsigned n,unsigned pini
     const unsigned diag=row[oi];
     col[diag] = oi;
     
-    if(divr[p1]>1.5f){   
+    if(divr[p1]>ShiftTFS){   
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;
       GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
@@ -2509,6 +2540,29 @@ void JSphCpu::PopulateMatrixAInteractBound(bool psimple,unsigned n,unsigned pini
 	    }
 	  }
     else matrixInd[diag]=1.0f;
+  }
+}
+
+void JSphCpu::FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,std::vector<double> &matrixInd,std::vector<double> &matrixb,
+  std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim)const{
+  const int pfin=int(pinit+n);
+  
+  #ifdef _WITHOMP
+    #pragma omp parallel for schedule (guided)
+  #endif
+  for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(code[p1])==0){   
+	  //-Particle order in Matrix
+	  unsigned oi = porder[p1];
+    const int Mark=row[oi]+1;
+    if(divr[p1]>=ShiftTFS && divr[p1]<=ShiftTFS+0.2f){
+      double alpha=0.5*(1.0-cos(PI*(divr[p1]-ShiftTFS)/0.2));
+
+      matrixb[oi]=matrixb[oi]*alpha;
+
+      for(int index=Mark;index<row[oi+1];index++){
+            matrixInd[index]=matrixInd[index]*alpha;
+      }
+    }
   }
 }
 
