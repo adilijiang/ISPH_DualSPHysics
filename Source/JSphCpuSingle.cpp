@@ -600,8 +600,6 @@ void JSphCpuSingle::PreparePosSimple(){
 /// calculated in the interaction using Symplectic.
 //==============================================================================
 double JSphCpuSingle::ComputeStep_Sym(){
-  //const double dt=0.2*H/sqrt(abs(Gravity.z));
-  //TimePart=dt;
   const double dt=DtPre;
   //-Predictor
   //-----------
@@ -609,7 +607,7 @@ double JSphCpuSingle::ComputeStep_Sym(){
   PreInteraction_Forces(INTER_Forces);
   RunCellDivide(true);
   if(Psimple)PreparePosSimple();
-  Boundary_Velocity();
+  //Boundary_Velocity();
   Interaction_Forces(INTER_Forces);      //-Interaction / Interaccion
   //const double ddt_p=DtVariable(false);   //-Calculate dt of predictor step / Calcula dt del predictor
   //if(TShifting)RunShifting(dt*.5);        //-Shifting
@@ -629,13 +627,6 @@ double JSphCpuSingle::ComputeStep_Sym(){
   //const double ddt_c=DtVariable(true);    //-Calculate dt of corrector step / Calcula dt del corrector
   ComputeSymplecticCorr(dt);              //-Apply Symplectic-Corrector to particles / Aplica Symplectic-Corrector a las particulas
   //if(CaseNfloat)RunFloating(dt,false);    //-Control of floating bodies / Gestion de floating bodies
-  /*#ifdef _WITHOMP
-    #pragma omp parallel for schedule (guided)
-  #endif
-  for(int p1=0;p1<int(Np);p1++) if(CODE_GetTypeValue(Codec[p1])==0) {
-    Velrhopc[p1].w=
-  }*/
-
   PosInteraction_Forces(INTER_ForcesCorr);             //-Free memory used for interaction / Libera memoria de interaccion
   if(TShifting)RunShifting(dt);           //-Shifting
   // DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep
@@ -1105,9 +1096,11 @@ void JSphCpuSingle::RunShifting(double dt){
     //-Change data to variables Pre to calculate new data / Cambia datos a variables Pre para calcular nuevos datos.
 
   ShiftPosc=ArraysCpu->ReserveFloat3();
-  if(ShiftTFS)ShiftDetectc=ArraysCpu->ReserveFloat();
+  ShiftDetectc=ArraysCpu->ReserveFloat();
+  avConc=ArraysCpu->ReserveFloat();
   memset(ShiftPosc,0,sizeof(tfloat3)*np);               //ShiftPosc[]=0
-  if(ShiftDetectc)memset(ShiftDetectc,0,sizeof(float)*np);           //ShiftDetectc[]=0
+  memset(ShiftDetectc,0,sizeof(float)*np);           //ShiftDetectc[]=0
+  memset(avConc,0,sizeof(float)*np);
 
   #ifdef _WITHOMP
       #pragma omp parallel for schedule (static)
@@ -1115,25 +1108,27 @@ void JSphCpuSingle::RunShifting(double dt){
     for(int i=0;i<int(Np);i++){
       PosPrec[i]=Posc[i];
       VelrhopPrec[i]=Velrhopc[i];
+      Velrhopc[i].w=0;
   }
 
   RunCellDivide(true);
      
   PreparePosSimple();
 
-  JSphCpu::Interaction_Shifting(Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,PsPosc,Velrhopc,Idpc,Codec,ShiftPosc,ShiftDetectc);
-
-  JSphCpu::RunShifting(dt);
-  /*#ifdef _WITHOMP
+  JSphCpu::Interaction_Shifting(Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,PsPosc,Velrhopc,Idpc,Codec,ShiftPosc,ShiftDetectc,avConc);
+  #ifdef _WITHOMP
       #pragma omp parallel for schedule (static)
     #endif
-    for(int i=0;i<int(Np);i++){
-      Velrhopc[i].w=ShiftDetectc[i];
-  }*/
+  for(int i=0;i<int(Np);i++){
+      Velrhopc[i].w=ShiftPosc[i].x;
+  }
+  JSphCpu::RunShifting(dt);
+
   Shift(dt);
   ArraysCpu->Free(PosPrec);      PosPrec=NULL;
   ArraysCpu->Free(PsPosc);       PsPosc=NULL;
   ArraysCpu->Free(ShiftPosc);    ShiftPosc=NULL;
   ArraysCpu->Free(ShiftDetectc); ShiftDetectc=NULL;
   ArraysCpu->Free(VelrhopPrec);  VelrhopPrec=NULL;
+  ArraysCpu->Free(avConc);  avConc=NULL;
 }
