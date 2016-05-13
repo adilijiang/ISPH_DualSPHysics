@@ -188,10 +188,10 @@ void FindIrelation(const unsigned bsbound,unsigned npbok
 
 //# Kernels for kernel Correction
 void KernelCorrection(bool psimple,bool boundary,TpCellMode cellmode
-  ,const unsigned bsfluid,unsigned np,unsigned npb,tuint3 ncells
+  ,const unsigned bsfluid,const unsigned bsbound,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,const float4 *velrhop,float3 *dwxcorrg,float3 *dwzcorrg);
+  ,const float4 *velrhop,float3 *dwxcorrg,float3 *dwzcorrg,const word *codeg);
 
 //# Kernels Dummy Particle matrix order
 void MatrixOrderDummy(TpCellMode cellmode
@@ -202,29 +202,29 @@ void MatrixOrderDummy(TpCellMode cellmode
 
 //# Kernels for finding the freesurface
 void FreeSurfaceFind(bool psimple,TpCellMode cellmode
-  ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,tuint3 ncells
+  ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop
   ,const word *code,const unsigned *idp,float *divr);
 
 //# Kernels for Populating matrix B
 void PopulateMatrixB(bool psimple,TpCellMode cellmode
-  ,const unsigned bsfluid,unsigned np,unsigned npb,tuint3 ncells
+  ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
   ,const float4 *velrhop,float3 *dwxcorrg,float3 *dwzcorrg,double *matrixb
-  ,const unsigned *porder,const unsigned *idp,const double dt,const unsigned ppedim,const float *divr);
+  ,const unsigned *porder,const unsigned *idp,const double dt,const unsigned ppedim,const float *divr,const word *code);
 
 //# Kernels for matrix storage
 void MatrixStorage(bool psimple,TpCellMode cellmode
-  ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,tuint3 ncells
+  ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop
   ,const word *code,const unsigned *idp,float *divr,const unsigned *porder,int *row);
 
 //# Kernels for Populating matrix A
 void PopulateMatrixA(bool psimple,TpCellMode cellmode
-  ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,tuint3 ncells
+  ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell,const tfloat3 gravity,const double2 *posxy
   ,const double *posz,const float4 *pospress,const float4 *velrhop,double *matrixInd,double *matrixb
   ,int *row,int *col,const unsigned *porder,const unsigned *idp,const unsigned ppedim

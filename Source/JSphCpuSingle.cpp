@@ -31,6 +31,7 @@
 #include <vector>
 
 using namespace std;
+
 //==============================================================================
 // Constructor.
 //==============================================================================
@@ -607,7 +608,7 @@ double JSphCpuSingle::ComputeStep_Sym(){
   PreInteraction_Forces(INTER_Forces);
   RunCellDivide(true);
   if(Psimple)PreparePosSimple();
-  //Boundary_Velocity();
+  Boundary_Velocity();
   Interaction_Forces(INTER_Forces);      //-Interaction / Interaccion
   //const double ddt_p=DtVariable(false);   //-Calculate dt of predictor step / Calcula dt del predictor
   //if(TShifting)RunShifting(dt*.5);        //-Shifting
@@ -1097,10 +1098,8 @@ void JSphCpuSingle::RunShifting(double dt){
 
   ShiftPosc=ArraysCpu->ReserveFloat3();
   ShiftDetectc=ArraysCpu->ReserveFloat();
-  avConc=ArraysCpu->ReserveFloat();
   memset(ShiftPosc,0,sizeof(tfloat3)*np);               //ShiftPosc[]=0
   memset(ShiftDetectc,0,sizeof(float)*np);           //ShiftDetectc[]=0
-  memset(avConc,0,sizeof(float)*np);
 
   #ifdef _WITHOMP
       #pragma omp parallel for schedule (static)
@@ -1108,20 +1107,14 @@ void JSphCpuSingle::RunShifting(double dt){
     for(int i=0;i<int(Np);i++){
       PosPrec[i]=Posc[i];
       VelrhopPrec[i]=Velrhopc[i];
-      Velrhopc[i].w=0;
   }
 
   RunCellDivide(true);
      
   PreparePosSimple();
 
-  JSphCpu::Interaction_Shifting(Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,PsPosc,Velrhopc,Idpc,Codec,ShiftPosc,ShiftDetectc,avConc);
-  #ifdef _WITHOMP
-      #pragma omp parallel for schedule (static)
-    #endif
-  for(int i=0;i<int(Np);i++){
-      Velrhopc[i].w=ShiftPosc[i].x;
-  }
+  JSphCpu::Interaction_Shifting(Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,PsPosc,Velrhopc,Idpc,Codec,ShiftPosc,ShiftDetectc);
+
   JSphCpu::RunShifting(dt);
 
   Shift(dt);
@@ -1130,5 +1123,4 @@ void JSphCpuSingle::RunShifting(double dt){
   ArraysCpu->Free(ShiftPosc);    ShiftPosc=NULL;
   ArraysCpu->Free(ShiftDetectc); ShiftDetectc=NULL;
   ArraysCpu->Free(VelrhopPrec);  VelrhopPrec=NULL;
-  ArraysCpu->Free(avConc);  avConc=NULL;
 }

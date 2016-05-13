@@ -545,7 +545,7 @@ double JSphGpuSingle::ComputeStep_Sym(){
   PosInteraction_Forces(INTER_Forces);                //-Libera memoria de interaccion //-Releases memory of the interaction
   //-Pressure Poisson equation
   //-----------
-  KernelCorrection(false); //POSIBLE BUG??? Doesn't work when bool is true here
+  KernelCorrection(false);
   SolvePPE(dt); //-Solve pressure Poisson equation
   //-Corrector
   //-----------
@@ -756,6 +756,7 @@ void JSphGpuSingle::FindIrelation(){
 //==============================================================================
 void JSphGpuSingle::KernelCorrection(bool boundary){
   const unsigned bsfluid=BlockSizes.forcesfluid;
+  const unsigned bsbound=BlockSizes.forcesbound;
 
   if(!boundary){
     dWxCorrg=ArraysGpu->ReserveFloat3();
@@ -765,7 +766,7 @@ void JSphGpuSingle::KernelCorrection(bool boundary){
   cudaMemset(dWxCorrg,0,sizeof(float3)*Np);						
   cudaMemset(dWzCorrg,0,sizeof(float3)*Np);
   
-  cusph::KernelCorrection(Psimple,boundary,CellMode,bsfluid,Np,Npb,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,dWxCorrg,dWzCorrg);
+  cusph::KernelCorrection(Psimple,boundary,CellMode,bsfluid,bsbound,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,dWxCorrg,dWzCorrg,Codeg);
 }
 
 //==============================================================================
@@ -805,8 +806,9 @@ void JSphGpuSingle::SolvePPE(double dt){
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
 
   const unsigned *dcell=Dcellg;
-  const unsigned np = Np;
+  const unsigned np=Np;
   const unsigned npb=Npb;
+  const unsigned npbok=NpbOk;
   const unsigned npf = np - npb;
   unsigned PPEDim=0;
   const unsigned bsbound=BlockSizes.forcesbound;
@@ -816,19 +818,19 @@ void JSphGpuSingle::SolvePPE(double dt){
   Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
 
   MatrixOrder(np,0,bsbound,POrderg,ncells,begincell,cellmin,Dcellg,Idpg,Irelationg,Codeg,PPEDim);  // cleanup plan
-  cusph::FreeSurfaceFind(Psimple,CellMode,bsbound,bsfluid,np,npb,ncells,begincell,cellmin,Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,Divrg);
+  cusph::FreeSurfaceFind(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,Divrg);
   //Create matrix
   cudaMalloc((void**)&b,sizeof(double)*PPEDim); cudaMemset(b,0,sizeof(double)*PPEDim);
   cudaMalloc((void**)&X,sizeof(double)*PPEDim); cudaMemset(X,0,sizeof(double)*PPEDim);
   cudaMalloc((void**)&rowInd,sizeof(int)*(PPEDim+1)); cudaMemset(rowInd,0,sizeof(int)*(PPEDim+1));
 
-  cusph::PopulateMatrixB(Psimple,CellMode,bsfluid,np,npb,ncells,begincell,cellmin,Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,dWxCorrg,dWzCorrg,b,POrderg,Idpg,dt,PPEDim,Divrg);
+  cusph::PopulateMatrixB(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,dWxCorrg,dWzCorrg,b,POrderg,Idpg,dt,PPEDim,Divrg,Codeg);
 
-  cusph::MatrixStorage(Psimple,CellMode,bsbound,bsfluid,np,npb,ncells,begincell,cellmin,Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,Divrg,POrderg,rowInd);
+  cusph::MatrixStorage(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,Divrg,POrderg,rowInd);
   unsigned Nnz=MatrixASetup(PPEDim,rowInd);
   cudaMalloc((void**)&a,sizeof(double)*Nnz); cudaMemset(a,0,sizeof(double)*Nnz);
   cudaMalloc((void**)&colInd,sizeof(int)*Nnz); cusph::InitArrayCol(Nnz,colInd,int(PPEDim));
-  cusph::PopulateMatrixA(Psimple,CellMode,bsbound,bsfluid,np,npb,ncells,begincell,cellmin,Dcellg,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,a,b,rowInd,colInd,POrderg,Idpg,PPEDim,Divrg,Codeg,Irelationg);
+  cusph::PopulateMatrixA(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,Dcellg,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,a,b,rowInd,colInd,POrderg,Idpg,PPEDim,Divrg,Codeg,Irelationg);
   
   int *row; int *col; double *values;
   row=new int[PPEDim+1]; col=new int[Nnz]; values=new double[Nnz];
@@ -843,5 +845,6 @@ void JSphGpuSingle::SolvePPE(double dt){
   ArraysGpu->Free(POrderg);       POrderg=NULL;
   ArraysGpu->Free(Divrg);		      Divrg=NULL;
   cudaFree(b); cudaFree(X); cudaFree(a); cudaFree(rowInd); cudaFree(colInd);
+  
 }
 

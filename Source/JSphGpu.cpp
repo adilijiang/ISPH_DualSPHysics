@@ -1197,8 +1197,11 @@ void JSphGpu::MatrixOrder(unsigned n,unsigned pinit,unsigned bsbound,unsigned *p
   cudaMemcpy(Code,Codeg,sizeof(word)*n ,cudaMemcpyDeviceToHost);
   unsigned index=0;
 	for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(Code[p1])==0){
-    POrderc[p1]=index;
-    index++;
+    if(p1<int(Npb)&&p1>=int(NpbOk))POrderc[p1]=n;
+    else{
+      POrderc[p1]=index;
+      index++;
+    }
   }
   cudaMemcpy(porder,POrderc,sizeof(unsigned)*n,cudaMemcpyHostToDevice);
   
