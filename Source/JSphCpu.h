@@ -294,7 +294,6 @@ protected:
 
   void solveVienna(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz);
  
-
   void Interaction_Shifting(unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tfloat3 *pspos,const tfloat4 *velrhop,const unsigned *idp,const word *code
@@ -307,6 +306,20 @@ protected:
   ,TpShifting tshifting,tfloat3 *shiftpos,float *shiftdetect)const;
 
   void Shift(double dt);
+
+   std::vector<int> rowIndDummy;
+   std::vector<int> DummyInteract;
+   std::vector<float> DummyKernelSum;
+   void MatrixOrderAdami(unsigned n,unsigned pinit,unsigned *porder,const unsigned *idpc,const unsigned *irelation,word *code,unsigned &ppeDim,unsigned &ppedimDummy,const float *divr);
+  void MatrixStorageAdamiDummy(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
+	  float *divr,std::vector<int> &rowDummy,std::vector<float> &dummykernelsum,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedimDummy,unsigned &nnz)const;
+  void MatrixStorageAdamiDummyInteractions(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
+	  float *divr,std::vector<int> &rowDummy,std::vector<int> &DummyInteract,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedimDummy)const;
+  void MatrixStorageAdami(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
+	  float *divr,std::vector<int> &row,std::vector<int> &rowDummy,std::vector<int> &dummyInteract,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim)const;
+   void PopulateMatrixAAdami(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &rowDummy,std::vector<int> &dummyInteract,
+    std::vector<float> &dummykernelsum,std::vector<int> &col,std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned *irelation,const unsigned ppedim,const unsigned ppedimdummy,const double dt)const;
 public:
   JSphCpu(bool withmpi);
   ~JSphCpu();

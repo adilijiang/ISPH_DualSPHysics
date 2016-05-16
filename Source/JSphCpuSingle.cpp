@@ -1026,11 +1026,13 @@ void JSphCpuSingle::SolvePPE(double dt){
   const unsigned npbok=NpbOk;
   const unsigned npf=np -npb;
   unsigned PPEDim=0;
+  unsigned PPEDimDummy=0;
 
   //Matrix Order and Free Surface
   POrder=ArraysCpu->ReserveUint(); memset(POrder,np,sizeof(unsigned)*np);
   Divr=ArraysCpu->ReserveFloat(); memset(Divr,0,sizeof(float)*np);
-  MatrixOrder(np,0,POrder,Idpc,Irelationc,Codec,PPEDim,Divr);
+  //MatrixOrder(np,0,POrder,Idpc,Irelationc,Codec,PPEDim,Divr);
+  MatrixOrderAdami(np,0,POrder,Idpc,Irelationc,Codec,PPEDim,PPEDimDummy,Divr);
   FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Fluid
   FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Bound
   FreeSurfaceFind(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Bound-Fluid
@@ -1043,29 +1045,37 @@ void JSphCpuSingle::SolvePPE(double dt){
   PopulateMatrixB(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr); //-Bound-Fluid
   PopulateMatrixB(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr); //-Bound-Bound
   rowInd.resize(PPEDim+1,0);
-  unsigned Nnz=0; 
-
+   
   for(int i=0;i<int(PPEDim);i++){
     const double bdt=b[i]/dt;
     b[i]=bdt;
   }
   
-
+  unsigned Nnz=0;
+  unsigned NnzDummy=0;
   //Organising storage for parallelism
-  MatrixStorage(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Fluid-Fluid
-  MatrixStorage(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Fluid-Fluid
+  /*MatrixStorage(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Fluid-Fluid
+  MatrixStorage(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Fluid-Bound
   MatrixStorage(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Bound-Fluid
-  MatrixStorage(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Bound-Bound
+  MatrixStorage(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Bound-Bound*/
+  rowIndDummy.resize(PPEDimDummy+1,0);
+  DummyKernelSum.resize(PPEDimDummy,0);
+  MatrixStorageAdamiDummy(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowIndDummy,DummyKernelSum,POrder,Idpc,Codec,PPEDimDummy,NnzDummy);
+  DummyInteract.resize(NnzDummy,0);
+  MatrixStorageAdamiDummyInteractions(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowIndDummy,DummyInteract,POrder,Idpc,Codec,PPEDimDummy);
+  MatrixStorageAdami(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,rowIndDummy,DummyInteract,POrder,Idpc,Codec,PPEDim);
+  MatrixStorageAdami(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,rowIndDummy,DummyInteract,POrder,Idpc,Codec,PPEDim);
   MatrixASetup(PPEDim,Nnz,rowInd); 
   colInd.resize(Nnz,PPEDim); 
   a.resize(Nnz,0);
-
+  std::cout<<PPEDim<<"\t"<<Nnz<<"\t"<<PPEDimDummy<<"\n";
   //LHS
-  PopulateMatrixAInteractFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim);
-  PopulateMatrixAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); 
-  PopulateMatrixAInteractFluid(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim); 
-  PopulateMatrixAInteractBound(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); 
-
+  PopulateMatrixAInteractFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim);//-Fluid-Fluid
+  PopulateMatrixAAdami(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,rowIndDummy,DummyInteract,DummyKernelSum,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,PPEDimDummy,dt); //-Fluid-Bound
+  //PopulateMatrixAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim);//-Fluid-Bound
+  PopulateMatrixAInteractFluid(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim); //-Fluid-Fluid
+  PopulateMatrixAAdami(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,rowIndDummy,DummyInteract,DummyKernelSum,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,PPEDimDummy,dt); //-Fluid-Bound
+  //PopulateMatrixAInteractBound(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); //-Fluid-Bound
   FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
   FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
   // allocate vectors
@@ -1076,7 +1086,7 @@ void JSphCpuSingle::SolvePPE(double dt){
   solveVienna(a,b,x,rowInd,colInd,PPEDim,Nnz); 
 #endif
   
-  PressureAssign(Psimple,np,0,Posc,PsPosc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb,Divr);
+  PressureAssign(Psimple,np,0,Posc,PsPosc,Velrhopc,Idpc,Irelationc,POrder,b,Codec,npb,Divr);
 
   b.clear();
   a.clear();
