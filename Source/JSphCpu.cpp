@@ -912,7 +912,6 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
     //tsymatrix3f gradvelp1={0,0,0,0,0,0};
     //tfloat3 shiftposp1=TFloat3(0);
     //float shiftdetectp1=0;
-
     //-Obtain data of particle p1 in case of floating objects / Obtiene datos de particula p1 en caso de existir floatings.
     /*bool ftp1=false;     //-Indicate if it is floating / Indica si es floating.
     float ftmassp1=1.f;  //-Contains floating particle mass or 1.0f if it is fluid / Contiene masa de particula floating o 1.0f si es fluid.
@@ -1061,7 +1060,6 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
       if(tinter==1)ace[p1]=ace[p1]+acep1;
 	    if(tinter==2){
 		    ace[p1]=ace[p1]+acep1/RhopZero;
-
       }
       /*const int th=omp_get_thread_num();
       if(visc>viscth[th*STRIDE_OMP])viscth[th*STRIDE_OMP]=visc;
@@ -1083,6 +1081,68 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
   //for(int th=0;th<OmpThreads;th++)if(viscdt<viscth[th*STRIDE_OMP])viscdt=viscth[th*STRIDE_OMP];
 }
 
+template<bool psimple> void JSphCpu::PressureBoundaryCorrection
+  (unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial
+  ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
+  ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,const float *divr,tfloat3 *ace)const
+{
+  const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
+  //-Initialize viscth to calculate viscdt maximo con OpenMP / Inicializa viscth para calcular visdt maximo con OpenMP.
+  float viscth[MAXTHREADS_OMP*STRIDE_OMP];
+  for(int th=0;th<OmpThreads;th++)viscth[th*STRIDE_OMP]=0;
+  //-Initial execution with OpenMP / Inicia ejecucion con OpenMP.
+  const int pfin=int(pinit+n);
+  /*#ifdef _WITHOMP
+    #pragma omp parallel for schedule (guided)
+  #endif*/
+  for(int p1=int(pinit);p1<pfin;p1++){
+    //-Obtain data of particle p1 / Obtiene datos de particula p1.
+    const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
+    //const float rhopp1=velrhop[p1].w;
+    const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
+    const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
+    const float pressp1=velrhop[p1].w;
+    //const tsymatrix3f taup1=(lamsps? tau[p1]: gradvelp1);
+    
+    //-Obtain interaction limits / Obtiene limites de interaccion
+    int cxini,cxfin,yini,yfin,zini,zfin;
+    GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+    //-Search for neighbours in adjacent cells / Busqueda de vecinos en celdas adyacentes.
+    for(int z=zini;z<zfin;z++){
+      const int zmod=(nc.w)*z+cellinitial; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
+      for(int y=yini;y<yfin;y++){
+        int ymod=zmod+nc.x*y;
+        const unsigned pini=beginendcell[cxini+ymod];
+        const unsigned pfin=beginendcell[cxfin+ymod];
+
+        //-Interaction of Fluid with type Fluid or Bound / Interaccion de Fluid con varias Fluid o Bound.
+        //------------------------------------------------
+        for(unsigned p2=pini;p2<pfin;p2++){
+          const float drx=(psimple? psposp1.x-pspos[p2].x: float(posp1.x-pos[p2].x));
+          const float dry=(psimple? psposp1.y-pspos[p2].y: float(posp1.y-pos[p2].y));
+          const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
+          const float rr2=drx*drx+dry*dry+drz*drz;
+          if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
+            //-Wendland kernel.
+            float frx,fry,frz;
+            GetKernel(rr2,drx,dry,drz,frx,fry,frz);
+			
+            //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
+            float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
+			      const float volumep2=massp2/RhopZero; //Volume of particle j
+            //bool ftp2=false;    //-Indicate if it is floating / Indica si es floating.
+            bool compute=true;  //-Deactivate when using DEM and if it is of type float-float or float-bound /  Se desactiva cuando se usa DEM y es float-float o float-bound.
+  
+            if(boundp2 && Divr[p1] < 1.6f && Divr[p2] < 1.6f){
+                if((drx>0 && ace[p1].x < 0) || (drx<0 && ace[p1].x > 0)) ace[p1].x=0;
+                if((drz>0 && (ace[p1].z-Gravity.z) < 0) || (drz<0 && (ace[p1].z-Gravity.z) > 0)) ace[p1].z=Gravity.z;
+            }
+          }
+        }
+      }
+    }
+  }
+}
 //==============================================================================
 /// Realiza interaccion DEM entre particulas Floating-Bound & Floating-Floating //(DEM)
 /// Perform DEM interaction between particles Floating-Bound & Floating-Floating //(DEM)
@@ -1247,6 +1307,7 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
 	  //-Interaction Fluid-Bound / Interaccion Fluid-Bound
     InteractionForcesFluid<psimple,ftmode,lamsps,tdelta,shift> (tinter,npf,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,spstau,spsgradvel,pos,pspos,velrhop,dwxcorr,dwzcorr,code,idp,press,viscdt,ar,ace,delta,tshifting,shiftpos,shiftdetect);
 
+    //if(tinter==2)PressureBoundaryCorrection<psimple>(npf,npb,nc,hdiv,0,begincell,cellzero,dcell,pos,pspos,velrhop,Divr,ace);
     //-Interaction of DEM Floating-Bound & Floating-Floating / Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
     //if(USE_DEM)InteractionForcesDEM<psimple> (CaseNfloat,nc,hdiv,cellfluid,begincell,cellzero,dcell,FtRidp,DemObjs,pos,pspos,velrhop,code,idp,viscdt,ace);
 
@@ -1725,7 +1786,7 @@ void JSphCpu::RunShifting(double dt){
   const double coeftfs=(Simulate2D? 2.0: 3.0)-ShiftTFS;
   const double ShiftOffset=0.2;
   const int pini=int(Npb),pfin=int(Np),npf=int(Np-Npb);
-  const double difThreshold=0.5*double(H)*double(H);
+  const double difThreshold=0.1*double(H)*double(H);
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (static) if(npf>LIMIT_COMPUTELIGHT_OMP)
   #endif
@@ -1733,24 +1794,40 @@ void JSphCpu::RunShifting(double dt){
     double vx=double(Velrhopc[p].x);
     double vy=double(Velrhopc[p].y);
     double vz=double(Velrhopc[p].z);
-    double umagn=-difThreshold;//double(ShiftCoef)*double(H)*sqrt(vx*vx+vy*vy+vz*vz)*dt;
-    //if(abs(umagn)<difThreshold) umagn=-difThreshold; //Minimum shifting
+    double umagn=-difThreshold;// double(ShiftCoef)*double(H)*sqrt(vx*vx+vy*vy+vz*vz)*dt;
+
+   //if(abs(umagn)<difThreshold) umagn=-difThreshold; //Minimum shifting
     //if(ShiftDetectc[p]<ShiftTFS) umagn=0;
-    if(ShiftDetectc[p]<ShiftTFS){ //Particles near to free-surface, eliminate shifting in direction normal to free surface
-      double NormX=-ShiftPosc[p].x;
-      double NormZ=-ShiftPosc[p].z;
-      double temp=NormX*NormX+NormZ*NormZ;
-      temp=sqrt(temp);
-      NormX=NormX/temp;
-      NormZ=NormZ/temp;
-      double TangX=-NormZ;
-      double TangZ=NormX;
-      temp=TangX*ShiftPosc[p].x+TangZ*ShiftPosc[p].z;
-      ShiftPosc[p].x=temp*TangX;
-      ShiftPosc[p].z=temp*TangZ;
+    if(ShiftDetectc[p]<ShiftTFS){
+      if(nearBound[p]==1 && (Velrhopc[p].x||Velrhopc[p].z)){ //Particles at free-surface, eliminate shifting in direction normal to free surface
+        double NormX=Velrhopc[p].x;
+        double NormZ=Velrhopc[p].z;
+        double temp=NormX*NormX+NormZ*NormZ;
+        temp=sqrt(temp);
+        NormX=NormX/temp;
+        NormZ=NormZ/temp;
+        double TangX=-NormZ;
+        double TangZ=NormX;
+        temp=TangX*ShiftPosc[p].x+TangZ*ShiftPosc[p].z;
+        ShiftPosc[p].x=temp*TangX;
+        ShiftPosc[p].z=temp*TangZ;
+      }
+      else{
+        double NormX=-ShiftPosc[p].x;
+        double NormZ=-ShiftPosc[p].z;
+        double temp=NormX*NormX+NormZ*NormZ;
+        temp=sqrt(temp);
+        NormX=NormX/temp;
+        NormZ=NormZ/temp;
+        double TangX=-NormZ;
+        double TangZ=NormX;
+        temp=TangX*ShiftPosc[p].x+TangZ*ShiftPosc[p].z;
+        ShiftPosc[p].x=temp*TangX;
+        ShiftPosc[p].z=temp*TangZ;
+      }
     }
 
-    if(ShiftDetectc[p]>=ShiftTFS && ShiftDetectc[p]<=ShiftTFS+ShiftOffset){ //Particles near to free-surface, eliminate shifting in direction normal to free surface
+    if(ShiftDetectc[p]>=ShiftTFS && ShiftDetectc[p]<=ShiftTFS+ShiftOffset){ 
       double NormX=-ShiftPosc[p].x;
       double NormZ=-ShiftPosc[p].z;
       double temp=NormX*NormX+NormZ*NormZ;
@@ -1768,10 +1845,16 @@ void JSphCpu::RunShifting(double dt){
         
     ShiftPosc[p]=ToTFloat3(ToTDouble3(ShiftPosc[p])*umagn); //particles in fluid bulk, normal shifting
 
-    //Max Shifting
+    /*//Max Shifting
     double temp=sqrt(ShiftPosc[p].x*ShiftPosc[p].x+ShiftPosc[p].z*ShiftPosc[p].z); 
-    if(abs(ShiftPosc[p].x)>0.1*Dp)ShiftPosc[p].x=0.1*Dp*ShiftPosc[p].x/temp;
-    if(abs(ShiftPosc[p].z)>0.1*Dp)ShiftPosc[p].z=0.1*Dp*ShiftPosc[p].z/temp;
+    if(abs(ShiftPosc[p].x)>0.1*Dp){
+      ShiftPosc[p].x=0.1*Dp*ShiftPosc[p].x/temp;
+      std::cout<<Idpc[p]<<"x\n";
+    }
+    if(abs(ShiftPosc[p].z)>0.1*Dp){
+      ShiftPosc[p].z=0.1*Dp*ShiftPosc[p].z/temp;
+      std::cout<<Idpc[p]<<"z\n";
+    }*/
   }
   TmcStop(Timers,TMC_SuShifting);
 }
@@ -2325,7 +2408,8 @@ void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 			        const float volume=massp2/RhopZero; //Volume of particle j
 
 			        //=====Divergence of velocity==========
-			        const float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
+							const float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
+							
 			        const float temp_x=frx*dwxcorr[p1].x+frz*dwzcorr[p1].x;
 			        const float temp_z=frx*dwxcorr[p1].z+frz*dwzcorr[p1].z;
 			        float temp=dvx*temp_x+dvz*temp_z;
@@ -2907,11 +2991,11 @@ void JSphCpu::PressureAssign(bool psimple,unsigned n,unsigned pinit,const tdoubl
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(code[p1])==0&&porder[p1]!=2*n){
+  for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(code[p1])==0&&porder[p1]!=n){
     velrhop[p1].w=float(x[porder[p1]]);
   }
 
-  /*#ifdef _WITHOMP
+  #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
   for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==1&&porder[p1]!=n){
@@ -2926,7 +3010,7 @@ void JSphCpu::PressureAssign(bool psimple,unsigned n,unsigned pinit,const tdoubl
       if(divr[p2k]>0.0)velrhop[p1].w=float(x[porder[p1]])+RhopZero*fabs(Gravity.z)*drz;
       else velrhop[p1].w=RhopZero*fabs(Gravity.z)*drz;
     }
-  }*/
+  }
 }
 
 #ifndef _WITHGPU
@@ -3024,8 +3108,8 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
   for(int p1=int(pinit);p1<pfin;p1++){
    
     tfloat3 shiftposp1=TFloat3(0);
-    float shiftdetectp1=0;
-    bool boundaryShift=false;
+    //float shiftdetectp1=0;
+
     //-Obtain data of particle p1 in case of floating objects / Obtiene datos de particula p1 en caso de existir floatings.
     //bool ftp1=false;     //-Indicate if it is floating / Indica si es floating.
     //float ftmassp1=1.f;  //-Contains floating particle mass or 1.0f if it is fluid / Contiene masa de particula floating o 1.0f si es fluid.
@@ -3062,6 +3146,7 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
           const float rr2=drx*drx+dry*dry+drz*drz;
 
           if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
+            if(boundp2) nearBound[p1]=1;
             //-Wendland kernel.
             float frx,fry,frz;
             GetKernel(rr2,drx,dry,drz,frx,fry,frz);
@@ -3078,29 +3163,28 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
               if(ftp2 && tshifting==SHIFT_NoBound)shiftposp1.x=FLT_MAX; //-With floating objects do not use shifting / Con floatings anula shifting.
               compute=!(USE_DEM && ftp1 && (boundp2 || ftp2)); //-Deactivate when using DEM and if it is of type float-float or float-bound / Se desactiva cuando se usa DEM y es float-float o float-bound.
             }*/
-            if(boundp2){
-              if(sqrtf(rr2)<=Dp) boundaryShift=true;
-            }
+
             //-Shifting correction
             //if(shiftposp1.x!=FLT_MAX){
+              float n;
+              if(shiftdetect[p1]<1.8f)n=0.4f;
+              else n=0.1f;
               const float massrhop=massp2/RhopZero;
-              const float tensile=0.2f*powf(GetKernelWab(rr2)/Wab1,4.0);
+              const float tensile=n*powf(GetKernelWab(rr2)/Wab1,4.0);
              
               //const bool noshift=(boundp2 && (tshifting==SHIFT_NoBound || (tshifting==SHIFT_NoFixed && CODE_GetType(code[p2])==CODE_TYPE_FIXED)));
               shiftposp1.x+=massrhop*(1.0+tensile)*frx; //-For boundary do not use shifting / Con boundary anula shifting.
               shiftposp1.y+=massrhop*(1.0+tensile)*fry;
               shiftposp1.z+=massrhop*(1.0+tensile)*frz;
-              shiftdetectp1-=massrhop*(drx*frx+dry*fry+drz*frz);
+              //shiftdetectp1-=massrhop*(drx*frx+dry*fry+drz*frz);
             //}
           }
         }
       }
     }
       
-    shiftpos[p1]=shiftpos[p1]+shiftposp1;   
-    shiftdetect[p1]+=shiftdetectp1;
-
-    //if(boundaryShift&&shiftdetect[p1]<ShiftTFS) shiftpos[p1].x=0; shiftpos[p1].y=0; shiftpos[p1].z=0; 
+    shiftpos[p1]=shiftpos[p1]+shiftposp1; 
+    //shiftdetect[p1]+=shiftdetectp1; 
   }
 }
 

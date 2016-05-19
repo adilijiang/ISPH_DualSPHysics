@@ -50,6 +50,9 @@ void JCellDivCpuSingle::CalcCellDomain(const unsigned *dcellc,const word* codec,
   CalcCellDomainFluid(Npf1,Npb1,Npf2,Npb1+Npf1+Npb2,dcellc,codec,idpc,posc,celfmin,celfmax);
   //-Calculate domain adjusting to boundary and fluid (with halo of 2h) / Calcula dominio ajustando al contorno y al fluido (con halo de 2h). 
   MergeMapCellBoundFluid(celbmin,celbmax,celfmin,celfmax,CellDomainMin,CellDomainMax);
+  celfmin=CellDomainMin;
+  celfmax=CellDomainMax;
+  MergeMapCellBoundFluid(celbmin,celbmax,celfmin,celfmax,CellDomainMin,CellDomainMax);
 }
 
 //==============================================================================
