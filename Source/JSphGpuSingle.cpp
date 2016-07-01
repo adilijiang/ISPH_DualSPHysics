@@ -553,10 +553,10 @@ double JSphGpuSingle::ComputeStep_Sym(){
   KernelCorrection(true);
   Interaction_Forces(INTER_ForcesCorr,dt);   //-Interaccion //-interaction
   //const double ddt_c=DtVariable(true);    //-Calcula dt del corrector //Computes dt in the corrector step
-  //if(TShifting)RunShifting(dt);           //-Shifting
   ComputeSymplecticCorr(dt);              //-Aplica Symplectic-Corrector a las particulas //Applies Symplectic-Corrector to the particles
   //if(CaseNfloat)RunFloating(dt,false);    //-Gestion de floating bodies //-Management of the floating bodies
   PosInteraction_Forces(INTER_ForcesCorr);                //-Libera memoria de interaccion //-Releases memory of the interaction
+  if(TShifting)RunShifting(dt);           //-Shifting
   //DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep //-Computes dt for the next ComputeStep
   return(dt);
 }
@@ -781,11 +781,13 @@ void JSphGpuSingle::InitAdvection(double dt){
     cudaMemcpy(PosxyPreg,Posxyg,sizeof(double2)*Np,cudaMemcpyDeviceToDevice);     //Es decir... PosxyPre[] <= Posxy[] //i.e. PosxyPre[] <= Posxy[]
     cudaMemcpy(PoszPreg,Poszg,sizeof(double)*Np,cudaMemcpyDeviceToDevice);        //Es decir... PoszPre[] <= Posz[] //i.e. PoszPre[] <= Posz[]
     cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*Np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
-	  //-Copia posicion anterior del contorno.
+	  cudaMemset(Velrhopg,0,sizeof(float4)*Npb);
+
+    //-Copia posicion anterior del contorno.
     //-Copies previous position of the boundaries.
     cudaMemcpy(Posxyg,PosxyPreg,sizeof(double2)*Npb,cudaMemcpyDeviceToDevice);
     cudaMemcpy(Poszg,PoszPreg,sizeof(double)*Npb,cudaMemcpyDeviceToDevice);
-
+    
     double2 *movxyg=ArraysGpu->ReserveDouble2();
     double *movzg=ArraysGpu->ReserveDouble();
     
@@ -832,15 +834,15 @@ void JSphGpuSingle::SolvePPE(double dt){
   cudaMalloc((void**)&colInd,sizeof(int)*Nnz); cusph::InitArrayCol(Nnz,colInd,int(PPEDim));
   cusph::PopulateMatrixA(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,Dcellg,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,a,b,rowInd,colInd,POrderg,Idpg,PPEDim,Divrg,Codeg,Irelationg);
   
-  int *row; int *col; double *values;
-  row=new int[PPEDim+1]; col=new int[Nnz]; values=new double[Nnz];
-  cudaMemcpy(row,rowInd,sizeof(int)*(PPEDim+1),cudaMemcpyDeviceToHost);
-  cudaMemcpy(col,colInd,sizeof(int)*Nnz,cudaMemcpyDeviceToHost);
-  cudaMemcpy(values,a,sizeof(double)*Nnz,cudaMemcpyDeviceToHost); 
+  //int *row; int *col; double *values;
+  //row=new int[PPEDim+1]; col=new int[Nnz]; values=new double[Nnz];
+  //cudaMemcpy(row,rowInd,sizeof(int)*(PPEDim+1),cudaMemcpyDeviceToHost);
+  //cudaMemcpy(col,colInd,sizeof(int)*Nnz,cudaMemcpyDeviceToHost);
+  //cudaMemcpy(values,a,sizeof(double)*Nnz,cudaMemcpyDeviceToHost); 
   
   cusph::solveVienna(a,X,b,rowInd,colInd,Nnz,PPEDim); 
- 
-  cusph::PressureAssign(Psimple,bsbound,bsfluid,np,npb,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,X,POrderg,Idpg,Codeg,Irelationg);
+  unsigned *irelation; irelation = new unsigned[Npb];
+  cusph::PressureAssign(Psimple,bsbound,bsfluid,np,npb,npbok,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,X,POrderg,Idpg,Codeg,Irelationg);
 
   ArraysGpu->Free(POrderg);       POrderg=NULL;
   ArraysGpu->Free(Divrg);		      Divrg=NULL;

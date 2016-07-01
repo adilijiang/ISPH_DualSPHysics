@@ -321,11 +321,6 @@ protected:
 	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &rowDummy,std::vector<int> &dummyInteract,
     std::vector<float> &dummykernelsum,std::vector<int> &col,std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned *irelation,const unsigned ppedim,const unsigned ppedimdummy,const double dt)const;
 
-  template<bool psimple> void PressureBoundaryCorrection
-  (unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial
-  ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
-  ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,const float *divr,tfloat3 *ace)const;
-
 public:
   JSphCpu(bool withmpi);
   ~JSphCpu();

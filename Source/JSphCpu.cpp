@@ -1081,68 +1081,6 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
   //for(int th=0;th<OmpThreads;th++)if(viscdt<viscth[th*STRIDE_OMP])viscdt=viscth[th*STRIDE_OMP];
 }
 
-template<bool psimple> void JSphCpu::PressureBoundaryCorrection
-  (unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial
-  ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
-  ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,const float *divr,tfloat3 *ace)const
-{
-  const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
-  //-Initialize viscth to calculate viscdt maximo con OpenMP / Inicializa viscth para calcular visdt maximo con OpenMP.
-  float viscth[MAXTHREADS_OMP*STRIDE_OMP];
-  for(int th=0;th<OmpThreads;th++)viscth[th*STRIDE_OMP]=0;
-  //-Initial execution with OpenMP / Inicia ejecucion con OpenMP.
-  const int pfin=int(pinit+n);
-  /*#ifdef _WITHOMP
-    #pragma omp parallel for schedule (guided)
-  #endif*/
-  for(int p1=int(pinit);p1<pfin;p1++){
-    //-Obtain data of particle p1 / Obtiene datos de particula p1.
-    const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
-    //const float rhopp1=velrhop[p1].w;
-    const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
-    const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
-    const float pressp1=velrhop[p1].w;
-    //const tsymatrix3f taup1=(lamsps? tau[p1]: gradvelp1);
-    
-    //-Obtain interaction limits / Obtiene limites de interaccion
-    int cxini,cxfin,yini,yfin,zini,zfin;
-    GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
-    //-Search for neighbours in adjacent cells / Busqueda de vecinos en celdas adyacentes.
-    for(int z=zini;z<zfin;z++){
-      const int zmod=(nc.w)*z+cellinitial; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
-      for(int y=yini;y<yfin;y++){
-        int ymod=zmod+nc.x*y;
-        const unsigned pini=beginendcell[cxini+ymod];
-        const unsigned pfin=beginendcell[cxfin+ymod];
-
-        //-Interaction of Fluid with type Fluid or Bound / Interaccion de Fluid con varias Fluid o Bound.
-        //------------------------------------------------
-        for(unsigned p2=pini;p2<pfin;p2++){
-          const float drx=(psimple? psposp1.x-pspos[p2].x: float(posp1.x-pos[p2].x));
-          const float dry=(psimple? psposp1.y-pspos[p2].y: float(posp1.y-pos[p2].y));
-          const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
-          const float rr2=drx*drx+dry*dry+drz*drz;
-          if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-            //-Wendland kernel.
-            float frx,fry,frz;
-            GetKernel(rr2,drx,dry,drz,frx,fry,frz);
-			
-            //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
-            float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
-			      const float volumep2=massp2/RhopZero; //Volume of particle j
-            //bool ftp2=false;    //-Indicate if it is floating / Indica si es floating.
-            bool compute=true;  //-Deactivate when using DEM and if it is of type float-float or float-bound /  Se desactiva cuando se usa DEM y es float-float o float-bound.
-  
-            if(boundp2 && Divr[p1] < 1.6f && Divr[p2] < 1.6f){
-                if((drx>0 && ace[p1].x < 0) || (drx<0 && ace[p1].x > 0)) ace[p1].x=0;
-                if((drz>0 && (ace[p1].z-Gravity.z) < 0) || (drz<0 && (ace[p1].z-Gravity.z) > 0)) ace[p1].z=Gravity.z;
-            }
-          }
-        }
-      }
-    }
-  }
-}
 //==============================================================================
 /// Realiza interaccion DEM entre particulas Floating-Bound & Floating-Floating //(DEM)
 /// Perform DEM interaction between particles Floating-Bound & Floating-Floating //(DEM)
@@ -1307,7 +1245,6 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
 	  //-Interaction Fluid-Bound / Interaccion Fluid-Bound
     InteractionForcesFluid<psimple,ftmode,lamsps,tdelta,shift> (tinter,npf,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,spstau,spsgradvel,pos,pspos,velrhop,dwxcorr,dwzcorr,code,idp,press,viscdt,ar,ace,delta,tshifting,shiftpos,shiftdetect);
 
-    //if(tinter==2)PressureBoundaryCorrection<psimple>(npf,npb,nc,hdiv,0,begincell,cellzero,dcell,pos,pspos,velrhop,Divr,ace);
     //-Interaction of DEM Floating-Bound & Floating-Floating / Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
     //if(USE_DEM)InteractionForcesDEM<psimple> (CaseNfloat,nc,hdiv,cellfluid,begincell,cellzero,dcell,FtRidp,DemObjs,pos,pspos,velrhop,code,idp,viscdt,ace);
 
@@ -2984,21 +2921,21 @@ void JSphCpu::FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,std::vector<
 //===============================================================================
 ///Reorder pressure for particles
 //===============================================================================
-void JSphCpu::PressureAssign(bool psimple,unsigned n,unsigned pinit,const tdouble3 *pos,const tfloat3 *pspos,tfloat4 *velrhop,
+void JSphCpu::PressureAssign(bool psimple,unsigned np,unsigned pinit,const tdouble3 *pos,const tfloat3 *pspos,tfloat4 *velrhop,
   const unsigned *idpc,const unsigned *irelation,const unsigned *porder,std::vector<double> &x,const word *code,const unsigned npb,float *divr)const{
-  const int pfin=int(pinit+n);
+  const int pfin=int(pinit+np);
 
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(code[p1])==0&&porder[p1]!=n){
+  for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(code[p1])==0&&porder[p1]!=np){
     velrhop[p1].w=float(x[porder[p1]]);
   }
 
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==1&&porder[p1]!=n){
+  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==1&&porder[p1]!=np){
     const unsigned j=irelation[idpc[p1]];
     if(j!=npb){
       unsigned p2k;

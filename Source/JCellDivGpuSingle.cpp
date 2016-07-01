@@ -48,6 +48,9 @@ void JCellDivGpuSingle::CalcCellDomain(const unsigned *dcellg,const word* codeg)
   //-Calcula dominio ajustando al contorno y al fluido (con halo de 2h). 
   //-Computes the domain adjusting to the boundary and the fluid ( with 2h halo)
   MergeMapCellBoundFluid(celbmin,celbmax,celfmin,celfmax,CellDomainMin,CellDomainMax);
+  celfmin=CellDomainMin;
+  celfmax=CellDomainMax;
+  MergeMapCellBoundFluid(celbmin,celbmax,celfmin,celfmax,CellDomainMin,CellDomainMax);
 }
 
 //==============================================================================

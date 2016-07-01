@@ -901,11 +901,11 @@ void JSphGpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
   cudaMemset(ViscDtg,0,sizeof(float)*np);                                //ViscDtg[]=0
   cudaMemset(Arg,0,sizeof(float)*np);                                    //Arg[]=0
   if(Deltag)cudaMemset(Deltag,0,sizeof(float)*np);                       //Deltag[]=0
-  if(ShiftPosg)cudaMemset(ShiftPosg,0,sizeof(tfloat3)*np);               //ShiftPosg[]=0
-  if(ShiftDetectg)cudaMemset(ShiftDetectg,0,sizeof(float)*np);           //ShiftDetectg[]=0
+  //if(ShiftPosg)cudaMemset(ShiftPosg,0,sizeof(tfloat3)*np);               //ShiftPosg[]=0
+  //if(ShiftDetectg)cudaMemset(ShiftDetectg,0,sizeof(float)*np);           //ShiftDetectg[]=0
   if(tinter==1){
     cudaMemset(Aceg,0,sizeof(tfloat3)*npb);                                //Aceg[]=(0,0,0) para bound //Aceg[]=(0,0,0) for the boundary
-    cusph::InitArray(npf,Aceg+npb,Gravity);                                //Aceg[]=Gravity para fluid //Aceg[]=Gravity for the fluid
+    //cusph::InitArray(npf,Aceg+npb,Gravity);                                //Aceg[]=Gravity para fluid //Aceg[]=Gravity for the fluid
   }
   else cudaMemset(Aceg,0,sizeof(tfloat3)*np);
   if(SpsGradvelg)cudaMemset(SpsGradvelg+npb,0,sizeof(tsymatrix3f)*npf);  //SpsGradvelg[]=(0,0,0,0,0,0).
@@ -925,12 +925,12 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
   ViscDtg=ArraysGpu->ReserveFloat();
   Arg=ArraysGpu->ReserveFloat();
   Aceg=ArraysGpu->ReserveFloat3();
-  if(TDeltaSph==DELTA_DynamicExt)Deltag=ArraysGpu->ReserveFloat();
+  /*if(TDeltaSph==DELTA_DynamicExt)Deltag=ArraysGpu->ReserveFloat();
   if(TShifting!=SHIFT_None){
     ShiftPosg=ArraysGpu->ReserveFloat3();
     if(ShiftTFS)ShiftDetectg=ArraysGpu->ReserveFloat();
-  }   
-  if(TVisco==VISCO_LaminarSPS)SpsGradvelg=ArraysGpu->ReserveSymatrix3f();
+  }  
+  if(TVisco==VISCO_LaminarSPS)SpsGradvelg=ArraysGpu->ReserveSymatrix3f();*/
 
   //-Prepara datos para interaccion Pos-Simple.
   //-Prepares data for interation Pos-Simple.
@@ -970,8 +970,8 @@ void JSphGpu::PosInteraction_Forces(TpInter tinter){
 
   ArraysGpu->Free(Deltag);          Deltag=NULL;
   if(tinter==2){
-    ArraysGpu->Free(ShiftPosg);     ShiftPosg=NULL;
-    ArraysGpu->Free(ShiftDetectg);  ShiftDetectg=NULL;
+    //ArraysGpu->Free(ShiftPosg);     ShiftPosg=NULL;
+    //ArraysGpu->Free(ShiftDetectg);  ShiftDetectg=NULL;
 	  ArraysGpu->Free(dWxCorrg);	    dWxCorrg=NULL;
 	  ArraysGpu->Free(dWzCorrg);	    dWzCorrg=NULL;
     ArraysGpu->Free(PsPospressg);   PsPospressg=NULL;
@@ -1059,7 +1059,7 @@ void JSphGpu::ComputeSymplecticCorr(double dt){
   cudaMemcpy(Idp,Idpg,sizeof(unsigned)*Np,cudaMemcpyDeviceToHost);
   for(int i = 0; i <int(Np);i++)if(Idp[i]==2186||Idp[i]==1419)std::cout<<Idp[i]<<"\t"<<Debug[i].z<<"\n";
   delete[] Debug; Debug=NULL;*/
-  cusph::ComputeStepSymplecticCor(WithFloating,shift,Np,Npb,VelrhopPreg,Arg,Aceg,ShiftPosg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velrhopg);
+  cusph::ComputeStepSymplecticCor(WithFloating,shift,Np,Npb,VelrhopPreg,Arg,Aceg,ShiftPosg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velrhopg,Gravity);
   //-Aplica desplazamiento a las particulas fluid no periodicas.
   //-Applies displacement to non-periodic fluid particles.
   cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
@@ -1205,7 +1205,7 @@ void JSphGpu::MatrixOrder(unsigned n,unsigned pinit,unsigned bsbound,unsigned *p
   }
   cudaMemcpy(porder,POrderc,sizeof(unsigned)*n,cudaMemcpyHostToDevice);
   
-  cusph::MatrixOrderDummy(CellMode,bsbound,Npb,ncells,begincell,cellmin,dcell,Codeg,Idpg,irelationg,porder);
+  cusph::MatrixOrderDummy(CellMode,bsbound,n,Npb,ncells,begincell,cellmin,dcell,Codeg,Idpg,irelationg,porder);
   
   ppedim = index;
 }

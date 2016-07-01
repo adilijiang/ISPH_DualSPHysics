@@ -1689,6 +1689,7 @@ template<bool floating,bool shift> __global__ void KerComputeStepSymplecticPre
   if(p<n){
     if(p<npb){//-Particulas: Fixed & Moving //-Particles: Fixed & Moving
       float4 rvelrhop=velrhoppre[p];
+       rvelrhop.w=velrhop[p].w;
       /*rvelrhop.w=float(double(rvelrhop.w)+dtm*ar[p]);
       rvelrhop.w=(rvelrhop.w<CTE.rhopzero? CTE.rhopzero: rvelrhop.w);*/ //-Evita q las boundary absorvan a las fluidas.  //-To prevent absorption of fluid particles by boundaries.
       velrhop[p]=rvelrhop;
@@ -1697,7 +1698,6 @@ template<bool floating,bool shift> __global__ void KerComputeStepSymplecticPre
       //-Actualiza densidad.
 	  //-Updates density.
       float4 rvelrhop=velrhoppre[p];
-      rvelrhop.w=float(double(rvelrhop.w)+dtm*ar[p]);
       if(!floating || CODE_GetType(code[p])==CODE_TYPE_FLUID){//-Particulas: Fluid //-Particles: Fluid
         //-Comprueba limites de rhop.
 		//-Checks rhop limits.
@@ -1768,7 +1768,7 @@ template<bool floating,bool shift> __global__ void KerComputeStepSymplecticCor
   (unsigned n,unsigned npb
   ,const float4 *velrhoppre,const float *ar,const float3 *ace,const float3 *shiftpos
   ,double dtm,double dt,float rhopoutmin,float rhopoutmax
-  ,word *code,double2 *movxy,double *movz,float4 *velrhop)
+  ,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
   if(p<n){
@@ -1789,9 +1789,9 @@ template<bool floating,bool shift> __global__ void KerComputeStepSymplecticCor
         //-Actualiza velocidad.
 		//-Updates velocity.
         float3 race=ace[p];
-        rvelrhop.x-=float(double(race.x)*dt);
-        rvelrhop.y-=float(double(race.y)*dt);
-        rvelrhop.z-=float(double(race.z)*dt);
+        rvelrhop.x-=float(double(race.x-gravity.x)*dt);
+        rvelrhop.y-=float(double(race.y-gravity.y)*dt);
+        rvelrhop.z-=float(double(race.z-gravity.z)*dt);
         //-Comprueba limites de rhop.
 		/*//-Checks rhop limits.
         if(rvelrhop.w<rhopoutmin||rvelrhop.w>rhopoutmax){//-Solo marca como excluidas las normales (no periodicas). //-Only brands as excluded normal particles (not periodic)
@@ -1803,12 +1803,12 @@ template<bool floating,bool shift> __global__ void KerComputeStepSymplecticCor
         double dx=(double(rvelp.x)+double(rvelrhop.x))*dtm;
         double dy=(double(rvelp.y)+double(rvelrhop.y))*dtm;
         double dz=(double(rvelp.z)+double(rvelrhop.z))*dtm;
-        if(shift){
+        /*if(shift){
           const float3 rshiftpos=shiftpos[p];
           dx+=double(rshiftpos.x);
           dy+=double(rshiftpos.y);
           dz+=double(rshiftpos.z);
-        }
+        }*/
         movxy[p]=make_double2(dx,dy);
         movz[p]=dz;
       }
@@ -1829,16 +1829,16 @@ template<bool floating,bool shift> __global__ void KerComputeStepSymplecticCor
 void ComputeStepSymplecticCor(bool floating,bool shift,unsigned np,unsigned npb
   ,const float4 *velrhoppre,const float *ar,const float3 *ace,const float3 *shiftpos
   ,double dtm,double dt,float rhopoutmin,float rhopoutmax
-  ,word *code,double2 *movxy,double *movz,float4 *velrhop)
+  ,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity)
 {
   if(np){
     dim3 sgrid=GetGridSize(np,SPHBSIZE);
     if(shift){    const bool shift=true;
-      if(floating)KerComputeStepSymplecticCor<true,shift>  <<<sgrid,SPHBSIZE>>> (np,npb,velrhoppre,ar,ace,shiftpos,dtm,dt,rhopoutmin,rhopoutmax,code,movxy,movz,velrhop);
-      else        KerComputeStepSymplecticCor<false,shift> <<<sgrid,SPHBSIZE>>> (np,npb,velrhoppre,ar,ace,shiftpos,dtm,dt,rhopoutmin,rhopoutmax,code,movxy,movz,velrhop);
+      if(floating)KerComputeStepSymplecticCor<true,shift>  <<<sgrid,SPHBSIZE>>> (np,npb,velrhoppre,ar,ace,shiftpos,dtm,dt,rhopoutmin,rhopoutmax,code,movxy,movz,velrhop,gravity);
+      else        KerComputeStepSymplecticCor<false,shift> <<<sgrid,SPHBSIZE>>> (np,npb,velrhoppre,ar,ace,shiftpos,dtm,dt,rhopoutmin,rhopoutmax,code,movxy,movz,velrhop,gravity);
     }else{        const bool shift=false;
-      if(floating)KerComputeStepSymplecticCor<true,shift>  <<<sgrid,SPHBSIZE>>> (np,npb,velrhoppre,ar,ace,shiftpos,dtm,dt,rhopoutmin,rhopoutmax,code,movxy,movz,velrhop);
-      else        KerComputeStepSymplecticCor<false,shift> <<<sgrid,SPHBSIZE>>> (np,npb,velrhoppre,ar,ace,shiftpos,dtm,dt,rhopoutmin,rhopoutmax,code,movxy,movz,velrhop);
+      if(floating)KerComputeStepSymplecticCor<true,shift>  <<<sgrid,SPHBSIZE>>> (np,npb,velrhoppre,ar,ace,shiftpos,dtm,dt,rhopoutmin,rhopoutmax,code,movxy,movz,velrhop,gravity);
+      else        KerComputeStepSymplecticCor<false,shift> <<<sgrid,SPHBSIZE>>> (np,npb,velrhoppre,ar,ace,shiftpos,dtm,dt,rhopoutmin,rhopoutmax,code,movxy,movz,velrhop,gravity);
     }
   }
 }
@@ -3101,12 +3101,13 @@ __device__ void KerMatrixOrderDummyCalc
 }
 
 __global__ void KerMatrixOrderDummy
-  (unsigned n,int hdiv,uint4 nc,const int2 *begincell,int3 cellzero,const unsigned *dcell
+  (unsigned np,unsigned n,int hdiv,uint4 nc,const int2 *begincell,int3 cellzero,const unsigned *dcell
   ,const word *code,const unsigned *idp,const unsigned *irelationg,unsigned *porder)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<n){
     if(CODE_GetTypeValue(code[p1])==1){
+      porder[p1]=n;
       //-Carga datos de particula p1.
 	    //-Loads particle p1 data.
       unsigned idpg1=idp[p1];
@@ -3138,7 +3139,7 @@ __global__ void KerMatrixOrderDummy
 }
 
 void MatrixOrderDummy(TpCellMode cellmode
-  ,const unsigned bsbound,unsigned npb,tuint3 ncells
+  ,const unsigned bsbound,unsigned np,unsigned npb,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const word *code,const unsigned *idp,const unsigned *irelationg,unsigned *porder){
 
@@ -3148,7 +3149,7 @@ void MatrixOrderDummy(TpCellMode cellmode
   //-Interaccion Bound-Bound
   if(npb){
     dim3 sgridb=GetGridSize(npb,bsbound);
-    KerMatrixOrderDummy <<<sgridb,bsbound>>> (npb,hdiv,nc,begincell,cellzero,dcell,code,idp,irelationg,porder);
+    KerMatrixOrderDummy <<<sgridb,bsbound>>> (np,npb,hdiv,nc,begincell,cellzero,dcell,code,idp,irelationg,porder);
   }
 }
 //==============================================================================
@@ -3690,26 +3691,26 @@ void PopulateMatrixA(bool psimple,TpCellMode cellmode
 /// Pressure Assign
 //==============================================================================
 //------------------------------------------------------------------------------
-///Pressure Assign drx
+///Pressure Assign 
 //------------------------------------------------------------------------------
 template<bool psimple> __global__ void KerPressureAssignCode0
-  (unsigned n,unsigned pinit,float4 *velrhop,const word *code,const unsigned *porder,double *press)
+  (unsigned np,unsigned n,unsigned pinit,float4 *velrhop,const word *code,const unsigned *porder,double *press)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if(CODE_GetTypeValue(code[p1])==0) velrhop[p1].w=float(press[porder[p1]]);
+    if(CODE_GetTypeValue(code[p1])==0&&porder[p1]!=np) velrhop[p1].w=float(press[porder[p1]]);
   }
 }
 
 template<bool psimple> __global__ void KerPressureAssignCode1
-  (unsigned n,unsigned pinit,const tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *pospress
+  (unsigned np,unsigned npb,unsigned npbok,unsigned pinit,const tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *pospress
   ,float4 *velrhop,double *press,const unsigned *porder,const unsigned *idp,const word *code,const unsigned *irelationg)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
-  if(p<n){
+  if(p<npbok){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if(CODE_GetTypeValue(code[p1])==1){
+    if(CODE_GetTypeValue(code[p1])==1&&porder[p1]!=np){
       //-Obtiene datos basicos de particula p1.
   	  //-Obtains basic data of particle p1.
       double3 posdp1;
@@ -3718,9 +3719,9 @@ template<bool psimple> __global__ void KerPressureAssignCode1
       KerGetParticleData<psimple>(p1,posxy,posz,pospress,velrhop,velp1,rhopp1,posdp1,posp1,pressp1);
       
       const unsigned j=irelationg[idp[p1]];
-      if(j!=n){
+      if(j!=npb){
         unsigned p2k;
-        for(int k=int(pinit);k<n;k++) if(idp[k]==j){
+        for(int k=int(pinit);k<np;k++) if(idp[k]==j){
           p2k=k;
           break;
         }
@@ -3732,7 +3733,7 @@ template<bool psimple> __global__ void KerPressureAssignCode1
   }
 }
 
-void PressureAssign(bool psimple,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb
+void PressureAssign(bool psimple,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
   ,const tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *pospress
   ,float4 *velrhop,double *press,const unsigned *porder,const unsigned *idp,const word *code,const unsigned *irelationg){
   const unsigned npf=np-npb;
@@ -3741,14 +3742,14 @@ void PressureAssign(bool psimple,const unsigned bsbound,const unsigned bsfluid,u
     dim3 sgridf=GetGridSize(npf,bsfluid);
     dim3 sgridb=GetGridSize(npb,bsbound);
     if(psimple){
-      KerPressureAssignCode0<true> <<<sgridf,bsfluid>>> (npf,npb,velrhop,code,porder,press);
-      KerPressureAssignCode0<true> <<<sgridb,bsbound>>> (npb,0,velrhop,code,porder,press);
-      KerPressureAssignCode1<true> <<<sgridb,bsbound>>> (npb,0,gravity,posxy,posz,pospress,velrhop,press,porder,idp,code,irelationg); 
+      KerPressureAssignCode0<true> <<<sgridf,bsfluid>>> (np,npf,npb,velrhop,code,porder,press);
+      KerPressureAssignCode0<true> <<<sgridb,bsbound>>> (np,npbok,0,velrhop,code,porder,press);
+      KerPressureAssignCode1<true> <<<sgridb,bsbound>>> (np,npb,npbok,0,gravity,posxy,posz,pospress,velrhop,press,porder,idp,code,irelationg); 
     }
     else{
-      KerPressureAssignCode0<false> <<<sgridf,bsfluid>>> (npf,npb,velrhop,code,porder,press);
-      KerPressureAssignCode0<false> <<<sgridb,bsbound>>> (npb,0,velrhop,code,porder,press);
-      KerPressureAssignCode1<false> <<<sgridb,bsbound>>> (npb,0,gravity,posxy,posz,pospress,velrhop,press,porder,idp,code,irelationg); 
+      KerPressureAssignCode0<false> <<<sgridf,bsfluid>>> (np,npf,npb,velrhop,code,porder,press);
+      KerPressureAssignCode0<false> <<<sgridb,bsbound>>> (np,npbok,0,velrhop,code,porder,press);
+      KerPressureAssignCode1<false> <<<sgridb,bsbound>>> (np,npb,npbok,0,gravity,posxy,posz,pospress,velrhop,press,porder,idp,code,irelationg); 
     }
   }
 }
@@ -3832,22 +3833,23 @@ void solveVienna(double *matrixa,double *matrixx,double *matrixb,int *row,int *c
   viennacl::vector<ScalarType> vcl_vec(matrixb, viennacl::CUDA_MEMORY, ppedim);
   viennacl::vector<ScalarType> vcl_result(matrixx, viennacl::CUDA_MEMORY, ppedim);
 
-  viennacl::linalg::bicgstab_tag bicgstab(1e-5,500); 
+  viennacl::linalg::bicgstab_tag bicgstab(1e-5,2000); 
 
-  /*std::cout<<"JACOBI PRECOND" <<std::endl;
+  std::cout<<"JACOBI PRECOND" <<std::endl;
   viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_A_cuda,viennacl::linalg::jacobi_tag());
-  run_solver(vcl_A_cuda,vcl_vec,bicgstab,vcl_jacobi,vcl_result);*/
+  run_solver(vcl_A_cuda,vcl_vec,bicgstab,vcl_jacobi,vcl_result);
 
-  std::cout<<"AMG PRECOND"<<std::endl;
+  /*std::cout<<"AMG PRECOND"<<std::endl;
 
   viennacl::linalg::amg_tag amg_tag_agg_pmis;
   amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_MIS2_AGGREGATION);
-  amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_SMOOTHED_AGGREGATION);
-  amg_tag_agg_pmis.set_strong_connection_threshold(0.3);
+  amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION);
+  amg_tag_agg_pmis.set_strong_connection_threshold(0.5);
   amg_tag_agg_pmis.set_jacobi_weight(1.0);
   amg_tag_agg_pmis.set_presmooth_steps(1);
   amg_tag_agg_pmis.set_postsmooth_steps(1); 
-  run_amg(bicgstab,vcl_vec,vcl_A_cuda,"MIS2 AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,vcl_result);
+  run_amg(bicgstab,vcl_vec,vcl_A_cuda,"MIS2 AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,vcl_result);*/
+
   cudaFree(cuda_row_start); cudaFree(cuda_col_indices);
 }
 }

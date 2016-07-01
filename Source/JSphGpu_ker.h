@@ -137,7 +137,7 @@ void ComputeStepSymplecticPre(bool floating,bool shift,unsigned np,unsigned npb
 void ComputeStepSymplecticCor(bool floating,bool shift,unsigned np,unsigned npb
   ,const float4 *velrhoppre,const float *ar,const float3 *ace,const float3 *shiftpos
   ,double dtm,double dt,float rhopoutmin,float rhopoutmax
-  ,word *code,double2 *movxy,double *movz,float4 *velrhop);
+  ,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity);
 
 //# Kernels para ComputeStep (position)
 //# Kernels for ComputeStep (position)
@@ -195,7 +195,7 @@ void KernelCorrection(bool psimple,bool boundary,TpCellMode cellmode
 
 //# Kernels Dummy Particle matrix order
 void MatrixOrderDummy(TpCellMode cellmode
-  ,const unsigned bsbound,unsigned npb,tuint3 ncells
+  ,const unsigned bsbound,unsigned np,unsigned npb,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const word *code,const unsigned *idp,const unsigned *irelationg,unsigned *porder);
 
@@ -231,7 +231,7 @@ void PopulateMatrixA(bool psimple,TpCellMode cellmode
   ,const float *divr,const word *code,const unsigned *irelationg);
 
 //# Kernels for Assigning Pressure
-void PressureAssign(bool psimple,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb
+void PressureAssign(bool psimple,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
   ,const tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *pospress
  ,float4 *velrhop,double *press,const unsigned *porder,const unsigned *idp,const word *code,const unsigned *irelationg);
 
