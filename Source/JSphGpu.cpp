@@ -1229,3 +1229,27 @@ unsigned JSphGpu::MatrixASetup(const unsigned ppedim,int *rowGpu){
   
   return nnz;
 }
+
+//===============================================================================
+///Shift
+//===============================================================================
+void JSphGpu::Shift(double dt){
+  TmgStart(Timers,TMG_SuComputeStep);
+  const bool shift=TShifting!=SHIFT_None;
+  //-Asigna memoria para calcular el desplazamiento.
+  //-Allocates memory to calculate the displacement.
+  double2 *movxyg=ArraysGpu->ReserveDouble2();
+  double *movzg=ArraysGpu->ReserveDouble();
+  //-Calcula desplazamiento, velocidad y densidad.
+  //-Computes displacement, velocity and density.
+  const double dt05=dt*.5;
+  cusph::ComputeShift(WithFloating,shift,Np,Npb,VelrhopPreg,Arg,Aceg,ShiftPosg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velrhopg,Gravity);
+  //-Aplica desplazamiento a las particulas fluid no periodicas.
+  //-Applies displacement to non-periodic fluid particles.
+  cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
+  //-Libera memoria asignada al desplazamiento.
+  //-Releases memory allocated for diplacement.
+  ArraysGpu->Free(movxyg);   movxyg=NULL;
+  ArraysGpu->Free(movzg);    movzg=NULL;
+  TmgStop(Timers,TMG_SuComputeStep);
+}

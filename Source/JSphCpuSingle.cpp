@@ -1112,15 +1112,14 @@ void JSphCpuSingle::RunShifting(double dt){
   //-Assign memory to variables Pre / Asigna memoria a variables Pre.
   PosPrec=ArraysCpu->ReserveDouble3();
   VelrhopPrec=ArraysCpu->ReserveFloat4();
-    //-Change data to variables Pre to calculate new data / Cambia datos a variables Pre para calcular nuevos datos.
 
   ShiftPosc=ArraysCpu->ReserveFloat3();
   ShiftDetectc=ArraysCpu->ReserveFloat();
   memset(ShiftPosc,0,sizeof(tfloat3)*np);               //ShiftPosc[]=0
   memset(ShiftDetectc,0,sizeof(float)*np);           //ShiftDetectc[]=0
 
-  nearBound=ArraysCpu->ReserveUint();
-  memset(nearBound,0,sizeof(unsigned)*np);               //ShiftPosc[]=0
+  //nearBound=ArraysCpu->ReserveUint();
+  //memset(nearBound,0,sizeof(unsigned)*np);       
 
   #ifdef _WITHOMP
       #pragma omp parallel for schedule (static)
@@ -1141,10 +1140,11 @@ void JSphCpuSingle::RunShifting(double dt){
   JSphCpu::RunShifting(dt);
 
   Shift(dt);
+
   ArraysCpu->Free(PosPrec);      PosPrec=NULL;
   ArraysCpu->Free(PsPosc);       PsPosc=NULL;
   ArraysCpu->Free(ShiftPosc);    ShiftPosc=NULL;
   ArraysCpu->Free(ShiftDetectc); ShiftDetectc=NULL;
   ArraysCpu->Free(VelrhopPrec);  VelrhopPrec=NULL;
-  ArraysCpu->Free(nearBound); nearBound=NULL;
+  //ArraysCpu->Free(nearBound); nearBound=NULL;
 }

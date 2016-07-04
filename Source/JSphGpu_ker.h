@@ -121,7 +121,7 @@ void AddDelta(unsigned n,const float *delta,float *ar);
 //# Kernels for Shifting
 void RunShifting(unsigned np,unsigned npb,double dt
   ,double shiftcoef,float shifttfs,double coeftfs
-  ,const float4 *velrhop,const float *shiftdetect,float3 *shiftpos);
+  ,float4 *velrhop,const float *shiftdetect,float3 *shiftpos);
 
 //# Kernels para ComputeStep (vel & rhop)
 //# Kernels for ComputeStep (vel & rhop)
@@ -201,10 +201,10 @@ void MatrixOrderDummy(TpCellMode cellmode
 
 
 //# Kernels for finding the freesurface
-void FreeSurfaceFind(bool psimple,TpCellMode cellmode
+void FreeSurfaceFind(bool psimple,bool shiftBound,TpCellMode cellmode
   ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop
+  ,const double2 *posxy,const double *posz,const float4 *pospress,float4 *velrhop
   ,const word *code,const unsigned *idp,float *divr);
 
 //# Kernels for Populating matrix B
@@ -241,6 +241,21 @@ void InitArrayCol(unsigned n,int *v,int value);
 
 //# Kernels for solving with ViennaCL
 void solveVienna(double *matrixa,double *matrixx,double *matrixb,int *row,int *col,const unsigned nnz,const unsigned ppedim);
+
+//Kernels for shifting
+void Interaction_Shifting(bool psimple,bool floating,bool usedem,TpCellMode cellmode
+  ,float viscob,float viscof,unsigned bsfluid
+  ,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
+  ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
+  ,const double2 *posxy,const double *posz,const float4 *pospress
+  ,float4 *velrhop,const word *code,const float *ftomassp
+  ,TpShifting tshifting,float3 *shiftpos,float *shiftdetect);
+
+void ComputeShift(bool floating,bool shift,unsigned np,unsigned npb
+  ,const float4 *velrhoppre,const float *ar,const float3 *ace,const float3 *shiftpos
+  ,double dtm,double dt,float rhopoutmin,float rhopoutmax
+  ,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity);
+
 }
 #endif
 

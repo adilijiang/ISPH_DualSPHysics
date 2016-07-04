@@ -262,6 +262,7 @@ protected:
     const unsigned *dcell,const unsigned *idpg,const unsigned *irelation,word *code, unsigned &ppedim);
   unsigned MatrixASetup(const unsigned ppedim,int *rowGpu);
 
+  void Shift(double dt);
 public:
   JSphGpu(bool withmpi);
   ~JSphGpu();

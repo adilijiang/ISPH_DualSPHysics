@@ -296,13 +296,13 @@ protected:
  
   void Interaction_Shifting(unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
-    ,const tfloat3 *pspos,const tfloat4 *velrhop,const unsigned *idp,const word *code
+    ,const tfloat3 *pspos,tfloat4 *velrhop,const unsigned *idp,const word *code
     ,tfloat3 *shiftpos,float *shiftdetect)const;
 
   template<TpFtMode ftmode> void InteractionForcesShifting
   (unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,float visco
   ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
-  ,const tfloat3 *pspos,const tfloat4 *velrhop,const word *code,const unsigned *idp
+  ,const tfloat3 *pspos,tfloat4 *velrhop,const word *code,const unsigned *idp
   ,TpShifting tshifting,tfloat3 *shiftpos,float *shiftdetect)const;
 
   void Shift(double dt);

@@ -1736,20 +1736,6 @@ void JSphCpu::RunShifting(double dt){
    //if(abs(umagn)<difThreshold) umagn=-difThreshold; //Minimum shifting
     //if(ShiftDetectc[p]<ShiftTFS) umagn=0;
     if(ShiftDetectc[p]<ShiftTFS){
-      if(nearBound[p]==1 && (Velrhopc[p].x||Velrhopc[p].z)){ //Particles at free-surface, eliminate shifting in direction normal to free surface
-        double NormX=Velrhopc[p].x;
-        double NormZ=Velrhopc[p].z;
-        double temp=NormX*NormX+NormZ*NormZ;
-        temp=sqrt(temp);
-        NormX=NormX/temp;
-        NormZ=NormZ/temp;
-        double TangX=-NormZ;
-        double TangZ=NormX;
-        temp=TangX*ShiftPosc[p].x+TangZ*ShiftPosc[p].z;
-        ShiftPosc[p].x=temp*TangX;
-        ShiftPosc[p].z=temp*TangZ;
-      }
-      else{
         double NormX=-ShiftPosc[p].x;
         double NormZ=-ShiftPosc[p].z;
         double temp=NormX*NormX+NormZ*NormZ;
@@ -1761,7 +1747,6 @@ void JSphCpu::RunShifting(double dt){
         temp=TangX*ShiftPosc[p].x+TangZ*ShiftPosc[p].z;
         ShiftPosc[p].x=temp*TangX;
         ShiftPosc[p].z=temp*TangZ;
-      }
     }
 
     if(ShiftDetectc[p]>=ShiftTFS && ShiftDetectc[p]<=ShiftTFS+ShiftOffset){ 
@@ -1781,7 +1766,7 @@ void JSphCpu::RunShifting(double dt){
     }
         
     ShiftPosc[p]=ToTFloat3(ToTDouble3(ShiftPosc[p])*umagn); //particles in fluid bulk, normal shifting
-
+    Velrhopc[p].w=ShiftPosc[p].z;
     /*//Max Shifting
     double temp=sqrt(ShiftPosc[p].x*ShiftPosc[p].x+ShiftPosc[p].z*ShiftPosc[p].z); 
     if(abs(ShiftPosc[p].x)>0.1*Dp){
@@ -3029,7 +3014,7 @@ void JSphCpu::solveVienna(std::vector<double> &matrixa,std::vector<double> &matr
 template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
   (unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,float visco
   ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
-  ,const tfloat3 *pspos,const tfloat4 *velrhop,const word *code,const unsigned *idp
+  ,const tfloat3 *pspos,tfloat4 *velrhop,const word *code,const unsigned *idp
   ,TpShifting tshifting,tfloat3 *shiftpos,float *shiftdetect)const
 {
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
@@ -3045,7 +3030,7 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
   for(int p1=int(pinit);p1<pfin;p1++){
    
     tfloat3 shiftposp1=TFloat3(0);
-    //float shiftdetectp1=0;
+    float shiftdetectp1=shiftdetect[p1];
 
     //-Obtain data of particle p1 in case of floating objects / Obtiene datos de particula p1 en caso de existir floatings.
     //bool ftp1=false;     //-Indicate if it is floating / Indica si es floating.
@@ -3083,7 +3068,6 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
           const float rr2=drx*drx+dry*dry+drz*drz;
 
           if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-            if(boundp2) nearBound[p1]=1;
             //-Wendland kernel.
             float frx,fry,frz;
             GetKernel(rr2,drx,dry,drz,frx,fry,frz);
@@ -3104,15 +3088,15 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
             //-Shifting correction
             //if(shiftposp1.x!=FLT_MAX){
               float n;
-              if(shiftdetect[p1]<1.8f)n=0.4f;
+              if(shiftdetectp1<1.8f)n=0.4f;
               else n=0.1f;
               const float massrhop=massp2/RhopZero;
               const float tensile=n*powf(GetKernelWab(rr2)/Wab1,4.0);
              
               //const bool noshift=(boundp2 && (tshifting==SHIFT_NoBound || (tshifting==SHIFT_NoFixed && CODE_GetType(code[p2])==CODE_TYPE_FIXED)));
-              shiftposp1.x+=massrhop*(1.0+tensile)*frx; //-For boundary do not use shifting / Con boundary anula shifting.
-              shiftposp1.y+=massrhop*(1.0+tensile)*fry;
-              shiftposp1.z+=massrhop*(1.0+tensile)*frz;
+              shiftposp1.x+=massrhop*(1.0f+tensile)*frx; //-For boundary do not use shifting / Con boundary anula shifting.
+              shiftposp1.y+=massrhop*(1.0f+tensile)*fry;
+              shiftposp1.z+=massrhop*(1.0f+tensile)*frz;
               //shiftdetectp1-=massrhop*(drx*frx+dry*fry+drz*frz);
             //}
           }
@@ -3128,7 +3112,7 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
 void JSphCpu::Interaction_Shifting
   (unsigned np,unsigned npb,unsigned npbok
   ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const tfloat3 *pspos,const tfloat4 *velrhop,const unsigned *idp,const word *code
+  ,const tfloat3 *pspos,tfloat4 *velrhop,const unsigned *idp,const word *code
   ,tfloat3 *shiftpos,float *shiftdetect)const
 {
   const unsigned npf=np-npb;
