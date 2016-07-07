@@ -602,6 +602,7 @@ void JSphCpuSingle::PreparePosSimple(){
 //==============================================================================
 double JSphCpuSingle::ComputeStep_Sym(){
   const double dt=DtPre;
+  clock_t start = clock();  
   //-Predictor
   //-----------
   //DemDtForce=dt*0.5f;                     //(DEM)
@@ -617,8 +618,17 @@ double JSphCpuSingle::ComputeStep_Sym(){
   PosInteraction_Forces(INTER_Forces);          //-Free memory used for interaction / Libera memoria de interaccion
   //-Pressure Poisson equation
   //-----------
+
+  clock_t stop = clock();   
+    double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
+    cout<<"Before Matrix Time = " << dif << "ms\n";
+    start = clock();
   KernelCorrection(false);
   SolvePPE(dt); //-Solve pressure Poisson equation
+  stop = clock();   
+     dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
+    cout<<"Matrix Time = " << dif << "ms\n";
+    start = clock();
   //-Corrector
   //-----------
   //DemDtForce=dt;                          //(DEM)
@@ -629,6 +639,9 @@ double JSphCpuSingle::ComputeStep_Sym(){
   ComputeSymplecticCorr(dt);              //-Apply Symplectic-Corrector to particles / Aplica Symplectic-Corrector a las particulas
   //if(CaseNfloat)RunFloating(dt,false);    //-Control of floating bodies / Gestion de floating bodies
   PosInteraction_Forces(INTER_ForcesCorr);             //-Free memory used for interaction / Libera memoria de interaccion
+  stop = clock();   
+    dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
+    cout<<"After MatrixTime = " << dif << "ms\n";
   if(TShifting)RunShifting(dt);           //-Shifting
   // DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep
   
@@ -1086,7 +1099,7 @@ void JSphCpuSingle::SolvePPE(double dt){
 #endif
   
   PressureAssign(Psimple,np,0,Posc,PsPosc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb,Divr);
-
+  
   b.clear();
   a.clear();
   x.clear();
@@ -1098,6 +1111,8 @@ void JSphCpuSingle::SolvePPE(double dt){
 /// SHIFTING
 //==============================================================================
 void JSphCpuSingle::RunShifting(double dt){
+  clock_t start = clock();
+
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
   tuint3 ncells=CellDivSingle->GetNcells();
   const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
@@ -1147,4 +1162,8 @@ void JSphCpuSingle::RunShifting(double dt){
   ArraysCpu->Free(ShiftDetectc); ShiftDetectc=NULL;
   ArraysCpu->Free(VelrhopPrec);  VelrhopPrec=NULL;
   //ArraysCpu->Free(nearBound); nearBound=NULL;
+
+  clock_t stop = clock();   
+    double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
+    cout<<"Shfiting Time = " << dif << "ms\n";
 }

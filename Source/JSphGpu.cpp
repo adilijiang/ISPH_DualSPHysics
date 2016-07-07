@@ -1193,7 +1193,7 @@ void JSphGpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
 void JSphGpu::MatrixOrder(unsigned n,unsigned pinit,unsigned bsbound,unsigned *porder,tuint3 ncells,const int2 *begincell,tuint3 cellmin,
   const unsigned *dcell,const unsigned *idpg,const unsigned *irelationg,word *code, unsigned &ppedim){
 	const int pfin=int(pinit+n);
-
+  clock_t start = clock(); 
   cudaMemcpy(Code,Codeg,sizeof(word)*n ,cudaMemcpyDeviceToHost);
   unsigned index=0;
 	for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(Code[p1])==0){
@@ -1205,6 +1205,10 @@ void JSphGpu::MatrixOrder(unsigned n,unsigned pinit,unsigned bsbound,unsigned *p
   }
   cudaMemcpy(porder,POrderc,sizeof(unsigned)*n,cudaMemcpyHostToDevice);
   
+  clock_t stop = clock();   
+    double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
+    cout<<"MatrixOrder Time = " << dif << "ms\n";
+
   cusph::MatrixOrderDummy(CellMode,bsbound,n,Npb,ncells,begincell,cellmin,dcell,Codeg,Idpg,irelationg,porder);
   
   ppedim = index;

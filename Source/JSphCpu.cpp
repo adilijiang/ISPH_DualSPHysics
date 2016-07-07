@@ -1766,7 +1766,7 @@ void JSphCpu::RunShifting(double dt){
     }
         
     ShiftPosc[p]=ToTFloat3(ToTDouble3(ShiftPosc[p])*umagn); //particles in fluid bulk, normal shifting
-    Velrhopc[p].w=ShiftPosc[p].z;
+
     /*//Max Shifting
     double temp=sqrt(ShiftPosc[p].x*ShiftPosc[p].x+ShiftPosc[p].z*ShiftPosc[p].z); 
     if(abs(ShiftPosc[p].x)>0.1*Dp){
@@ -2984,12 +2984,12 @@ void JSphCpu::solveVienna(std::vector<double> &matrixa,std::vector<double> &matr
 
     viennacl::linalg::bicgstab_tag bicgstab(1e-5,2000);
 
-    /*std::cout<<"JACOBI PRECOND" <<std::endl;
-    viennacl::vector<ScalarType> vcl_result(vcl_compressed_matrix.size1(),ctxOMP);
+    std::cout<<"JACOBI PRECOND" <<std::endl;
+    viennacl::vector<ScalarType> vcl_result(vcl_compressed_matrix.size1(),ctx);
     viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_compressed_matrix,viennacl::linalg::jacobi_tag());
-    run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_jacobi,matrixx,ppedim);*/
+    run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_jacobi,matrixx,ppedim);
 
-    std::cout<<"AMG PRECOND" <<std::endl;
+    /*std::cout<<"AMG PRECOND" <<std::endl;
     viennacl::context host_ctx(viennacl::MAIN_MEMORY);
     viennacl::context target_ctx = viennacl::traits::context(vcl_compressed_matrix);
 
@@ -3003,7 +3003,7 @@ void JSphCpu::solveVienna(std::vector<double> &matrixa,std::vector<double> &matr
     amg_tag_agg_pmis.set_coarsening_cutoff(2500); 
     amg_tag_agg_pmis.set_setup_context(host_ctx);
     amg_tag_agg_pmis.set_target_context(target_ctx); 
-    run_amg(bicgstab,vcl_vec,vcl_compressed_matrix,"AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,matrixx,ppedim);
+    run_amg(bicgstab,vcl_vec,vcl_compressed_matrix,"AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,matrixx,ppedim);*/
 }    
 #endif
 

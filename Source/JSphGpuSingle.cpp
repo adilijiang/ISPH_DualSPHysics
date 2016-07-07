@@ -534,6 +534,7 @@ double JSphGpuSingle::ComputeStep_Sym(){
   const double dt=DtPre;
   //-Predictor
   //-----------
+  clock_t start = clock();  
   InitAdvection(dt);
   RunCellDivide(true);
  // DemDtForce=dt*0.5f;                     //(DEM)
@@ -545,17 +546,34 @@ double JSphGpuSingle::ComputeStep_Sym(){
   PosInteraction_Forces(INTER_Forces);                //-Libera memoria de interaccion //-Releases memory of the interaction
   //-Pressure Poisson equation
   //-----------
+  clock_t stop = clock();   
+    double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
+    cout<<"Before Matrix Time = " << dif << "ms\n";
+    start = clock();
   KernelCorrection(false);
   SolvePPE(dt); //-Solve pressure Poisson equation
+  stop = clock();   
+    dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
+    cout<<"Matrix Time = " << dif << "ms\n";
+    start = clock();
   //-Corrector
   //-----------
   //DemDtForce=dt;                          //(DEM)
-  KernelCorrection(true);
+
+
+    ////////////////////////////////
+  KernelCorrection(true); //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<PROBABLY NOT NEEDED WITH NEW BOUNDARY CONDITION SETUP
+  ///////////////////////////////////////
+
+
   Interaction_Forces(INTER_ForcesCorr,dt);   //-Interaccion //-interaction
   //const double ddt_c=DtVariable(true);    //-Calcula dt del corrector //Computes dt in the corrector step
   ComputeSymplecticCorr(dt);              //-Aplica Symplectic-Corrector a las particulas //Applies Symplectic-Corrector to the particles
   //if(CaseNfloat)RunFloating(dt,false);    //-Gestion de floating bodies //-Management of the floating bodies
   PosInteraction_Forces(INTER_ForcesCorr);                //-Libera memoria de interaccion //-Releases memory of the interaction
+  stop = clock();   
+    dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
+    cout<<"After MatrixTime = " << dif << "ms\n";
   if(TShifting)RunShifting(dt);           //-Shifting
   //DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep //-Computes dt for the next ComputeStep
   return(dt);
@@ -833,7 +851,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   cudaMalloc((void**)&a,sizeof(double)*Nnz); cudaMemset(a,0,sizeof(double)*Nnz);
   cudaMalloc((void**)&colInd,sizeof(int)*Nnz); cusph::InitArrayCol(Nnz,colInd,int(PPEDim));
   cusph::PopulateMatrixA(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,a,b,rowInd,colInd,POrderg,Idpg,PPEDim,Divrg,Codeg,Irelationg);
-  
+  cusph::FreeSurfaceMark(Psimple,bsbound,bsfluid,np,npb,npbok,Divrg,a,b,rowInd,POrderg,Codeg,PI,ShiftTFS);
   //int *row; int *col; double *values;
   //row=new int[PPEDim+1]; col=new int[Nnz]; values=new double[Nnz];
   //cudaMemcpy(row,rowInd,sizeof(int)*(PPEDim+1),cudaMemcpyDeviceToHost);
@@ -843,7 +861,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   cusph::solveVienna(a,X,b,rowInd,colInd,Nnz,PPEDim); 
   unsigned *irelation; irelation = new unsigned[Npb];
   cusph::PressureAssign(Psimple,bsbound,bsfluid,np,npb,npbok,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,X,POrderg,Idpg,Codeg,Irelationg);
-
+  
   ArraysGpu->Free(POrderg);       POrderg=NULL;
   ArraysGpu->Free(Divrg);		      Divrg=NULL;
   cudaFree(b); cudaFree(X); cudaFree(a); cudaFree(rowInd); cudaFree(colInd);
@@ -854,6 +872,7 @@ void JSphGpuSingle::SolvePPE(double dt){
 /// Shifting
 //==============================================================================
 void JSphGpuSingle::RunShifting(double dt){ 
+  clock_t  start = clock();
   tuint3 ncells=CellDivSingle->GetNcells();
   const int2 *begincell=CellDivSingle->GetBeginCell();
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
@@ -865,7 +884,7 @@ void JSphGpuSingle::RunShifting(double dt){
   const unsigned npf = np - npb;
   const unsigned bsbound=BlockSizes.forcesbound;
   const unsigned bsfluid=BlockSizes.forcesfluid;
-
+ 
   PosxyPreg=ArraysGpu->ReserveDouble2();
   PoszPreg=ArraysGpu->ReserveDouble();
   VelrhopPreg=ArraysGpu->ReserveFloat4();
@@ -900,4 +919,8 @@ void JSphGpuSingle::RunShifting(double dt){
   ArraysGpu->Free(ShiftPosg);     ShiftPosg=NULL;
   ArraysGpu->Free(ShiftDetectg);  ShiftDetectg=NULL;
   ArraysGpu->Free(PsPospressg);   PsPospressg=NULL; 
+
+  clock_t stop = clock();   
+    double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
+    cout<<"Shifting Time = " << dif << "ms\n";
 }

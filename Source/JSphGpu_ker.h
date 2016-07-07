@@ -207,6 +207,10 @@ void FreeSurfaceFind(bool psimple,bool shiftBound,TpCellMode cellmode
   ,const double2 *posxy,const double *posz,const float4 *pospress,float4 *velrhop
   ,const word *code,const unsigned *idp,float *divr);
 
+//# Kernels for marking the freesurface
+void FreeSurfaceMark(bool psimple,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,float *divr
+  ,double *matrixInd,double *matrixb,int *row,const unsigned *porder,const word *code,const double pi,const float shifttfs);
+
 //# Kernels for Populating matrix B
 void PopulateMatrixB(bool psimple,TpCellMode cellmode
   ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells

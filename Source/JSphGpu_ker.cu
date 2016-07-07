@@ -3184,6 +3184,7 @@ void MatrixOrderDummy(TpCellMode cellmode
     KerMatrixOrderDummy <<<sgridb,bsbound>>> (np,npb,hdiv,nc,begincell,cellzero,dcell,code,idp,irelationg,porder);
   }
 }
+
 //==============================================================================
 ///Free Surface Identification
 //==============================================================================
@@ -3306,6 +3307,50 @@ void FreeSurfaceFind(bool psimple,bool shiftBound,TpCellMode cellmode
       else{
         KerFreeSurfaceFind<false> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,pospress,velrhop,divr,code);
       }
+    }
+  }
+}
+
+//==============================================================================
+///Free Surface Mark
+//==============================================================================
+template<bool psimple> __global__ void KerFreeSurfaceMark
+  (unsigned n,unsigned pinit,float *divr,double *matrixInd, double *matrixb,int *row,const unsigned *porder,const word *code,const double pi,const float shifttfs)
+{
+  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+      unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
+      if(CODE_GetTypeValue(code[p1])==0){
+      unsigned oi=porder[p1];
+      const int Mark=row[oi]+1;
+      if(divr[p1]>=shifttfs && divr[p1]<=shifttfs+0.2f){
+        double alpha=0.5*(1.0-cos(pi*(divr[p1]-shifttfs)/0.2));
+
+        matrixb[oi]=matrixb[oi]*alpha;
+
+        for(int index=Mark;index<row[oi+1];index++){
+          matrixInd[index]=matrixInd[index]*alpha;
+        }
+      }
+    }
+  }
+}
+
+void FreeSurfaceMark(bool psimple,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,float *divr
+  ,double *matrixInd, double *matrixb,int *row,const unsigned *porder,const word *code,const double pi,const float shifttfs){
+  const unsigned npf=np-npb;
+
+  if(npf){
+    dim3 sgridf=GetGridSize(npf,bsfluid);
+    dim3 sgridb=GetGridSize(npbok,bsbound);
+
+    if(psimple){
+      KerFreeSurfaceMark<true> <<<sgridf,bsfluid>>> (npf,npb,divr,matrixInd,matrixb,row,porder,code,pi,shifttfs);
+      KerFreeSurfaceMark<true> <<<sgridb,bsbound>>> (npbok,0,divr,matrixInd,matrixb,row,porder,code,pi,shifttfs);
+    }
+    else{
+      KerFreeSurfaceMark<false> <<<sgridf,bsfluid>>> (npf,npb,divr,matrixInd,matrixb,row,porder,code,pi,shifttfs);
+      KerFreeSurfaceMark<false> <<<sgridb,bsbound>>> (npbok,0,divr,matrixInd,matrixb,row,porder,code,pi,shifttfs);
     }
   }
 }
