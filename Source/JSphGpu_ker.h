@@ -120,7 +120,7 @@ void AddDelta(unsigned n,const float *delta,float *ar);
 //# Kernels para Shifting
 //# Kernels for Shifting
 void RunShifting(unsigned np,unsigned npb,double dt
-  ,double shiftcoef,float shifttfs,double coeftfs
+  ,double shiftcoef,float freesurface,double coeftfs
   ,float4 *velrhop,const float *shiftdetect,float3 *shiftpos);
 
 //# Kernels para ComputeStep (vel & rhop)
@@ -209,7 +209,7 @@ void FreeSurfaceFind(bool psimple,bool shiftBound,TpCellMode cellmode
 
 //# Kernels for marking the freesurface
 void FreeSurfaceMark(bool psimple,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,float *divr
-  ,double *matrixInd,double *matrixb,int *row,const unsigned *porder,const word *code,const double pi,const float shifttfs);
+  ,double *matrixInd,double *matrixb,int *row,const unsigned *porder,const word *code,const double pi,const float freesurface);
 
 //# Kernels for Populating matrix B
 void PopulateMatrixB(bool psimple,TpCellMode cellmode

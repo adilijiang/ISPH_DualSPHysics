@@ -147,6 +147,12 @@ typedef enum{
 typedef enum{ DELTA_DynamicExt=3,DELTA_Dynamic=2,DELTA_None=0 }TpDeltaSph; //-Tipos de Delta-SPH. //-Types of Delta-SPH
 
 typedef enum{
+  SLIPCOND_Slip=2,
+  SLIPCOND_NoSlip=1,
+  SLIPCOND_None=0
+}TpSlipCond; //Slip/NoSlip Conditions for boundary velocity interpolation
+
+typedef enum{
   SHIFT_Full=3,
   SHIFT_NoFixed=2,
   SHIFT_NoBound=1,

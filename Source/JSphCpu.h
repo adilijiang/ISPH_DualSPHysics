@@ -87,7 +87,6 @@ protected:
   float *Deltac;      //-Adjusted sum with Delta-SPH with DELTA_DynamicExt / Acumula ajuste de Delta-SPH con DELTA_DynamicExt
 
   tfloat3 *ShiftPosc;    //-Particle displacement using Shifting.
-  float *ShiftDetectc;    //-Used to detect free surface with Shifting.
 
   double VelMax;      ///<Maximum value of Vel[] sqrt(vel.x^2 + vel.y^2 + vel.z^2) computed in PreInteraction_Forces().
   double AceMax;      ///<Maximum value of Ace[] sqrt(ace.x^2 + ace.y^2 + ace.z^2) computed in Interaction_Forces().
@@ -182,7 +181,7 @@ protected:
     ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,const word *code,const unsigned *idp
     ,const float *press
     ,float &viscdt,float *ar,tfloat3 *ace,float *delta
-    ,TpShifting tshifting,tfloat3 *shiftpos,float *shiftdetect)const;
+    ,TpShifting tshifting,tfloat3 *shiftpos)const;
 
   template<bool psimple> void InteractionForcesDEM
     (unsigned nfloat,tint4 nc,int hdiv,unsigned cellfluid
@@ -198,7 +197,7 @@ protected:
     ,const float *press
     ,float &viscdt,float* ar,tfloat3 *ace,float *delta
     ,tsymatrix3f *spstau,tsymatrix3f *spsgradvel
-    ,TpShifting tshifting,tfloat3 *shiftpos,float *shiftdetect)const;
+    ,TpShifting tshifting,tfloat3 *shiftpos)const;
 
   void Interaction_Forces(TpInter tinter,unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
@@ -206,7 +205,7 @@ protected:
     ,const float *press
     ,float &viscdt,float* ar,tfloat3 *ace,float *delta
     ,tsymatrix3f *spstau,tsymatrix3f *spsgradvel
-    ,tfloat3 *shiftpos,float *shiftdetect)const;
+    ,tfloat3 *shiftpos)const;
 
   void InteractionSimple_Forces(TpInter tinter,unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
@@ -214,7 +213,7 @@ protected:
     ,const float *press
     ,float &viscdt,float* ar,tfloat3 *ace,float *delta
     ,tsymatrix3f *spstau,tsymatrix3f *spsgradvel
-    ,tfloat3 *shiftpos,float *shiftdetect)const;
+    ,tfloat3 *shiftpos)const;
 
 
   void ComputeSpsTau(unsigned n,unsigned pini,const tfloat4 *velrhop,const tsymatrix3f *gradvel,tsymatrix3f *tau)const;
@@ -254,7 +253,7 @@ protected:
   tfloat3 *dWzCorr; //Kernel correction in the z direction
   float *Divr; //Divergence of position
   unsigned *POrder; //Position in Matrix
-  unsigned *nearBound;
+
   //matrix variables for CULA
   std::vector<double> b;
   std::vector<double> a;
@@ -269,7 +268,7 @@ protected:
   void InverseCorrection(unsigned n, unsigned pinit,tfloat3 *dwxcorr,tfloat3 *dwzcorr)const;
   void FindIrelation(unsigned n,unsigned pinit,const tdouble3 *pos,const unsigned *idpc,unsigned *irelation,const word *code)const;
 
-  void Boundary_Velocity(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+  void Boundary_Velocity(TpSlipCond TSlipCond,bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
 	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,tfloat4 *velrhop,const word *code)const;
 
   void solveMatrix();
@@ -297,29 +296,15 @@ protected:
   void Interaction_Shifting(unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tfloat3 *pspos,tfloat4 *velrhop,const unsigned *idp,const word *code
-    ,tfloat3 *shiftpos,float *shiftdetect)const;
+    ,tfloat3 *shiftpos,float *divr,const float tensileN,const float tensileR)const;
 
   template<TpFtMode ftmode> void InteractionForcesShifting
   (unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,float visco
   ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
   ,const tfloat3 *pspos,tfloat4 *velrhop,const word *code,const unsigned *idp
-  ,TpShifting tshifting,tfloat3 *shiftpos,float *shiftdetect)const;
+  ,TpShifting tshifting,tfloat3 *shiftpos,float *divr,const float tensileN,const float tensileR)const;
 
   void Shift(double dt);
-
-   std::vector<int> rowIndDummy;
-   std::vector<int> DummyInteract;
-   std::vector<float> DummyKernelSum;
-   void MatrixOrderAdami(unsigned n,unsigned pinit,unsigned *porder,const unsigned *idpc,const unsigned *irelation,word *code,unsigned &ppeDim,unsigned &ppedimDummy,const float *divr);
-  void MatrixStorageAdamiDummy(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
-	  float *divr,std::vector<int> &rowDummy,std::vector<float> &dummykernelsum,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedimDummy,unsigned &nnz)const;
-  void MatrixStorageAdamiDummyInteractions(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
-	  float *divr,std::vector<int> &rowDummy,std::vector<int> &DummyInteract,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedimDummy)const;
-  void MatrixStorageAdami(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
-	  float *divr,std::vector<int> &row,std::vector<int> &rowDummy,std::vector<int> &dummyInteract,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim)const;
-   void PopulateMatrixAAdami(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &rowDummy,std::vector<int> &dummyInteract,
-    std::vector<float> &dummykernelsum,std::vector<int> &col,std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned *irelation,const unsigned ppedim,const unsigned ppedimdummy,const double dt)const;
 
 public:
   JSphCpu(bool withmpi);

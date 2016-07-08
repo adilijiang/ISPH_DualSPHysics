@@ -269,7 +269,6 @@ void JSphGpu::AllocGpuMemoryParticles(unsigned np,float over){
   }
   if(TShifting!=SHIFT_None){
     ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,1); //-shiftpos
-    if(ShiftTFS)ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,1); //-shiftdetectc
   }
   if(RenCorrection){
     ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,1); //-presskf
@@ -928,7 +927,7 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
   /*if(TDeltaSph==DELTA_DynamicExt)Deltag=ArraysGpu->ReserveFloat();
   if(TShifting!=SHIFT_None){
     ShiftPosg=ArraysGpu->ReserveFloat3();
-    if(ShiftTFS)ShiftDetectg=ArraysGpu->ReserveFloat();
+    if(freesurface)ShiftDetectg=ArraysGpu->ReserveFloat();
   }  
   if(TVisco==VISCO_LaminarSPS)SpsGradvelg=ArraysGpu->ReserveSymatrix3f();*/
 
@@ -1099,8 +1098,8 @@ double JSphGpu::DtVariable(bool final){
 //==============================================================================
 void JSphGpu::RunShifting(double dt){
   TmgStart(Timers,TMG_SuShifting);
-  const double coeftfs=(Simulate2D? 2.0: 3.0)-ShiftTFS;
-  cusph::RunShifting(Np,Npb,dt,ShiftCoef,ShiftTFS,coeftfs,Velrhopg,ShiftDetectg,ShiftPosg);
+  const double coeftfs=(Simulate2D? 2.0: 3.0)-FreeSurface;
+  cusph::RunShifting(Np,Npb,dt,ShiftCoef,FreeSurface,coeftfs,Velrhopg,ShiftDetectg,ShiftPosg);
   TmgStop(Timers,TMG_SuShifting);
 }
 

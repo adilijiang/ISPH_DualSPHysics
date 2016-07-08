@@ -103,7 +103,10 @@ void JSph::InitVars(){
   Awen=Bwen=0;
   TVisco=VISCO_None;
   TDeltaSph=DELTA_None; DeltaSph=0;
-  TShifting=SHIFT_None; ShiftCoef=ShiftTFS=0;
+  TShifting=SHIFT_None; ShiftCoef=0;
+  FreeSurface=0;
+  TensileN=0;
+  TensileR=0;
   RenCorrection=0;
   Visco=0; ViscoBoundFactor=1;
   UseDEM=false;  //(DEM)
@@ -331,9 +334,11 @@ void JSph::LoadConfig(const JCfgRun *cfg){
       default: RunException(met,"Shifting mode is not valid.");
     }
     if(TShifting!=SHIFT_None){
-      ShiftCoef=-2; ShiftTFS=0;
+      ShiftCoef=-2;
+      TensileN=0.1f;
+      TensileR=3.0f;
     }
-    else ShiftCoef=ShiftTFS=0;
+    else ShiftCoef=0;
   }
 
   if(cfg->FtPause>=0)FtPause=cfg->FtPause;
@@ -395,6 +400,13 @@ void JSph::LoadCaseConfig(){
   DeltaSph=eparms.GetValueFloat("DeltaSPH",true,0);
   TDeltaSph=(DeltaSph? DELTA_Dynamic: DELTA_None);
 
+  switch(eparms.GetValueInt("Slip/No Slip Conditions",true,0)){
+    case 0:  TSlipCond=SLIPCOND_None;     break;
+    case 1:  TSlipCond=SLIPCOND_NoSlip;     break;
+    case 2:  TSlipCond=SLIPCOND_Slip;  break;
+    default: RunException(met,"Slip/No Slip Condition mode is not valid.");
+  }
+
   switch(eparms.GetValueInt("Shifting",true,0)){
     case 0:  TShifting=SHIFT_None;     break;
     case 1:  TShifting=SHIFT_Full;     break;
@@ -405,10 +417,12 @@ void JSph::LoadCaseConfig(){
   }
   if(TShifting!=SHIFT_None){
     ShiftCoef=eparms.GetValueFloat("ShiftCoef",true,-2);
-    if(ShiftCoef==0)TShifting=SHIFT_None;
-    else ShiftTFS=eparms.GetValueFloat("ShiftTFS",true,0);
+    TensileN=eparms.GetValueFloat("TensileN",true,0.1f);
+    TensileR=eparms.GetValueFloat("TensileR",true,3.0f);
   }
 
+  FreeSurface=eparms.GetValueFloat("FreeSurface",true,1.6f);
+  
   RenCorrection=eparms.GetValueFloat("RenCorrection",true,0);
   if(RenCorrection<0 || RenCorrection>1)RunException(met,"Value of RenCorrection is invalid.");
 
@@ -765,8 +779,10 @@ void JSph::VisuConfig()const{
   Log->Print(fun::VarStr("Shifting",GetShiftingName(TShifting)));
   if(TShifting!=SHIFT_None){
     Log->Print(fun::VarStr("ShiftCoef",ShiftCoef));
-    if(ShiftTFS)Log->Print(fun::VarStr("ShiftTFS",ShiftTFS));
+    Log->Print(fun::VarStr("TensileN",TensileN));
+    Log->Print(fun::VarStr("TensileR",TensileR));
   }
+  Log->Print(fun::VarStr("FreeSurface",FreeSurface));
   Log->Print(fun::VarStr("RenCorrection",RenCorrection));
   Log->Print(fun::VarStr("FloatingFormulation",(!FtCount? "None": (UseDEM? "SPH+DEM": "SPH"))));
   Log->Print(fun::VarStr("FloatingCount",FtCount));

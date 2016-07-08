@@ -167,7 +167,11 @@ protected:
 
   TpShifting TShifting; //-Tipo de Shifting: None, NoBound, NoFixed, Full.										//-Shifting type: None, NoBound, NoFixed, Full.	
   float ShiftCoef;      //-Coefficient for shifting computation.
-  float ShiftTFS;       //-Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (def=0).
+  float FreeSurface;    //-Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (def=0).
+  float TensileN;       //-Tensile Instability Coefficient
+  float TensileR;       //-Tensile Instability Coefficient
+
+  TpSlipCond TSlipCond;
 
   float Visco;  
   float ViscoBoundFactor;     //-Para interaccion con contorno usa Visco*ViscoBoundFactor.						//-Forboundary interaction use Visco*ViscoBoundFactor.

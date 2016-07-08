@@ -1543,7 +1543,7 @@ void AddDelta(unsigned n,const float *delta,float *ar){
 /// Computes final shifting for the particle position.
 //------------------------------------------------------------------------------
 __global__ void KerRunShifting(unsigned n,unsigned pini,double dt
-  ,float shiftcoef,float shifttfs,double coeftfs
+  ,float shiftcoef,float freesurface,double coeftfs
   ,float4 *velrhop,const float *shiftdetect,float3 *shiftpos,const double ShiftOffset)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
@@ -1556,7 +1556,7 @@ __global__ void KerRunShifting(unsigned n,unsigned pini,double dt
     //const double vz=double(rvel.z);
     double umagn=-0.1*double(CTE.h)*double(CTE.h);;//double(shiftcoef)*double(CTE.h)*sqrt(vx*vx+vy*vy+vz*vz)*dt;
 
-    if(shiftdetect[p1]<shifttfs){
+    if(shiftdetect[p1]<freesurface){
       double NormX=-rshiftpos.x;
       double NormZ=-rshiftpos.z;
       double temp=NormX*NormX+NormZ*NormZ;
@@ -1569,11 +1569,11 @@ __global__ void KerRunShifting(unsigned n,unsigned pini,double dt
       rshiftpos.x=temp*TangX;
       rshiftpos.z=temp*TangZ;
       /*const float rdetect=shiftdetect[p1];
-      if(rdetect<shifttfs)umagn=0;
-      else umagn*=(double(rdetect)-shifttfs)/coeftfs;*/
+      if(rdetect<freesurface)umagn=0;
+      else umagn*=(double(rdetect)-freesurface)/coeftfs;*/
     }
 
-    if(shiftdetect[p1]>=shifttfs && shiftdetect[p1]<=shifttfs+ShiftOffset){
+    if(shiftdetect[p1]>=freesurface && shiftdetect[p1]<=freesurface+ShiftOffset){
       double NormX=-rshiftpos.x;
       double NormZ=-rshiftpos.z;
       double temp=NormX*NormX+NormZ*NormZ;
@@ -1584,12 +1584,12 @@ __global__ void KerRunShifting(unsigned n,unsigned pini,double dt
       double TangZ=NormX;
       double temp_s=TangX*rshiftpos.x+TangZ*rshiftpos.z;
       double temp_n=NormX*rshiftpos.x+NormZ*rshiftpos.z;
-      double FactorShift=0.5*(1-cos(PI*(shiftdetect[p1]-shifttfs)/0.2));
+      double FactorShift=0.5*(1-cos(PI*(shiftdetect[p1]-freesurface)/0.2));
       rshiftpos.x=temp_s*TangX+temp_n*NormX*FactorShift;
       rshiftpos.z=temp_s*TangZ+temp_n*NormZ*FactorShift;
       /*const float rdetect=shiftdetect[p1];
-      if(rdetect<shifttfs)umagn=0;
-      else umagn*=(double(rdetect)-shifttfs)/coeftfs;*/
+      if(rdetect<freesurface)umagn=0;
+      else umagn*=(double(rdetect)-freesurface)/coeftfs;*/
     }
         
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
@@ -1604,14 +1604,14 @@ __global__ void KerRunShifting(unsigned n,unsigned pini,double dt
 /// Computes final shifting for the particle position.
 //==============================================================================
 void RunShifting(unsigned np,unsigned npb,double dt
-  ,double shiftcoef,float shifttfs,double coeftfs
+  ,double shiftcoef,float freesurface,double coeftfs
   ,float4 *velrhop,const float *shiftdetect,float3 *shiftpos)
 {
   const unsigned npf=np-npb;
   const double ShiftOffset=0.2;
   if(npf){
     dim3 sgrid=GetGridSize(npf,SPHBSIZE);
-    KerRunShifting <<<sgrid,SPHBSIZE>>> (npf,npb,dt,shiftcoef,shifttfs,coeftfs,velrhop,shiftdetect,shiftpos,ShiftOffset);
+    KerRunShifting <<<sgrid,SPHBSIZE>>> (npf,npb,dt,shiftcoef,freesurface,coeftfs,velrhop,shiftdetect,shiftpos,ShiftOffset);
   }
 }
 
@@ -3315,7 +3315,7 @@ void FreeSurfaceFind(bool psimple,bool shiftBound,TpCellMode cellmode
 ///Free Surface Mark
 //==============================================================================
 template<bool psimple> __global__ void KerFreeSurfaceMark
-  (unsigned n,unsigned pinit,float *divr,double *matrixInd, double *matrixb,int *row,const unsigned *porder,const word *code,const double pi,const float shifttfs)
+  (unsigned n,unsigned pinit,float *divr,double *matrixInd, double *matrixb,int *row,const unsigned *porder,const word *code,const double pi,const float freesurface)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
@@ -3323,8 +3323,8 @@ template<bool psimple> __global__ void KerFreeSurfaceMark
       if(CODE_GetTypeValue(code[p1])==0){
       unsigned oi=porder[p1];
       const int Mark=row[oi]+1;
-      if(divr[p1]>=shifttfs && divr[p1]<=shifttfs+0.2f){
-        double alpha=0.5*(1.0-cos(pi*(divr[p1]-shifttfs)/0.2));
+      if(divr[p1]>=freesurface && divr[p1]<=freesurface+0.2f){
+        double alpha=0.5*(1.0-cos(pi*(divr[p1]-freesurface)/0.2));
 
         matrixb[oi]=matrixb[oi]*alpha;
 
@@ -3337,7 +3337,7 @@ template<bool psimple> __global__ void KerFreeSurfaceMark
 }
 
 void FreeSurfaceMark(bool psimple,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,float *divr
-  ,double *matrixInd, double *matrixb,int *row,const unsigned *porder,const word *code,const double pi,const float shifttfs){
+  ,double *matrixInd, double *matrixb,int *row,const unsigned *porder,const word *code,const double pi,const float freesurface){
   const unsigned npf=np-npb;
 
   if(npf){
@@ -3345,12 +3345,12 @@ void FreeSurfaceMark(bool psimple,const unsigned bsbound,const unsigned bsfluid,
     dim3 sgridb=GetGridSize(npbok,bsbound);
 
     if(psimple){
-      KerFreeSurfaceMark<true> <<<sgridf,bsfluid>>> (npf,npb,divr,matrixInd,matrixb,row,porder,code,pi,shifttfs);
-      KerFreeSurfaceMark<true> <<<sgridb,bsbound>>> (npbok,0,divr,matrixInd,matrixb,row,porder,code,pi,shifttfs);
+      KerFreeSurfaceMark<true> <<<sgridf,bsfluid>>> (npf,npb,divr,matrixInd,matrixb,row,porder,code,pi,freesurface);
+      KerFreeSurfaceMark<true> <<<sgridb,bsbound>>> (npbok,0,divr,matrixInd,matrixb,row,porder,code,pi,freesurface);
     }
     else{
-      KerFreeSurfaceMark<false> <<<sgridf,bsfluid>>> (npf,npb,divr,matrixInd,matrixb,row,porder,code,pi,shifttfs);
-      KerFreeSurfaceMark<false> <<<sgridb,bsbound>>> (npbok,0,divr,matrixInd,matrixb,row,porder,code,pi,shifttfs);
+      KerFreeSurfaceMark<false> <<<sgridf,bsfluid>>> (npf,npb,divr,matrixInd,matrixb,row,porder,code,pi,freesurface);
+      KerFreeSurfaceMark<false> <<<sgridb,bsbound>>> (npbok,0,divr,matrixInd,matrixb,row,porder,code,pi,freesurface);
     }
   }
 }
@@ -3923,11 +3923,11 @@ void solveVienna(double *matrixa,double *matrixx,double *matrixb,int *row,int *c
 
   viennacl::linalg::bicgstab_tag bicgstab(1e-5,2000); 
 
-  std::cout<<"JACOBI PRECOND" <<std::endl;
+  /*std::cout<<"JACOBI PRECOND" <<std::endl;
   viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_A_cuda,viennacl::linalg::jacobi_tag());
-  run_solver(vcl_A_cuda,vcl_vec,bicgstab,vcl_jacobi,vcl_result);
+  run_solver(vcl_A_cuda,vcl_vec,bicgstab,vcl_jacobi,vcl_result);*/
 
-  /*std::cout<<"AMG PRECOND"<<std::endl;
+  std::cout<<"AMG PRECOND"<<std::endl;
 
   viennacl::linalg::amg_tag amg_tag_agg_pmis;
   amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_MIS2_AGGREGATION);
@@ -3937,7 +3937,7 @@ void solveVienna(double *matrixa,double *matrixx,double *matrixb,int *row,int *c
   amg_tag_agg_pmis.set_presmooth_steps(1);
   amg_tag_agg_pmis.set_postsmooth_steps(1); 
   amg_tag_agg_pmis.set_coarsening_cutoff(2500); 
-  run_amg(bicgstab,vcl_vec,vcl_A_cuda,"MIS2 AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,vcl_result);*/
+  run_amg(bicgstab,vcl_vec,vcl_A_cuda,"MIS2 AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,vcl_result);
 
   cudaFree(cuda_row_start); cudaFree(cuda_col_indices);
 }
@@ -3978,7 +3978,7 @@ template<bool psimple,TpFtMode ftmode> __device__ void KerInteractionForcesShift
       //-Shifting correction
       float n;
       if(shiftdetectp1<1.8f)n=0.4f;
-      else n=0.3f;
+      else n=0.1f;
       const float massrhop=(USE_FLOATING? ftmassp2: massp2)/CTE.rhopzero;
       const float tensile=n*powf(KerGetKernelWab(rr2)/Wab1,4.0);
         //const bool noshift=(boundp2 && (tshifting==SHIFT_NoBound || (tshifting==SHIFT_NoFixed && CODE_GetType(code[p2])==CODE_TYPE_FIXED)));
