@@ -159,6 +159,16 @@ typedef enum{
   SHIFT_None=0
 }TpShifting; //-Modos de Shifting. //-Shifting modes.
 
+typedef enum{
+  PRECOND_AMG=1,
+  PRECOND_Jacobi=0,
+}TpPrecond; //Preconditioner type
+
+typedef enum{
+  AMGINTER_SAG=1,
+  AMGINTER_AG=0,
+}TpAMGInter; //AMG Interpolation type
+
 ///Types of particles.
 typedef enum{ 
     PART_BoundFx=1,          ///<Fixed boundary particles.

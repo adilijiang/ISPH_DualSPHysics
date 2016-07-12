@@ -172,6 +172,16 @@ protected:
   float TensileR;       //-Tensile Instability Coefficient
 
   TpSlipCond TSlipCond;
+  
+  TpPrecond TPrecond;
+  TpAMGInter TAMGInter;
+  int Iterations;
+  float Tolerance;
+  float StrongConnection;
+  float JacobiWeight;
+  int Presmooth;
+  int Postsmooth;
+  int CoarseCutoff;
 
   float Visco;  
   float ViscoBoundFactor;     //-Para interaccion con contorno usa Visco*ViscoBoundFactor.						//-Forboundary interaction use Visco*ViscoBoundFactor.

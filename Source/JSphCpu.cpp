@@ -538,14 +538,7 @@ void JSphCpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
   memset(Arc,0,sizeof(float)*np);                                    //Arc[]=0
   if(Deltac)memset(Deltac,0,sizeof(float)*np);                       //Deltac[]=0
  
-  if(tinter==1){
-	  memset(Acec,0,sizeof(tfloat3)*np);								 //Acec[]=(0,0,0) for bound / para bound
-    /*#ifdef _WITHOMP
-      #pragma omp parallel for schedule (static)
-    #endif
-    for(int p=int(npb);p<int(np);p++)Acec[p]=Gravity;  */                   //Acec[]=Gravity for fluid / para fluid
-  }
-  else memset(Acec,0,sizeof(tfloat3)*np);
+  memset(Acec,0,sizeof(tfloat3)*np);
 
   if(SpsGradvelc)memset(SpsGradvelc+npb,0,sizeof(tsymatrix3f)*npf);  //SpsGradvelc[]=(0,0,0,0,0,0).
 
@@ -592,7 +585,7 @@ void JSphCpu::PreInteraction_Forces(TpInter tinter){
   Pressc=ArraysCpu->ReserveFloat();
   if(TVisco==VISCO_LaminarSPS)SpsGradvelc=ArraysCpu->ReserveSymatrix3f();
 
-  if(tinter==1){
+  if(tinter==1){//Initial Advection
     #ifdef _WITHOMP
       #pragma omp parallel for schedule (static)
     #endif
@@ -979,72 +972,6 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
 			        const float temp=volumep2*(velrhop[p2].w-pressp1);
               acep1.x+=temp*temp_x; acep1.y+=temp*fry; acep1.z+=temp*temp_z;
 			      }
-
-            //-Density derivative
-            /*const float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
-            if(compute)arp1+=massp2*(dvx*frx+dvy*fry+dvz*frz);
-
-            const float cbar=(float)Cs0;
-            //-Density derivative (DeltaSPH Molteni)
-            if((tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt) && deltap1!=FLT_MAX){
-              const float rhop1over2=rhopp1/velrhop[p2].w;
-              const float visc_densi=Delta2H*cbar*(rhop1over2-1.f)/(rr2+Eta2);
-              const float dot3=(drx*frx+dry*fry+drz*frz);
-              const float delta=visc_densi*dot3*massp2;
-              deltap1=(boundp2? FLT_MAX: deltap1+delta);
-            }*/
-
-            //-Shifting correction
-            /*if(tinter==2 && shift && shiftposp1.x!=FLT_MAX){
-              const float massrhop=massp2/velrhop[p2].w;
-              const bool noshift=(boundp2 && (tshifting==SHIFT_NoBound || (tshifting==SHIFT_NoFixed && CODE_GetType(code[p2])==CODE_TYPE_FIXED)));
-              shiftposp1.x=(noshift? FLT_MAX: shiftposp1.x+massrhop*frx); //-For boundary do not use shifting / Con boundary anula shifting.
-              shiftposp1.y+=massrhop*fry;
-              shiftposp1.z+=massrhop*frz;
-              shiftdetectp1-=massrhop*(drx*frx+dry*fry+drz*frz);
-            }*/
-
-            //===== Viscosity ===== 
-            /*if(compute){
-              const float dot=drx*dvx + dry*dvy + drz*dvz;
-              const float dot_rr2=dot/(rr2+Eta2);
-              visc=max(dot_rr2,visc);
-              if(!lamsps){//-Artificial viscosity 
-                if(dot<0){
-                  const float amubar=H*dot_rr2;  //amubar=CTE.h*dot/(rr2+CTE.eta2);
-                  const float robar=(rhopp1+velrhop[p2].w)*0.5f;
-                  const float pi_visc=(-visco*cbar*amubar/robar)*massp2*ftmassp1;
-                  acep1.x-=pi_visc*frx; acep1.y-=pi_visc*fry; acep1.z-=pi_visc*frz;
-                }
-              }
-              else{//-Laminar+SPS viscosity 
-                {//-Laminar contribution.
-                  const float robar2=(rhopp1+velrhop[p2].w);
-                  const float temp=4.f*visco/((rr2+Eta2)*robar2);  //-Simplification of / Simplificacion de: temp=2.0f*visco/((rr2+CTE.eta2)*robar); robar=(rhopp1+velrhop2.w)*0.5f;
-                  const float vtemp=massp2*temp*(drx*frx+dry*fry+drz*frz);  
-                  acep1.x+=vtemp*dvx; acep1.y+=vtemp*dvy; acep1.z+=vtemp*dvz;
-                }
-                //-SPS turbulence model.
-                float tau_xx=taup1.xx,tau_xy=taup1.xy,tau_xz=taup1.xz; //-taup1 is always zero when p1 is not a fluid particle / taup1 siempre es cero cuando p1 no es fluid.
-                float tau_yy=taup1.yy,tau_yz=taup1.yz,tau_zz=taup1.zz;
-                if(!boundp2 && !ftp2){//-Cuando p2 es fluido.  
-                  tau_xx+=tau[p2].xx; tau_xy+=tau[p2].xy; tau_xz+=tau[p2].xz;
-                  tau_yy+=tau[p2].yy; tau_yz+=tau[p2].yz; tau_zz+=tau[p2].zz;
-                }
-                acep1.x+=massp2*ftmassp1*(tau_xx*frx+tau_xy*fry+tau_xz*frz);
-                acep1.y+=massp2*ftmassp1*(tau_xy*frx+tau_yy*fry+tau_yz*frz);
-                acep1.z+=massp2*ftmassp1*(tau_xz*frx+tau_yz*fry+tau_zz*frz);
-                //-Velocity gradients.
-                if(!ftp1){//-When p1 is a fluid particle / Cuando p1 es fluido. 
-                  const float volp2=-massp2/velrhop[p2].w;
-                  float dv=dvx*volp2; gradvelp1.xx+=dv*frx; gradvelp1.xy+=dv*fry; gradvelp1.xz+=dv*frz;
-                        dv=dvy*volp2; gradvelp1.xy+=dv*frx; gradvelp1.yy+=dv*fry; gradvelp1.yz+=dv*frz;
-                        dv=dvz*volp2; gradvelp1.xz+=dv*frx; gradvelp1.yz+=dv*fry; gradvelp1.zz+=dv*frz;
-                  // to compute tau terms we assume that gradvel.xy=gradvel.dudy+gradvel.dvdx, gradvel.xz=gradvel.dudz+gradvel.dwdx, gradvel.yz=gradvel.dvdz+gradvel.dwdy
-                  // so only 6 elements are needed instead of 3x3.
-                }
-              }
-			}*/
           }
         }
       }
@@ -1052,27 +979,8 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
 	
     //-Sum results together / Almacena resultados.
     if(acep1.x||acep1.y||acep1.z){
-      //if(tdelta==DELTA_Dynamic&&deltap1!=FLT_MAX)arp1+=deltap1;
-      //if(tdelta==DELTA_DynamicExt)delta[p1]=(delta[p1]==FLT_MAX || deltap1==FLT_MAX? FLT_MAX: delta[p1]+deltap1);
-      //ar[p1]+=arp1;
-      if(tinter==1)ace[p1]=ace[p1]+acep1;
-	    if(tinter==2){
-		    ace[p1]=ace[p1]+acep1/RhopZero;
-      }
-      /*const int th=omp_get_thread_num();
-      if(visc>viscth[th*STRIDE_OMP])viscth[th*STRIDE_OMP]=visc;
-      if(lamsps){
-        gradvel[p1].xx+=gradvelp1.xx;
-        gradvel[p1].xy+=gradvelp1.xy;
-        gradvel[p1].xz+=gradvelp1.xz;
-        gradvel[p1].yy+=gradvelp1.yy;
-        gradvel[p1].yz+=gradvelp1.yz;
-        gradvel[p1].zz+=gradvelp1.zz;
-      }*/
-      /*if(tinter==2 && shift && shiftpos[p1].x!=FLT_MAX){
-        shiftpos[p1]=(shiftposp1.x==FLT_MAX? TFloat3(FLT_MAX,0,0): shiftpos[p1]+shiftposp1);
-        if(shiftdetect)shiftdetect[p1]+=shiftdetectp1;
-      }*/
+      if(tinter==1) ace[p1]=ace[p1]+acep1;
+	    if(tinter==2) ace[p1]=ace[p1]+acep1/RhopZero;
     }
   }
   //-Keep max value in viscdt / Guarda en viscdt el valor maximo.
@@ -2430,7 +2338,6 @@ void JSphCpu::PopulateMatrixAInteractFluid(bool psimple,unsigned n,unsigned pini
             const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
             const float rr2=drx*drx+dry*dry+drz*drz;
             if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-              const unsigned idp2=idpc[p2];
   	          unsigned oj = porder[p2];
 
 		          //-Wendland kernel.
@@ -2655,12 +2562,12 @@ void JSphCpu::solveVienna(std::vector<double> &matrixa,std::vector<double> &matr
 
     viennacl::linalg::bicgstab_tag bicgstab(1e-5,2000);
 
-    /*std::cout<<"JACOBI PRECOND" <<std::endl;
+    std::cout<<"JACOBI PRECOND" <<std::endl;
     viennacl::vector<ScalarType> vcl_result(vcl_compressed_matrix.size1(),ctx);
     viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_compressed_matrix,viennacl::linalg::jacobi_tag());
-    run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_jacobi,matrixx,ppedim);*/
+    run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_jacobi,matrixx,ppedim);
 
-    std::cout<<"AMG PRECOND" <<std::endl;
+    /*std::cout<<"AMG PRECOND" <<std::endl;
     viennacl::context host_ctx(viennacl::MAIN_MEMORY);
     viennacl::context target_ctx = viennacl::traits::context(vcl_compressed_matrix);
 
@@ -2674,7 +2581,7 @@ void JSphCpu::solveVienna(std::vector<double> &matrixa,std::vector<double> &matr
     amg_tag_agg_pmis.set_coarsening_cutoff(2500); 
     amg_tag_agg_pmis.set_setup_context(host_ctx);
     amg_tag_agg_pmis.set_target_context(target_ctx); 
-    run_amg(bicgstab,vcl_vec,vcl_compressed_matrix,"AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,matrixx,ppedim);
+    run_amg(bicgstab,vcl_vec,vcl_compressed_matrix,"AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,matrixx,ppedim);*/
 }    
 #endif
 

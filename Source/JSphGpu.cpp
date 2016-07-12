@@ -86,7 +86,7 @@ void JSphGpu::InitVars(){
   POrderg=NULL;  POrderc=NULL;
   rowCpu=NULL;
   Divrg=NULL;
-  ShiftPosg=NULL; ShiftDetectg=NULL; //-Shifting.
+  ShiftPosg=NULL; //-Shifting.
   Irelationg=NULL;
   RidpMoveg=NULL;
   FtRidpg=NULL;    FtoMasspg=NULL;               //-Floatings.
@@ -212,7 +212,7 @@ void JSphGpu::AllocCpuMemoryParticles(unsigned np){
       AuxVel=new tfloat3[np];    MemCpuParticles+=sizeof(tfloat3)*np;
       AuxRhop=new float[np];     MemCpuParticles+=sizeof(float)*np;
       POrderc=new unsigned[np];  MemCpuParticles+=sizeof(unsigned)*np;
-      rowCpu=new int[np];        MemCpuParticles+=sizeof(unsigned)*np;
+      rowCpu=new unsigned[np];        MemCpuParticles+=sizeof(unsigned)*np;
       //-Memoria auxiliar para floatings.
 	  //-Auxiliary memory for floating bodies.
       FtoForces=new StFtoForces[FtCount];  MemCpuParticles+=sizeof(StFtoForces)*FtCount;
@@ -899,15 +899,10 @@ void JSphGpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
   const unsigned npf=np-npb;
   cudaMemset(ViscDtg,0,sizeof(float)*np);                                //ViscDtg[]=0
   cudaMemset(Arg,0,sizeof(float)*np);                                    //Arg[]=0
-  if(Deltag)cudaMemset(Deltag,0,sizeof(float)*np);                       //Deltag[]=0
+  //if(Deltag)cudaMemset(Deltag,0,sizeof(float)*np);                       //Deltag[]=0
   //if(ShiftPosg)cudaMemset(ShiftPosg,0,sizeof(tfloat3)*np);               //ShiftPosg[]=0
-  //if(ShiftDetectg)cudaMemset(ShiftDetectg,0,sizeof(float)*np);           //ShiftDetectg[]=0
-  if(tinter==1){
-    cudaMemset(Aceg,0,sizeof(tfloat3)*npb);                                //Aceg[]=(0,0,0) para bound //Aceg[]=(0,0,0) for the boundary
-    //cusph::InitArray(npf,Aceg+npb,Gravity);                                //Aceg[]=Gravity para fluid //Aceg[]=Gravity for the fluid
-  }
-  else cudaMemset(Aceg,0,sizeof(tfloat3)*np);
-  if(SpsGradvelg)cudaMemset(SpsGradvelg+npb,0,sizeof(tsymatrix3f)*npf);  //SpsGradvelg[]=(0,0,0,0,0,0).
+  cudaMemset(Aceg,0,sizeof(tfloat3)*np);
+  //if(SpsGradvelg)cudaMemset(SpsGradvelg+npb,0,sizeof(tsymatrix3f)*npf);  //SpsGradvelg[]=(0,0,0,0,0,0).
 
   //-Apply the extra forces to the correct particle sets.
   if(VarAcc)AddVarAcc();
@@ -943,7 +938,7 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
 
   //-Calcula VelMax: Se incluyen las particulas floatings y no afecta el uso de condiciones periodicas.
   //-Computes VelMax: Includes the particles from floating bodies and does not affect the periodic conditions.
-  if(tinter==1){
+ /* if(tinter==1){
     const unsigned pini=(DtAllParticles? 0: Npb);
     cusph::ComputeVelMod(Np-pini,Velrhopg+pini,ViscDtg);
     float velmax=cusph::ReduMaxFloat(Np-pini,0,ViscDtg,CellDiv->GetAuxMem(cusph::ReduMaxFloatSize(Np-pini)));
@@ -951,7 +946,7 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
     cudaMemset(ViscDtg,0,sizeof(float)*Np);           //ViscDtg[]=0
     ViscDtMax=0;
     CheckCudaError("PreInteraction_Forces","Failed calculating VelMax.");
-  }
+  }*/
 
   TmgStop(Timers,TMG_CfPreForces);
 }
@@ -969,8 +964,6 @@ void JSphGpu::PosInteraction_Forces(TpInter tinter){
 
   ArraysGpu->Free(Deltag);          Deltag=NULL;
   if(tinter==2){
-    //ArraysGpu->Free(ShiftPosg);     ShiftPosg=NULL;
-    //ArraysGpu->Free(ShiftDetectg);  ShiftDetectg=NULL;
 	  ArraysGpu->Free(dWxCorrg);	    dWxCorrg=NULL;
 	  ArraysGpu->Free(dWzCorrg);	    dWzCorrg=NULL;
     ArraysGpu->Free(PsPospressg);   PsPospressg=NULL;
@@ -1099,7 +1092,7 @@ double JSphGpu::DtVariable(bool final){
 void JSphGpu::RunShifting(double dt){
   TmgStart(Timers,TMG_SuShifting);
   const double coeftfs=(Simulate2D? 2.0: 3.0)-FreeSurface;
-  cusph::RunShifting(Np,Npb,dt,ShiftCoef,FreeSurface,coeftfs,Velrhopg,ShiftDetectg,ShiftPosg);
+  cusph::RunShifting(Np,Npb,dt,ShiftCoef,FreeSurface,coeftfs,Velrhopg,Divrg,ShiftPosg);
   TmgStop(Timers,TMG_SuShifting);
 }
 
@@ -1189,37 +1182,38 @@ void JSphGpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
 //===============================================================================
 ///Matrix Order
 //===============================================================================
-void JSphGpu::MatrixOrder(unsigned n,unsigned pinit,unsigned bsbound,unsigned *porder,tuint3 ncells,const int2 *begincell,tuint3 cellmin,
+void JSphGpu::MatrixOrder(unsigned np,unsigned pinit,unsigned bsbound,unsigned *porder,tuint3 ncells,const int2 *begincell,tuint3 cellmin,
   const unsigned *dcell,const unsigned *idpg,const unsigned *irelationg,word *code, unsigned &ppedim){
-	const int pfin=int(pinit+n);
-  clock_t start = clock(); 
-  cudaMemcpy(Code,Codeg,sizeof(word)*n ,cudaMemcpyDeviceToHost);
+	const char met[]="SolvePPE";
+  const int pfin=int(pinit+np);
+  CheckCudaError(met,"MatrixOrderNormalCode0");
+  word *codehost; codehost=new word[np];
+  cudaMemcpy(codehost,code,sizeof(word)*np ,cudaMemcpyDeviceToHost);
+  CheckCudaError(met,"MatrixOrderNormalCode");
   unsigned index=0;
-	for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(Code[p1])==0){
-    if(p1<int(Npb)&&p1>=int(NpbOk))POrderc[p1]=n;
+	for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(codehost[p1])==0||CODE_GetTypeValue(codehost[p1])==2){
+    if(p1<int(Npb)&&p1>=int(NpbOk))POrderc[p1]=np;
     else{
       POrderc[p1]=index;
       index++;
     }
   }
-  cudaMemcpy(porder,POrderc,sizeof(unsigned)*n,cudaMemcpyHostToDevice);
-  
-  clock_t stop = clock();   
-    double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
-    cout<<"MatrixOrder Time = " << dif << "ms\n";
-
-  cusph::MatrixOrderDummy(CellMode,bsbound,n,Npb,ncells,begincell,cellmin,dcell,Codeg,Idpg,irelationg,porder);
-  
+  delete[] codehost;
+  CheckCudaError(met,"MatrixOrderNormalCalc");
+  cudaMemcpy(porder,POrderc,sizeof(unsigned)*np,cudaMemcpyHostToDevice);
+  CheckCudaError(met,"MatrixOrderNormalPOrder");
+  cusph::MatrixOrderDummy(CellMode,bsbound,np,Npb,ncells,begincell,cellmin,dcell,Codeg,Idpg,irelationg,porder);
+  CheckCudaError(met,"MatrixOrderDummy");
   ppedim = index;
 }
 
 //===============================================================================
 ///Matrix storage
 //===============================================================================
-unsigned JSphGpu::MatrixASetup(const unsigned ppedim,int *rowGpu){
+unsigned JSphGpu::MatrixASetup(const unsigned ppedim,unsigned int *rowGpu){
  
   unsigned nnz=0;
-  cudaMemcpy(rowCpu,rowGpu,sizeof(int)*(ppedim+1),cudaMemcpyDeviceToHost);
+  cudaMemcpy(rowCpu,rowGpu,sizeof(unsigned int)*(ppedim+1),cudaMemcpyDeviceToHost);
 
   for(unsigned i=0;i<ppedim;i++){
     unsigned nnzOld=nnz;
@@ -1228,7 +1222,7 @@ unsigned JSphGpu::MatrixASetup(const unsigned ppedim,int *rowGpu){
   }
   rowCpu[ppedim]=nnz;
 
-  cudaMemcpy(rowGpu,rowCpu,sizeof(int)*(ppedim+1),cudaMemcpyHostToDevice); 
+  cudaMemcpy(rowGpu,rowCpu,sizeof(unsigned int)*(ppedim+1),cudaMemcpyHostToDevice); 
   
   return nnz;
 }

@@ -107,6 +107,11 @@ void JSph::InitVars(){
   FreeSurface=0;
   TensileN=0;
   TensileR=0;
+  TPrecond=PRECOND_Jacobi;
+  TAMGInter=AMGINTER_AG;
+  Iterations=0;
+  Tolerance=0;
+  StrongConnection=0; JacobiWeight=0; Presmooth=0; Postsmooth=0; CoarseCutoff=0;
   RenCorrection=0;
   Visco=0; ViscoBoundFactor=1;
   UseDEM=false;  //(DEM)
@@ -415,14 +420,37 @@ void JSph::LoadCaseConfig(){
     case 3:  TShifting=SHIFT_Full;     break;*/
     default: RunException(met,"Shifting mode is not valid.");
   }
+
   if(TShifting!=SHIFT_None){
-    ShiftCoef=eparms.GetValueFloat("ShiftCoef",true,-2);
+    ShiftCoef=eparms.GetValueFloat("ShiftCoef",true,0.1f);
     TensileN=eparms.GetValueFloat("TensileN",true,0.1f);
     TensileR=eparms.GetValueFloat("TensileR",true,3.0f);
   }
 
   FreeSurface=eparms.GetValueFloat("FreeSurface",true,1.6f);
-  
+
+  Tolerance=eparms.GetValueFloat("Solver Tolerance",true,1e-5f);
+  Iterations=eparms.GetValueInt("Max Iterations",true,100);
+
+  switch(eparms.GetValueInt("Preconditioner",true,0)){
+    case 0:  TPrecond=PRECOND_Jacobi;   break;
+    case 1:  TPrecond=PRECOND_AMG;      break;
+    default: RunException(met,"Preconditioner is not valid.");
+  }
+
+  if(TPrecond==PRECOND_AMG){   
+    switch(eparms.GetValueInt("AMG Interpolation",true,0)){
+      case 0:  TAMGInter=AMGINTER_AG;   break;
+      case 1:  TAMGInter=AMGINTER_SAG;  break;
+      default: RunException(met,"AMG Interpolation is not valid.");
+    }
+    StrongConnection=eparms.GetValueFloat("Strong Connection Threshold",true,-2);
+    JacobiWeight=eparms.GetValueFloat("Jacobi Weight",true,0.7f);
+    Presmooth=eparms.GetValueInt("Presmooth Steps",true,1);
+    Postsmooth=eparms.GetValueInt("Postsmooth Steps",true,1);
+    CoarseCutoff=eparms.GetValueInt("Coarsening Cutoff",true,2500);
+  }
+
   RenCorrection=eparms.GetValueFloat("RenCorrection",true,0);
   if(RenCorrection<0 || RenCorrection>1)RunException(met,"Value of RenCorrection is invalid.");
 

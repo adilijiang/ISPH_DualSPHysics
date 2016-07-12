@@ -152,7 +152,6 @@ protected:
   float *Deltag;     ///<ES: Acumula ajuste de Delta-SPH con DELTA_DynamicExt EN: Accumulates adjustment of Delta-SPH with DELTA_DynamicExt
 
   float3 *ShiftPosg;    ///<Particle displacement using Shifting.
-  float *ShiftDetectg;  ///<Used to detect free surface with Shifting.
 
   double VelMax;      ///<Maximum value of Vel[] sqrt(vel.x^2 + vel.y^2 + vel.z^2) computed in PreInteraction_Forces().
   double AceMax;      ///<Maximum value of Ace[] (ace.x^2 + ace.y^2 + ace.z^2) computed in Interaction_Forces().
@@ -245,8 +244,7 @@ protected:
   ///////////////////////////////////////////////
   unsigned *Irelationg; //The closest fluid particle, j, for a boundary particle, i
   unsigned *POrderc;
-  int *rowCpu;
-  float3 *Debug;
+  unsigned int *rowCpu;
   unsigned *POrderg;
   float3 *dWxCorrg; //Kernel correction in the x direction
   float3 *dWzCorrg; //Kernel correction in the z direction
@@ -254,13 +252,13 @@ protected:
   //matrix variables 
   double *b;
   double *a;
-  int *colInd;
-  int *rowInd;
+  unsigned int *colInd;
+  unsigned int *rowInd;
   double *X;
 
   void MatrixOrder(unsigned n,unsigned pinit,unsigned bsbound,unsigned *porder,tuint3 ncells,const int2 *begincell,tuint3 cellmin,
     const unsigned *dcell,const unsigned *idpg,const unsigned *irelation,word *code, unsigned &ppedim);
-  unsigned MatrixASetup(const unsigned ppedim,int *rowGpu);
+  unsigned MatrixASetup(const unsigned ppedim,unsigned int *rowGpu);
 
   void Shift(double dt);
 public:

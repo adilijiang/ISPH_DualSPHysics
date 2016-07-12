@@ -462,8 +462,8 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   //-Interaccion Fluid-Fluid/Bound & Bound-Fluid.
   //-Interaction Fluid-Fluid/Bound & Bound-Fluid.
   
-  cusph::Interaction_Forces(Psimple,WithFloating,UseDEM,lamsps,TDeltaSph,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,dWxCorrg,dWzCorrg,FtoMasspg,SpsTaug,SpsGradvelg,ViscDtg,Arg,Aceg,Deltag,TShifting,ShiftPosg,ShiftDetectg,Simulate2D);
-  
+  cusph::Interaction_Forces(Psimple,WithFloating,UseDEM,lamsps,TDeltaSph,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,dWxCorrg,dWzCorrg,FtoMasspg,SpsTaug,SpsGradvelg,ViscDtg,Arg,Aceg,Deltag,TShifting,ShiftPosg,Simulate2D);
+  if(tinter==1)cudaMemset(Velrhopg,0,sizeof(float4)*Npb);
   //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
   //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
   if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,FtRidpg,DemDatag,float(DemDtForce),Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,ViscDtg,Aceg);
@@ -533,11 +533,10 @@ double JSphGpuSingle::ComputeAceMax(float *auxmem){
 double JSphGpuSingle::ComputeStep_Sym(){
   const double dt=DtPre;
   //-Predictor
-  //-----------
-  clock_t start = clock();  
+  //----------- 
   InitAdvection(dt);
   RunCellDivide(true);
- // DemDtForce=dt*0.5f;                     //(DEM)
+  //if(TSlipCond)BoundaryVelocity(TSlipCond);
   Interaction_Forces(INTER_Forces,dt);       //-Interaccion //-Interaction
   //const double ddt_p=DtVariable(false);   //-Calcula dt del predictor //-Computes dt in the predictor step
   //if(TShifting)RunShifting(dt*.5);        //-Shifting
@@ -546,34 +545,17 @@ double JSphGpuSingle::ComputeStep_Sym(){
   PosInteraction_Forces(INTER_Forces);                //-Libera memoria de interaccion //-Releases memory of the interaction
   //-Pressure Poisson equation
   //-----------
-  clock_t stop = clock();   
-    double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
-    cout<<"Before Matrix Time = " << dif << "ms\n";
-    start = clock();
   KernelCorrection(false);
+  
   SolvePPE(dt); //-Solve pressure Poisson equation
-  stop = clock();   
-    dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
-    cout<<"Matrix Time = " << dif << "ms\n";
-    start = clock();
   //-Corrector
   //-----------
   //DemDtForce=dt;                          //(DEM)
-
-
-    ////////////////////////////////
-  KernelCorrection(true); //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<PROBABLY NOT NEEDED WITH NEW BOUNDARY CONDITION SETUP
-  ///////////////////////////////////////
-
-
   Interaction_Forces(INTER_ForcesCorr,dt);   //-Interaccion //-interaction
   //const double ddt_c=DtVariable(true);    //-Calcula dt del corrector //Computes dt in the corrector step
   ComputeSymplecticCorr(dt);              //-Aplica Symplectic-Corrector a las particulas //Applies Symplectic-Corrector to the particles
   //if(CaseNfloat)RunFloating(dt,false);    //-Gestion de floating bodies //-Management of the floating bodies
   PosInteraction_Forces(INTER_ForcesCorr);                //-Libera memoria de interaccion //-Releases memory of the interaction
-  stop = clock();   
-    dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
-    cout<<"After MatrixTime = " << dif << "ms\n";
   if(TShifting)RunShifting(dt);           //-Shifting
   //DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep //-Computes dt for the next ComputeStep
   return(dt);
@@ -776,10 +758,8 @@ void JSphGpuSingle::KernelCorrection(bool boundary){
   const unsigned bsfluid=BlockSizes.forcesfluid;
   const unsigned bsbound=BlockSizes.forcesbound;
 
-  if(!boundary){
-    dWxCorrg=ArraysGpu->ReserveFloat3();
-    dWzCorrg=ArraysGpu->ReserveFloat3();
-  }
+  dWxCorrg=ArraysGpu->ReserveFloat3();
+  dWzCorrg=ArraysGpu->ReserveFloat3();
 
   cudaMemset(dWxCorrg,0,sizeof(float3)*Np);						
   cudaMemset(dWzCorrg,0,sizeof(float3)*Np);
@@ -794,23 +774,26 @@ void JSphGpuSingle::InitAdvection(double dt){
     PosxyPreg=ArraysGpu->ReserveDouble2();
     PoszPreg=ArraysGpu->ReserveDouble();
     VelrhopPreg=ArraysGpu->ReserveFloat4();
+    unsigned np=Np;
+    unsigned npb=Npb;
+    unsigned npf=np-npb;
     //-Cambia datos a variables Pre para calcular nuevos datos.
     //-Changes data of predictor variables for calculating the new data
-    cudaMemcpy(PosxyPreg,Posxyg,sizeof(double2)*Np,cudaMemcpyDeviceToDevice);     //Es decir... PosxyPre[] <= Posxy[] //i.e. PosxyPre[] <= Posxy[]
-    cudaMemcpy(PoszPreg,Poszg,sizeof(double)*Np,cudaMemcpyDeviceToDevice);        //Es decir... PoszPre[] <= Posz[] //i.e. PoszPre[] <= Posz[]
-    cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*Np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
-	  cudaMemset(Velrhopg,0,sizeof(float4)*Npb);
+    cudaMemcpy(PosxyPreg,Posxyg,sizeof(double2)*np,cudaMemcpyDeviceToDevice);     //Es decir... PosxyPre[] <= Posxy[] //i.e. PosxyPre[] <= Posxy[]
+    cudaMemcpy(PoszPreg,Poszg,sizeof(double)*np,cudaMemcpyDeviceToDevice);        //Es decir... PoszPre[] <= Posz[] //i.e. PoszPre[] <= Posz[]
+    cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
+	  cudaMemset(Velrhopg,0,sizeof(float4)*npb);
 
     //-Copia posicion anterior del contorno.
     //-Copies previous position of the boundaries.
-    cudaMemcpy(Posxyg,PosxyPreg,sizeof(double2)*Npb,cudaMemcpyDeviceToDevice);
-    cudaMemcpy(Poszg,PoszPreg,sizeof(double)*Npb,cudaMemcpyDeviceToDevice);
+    //cudaMemcpy(Posxyg,PosxyPreg,sizeof(double2)*Npb,cudaMemcpyDeviceToDevice);
+    //cudaMemcpy(Poszg,PoszPreg,sizeof(double)*Npb,cudaMemcpyDeviceToDevice);
     
     double2 *movxyg=ArraysGpu->ReserveDouble2();
     double *movzg=ArraysGpu->ReserveDouble();
     
-    cusph::ComputeRStar(WithFloating,Np,Npb,VelrhopPreg,dt,Codeg,movxyg,movzg);
-	  cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
+    cusph::ComputeRStar(WithFloating,npf,npb,VelrhopPreg,dt,Codeg,movxyg,movzg);
+	  cusph::ComputeStepPos2(PeriActive,WithFloating,npf,npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
 
     ArraysGpu->Free(movxyg);   movxyg=NULL;
     ArraysGpu->Free(movzg);    movzg=NULL;
@@ -821,6 +804,7 @@ void JSphGpuSingle::InitAdvection(double dt){
 //==============================================================================
 
 void JSphGpuSingle::SolvePPE(double dt){ 
+  const char met[]="SolvePPE";
   tuint3 ncells=CellDivSingle->GetNcells();
   const int2 *begincell=CellDivSingle->GetBeginCell();
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
@@ -836,43 +820,41 @@ void JSphGpuSingle::SolvePPE(double dt){
   
   POrderg=ArraysGpu->ReserveUint(); cusph::InitArrayPOrder(np,POrderg,np);
   Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
-
+  CheckCudaError(met,"Memory Assignment PORder");
   MatrixOrder(np,0,bsbound,POrderg,ncells,begincell,cellmin,dcell,Idpg,Irelationg,Codeg,PPEDim);
+  CheckCudaError(met,"MatrixOrder");
   cusph::FreeSurfaceFind(Psimple,true,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,Divrg);
+  CheckCudaError(met,"FreeSurfaceFind");
   //Create matrix
   cudaMalloc((void**)&b,sizeof(double)*PPEDim); cudaMemset(b,0,sizeof(double)*PPEDim);
   cudaMalloc((void**)&X,sizeof(double)*PPEDim); cudaMemset(X,0,sizeof(double)*PPEDim);
-  cudaMalloc((void**)&rowInd,sizeof(int)*(PPEDim+1)); cudaMemset(rowInd,0,sizeof(int)*(PPEDim+1));
-
+  cudaMalloc((void**)&rowInd,sizeof(unsigned int)*(PPEDim+1)); cudaMemset(rowInd,0,sizeof(unsigned int)*(PPEDim+1));
+  CheckCudaError(met,"Memory Assignment b");
   cusph::PopulateMatrixB(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,PsPospressg,Velrhopg,dWxCorrg,dWzCorrg,b,POrderg,Idpg,dt,PPEDim,Divrg,Codeg);
 
   cusph::MatrixStorage(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,Divrg,POrderg,rowInd);
+  CheckCudaError(met,"MatrixStorage");
   unsigned Nnz=MatrixASetup(PPEDim,rowInd);
   cudaMalloc((void**)&a,sizeof(double)*Nnz); cudaMemset(a,0,sizeof(double)*Nnz);
-  cudaMalloc((void**)&colInd,sizeof(int)*Nnz); cusph::InitArrayCol(Nnz,colInd,int(PPEDim));
+  cudaMalloc((void**)&colInd,sizeof(unsigned int)*Nnz); cusph::InitArrayCol(Nnz,colInd,int(PPEDim));
+  CheckCudaError(met,"Memory Assignment a");
   cusph::PopulateMatrixA(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,a,b,rowInd,colInd,POrderg,Idpg,PPEDim,Divrg,Codeg,Irelationg);
   cusph::FreeSurfaceMark(Psimple,bsbound,bsfluid,np,npb,npbok,Divrg,a,b,rowInd,POrderg,Codeg,PI,FreeSurface);
-  //int *row; int *col; double *values;
-  //row=new int[PPEDim+1]; col=new int[Nnz]; values=new double[Nnz];
-  //cudaMemcpy(row,rowInd,sizeof(int)*(PPEDim+1),cudaMemcpyDeviceToHost);
-  //cudaMemcpy(col,colInd,sizeof(int)*Nnz,cudaMemcpyDeviceToHost);
-  //cudaMemcpy(values,a,sizeof(double)*Nnz,cudaMemcpyDeviceToHost); 
-  
-  cusph::solveVienna(a,X,b,rowInd,colInd,Nnz,PPEDim); 
-  unsigned *irelation; irelation = new unsigned[Npb];
+  CheckCudaError(met,"Free Surface");
+  cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,X,b,rowInd,colInd,Nnz,PPEDim); 
+  CheckCudaError(met,"solve");
   cusph::PressureAssign(Psimple,bsbound,bsfluid,np,npb,npbok,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,X,POrderg,Idpg,Codeg,Irelationg);
-  
+  CheckCudaError(met,"pressure assign");
   ArraysGpu->Free(POrderg);       POrderg=NULL;
   ArraysGpu->Free(Divrg);		      Divrg=NULL;
   cudaFree(b); cudaFree(X); cudaFree(a); cudaFree(rowInd); cudaFree(colInd);
-  
+  CheckCudaError(met,"free");
 }
 
 //==============================================================================
 /// Shifting
 //==============================================================================
 void JSphGpuSingle::RunShifting(double dt){ 
-  clock_t  start = clock();
   tuint3 ncells=CellDivSingle->GetNcells();
   const int2 *begincell=CellDivSingle->GetBeginCell();
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
@@ -890,9 +872,9 @@ void JSphGpuSingle::RunShifting(double dt){
   VelrhopPreg=ArraysGpu->ReserveFloat4();
 
   ShiftPosg=ArraysGpu->ReserveFloat3();
-  ShiftDetectg=ArraysGpu->ReserveFloat();
+  Divrg=ArraysGpu->ReserveFloat();
   cudaMemset(ShiftPosg,0,sizeof(tfloat3)*np);       //ShiftPosg[]=0
-  cudaMemset(ShiftDetectg,0,sizeof(float)*np);   //ShiftDetectg[]=0
+  cudaMemset(Divrg,0,sizeof(float)*np);        //Divrg[]=0
 
   //-Cambia datos a variables Pre para calcular nuevos datos.
   //-Changes data of predictor variables for calculating the new data
@@ -905,9 +887,9 @@ void JSphGpuSingle::RunShifting(double dt){
   PsPospressg=ArraysGpu->ReserveFloat4();
   cusph::PreInteractionSimple(Np,Posxyg,Poszg,Velrhopg,PsPospressg,CteB,Gamma);
 
-  cusph::FreeSurfaceFind(Psimple,false,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,ShiftDetectg);
+  cusph::FreeSurfaceFind(Psimple,false,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,Divrg);
 
-  cusph::Interaction_Shifting(Psimple,WithFloating,UseDEM,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,FtoMasspg,TShifting,ShiftPosg,ShiftDetectg);
+  cusph::Interaction_Shifting(Psimple,WithFloating,UseDEM,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,FtoMasspg,TShifting,ShiftPosg,Divrg,TensileN,TensileR);
 
   JSphGpu::RunShifting(dt);
 
@@ -917,10 +899,6 @@ void JSphGpuSingle::RunShifting(double dt){
   ArraysGpu->Free(PoszPreg);      PoszPreg=NULL;
   ArraysGpu->Free(VelrhopPreg);   VelrhopPreg=NULL;
   ArraysGpu->Free(ShiftPosg);     ShiftPosg=NULL;
-  ArraysGpu->Free(ShiftDetectg);  ShiftDetectg=NULL;
+  ArraysGpu->Free(Divrg);         Divrg=NULL;
   ArraysGpu->Free(PsPospressg);   PsPospressg=NULL; 
-
-  clock_t stop = clock();   
-    double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
-    cout<<"Shifting Time = " << dif << "ms\n";
 }
