@@ -444,7 +444,7 @@ void JSph::LoadCaseConfig(){
       case 1:  TAMGInter=AMGINTER_SAG;  break;
       default: RunException(met,"AMG Interpolation is not valid.");
     }
-    StrongConnection=eparms.GetValueFloat("Strong Connection Threshold",true,-2);
+    StrongConnection=eparms.GetValueFloat("Strong Connection Threshold",true,0.3f);
     JacobiWeight=eparms.GetValueFloat("Jacobi Weight",true,0.7f);
     Presmooth=eparms.GetValueInt("Presmooth Steps",true,1);
     Postsmooth=eparms.GetValueInt("Postsmooth Steps",true,1);

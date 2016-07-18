@@ -243,7 +243,6 @@ protected:
   //PPE Functions, variables, Kernel Correction//
   ///////////////////////////////////////////////
   unsigned *Irelationg; //The closest fluid particle, j, for a boundary particle, i
-  unsigned *POrderc;
   unsigned int *rowCpu;
   unsigned *POrderg;
   float3 *dWxCorrg; //Kernel correction in the x direction
@@ -256,11 +255,11 @@ protected:
   unsigned int *rowInd;
   double *X;
 
-  void MatrixOrder(unsigned n,unsigned pinit,unsigned bsbound,unsigned *porder,tuint3 ncells,const int2 *begincell,tuint3 cellmin,
+  void MatrixOrder(unsigned n,unsigned pinit,unsigned bsbound,unsigned bsfluid,unsigned *porder,tuint3 ncells,const int2 *begincell,tuint3 cellmin,
     const unsigned *dcell,const unsigned *idpg,const unsigned *irelation,word *code, unsigned &ppedim);
   unsigned MatrixASetup(const unsigned ppedim,unsigned int *rowGpu);
 
-  void Shift(double dt);
+  void Shift(double dt,const unsigned bsfluid);
 public:
   JSphGpu(bool withmpi);
   ~JSphGpu();

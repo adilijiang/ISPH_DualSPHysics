@@ -1031,27 +1031,27 @@ void JSphCpuSingle::SolvePPE(double dt){
   
   //RHS
   b.resize(PPEDim,0);
-  PopulateMatrixB(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr); //-Fluid-Fluid
-  PopulateMatrixB(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr); //-Fluid-Bound
-  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr); //-Bound-Fluid
-  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr); //-Bound-Bound
+  PopulateMatrixB(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Fluid-Fluid
+  PopulateMatrixB(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Fluid-Bound
+  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Bound-Fluid
+  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Bound-Bound
   rowInd.resize(PPEDim+1,0);
     
   unsigned Nnz=0;
 
   //Organising storage for parallelism
-  MatrixStorage(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Fluid-Fluid
-  MatrixStorage(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Fluid-Bound
-  MatrixStorage(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Bound-Fluid
-  MatrixStorage(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim);//-Bound-Bound
+  MatrixStorage(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface);//-Fluid-Fluid
+  MatrixStorage(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface);//-Fluid-Bound
+  MatrixStorage(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface);//-Bound-Fluid
+  MatrixStorage(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface);//-Bound-Bound
   MatrixASetup(PPEDim,Nnz,rowInd); 
   colInd.resize(Nnz,PPEDim); 
   a.resize(Nnz,0);
   //LHS
-  PopulateMatrixAInteractFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim);//-Fluid-Fluid
-  PopulateMatrixAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim);//-Fluid-Bound
-  PopulateMatrixAInteractFluid(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim); //-Fluid-Fluid
-  PopulateMatrixAInteractBound(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim); //-Fluid-Bound
+  PopulateMatrixAInteractFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim,FreeSurface);//-Fluid-Fluid
+  PopulateMatrixAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,FreeSurface);//-Fluid-Bound
+  PopulateMatrixAInteractFluid(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim,FreeSurface); //-Fluid-Fluid
+  PopulateMatrixAInteractBound(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,FreeSurface); //-Fluid-Bound
   FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
   FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
   // allocate vectors
@@ -1075,16 +1075,6 @@ void JSphCpuSingle::SolvePPE(double dt){
 /// SHIFTING
 //==============================================================================
 void JSphCpuSingle::RunShifting(double dt){
-  clock_t start = clock();
-
-  tuint3 cellmin=CellDivSingle->GetCellDomainMin();
-  tuint3 ncells=CellDivSingle->GetNcells();
-  const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
-  const unsigned cellfluid=nc.w*nc.z+1;
-  const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
-  const int hdiv=(CellMode==CELLMODE_H? 2: 1);
-  const unsigned *begincell = CellDivSingle->GetBeginCell();
-
   unsigned int np=Np;
   unsigned int npb=Npb;
   unsigned int npf=np-npb;
@@ -1106,7 +1096,15 @@ void JSphCpuSingle::RunShifting(double dt){
   }
 
   RunCellDivide(true);
-     
+
+  tuint3 cellmin=CellDivSingle->GetCellDomainMin();
+  tuint3 ncells=CellDivSingle->GetNcells();
+  const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
+  const unsigned cellfluid=nc.w*nc.z+1;
+  const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
+  const int hdiv=(CellMode==CELLMODE_H? 2: 1);
+  const unsigned *begincell = CellDivSingle->GetBeginCell();
+
   PreparePosSimple();
   FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Fluid
   FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Bound
@@ -1122,8 +1120,4 @@ void JSphCpuSingle::RunShifting(double dt){
   ArraysCpu->Free(ShiftPosc);    ShiftPosc=NULL;
   ArraysCpu->Free(Divr); Divr=NULL;
   ArraysCpu->Free(VelrhopPrec);  VelrhopPrec=NULL;
-
-  clock_t stop = clock();   
-    double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
-    cout<<"Shfiting Time = " << dif << "ms\n";
 }

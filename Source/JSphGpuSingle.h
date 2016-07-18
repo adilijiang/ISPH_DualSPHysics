@@ -61,7 +61,7 @@ protected:
   void InitAdvection(double dt);
   void FindIrelation();
   void BoundaryVelocity(TpSlipCond TSlipCond);
-  void KernelCorrection(bool boundary);
+  void KernelCorrection();
   void SolvePPE(double dt);
   void RunShifting(double dt);
 

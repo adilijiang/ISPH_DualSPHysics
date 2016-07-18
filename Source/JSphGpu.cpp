@@ -35,7 +35,7 @@ using namespace std;
 //==============================================================================
 JSphGpu::JSphGpu(bool withmpi):JSph(false,withmpi){
   ClassName="JSphGpu";
-  Idp=NULL; Code=NULL; Dcell=NULL; Posxy=NULL; Posz=NULL; Velrhop=NULL; POrderc=NULL; rowCpu=NULL;
+  Idp=NULL; Code=NULL; Dcell=NULL; Posxy=NULL; Posz=NULL; Velrhop=NULL; rowCpu=NULL;
   AuxPos=NULL; AuxVel=NULL; AuxRhop=NULL;
   FtoForces=NULL; FtoCenter=NULL;   //-Floatings.
   CellDiv=NULL;
@@ -83,7 +83,7 @@ void JSphGpu::InitVars(){
   rowInd=NULL;
   X=NULL;
   dWxCorrg=NULL; dWzCorrg=NULL;
-  POrderg=NULL;  POrderc=NULL;
+  POrderg=NULL;
   rowCpu=NULL;
   Divrg=NULL;
   ShiftPosg=NULL; //-Shifting.
@@ -188,7 +188,6 @@ void JSphGpu::FreeCpuMemoryParticles(){
   delete[] AuxRhop;    AuxRhop=NULL;
   delete[] FtoForces;  FtoForces=NULL;
   delete[] FtoCenter;  FtoCenter=NULL;
-  delete[] POrderc;    POrderc=NULL;
   delete[] rowCpu;     rowCpu=NULL;
 }
 
@@ -211,7 +210,6 @@ void JSphGpu::AllocCpuMemoryParticles(unsigned np){
       AuxPos=new tdouble3[np];   MemCpuParticles+=sizeof(tdouble3)*np; 
       AuxVel=new tfloat3[np];    MemCpuParticles+=sizeof(tfloat3)*np;
       AuxRhop=new float[np];     MemCpuParticles+=sizeof(float)*np;
-      POrderc=new unsigned[np];  MemCpuParticles+=sizeof(unsigned)*np;
       rowCpu=new unsigned[np];        MemCpuParticles+=sizeof(unsigned)*np;
       //-Memoria auxiliar para floatings.
 	  //-Auxiliary memory for floating bodies.
@@ -916,6 +914,7 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
   TmgStart(Timers,TMG_CfPreForces);
   //-Asigna memoria.
   //-Allocates memory.
+
   ViscDtg=ArraysGpu->ReserveFloat();
   Arg=ArraysGpu->ReserveFloat();
   Aceg=ArraysGpu->ReserveFloat3();
@@ -962,14 +961,14 @@ void JSphGpu::PosInteraction_Forces(TpInter tinter){
   ArraysGpu->Free(Aceg);            Aceg=NULL;
   ArraysGpu->Free(ViscDtg);         ViscDtg=NULL;
 
-  ArraysGpu->Free(Deltag);          Deltag=NULL;
+  //ArraysGpu->Free(Deltag);          Deltag=NULL;
   if(tinter==2){
 	  ArraysGpu->Free(dWxCorrg);	    dWxCorrg=NULL;
 	  ArraysGpu->Free(dWzCorrg);	    dWzCorrg=NULL;
     ArraysGpu->Free(PsPospressg);   PsPospressg=NULL;
   }
   
-  ArraysGpu->Free(SpsGradvelg);     SpsGradvelg=NULL;
+  //ArraysGpu->Free(SpsGradvelg);     SpsGradvelg=NULL;
 }
 
 //==============================================================================
@@ -1013,15 +1012,14 @@ void JSphGpu::ComputeVerlet(double dt){  //pdtedom
 //==============================================================================
 void JSphGpu::ComputeSymplecticPre(double dt){
   TmgStart(Timers,TMG_SuComputeStep);
-  const bool shift=TShifting!=SHIFT_None;
   //-Asigna memoria para calcular el desplazamiento.
   //-Allocate memory to compute the diplacement
-  double2 *movxyg=ArraysGpu->ReserveDouble2();
-  double *movzg=ArraysGpu->ReserveDouble();
+  double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*Np);
+  double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*Np);
   //-Calcula desplazamiento, velocidad y densidad.
   //-Compute displacement, velocity and density.
   //const double dt05=dt*.5;
-  cusph::ComputeStepSymplecticPre(WithFloating,shift,Np,Npb,VelrhopPreg,Arg,Aceg,ShiftPosg,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velrhopg);
+  cusph::ComputeStepSymplecticPre(WithFloating,Np,Npb,VelrhopPreg,Arg,Aceg,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velrhopg);
   //-Aplica desplazamiento a las particulas fluid no periodicas.
   //-Applies displacement to non-periodic fluid particles.
   cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
@@ -1041,17 +1039,12 @@ void JSphGpu::ComputeSymplecticCorr(double dt){
   const bool shift=TShifting!=SHIFT_None;
   //-Asigna memoria para calcular el desplazamiento.
   //-Allocates memory to calculate the displacement.
-  double2 *movxyg=ArraysGpu->ReserveDouble2();
-  double *movzg=ArraysGpu->ReserveDouble();
+  double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*Np);
+  double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*Np);
   //-Calcula desplazamiento, velocidad y densidad.
   //-Computes displacement, velocity and density.
   const double dt05=dt*.5;
-  /*Debug=new float3[Np];
-  cudaMemcpy(Debug,Aceg,sizeof(float3)*Np,cudaMemcpyDeviceToHost);
-  cudaMemcpy(Idp,Idpg,sizeof(unsigned)*Np,cudaMemcpyDeviceToHost);
-  for(int i = 0; i <int(Np);i++)if(Idp[i]==2186||Idp[i]==1419)std::cout<<Idp[i]<<"\t"<<Debug[i].z<<"\n";
-  delete[] Debug; Debug=NULL;*/
-  cusph::ComputeStepSymplecticCor(WithFloating,shift,Np,Npb,VelrhopPreg,Arg,Aceg,ShiftPosg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velrhopg,Gravity);
+  cusph::ComputeStepSymplecticCor(WithFloating,Np,Npb,VelrhopPreg,Arg,Aceg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velrhopg,Gravity);
   //-Aplica desplazamiento a las particulas fluid no periodicas.
   //-Applies displacement to non-periodic fluid particles.
   cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
@@ -1182,29 +1175,31 @@ void JSphGpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
 //===============================================================================
 ///Matrix Order
 //===============================================================================
-void JSphGpu::MatrixOrder(unsigned np,unsigned pinit,unsigned bsbound,unsigned *porder,tuint3 ncells,const int2 *begincell,tuint3 cellmin,
+void JSphGpu::MatrixOrder(unsigned np,unsigned pinit,unsigned bsbound,unsigned bsfluid,unsigned *porder,tuint3 ncells,const int2 *begincell,tuint3 cellmin,
   const unsigned *dcell,const unsigned *idpg,const unsigned *irelationg,word *code, unsigned &ppedim){
 	const char met[]="SolvePPE";
   const int pfin=int(pinit+np);
   CheckCudaError(met,"MatrixOrderNormalCode0");
-  word *codehost; codehost=new word[np];
-  cudaMemcpy(codehost,code,sizeof(word)*np ,cudaMemcpyDeviceToHost);
+  word *codehost; codehost=new word[NpbOk];
+  unsigned *porderhost; porderhost=new unsigned[NpbOk];
+  cudaMemcpy(codehost,code,sizeof(word)*NpbOk ,cudaMemcpyDeviceToHost);
   CheckCudaError(met,"MatrixOrderNormalCode");
   unsigned index=0;
-	for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(codehost[p1])==0||CODE_GetTypeValue(codehost[p1])==2){
-    if(p1<int(Npb)&&p1>=int(NpbOk))POrderc[p1]=np;
-    else{
-      POrderc[p1]=index;
+	for(int p1=0;p1<int(NpbOk);p1++) if(CODE_GetTypeValue(codehost[p1])==0||CODE_GetTypeValue(codehost[p1])==2){
+      porderhost[p1]=index;
       index++;
-    }
   }
-  delete[] codehost;
+  delete[] codehost; codehost=NULL;
   CheckCudaError(met,"MatrixOrderNormalCalc");
-  cudaMemcpy(porder,POrderc,sizeof(unsigned)*np,cudaMemcpyHostToDevice);
+  cudaMemcpy(porder,porderhost,sizeof(unsigned)*NpbOk,cudaMemcpyHostToDevice);
+  delete[] porderhost; porderhost=NULL;
+  cusph::MatrixOrderFluid(bsfluid,np,Npb,porder,index);
+  index+=(np-Npb);
   CheckCudaError(met,"MatrixOrderNormalPOrder");
   cusph::MatrixOrderDummy(CellMode,bsbound,np,Npb,ncells,begincell,cellmin,dcell,Codeg,Idpg,irelationg,porder);
   CheckCudaError(met,"MatrixOrderDummy");
   ppedim = index;
+  std::cout<<ppedim<<"\n";
 }
 
 //===============================================================================
@@ -1230,17 +1225,17 @@ unsigned JSphGpu::MatrixASetup(const unsigned ppedim,unsigned int *rowGpu){
 //===============================================================================
 ///Shift
 //===============================================================================
-void JSphGpu::Shift(double dt){
+void JSphGpu::Shift(double dt,const unsigned bsfluid){
   TmgStart(Timers,TMG_SuComputeStep);
   const bool shift=TShifting!=SHIFT_None;
   //-Asigna memoria para calcular el desplazamiento.
   //-Allocates memory to calculate the displacement.
-  double2 *movxyg=ArraysGpu->ReserveDouble2();
-  double *movzg=ArraysGpu->ReserveDouble();
+  double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*Np);
+  double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*Np);
   //-Calcula desplazamiento, velocidad y densidad.
   //-Computes displacement, velocity and density.
   const double dt05=dt*.5;
-  cusph::ComputeShift(WithFloating,shift,Np,Npb,VelrhopPreg,Arg,Aceg,ShiftPosg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velrhopg,Gravity);
+  cusph::ComputeShift(WithFloating,bsfluid,Np,Npb,ShiftPosg,Codeg,movxyg,movzg);
   //-Aplica desplazamiento a las particulas fluid no periodicas.
   //-Applies displacement to non-periodic fluid particles.
   cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);

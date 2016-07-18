@@ -2166,7 +2166,7 @@ void JSphCpu::FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 //===============================================================================
 void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
 	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
-	const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const double dt, const unsigned ppedim,const float *divr)const{
+	const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const double dt, const unsigned ppedim,const float *divr,const float freesurface)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -2183,7 +2183,7 @@ void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 	  //-Particle order in Matrix
 	  unsigned oi = porder[p1];
 
-    if(divr[p1]>1.6f){
+    if(divr[p1]>freesurface){
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;
       GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
@@ -2236,7 +2236,7 @@ void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 //===============================================================================
 void JSphCpu::MatrixStorage(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
   const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,float *divr,std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,
-  const unsigned ppedim)const{
+  const unsigned ppedim,const float freesurface)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -2252,7 +2252,7 @@ void JSphCpu::MatrixStorage(bool psimple,unsigned n,unsigned pinit,tint4 nc,int 
 	  //-Particle order in Matrix
 	  unsigned oi = porder[p1];
 
-    if(divr[p1]>1.6f){
+    if(divr[p1]>freesurface){
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;
       GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
@@ -2297,7 +2297,7 @@ void JSphCpu::MatrixASetup(const unsigned ppedim,unsigned &nnz,std::vector<int> 
 //===============================================================================
 void JSphCpu::PopulateMatrixAInteractFluid(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
-  const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim)const{
+  const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -2317,7 +2317,7 @@ void JSphCpu::PopulateMatrixAInteractFluid(bool psimple,unsigned n,unsigned pini
     const unsigned diag=row[oi];
     col[diag]=oi;
     unsigned index=diag+1;
-    if(divr[p1]>1.6f){   
+    if(divr[p1]>freesurface){   
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;
       GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
@@ -2366,7 +2366,7 @@ void JSphCpu::PopulateMatrixAInteractFluid(bool psimple,unsigned n,unsigned pini
 
 void JSphCpu::PopulateMatrixAInteractBound(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
-  std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned *irelation,const unsigned ppedim)const{
+  std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned *irelation,const unsigned ppedim,const float freesurface)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -2386,7 +2386,7 @@ void JSphCpu::PopulateMatrixAInteractBound(bool psimple,unsigned n,unsigned pini
     const unsigned diag=row[oi];
     col[diag] = oi;
     
-    if(divr[p1]>1.6f){   
+    if(divr[p1]>freesurface){   
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;
       GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);

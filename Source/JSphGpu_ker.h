@@ -76,16 +76,14 @@ void PreInteractionSimple(unsigned np,const double2 *posxy,const double *posz
 
 //# Kernels para calculo de fuerzas.
 //# Kernels for the force calculation.
-void Interaction_Forces(bool psimple,bool floating,bool usedem,bool lamsps
-  ,TpDeltaSph tdelta,TpCellMode cellmode
+void Interaction_Forces(bool psimple,bool floating,bool usedem,TpCellMode cellmode
   ,float viscob,float viscof,unsigned bsbound,unsigned bsfluid
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
   ,float4 *velrhop,const word *code,const unsigned *idp,float3 *dwxcorrg,float3 *dwzcorrg
   ,const float *ftomassp,const tsymatrix3f *tau,tsymatrix3f *gradvel
-  ,float *viscdt,float* ar,float3 *ace,float *delta
-  ,TpShifting tshifting,float3 *shiftpos,bool simulate2d);
+  ,float *viscdt,float* ar,float3 *ace,bool simulate2d);
 
 //# Kernels para calculo de Ren correction
 //#Kernels for calculating the REn correction
@@ -129,13 +127,13 @@ void ComputeStepVerlet(bool floating,bool shift,unsigned np,unsigned npb
   ,const float *ar,const float3 *ace,const float3 *shiftpos
   ,double dt,double dt2,float rhopoutmin,float rhopoutmax
   ,word *code,double2 *movxy,double *movz,float4 *velrhopnew);
-void ComputeStepSymplecticPre(bool floating,bool shift,unsigned np,unsigned npb
-  ,const float4 *velrhoppre,const float *ar,const float3 *ace,const float3 *shiftpos
-  ,double dtm,float rhopoutmin,float rhopoutmax
+
+void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb
+  ,const float4 *velrhoppre,const float *ar,const float3 *ace,double dtm,float rhopoutmin,float rhopoutmax
   ,word *code,double2 *movxy,double *movz,float4 *velrhop);
-void ComputeStepSymplecticCor(bool floating,bool shift,unsigned np,unsigned npb
-  ,const float4 *velrhoppre,const float *ar,const float3 *ace,const float3 *shiftpos
-  ,double dtm,double dt,float rhopoutmin,float rhopoutmax
+
+void ComputeStepSymplecticCor(bool floating,unsigned np,unsigned npb
+  ,const float4 *velrhoppre,const float *ar,const float3 *ace,double dtm,double dt,float rhopoutmin,float rhopoutmax
   ,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity);
 
 //# Kernels para ComputeStep (position)
@@ -186,20 +184,22 @@ void FindIrelation(const unsigned bsbound,unsigned npbok
   ,const word *code,const unsigned *idp,unsigned *irelationg);
 
 //# Kernels for kernel Correction
-void KernelCorrection(bool psimple,bool boundary,TpCellMode cellmode
+void KernelCorrection(bool psimple,TpCellMode cellmode
   ,const unsigned bsfluid,const unsigned bsbound,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
   ,const float4 *velrhop,float3 *dwxcorrg,float3 *dwzcorrg,const word *codeg);
 
-//# Kernels Dummy Particle matrix order
+//# Kernels for particle matrix order
+void MatrixOrderFluid(const unsigned bsfluid,unsigned np,unsigned npb, unsigned *porder,const unsigned matrixBound);
+
 void MatrixOrderDummy(TpCellMode cellmode
   ,const unsigned bsbound,unsigned np,unsigned npb,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const word *code,const unsigned *idp,const unsigned *irelationg,unsigned *porder);
 
 //# Kernels for finding the freesurface
-void FreeSurfaceFind(bool psimple,bool shiftBound,TpCellMode cellmode
+void FreeSurfaceFind(bool psimple,TpCellMode cellmode
   ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress,float4 *velrhop
@@ -215,14 +215,14 @@ void PopulateMatrixB(bool psimple,TpCellMode cellmode
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
   ,const float4 *velrhop,float3 *dwxcorrg,float3 *dwzcorrg,double *matrixb
-  ,const unsigned *porder,const unsigned *idp,const double dt,const unsigned ppedim,const float *divr,const word *code);
+  ,const unsigned *porder,const unsigned *idp,const double dt,const unsigned ppedim,const float *divr,const word *code,const float freesurface);
 
 //# Kernels for matrix storage
 void MatrixStorage(bool psimple,TpCellMode cellmode
   ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop
-  ,const word *code,const unsigned *idp,float *divr,const unsigned *porder,unsigned int *row);
+  ,const word *code,const unsigned *idp,float *divr,const unsigned *porder,unsigned int *row,const float freesurface);
 
 //# Kernels for Populating matrix A
 void PopulateMatrixA(bool psimple,TpCellMode cellmode
@@ -230,7 +230,7 @@ void PopulateMatrixA(bool psimple,TpCellMode cellmode
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell,const tfloat3 gravity,const double2 *posxy
   ,const double *posz,const float4 *pospress,const float4 *velrhop,double *matrixInd,double *matrixb
   ,unsigned int *row,unsigned int *col,const unsigned *porder,const unsigned *idp,const unsigned ppedim
-  ,const float *divr,const word *code,const unsigned *irelationg);
+  ,const float *divr,const word *code,const unsigned *irelationg,const float freesurface);
 
 //# Kernels for Assigning Pressure
 void PressureAssign(bool psimple,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
@@ -253,10 +253,8 @@ void Interaction_Shifting(bool psimple,bool floating,bool usedem,TpCellMode cell
   ,float4 *velrhop,const word *code,const float *ftomassp
   ,TpShifting tshifting,float3 *shiftpos,float *divr,const float tensilen,const float tensiler);
 
-void ComputeShift(bool floating,bool shift,unsigned np,unsigned npb
-  ,const float4 *velrhoppre,const float *ar,const float3 *ace,const float3 *shiftpos
-  ,double dtm,double dt,float rhopoutmin,float rhopoutmax
-  ,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity);
+void ComputeShift(bool floating,const unsigned bsfluid,unsigned np,unsigned npb
+  ,const float3 *shiftpos,word *code,double2 *movxy,double *movz);
 
 }
 #endif
