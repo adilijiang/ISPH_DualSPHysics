@@ -245,8 +245,8 @@ protected:
   unsigned *Irelationg; //The closest fluid particle, j, for a boundary particle, i
   //unsigned int *rowCpu;
   unsigned *POrderg;
-  float3 *dWxCorrg; //Kernel correction in the x direction
-  float3 *dWzCorrg; //Kernel correction in the z direction
+  double3 *dWxCorrg; //Kernel correction in the x direction
+  double3 *dWzCorrg; //Kernel correction in the z direction
   double *Divrg; //Divergence of position
   //matrix variables 
   double *b;

@@ -759,11 +759,11 @@ void JSphGpuSingle::KernelCorrection(){
   const unsigned bsfluid=BlockSizes.forcesfluid;
   const unsigned bsbound=BlockSizes.forcesbound;
 
-  dWxCorrg=ArraysGpu->ReserveFloat3();
-  dWzCorrg=ArraysGpu->ReserveFloat3();
+  dWxCorrg=ArraysGpu->ReserveDouble3();
+  dWzCorrg=ArraysGpu->ReserveDouble3();
 
-  cudaMemset(dWxCorrg,0,sizeof(float3)*Np);						
-  cudaMemset(dWzCorrg,0,sizeof(float3)*Np);
+  cudaMemset(dWxCorrg,0,sizeof(double3)*Np);						
+  cudaMemset(dWzCorrg,0,sizeof(double3)*Np);
   
   cusph::KernelCorrection(Psimple,CellMode,bsfluid,bsbound,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,dWxCorrg,dWzCorrg,Codeg);
 }
@@ -842,7 +842,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   CheckCudaError(met,"Memory Assignment a");
   cusph::PopulateMatrixA(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,GravityDbl,Posxyg,Poszg,PsPospressg,Velrhopg,a,b,rowInd,colInd,POrderg,Idpg,PPEDim,Divrg,Codeg,Irelationg,FreeSurface);
  std::cout<<Gravity.z<<"\n";
-  //cusph::FreeSurfaceMark(Psimple,bsbound,bsfluid,np,npb,npbok,Divrg,a,b,rowInd,POrderg,Codeg,PI,FreeSurface);
+  cusph::FreeSurfaceMark(Psimple,bsbound,bsfluid,np,npb,npbok,Divrg,a,b,rowInd,POrderg,Codeg,PI,FreeSurface);
   CheckCudaError(met,"Free Surface");
  /* unsigned int *POrderCPU; POrderCPU=new unsigned int[np]; cudaMemcpy(POrderCPU,POrderg,sizeof(unsigned int)*np,cudaMemcpyDeviceToHost);
   unsigned int *IdCPU; IdCPU=new unsigned int[np]; cudaMemcpy(IdCPU,Idpg,sizeof(unsigned int)*np,cudaMemcpyDeviceToHost);

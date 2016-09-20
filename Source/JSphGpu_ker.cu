@@ -32,7 +32,7 @@
 #include <string>
 #include <cuda.h>
 
-#define VIENNACL_WITH_OPENMP
+#define VIENNACL_WITH_CUDA
 #include "viennacl/vector.hpp"
 #include "viennacl/compressed_matrix.hpp"
 #include "viennacl/linalg/bicgstab.hpp"
@@ -744,7 +744,7 @@ template<bool psimple,TpFtMode ftmode> __device__ void KerInteractionForcesFluid
   (bool boundp2,unsigned p1,const unsigned &pini,const unsigned &pfin,float visco
   ,const float *ftomassp,const float2 *tauff
   ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop,const word *code,const unsigned *idp
-  ,float3 *dwxcorrg,float3 *dwzcorrg,float massp2,float ftmassp1,bool ftp1
+  ,double3 *dwxcorrg,double3 *dwzcorrg,float massp2,float ftmassp1,bool ftp1
   ,double3 posdp1,float3 posp1,float3 velp1,float pressp1,float rhopp1
   ,const float2 &taup1_xx_xy,const float2 &taup1_xz_yy,const float2 &taup1_yz_zz
   ,float2 &grap1_xx_xy,float2 &grap1_xz_yy,float2 &grap1_yz_zz
@@ -802,7 +802,7 @@ template<bool psimple,TpFtMode ftmode> __global__ void KerInteractionForcesFluid
   ,const int2 *begincell,int3 cellzero,const unsigned *dcell
   ,const float *ftomassp,const float2 *tauff,float2 *gradvelff
   ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop,const word *code,const unsigned *idp
-  ,float3 *dwxcorrg,float3 *dwzcorrg,float *viscdt,float *ar,float3 *ace)
+  ,double3 *dwxcorrg,double3 *dwzcorrg,float *viscdt,float *ar,float3 *ace)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
@@ -944,7 +944,7 @@ template<bool psimple,TpFtMode ftmode> void Interaction_ForcesT
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,float4 *velrhop,const word *code,const unsigned *idp,float3 *dwxcorrg,float3 *dwzcorrg
+  ,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwzcorrg
   ,const float *ftomassp,const tsymatrix3f *tau,tsymatrix3f *gradvel
   ,float *viscdt,float* ar,float3 *ace,bool simulate2d)
 {
@@ -1007,7 +1007,7 @@ void Interaction_Forces(bool psimple,bool floating,bool usedem,TpCellMode cellmo
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,float4 *velrhop,const word *code,const unsigned *idp,float3 *dwxcorrg,float3 *dwzcorrg
+  ,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwzcorrg
   ,const float *ftomassp,const tsymatrix3f *tau,tsymatrix3f *gradvel
   ,float *viscdt,float* ar,float3 *ace,bool simulate2d)
 {
@@ -2965,7 +2965,7 @@ void BoundaryVelocity(TpSlipCond TSlipCond,bool psimple,TpCellMode cellmode
 //==============================================================================   
 template<bool psimple> __device__ void KerKernelCorCalc
   (unsigned p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz,const float4 *pospress
-  ,float massp2,double3 posdp1,float3 posp1,float3 &dwxcorrgp1,float3 &dwzcorrgp1,const word *code,float3 errorX,float3 errorZ)
+  ,float massp2,double3 posdp1,float3 posp1,double3 &dwxcorrgp1,double3 &dwzcorrgp1,const word *code)
 {
   for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==0||CODE_GetTypeValue(code[p2])==2){
     float drx,dry,drz,pressp2;
@@ -2991,7 +2991,7 @@ template<bool psimple> __device__ void KerKernelCorCalc
   }
 }
 
-__global__ void KerInverseKernelCor(unsigned n,unsigned pinit,float3 *dwxcorrg,float3 *dwzcorrg,const word *code)
+__global__ void KerInverseKernelCor(unsigned n,unsigned pinit,double3 *dwxcorrg,double3 *dwzcorrg,const word *code)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
@@ -3012,7 +3012,7 @@ __global__ void KerInverseKernelCor(unsigned n,unsigned pinit,float3 *dwxcorrg,f
 
 template<bool psimple> __global__ void KerKernelCorrection
   (unsigned n,unsigned pinit,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop,float3 *dwxcorrg,float3 *dwzcorrg,const word *code)
+  ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop,double3 *dwxcorrg,double3 *dwzcorrg,const word *code)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
@@ -3025,10 +3025,8 @@ template<bool psimple> __global__ void KerKernelCorrection
       float rhopp1,pressp1;
       KerGetParticleData<psimple>(p1,posxy,posz,pospress,velrhop,velp1,rhopp1,posdp1,posp1,pressp1);
     
-      float3 dwxcorrgp1=make_float3(0,0,0);
-      float3 dwzcorrgp1=make_float3(0,0,0);
-      float3 errorX=make_float3(0,0,0);
-      float3 errorZ=make_float3(0,0,0);
+      double3 dwxcorrgp1=make_double3(0,0,0);
+      double3 dwzcorrgp1=make_double3(0,0,0);
       //-Obtiene limites de interaccion
 	    //-Obtains interaction limits
       int cxini,cxfin,yini,yfin,zini,zfin;
@@ -3049,22 +3047,20 @@ template<bool psimple> __global__ void KerKernelCorrection
             }
           }
           if(pfin){
-            KerKernelCorCalc<psimple> (p1,pini,pfin,posxy,posz,pospress,CTE.massf,posdp1,posp1,dwxcorrgp1,dwzcorrgp1,code,errorX,errorZ);
+            KerKernelCorCalc<psimple> (p1,pini,pfin,posxy,posz,pospress,CTE.massf,posdp1,posp1,dwxcorrgp1,dwzcorrgp1,code);
           }
 	      }
       }
 
       if(dwxcorrgp1.x||dwxcorrgp1.y||dwxcorrgp1.z||dwzcorrgp1.x||dwzcorrgp1.y||dwzcorrgp1.z){
-        float3 dwx=dwxcorrg[p1];
-        float3 dwz=dwzcorrg[p1];
+        double3 dwx=dwxcorrg[p1];
+        double3 dwz=dwzcorrg[p1];
         dwx.x+=dwxcorrgp1.x; dwx.y+=dwxcorrgp1.y; dwx.z+=dwxcorrgp1.z;
         dwz.x+=dwzcorrgp1.x; dwz.y+=dwzcorrgp1.y; dwz.z+=dwzcorrgp1.z;
         dwxcorrg[p1]=dwx;
         dwzcorrg[p1]=dwz;
-        dwxcorrgp1=make_float3(0,0,0);
-        dwzcorrgp1=make_float3(0,0,0);
-        errorX=make_float3(0,0,0);
-        errorZ=make_float3(0,0,0);
+        dwxcorrgp1=make_double3(0,0,0);
+        dwzcorrgp1=make_double3(0,0,0);
       }
 
       //-Interaccion con contorno.
@@ -3082,14 +3078,14 @@ template<bool psimple> __global__ void KerKernelCorrection
             }
           }
           if(pfin){
-            KerKernelCorCalc<psimple> (p1,pini,pfin,posxy,posz,pospress,CTE.massf,posdp1,posp1,dwxcorrgp1,dwzcorrgp1,code,errorX,errorZ);
+            KerKernelCorCalc<psimple> (p1,pini,pfin,posxy,posz,pospress,CTE.massf,posdp1,posp1,dwxcorrgp1,dwzcorrgp1,code);
           }
         }
       }
 
       if(dwxcorrgp1.x||dwxcorrgp1.y||dwxcorrgp1.z||dwzcorrgp1.x||dwzcorrgp1.y||dwzcorrgp1.z){
-        float3 dwx=dwxcorrg[p1];
-        float3 dwz=dwzcorrg[p1];
+        double3 dwx=dwxcorrg[p1];
+        double3 dwz=dwzcorrg[p1];
         dwx.x+=dwxcorrgp1.x; dwx.y+=dwxcorrgp1.y; dwx.z+=dwxcorrgp1.z;
         dwz.x+=dwzcorrgp1.x; dwz.y+=dwzcorrgp1.y; dwz.z+=dwzcorrgp1.z;
         dwxcorrg[p1]=dwx;
@@ -3106,7 +3102,7 @@ void KernelCorrection(bool psimple,TpCellMode cellmode
   ,const unsigned bsfluid,const unsigned bsbound,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,const float4 *velrhop,float3 *dwxcorrg,float3 *dwzcorrg,const word *code){
+  ,const float4 *velrhop,double3 *dwxcorrg,double3 *dwzcorrg,const word *code){
 
   const unsigned npf=np-npb;
   int hdiv=(cellmode==CELLMODE_H? 2: 1);
@@ -3382,7 +3378,7 @@ void FreeSurfaceMark(bool psimple,const unsigned bsbound,const unsigned bsfluid,
 //==============================================================================
 template<bool psimple> __device__ void KerPopMatrixBCalc
   (unsigned p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz,const float4 *pospress
-  ,const float4 *velrhop,const double3 velp1,const double massp2,const double3 posdp1,const float3 posp1,const float3 dwxcorrgp1,const float3 dwzcorrgp1,double &matrixbp1,const word *code)
+  ,const float4 *velrhop,const double3 velp1,const double massp2,const double3 posdp1,const float3 posp1,const double3 dwxcorrgp1,const double3 dwzcorrgp1,double &matrixbp1,const word *code)
 {
   for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==0||CODE_GetTypeValue(code[p2])==2){
     double drx,dry,drz,pressp2;
@@ -3407,7 +3403,7 @@ template<bool psimple> __device__ void KerPopMatrixBCalc
 
 template<bool psimple> __global__ void KerPopulateMatrixB
   (unsigned n,unsigned pinit,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop,const float3 *dwxcorrg,const float3 *dwzcorrg
+  ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop,const double3 *dwxcorrg,const double3 *dwzcorrg
   ,double *matrixb,const unsigned *porder,const unsigned *idp,const double dt,const unsigned ppedim,const double *divr,const word *code,const double freesurface)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
@@ -3420,8 +3416,8 @@ template<bool psimple> __global__ void KerPopulateMatrixB
         double3 posdp1, velp1;
         float3 posp1;
         float rhopp1,pressp1;
-        const float3 dwxcorrgp1=dwxcorrg[p1];
-        const float3 dwzcorrgp1=dwzcorrg[p1];
+        const double3 dwxcorrgp1=dwxcorrg[p1];
+        const double3 dwzcorrgp1=dwzcorrg[p1];
         double matrixbp1=0.0;
         const unsigned oi=porder[p1];
         KerGetParticleDataDoubleVel<false>(p1,posxy,posz,pospress,velrhop,velp1,rhopp1,posdp1,posp1,pressp1);
@@ -3485,7 +3481,7 @@ void PopulateMatrixB(bool psimple,TpCellMode cellmode
   ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,const float4 *velrhop,float3 *dwxcorrg,float3 *dwzcorrg,double *matrixb
+  ,const float4 *velrhop,double3 *dwxcorrg,double3 *dwzcorrg,double *matrixb
   ,const unsigned *porder,const unsigned *idp,const double dt,const unsigned ppedim,const double *divr,const word *code,const double freesurface){
 
   const unsigned npf=np-npb;

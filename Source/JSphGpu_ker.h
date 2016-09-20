@@ -81,7 +81,7 @@ void Interaction_Forces(bool psimple,bool floating,bool usedem,TpCellMode cellmo
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,float4 *velrhop,const word *code,const unsigned *idp,float3 *dwxcorrg,float3 *dwzcorrg
+  ,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwzcorrg
   ,const float *ftomassp,const tsymatrix3f *tau,tsymatrix3f *gradvel
   ,float *viscdt,float* ar,float3 *ace,bool simulate2d);
 
@@ -188,7 +188,7 @@ void KernelCorrection(bool psimple,TpCellMode cellmode
   ,const unsigned bsfluid,const unsigned bsbound,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,const float4 *velrhop,float3 *dwxcorrg,float3 *dwzcorrg,const word *codeg);
+  ,const float4 *velrhop,double3 *dwxcorrg,double3 *dwzcorrg,const word *codeg);
 
 //# Kernels for particle matrix order
 void MatrixOrderFluid(const unsigned bsfluid,unsigned np,unsigned npb, unsigned *porder,const unsigned matrixBound);
@@ -214,7 +214,7 @@ void PopulateMatrixB(bool psimple,TpCellMode cellmode
   ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,const float4 *velrhop,float3 *dwxcorrg,float3 *dwzcorrg,double *matrixb
+  ,const float4 *velrhop,double3 *dwxcorrg,double3 *dwzcorrg,double *matrixb
   ,const unsigned *porder,const unsigned *idp,const double dt,const unsigned ppedim,const double *divr,const word *code,const double freesurface);
 
 //# Kernels for matrix storage
