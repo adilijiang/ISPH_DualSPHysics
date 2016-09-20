@@ -630,7 +630,6 @@ double JSphCpuSingle::ComputeStep_Sym(){
   PosInteraction_Forces(INTER_ForcesCorr);             //-Free memory used for interaction / Libera memoria de interaccion
   if(TShifting)RunShifting(dt);           //-Shifting
   // DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep
-  
   return(dt);
 }
 
@@ -846,6 +845,7 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   PrintHeadPart();
 
   //-finding dummy particle relations to wall particles
+  count=1;
   FindIrelation(); 
   while(TimeStep<TimeMax){
     clock_t start = clock(); 
@@ -1002,7 +1002,9 @@ void JSphCpuSingle::KernelCorrection(bool boundary){
 //==============================================================================
 /// PPE Solver
 //==============================================================================
-
+#include <fstream>
+#include <sstream>
+#include <iomanip>
 void JSphCpuSingle::SolvePPE(double dt){ 
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
   tuint3 ncells=CellDivSingle->GetNcells();
@@ -1021,8 +1023,8 @@ void JSphCpuSingle::SolvePPE(double dt){
 
   //Matrix Order and Free Surface
   POrder=ArraysCpu->ReserveUint(); memset(POrder,np,sizeof(unsigned)*np);
-  Divr=ArraysCpu->ReserveFloat(); memset(Divr,0,sizeof(float)*np);
-  MatrixOrder(np,0,POrder,Idpc,Irelationc,Codec,PPEDim,Divr);
+  Divr=ArraysCpu->ReserveDouble(); memset(Divr,0,sizeof(double)*np);
+  MatrixOrder(np,0,POrder,Idpc,Irelationc,Codec,PPEDim);
 
   FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Fluid
   FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Bound
@@ -1048,21 +1050,56 @@ void JSphCpuSingle::SolvePPE(double dt){
   colInd.resize(Nnz,PPEDim); 
   a.resize(Nnz,0);
   //LHS
-  PopulateMatrixAInteractFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim,FreeSurface);//-Fluid-Fluid
-  PopulateMatrixAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,FreeSurface);//-Fluid-Bound
-  PopulateMatrixAInteractFluid(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Idpc,Codec,PPEDim,FreeSurface); //-Fluid-Fluid
-  PopulateMatrixAInteractBound(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,FreeSurface); //-Fluid-Bound
-  FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
-  FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
+  PopulateMatrixA(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Irelationc,b,Idpc,Codec,PPEDim,FreeSurface,GravityDbl,RhopZero);//-Fluid-Fluid
+  //PopulateMatrixAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,FreeSurface);//-Fluid-Bound
+  PopulateMatrixA(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Irelationc,b,Idpc,Codec,PPEDim,FreeSurface,GravityDbl,RhopZero); //-Fluid-Fluid
+  //PopulateMatrixAInteractBound(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,FreeSurface); //-Fluid-Bound
+  //FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
+  //FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
   // allocate vectors
   x.resize(PPEDim,0);
+  
+   ofstream FileOutput;
+    string TimeFile;
 
+    ostringstream TimeNum;
+    TimeNum << count;
+    ostringstream FileNum;
+    FileNum << count;
+
+    TimeFile =  "CPU Fluid Properties_" + FileNum.str() + ", T = " + TimeNum.str() + ".txt";
+
+    FileOutput.open(TimeFile.c_str());
+
+  for(int i=0;i<npbok;i++){
+    FileOutput << fixed << setprecision(19) << "particle "<< Idpc[i] << "\t Order " << POrder[i] << "\t b " << b[POrder[i]] << "\n";
+    if(POrder[i]!=np)for(int j=rowInd[POrder[i]];j<rowInd[POrder[i]+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\n";
+  }
+
+  for(int i=npb;i<np;i++){
+    FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << POrder[i] << "\t b " << b[POrder[i]] << "\n";
+    if(POrder[i]!=np) for(int j=rowInd[POrder[i]];j<rowInd[POrder[i]+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\n";
+  }
+  FileOutput.close();
+
+  count++; 
   //solvers
 #ifndef _WITHGPU
   solveVienna(a,b,x,rowInd,colInd,PPEDim,Nnz); 
 #endif
-  
-  PressureAssign(Psimple,np,0,Posc,PsPosc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb,Divr);
+  TimeFile =  "Pressure" + FileNum.str() + ", T = " + TimeNum.str() + ".txt";
+
+    FileOutput.open(TimeFile.c_str());
+
+  for(int i=0;i<PPEDim;i++){
+    FileOutput << fixed << setprecision(10) << i << "\t" << x[i] <<"\n";
+  }
+
+  FileOutput.close();
+
+  count++; 
+
+  PressureAssign(Psimple,np,0,Posc,PsPosc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb,Divr,GravityDbl);
   
   b.clear();
   a.clear();
@@ -1083,9 +1120,9 @@ void JSphCpuSingle::RunShifting(double dt){
   VelrhopPrec=ArraysCpu->ReserveFloat4();
 
   ShiftPosc=ArraysCpu->ReserveFloat3();
-  Divr=ArraysCpu->ReserveFloat();
+  Divr=ArraysCpu->ReserveDouble();
   memset(ShiftPosc,0,sizeof(tfloat3)*np);               //ShiftPosc[]=0
-  memset(Divr,0,sizeof(float)*np);           //Divr[]=0   
+  memset(Divr,0,sizeof(double)*np);           //Divr[]=0   
 
   #ifdef _WITHOMP
       #pragma omp parallel for schedule (static)
@@ -1114,7 +1151,7 @@ void JSphCpuSingle::RunShifting(double dt){
   JSphCpu::RunShifting(dt);
 
   Shift(dt);
-
+  
   ArraysCpu->Free(PosPrec);      PosPrec=NULL;
   ArraysCpu->Free(PsPosc);       PsPosc=NULL;
   ArraysCpu->Free(ShiftPosc);    ShiftPosc=NULL;

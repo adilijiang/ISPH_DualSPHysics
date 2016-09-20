@@ -117,8 +117,8 @@ void AddDelta(unsigned n,const float *delta,float *ar);
 //# Kernels para Shifting
 //# Kernels for Shifting
 void RunShifting(unsigned np,unsigned npb,double dt
-  ,double shiftcoef,float freesurface,double coeftfs
-  ,float4 *velrhop,const float *divr,float3 *shiftpos);
+  ,double shiftcoef,double freesurface,double coeftfs
+  ,float4 *velrhop,const double *divr,float3 *shiftpos);
 
 //# Kernels para ComputeStep (vel & rhop)
 //# Kernels for ComputeStep (vel & rhop)
@@ -203,11 +203,11 @@ void FreeSurfaceFind(bool psimple,TpCellMode cellmode
   ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress,float4 *velrhop
-  ,const word *code,const unsigned *idp,float *divr);
+  ,const word *code,const unsigned *idp,double *divr);
 
 //# Kernels for marking the freesurface
-void FreeSurfaceMark(bool psimple,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,float *divr
-  ,double *matrixInd,double *matrixb,unsigned int *row,const unsigned *porder,const word *code,const double pi,const float freesurface);
+void FreeSurfaceMark(bool psimple,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,double *divr
+  ,double *matrixInd,double *matrixb,unsigned int *row,const unsigned *porder,const word *code,const double pi,const double freesurface);
 
 //# Kernels for Populating matrix B
 void PopulateMatrixB(bool psimple,TpCellMode cellmode
@@ -215,34 +215,35 @@ void PopulateMatrixB(bool psimple,TpCellMode cellmode
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
   ,const float4 *velrhop,float3 *dwxcorrg,float3 *dwzcorrg,double *matrixb
-  ,const unsigned *porder,const unsigned *idp,const double dt,const unsigned ppedim,const float *divr,const word *code,const float freesurface);
+  ,const unsigned *porder,const unsigned *idp,const double dt,const unsigned ppedim,const double *divr,const word *code,const double freesurface);
 
 //# Kernels for matrix storage
 void MatrixStorage(bool psimple,TpCellMode cellmode
   ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop
-  ,const word *code,const unsigned *idp,float *divr,const unsigned *porder,unsigned int *row,const float freesurface);
+  ,const word *code,const unsigned *idp,double *divr,const unsigned *porder,unsigned int *row,const double freesurface);
 
 //# Kernels for Populating matrix A
 void PopulateMatrixA(bool psimple,TpCellMode cellmode
   ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
-  ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell,const tfloat3 gravity,const double2 *posxy
+  ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell,tdouble3 gravity,const double2 *posxy
   ,const double *posz,const float4 *pospress,const float4 *velrhop,double *matrixInd,double *matrixb
   ,unsigned int *row,unsigned int *col,const unsigned *porder,const unsigned *idp,const unsigned ppedim
-  ,const float *divr,const word *code,const unsigned *irelationg,const float freesurface);
+  ,const double *divr,const word *code,const unsigned *irelationg,const double freesurface);
 
 //# Kernels for Assigning Pressure
 void PressureAssign(bool psimple,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
   ,const tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *pospress
- ,float4 *velrhop,double *press,const unsigned *porder,const unsigned *idp,const word *code,const unsigned *irelationg);
+ ,float4 *velrhop,double *press,const unsigned *porder,const unsigned *idp,const word *code,const unsigned *irelationg,const double *divr);
 
 //# Kernels for ArrayInitialisation
 void InitArrayPOrder(unsigned n,unsigned *v,unsigned value);
 void InitArrayCol(unsigned n,unsigned int *v,int value);
 
 //# Kernels for solving with ViennaCL
-void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,float tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned nnz,const unsigned ppedim);
+void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned nnz,const unsigned ppedim);
+void solveViennaCPU(double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned ppedim,const unsigned nnz);
 
 //Kernels for shifting
 void Interaction_Shifting(bool psimple,bool floating,bool usedem,TpCellMode cellmode
@@ -251,7 +252,7 @@ void Interaction_Shifting(bool psimple,bool floating,bool usedem,TpCellMode cell
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
   ,float4 *velrhop,const word *code,const float *ftomassp
-  ,TpShifting tshifting,float3 *shiftpos,float *divr,const float tensilen,const float tensiler);
+  ,TpShifting tshifting,float3 *shiftpos,double *divr,const float tensilen,const float tensiler);
 
 void ComputeShift(bool floating,const unsigned bsfluid,unsigned np,unsigned npb
   ,const float3 *shiftpos,word *code,double2 *movxy,double *movz);

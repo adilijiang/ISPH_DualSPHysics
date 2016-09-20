@@ -243,20 +243,20 @@ protected:
   //PPE Functions, variables, Kernel Correction//
   ///////////////////////////////////////////////
   unsigned *Irelationg; //The closest fluid particle, j, for a boundary particle, i
-  unsigned int *rowCpu;
+  //unsigned int *rowCpu;
   unsigned *POrderg;
   float3 *dWxCorrg; //Kernel correction in the x direction
   float3 *dWzCorrg; //Kernel correction in the z direction
-  float *Divrg; //Divergence of position
+  double *Divrg; //Divergence of position
   //matrix variables 
   double *b;
   double *a;
   unsigned int *colInd;
   unsigned int *rowInd;
   double *X;
-
+  int count;
   void MatrixOrder(unsigned n,unsigned pinit,unsigned bsbound,unsigned bsfluid,unsigned *porder,tuint3 ncells,const int2 *begincell,tuint3 cellmin,
-    const unsigned *dcell,const unsigned *idpg,const unsigned *irelation,word *code, unsigned &ppedim);
+    const unsigned *dcell,const unsigned *idpg,const unsigned *irelation,const word *code, unsigned &ppedim);
   unsigned MatrixASetup(const unsigned ppedim,unsigned int *rowGpu);
 
   void Shift(double dt,const unsigned bsfluid);

@@ -167,7 +167,7 @@ protected:
 
   TpShifting TShifting; //-Tipo de Shifting: None, NoBound, NoFixed, Full.										//-Shifting type: None, NoBound, NoFixed, Full.	
   float ShiftCoef;      //-Coefficient for shifting computation.
-  float FreeSurface;    //-Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (def=0).
+  double FreeSurface;    //-Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (def=0).
   float TensileN;       //-Tensile Instability Coefficient
   float TensileR;       //-Tensile Instability Coefficient
 
@@ -176,7 +176,7 @@ protected:
   TpPrecond TPrecond;
   TpAMGInter TAMGInter;
   int Iterations;
-  float Tolerance;
+  double Tolerance;
   float StrongConnection;
   float JacobiWeight;
   int Presmooth;
@@ -218,6 +218,7 @@ protected:
   float Delta2H;     ///<Constant for DeltaSPH. Delta2H=DeltaSph*H*2
   float MassFluid,MassBound;  
   tfloat3 Gravity;
+  tdouble3 GravityDbl;
   float Dosh,H2,Fourh2,Eta2;
   float SpsSmag;             ///<Smagorinsky constant used in SPS turbulence model.
   float SpsBlin;             ///<Blin constant used in the SPS turbulence model.

@@ -427,9 +427,9 @@ void JSph::LoadCaseConfig(){
     TensileR=eparms.GetValueFloat("TensileR",true,3.0f);
   }
 
-  FreeSurface=eparms.GetValueFloat("FreeSurface",true,1.6f);
+  FreeSurface=eparms.GetValueDouble("FreeSurface",true,1.6);
 
-  Tolerance=eparms.GetValueFloat("Solver Tolerance",true,1e-5f);
+  Tolerance=eparms.GetValueDouble("Solver Tolerance",true,1e-5f);
   Iterations=eparms.GetValueInt("Max Iterations",true,100);
 
   switch(eparms.GetValueInt("Preconditioner",true,0)){
@@ -512,6 +512,7 @@ void JSph::LoadCaseConfig(){
   CFLnumber=(float)ctes.GetCFLnumber();
   Dp=ctes.GetDp();
   Gravity=ToTFloat3(ctes.GetGravity());
+  GravityDbl=ctes.GetGravity();
   MassFluid=(float)ctes.GetMassFluid();
   MassBound=(float)ctes.GetMassBound();
 

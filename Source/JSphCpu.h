@@ -150,6 +150,7 @@ protected:
   void PosInteraction_Forces(TpInter tinter);
 
   inline void GetKernel(float rr2,float drx,float dry,float drz,float &frx,float &fry,float &frz)const;
+  inline void GetKernelDouble(double rr2,double drx,double dry,double drz,double &frx,double &fry,double &frz)const;
   inline float GetKernelWab(float rr2)const;
   inline void GetInteractionCells(unsigned rcell
     ,int hdiv,const tint4 &nc,const tint3 &cellzero
@@ -251,7 +252,7 @@ protected:
   unsigned *Irelationc; //The closest fluid particle, j, for a boundary particle, i
   tfloat3 *dWxCorr; //Kernel correction in the x direction
   tfloat3 *dWzCorr; //Kernel correction in the z direction
-  float *Divr; //Divergence of position
+  double *Divr; //Divergence of position
   unsigned *POrder; //Position in Matrix
 
   //matrix variables for CULA
@@ -272,40 +273,40 @@ protected:
 	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,tfloat4 *velrhop,const word *code)const;
 
   void solveMatrix();
-  void MatrixOrder(unsigned n,unsigned pinit,unsigned *porder,const unsigned *idpc,const unsigned *irelation,word *code,unsigned &ppeDim,const float *divr);
+  void MatrixOrder(unsigned n,unsigned pinit,unsigned *porder,const unsigned *idpc,const unsigned *irelation,word *code,unsigned &ppeDim);
   void FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
-    const tdouble3 *pos,const tfloat3 *pspos,float *divr,const word *code)const;
+    const tdouble3 *pos,const tfloat3 *pspos,double *divr,const word *code)const;
   void MatrixStorage(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
-	  float *divr,std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface)const;
+	  double *divr,std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim,const double freesurface)const;
   void MatrixASetup(const unsigned ppedim,unsigned &nnz,std::vector<int> &row)const;
   void PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
 	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,
-    const unsigned *idpc,const double dt,const unsigned ppedim,const float *divr,const float freesurface)const;
-  void PopulateMatrixAInteractFluid(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+    const unsigned *idpc,const double dt,const unsigned ppedim,const double *divr,const double freesurface)const;
+  void PopulateMatrixA(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,double *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
+    const unsigned *porder,const unsigned *irelation,std::vector<double> &matrixb,const unsigned *idpc,const word *code,const unsigned ppedim,const double freesurface,tdouble3 gravity,const double rhoZero)const;
+   /*void PopulateMatrixAInteractBound(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
 	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
-    const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface)const;
-   void PopulateMatrixAInteractBound(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
-    std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned *irelation,const unsigned ppedim,const float freesurface)const;
+    std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned *irelation,const unsigned ppedim,const float freesurface)const;*/
   void PressureAssign(bool psimple,unsigned n,unsigned pinit,const tdouble3 *pos,const tfloat3 *pspos,tfloat4 *velrhop,const unsigned *idpc,const unsigned *irelation,const unsigned *porder,
-    std::vector<double> &matrixx,const word *code,const unsigned npb,float *divr)const;
-  void FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,std::vector<double> &matrixInd,std::vector<double> &matrixb,std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim)const;
+    std::vector<double> &matrixx,const word *code,const unsigned npb,double *divr,tdouble3 gravity)const;
+  void FreeSurfaceMark(unsigned n,unsigned pinit,double *divr,std::vector<double> &matrixInd,std::vector<double> &matrixb,std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim)const;
 
   void solveVienna(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz);
  
   void Interaction_Shifting(unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tfloat3 *pspos,tfloat4 *velrhop,const unsigned *idp,const word *code
-    ,tfloat3 *shiftpos,float *divr,const float tensileN,const float tensileR)const;
+    ,tfloat3 *shiftpos,double *divr,const float tensileN,const float tensileR)const;
 
   template<TpFtMode ftmode> void InteractionForcesShifting
   (unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,float visco
   ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
   ,const tfloat3 *pspos,tfloat4 *velrhop,const word *code,const unsigned *idp
-  ,TpShifting tshifting,tfloat3 *shiftpos,float *divr,const float tensileN,const float tensileR)const;
+  ,TpShifting tshifting,tfloat3 *shiftpos,double *divr,const float tensileN,const float tensileR)const;
 
   void Shift(double dt);
-
+  int count;
 public:
   JSphCpu(bool withmpi);
   ~JSphCpu();
