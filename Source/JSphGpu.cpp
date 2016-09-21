@@ -247,7 +247,7 @@ void JSphGpu::AllocGpuMemoryParticles(unsigned np,float over){
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,5);  //-idp,ar,viscdt,dcell,porderg
   if(TDeltaSph==DELTA_DynamicExt)ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,1);  //-delta
   //ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,3); //-ace, dWxCorrg,dWzCorrg
-  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,4); //-velrhop,posxy
+  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,5); //-velrhop,posxy,pospressg
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,3);  //-posz,divrg
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_24B,3); //-ace,dWxCorrg,dWzCorrg
   if(TStep==STEP_Verlet){
@@ -264,7 +264,7 @@ void JSphGpu::AllocGpuMemoryParticles(unsigned np,float over){
     ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,4);  //-FtMasspg
   }
   if(TShifting!=SHIFT_None){
-    ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,1); //-shiftpos
+    ArraysGpu->AddArrayCount(JArraysGpu::SIZE_24B,1); //-shiftpos
   }
   if(RenCorrection){
     ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,1); //-presskf

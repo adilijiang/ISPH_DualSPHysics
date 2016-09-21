@@ -496,7 +496,7 @@ __device__ void KerGetKernel(double rr2,double drx,double dry,double drz
   const double rad=sqrt(rr2);
   const double qq=rad/CTE.h;
   //-Wendland kernel.
-  const double wqq1=1.f-0.5f*qq;
+  const double wqq1=1.-0.5*qq;
   const double fac=CTE.bwen*qq*wqq1*wqq1*wqq1/rad;
   frx=fac*drx; fry=fac*dry; frz=fac*drz;
 }
@@ -505,14 +505,14 @@ __device__ void KerGetKernel(double rr2,double drx,double dry,double drz
 /// Devuelve valores de kernel: wab.
 /// returns kernel values: wab.
 //------------------------------------------------------------------------------
-__device__ float KerGetKernelWab(float rr2)
+__device__ double KerGetKernelWab(double rr2)
 {
-  const float rad=sqrt(rr2);
-  const float qq=rad/CTE.h;
+  const double rad=sqrt(rr2);
+  const double qq=rad/CTE.h;
   //-Wendland kernel.
-  const float wqq=2.f*qq+1.f;
-  const float wqq1=1.f-0.5f*qq;
-  const float wqq2=wqq1*wqq1;
+  const double wqq=2.*qq+1.;
+  const double wqq1=1.-0.5*qq;
+  const double wqq2=wqq1*wqq1;
   return(CTE.awen*wqq*wqq2*wqq2);
 }
 
@@ -544,7 +544,7 @@ template<bool psimple,TpFtMode ftmode> __device__ void KerInteractionForcesBound
       double frx,fry,frz;
       KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
       const float4 velrhop2=velrhop[p2];
-      const float W=KerGetKernelWab(rr2);
+      const double W=KerGetKernelWab(rr2);
       Sum1x+=W*velrhop2.x;
       Sum1z+=W*velrhop2.z;
       Sum2+=W;
@@ -1368,13 +1368,13 @@ void AddDelta(unsigned n,const float *delta,float *ar){
 //------------------------------------------------------------------------------
 __global__ void KerRunShifting(unsigned n,unsigned pini,double dt
   ,float shiftcoef,double freesurface,double coeftfs
-  ,float4 *velrhop,const double *divr,float3 *shiftpos,const double ShiftOffset)
+  ,float4 *velrhop,const double *divr,double3 *shiftpos,const double ShiftOffset)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
   if(p<n){
     const unsigned p1=p+pini;
     //const float4 rvel=velrhop[p1];
-    float3 rshiftpos=shiftpos[p1];
+    double3 rshiftpos=shiftpos[p1];
     //const double vx=double(rvel.x);
     //const double vy=double(rvel.y);
     //const double vz=double(rvel.z);
@@ -1429,7 +1429,7 @@ __global__ void KerRunShifting(unsigned n,unsigned pini,double dt
 //==============================================================================
 void RunShifting(unsigned np,unsigned npb,double dt
   ,double shiftcoef,double freesurface,double coeftfs
-  ,float4 *velrhop,const double *divr,float3 *shiftpos)
+  ,float4 *velrhop,const double *divr,double3 *shiftpos)
 {
   const unsigned npf=np-npb;
   const double ShiftOffset=0.2;
@@ -3836,11 +3836,11 @@ void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int it
   viennacl::linalg::bicgstab_tag bicgstab(1e-5,2000);
   //viennacl::linalg::gmres_tag gmres(tolerance,iterations,20);
 
-  //if(tprecond==PRECOND_Jacobi){
+  if(tprecond==PRECOND_Jacobi){
     std::cout<<"JACOBI PRECOND" <<std::endl;
     viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_A_cuda,viennacl::linalg::jacobi_tag());
     run_solver(vcl_A_cuda,vcl_vec,bicgstab,vcl_jacobi,vcl_result);
-  /*}
+  }
   else if(tprecond==PRECOND_AMG){
     std::cout<<"AMG PRECOND"<<std::endl;
 
@@ -3855,7 +3855,7 @@ void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int it
     amg_tag_agg_pmis.set_postsmooth_steps(postsmooth); 
     amg_tag_agg_pmis.set_coarsening_cutoff(coarsecutoff); 
     run_amg(bicgstab,vcl_vec,vcl_A_cuda,"MIS2 AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,vcl_result);
-  }*/
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -3866,7 +3866,7 @@ template<bool psimple,TpFtMode ftmode> __device__ void KerInteractionForcesShift
   ,const double2 *posxy,const double *posz,const float4 *pospress,float4 *velrhop,const word *code
   ,float massp2,float ftmassp1,bool ftp1
   ,double3 posdp1,float3 posp1,float3 velp1,float pressp1,float rhopp1
-  ,TpShifting tshifting,float3 &shiftposp1,float Wab1,const float tensilen, const float tensiler,float &divrp1)
+  ,TpShifting tshifting,double3 &shiftposp1,float Wab1,const float tensilen, const float tensiler,double &divrp1)
 {
   for(int p2=pini;p2<pfin;p2++){
     double drx,dry,drz;
@@ -3893,8 +3893,8 @@ template<bool psimple,TpFtMode ftmode> __device__ void KerInteractionForcesShift
       }
 
       //-Shifting correction
-      const float massrhop=(USE_FLOATING? ftmassp2: massp2)/CTE.rhopzero;
-      const float tensile=tensilen*powf(KerGetKernelWab(rr2)/Wab1,tensiler);
+      const double massrhop=(USE_FLOATING? ftmassp2: massp2)/CTE.rhopzero;
+      const double tensile=tensilen*powf(KerGetKernelWab(rr2)/Wab1,tensiler);
         //const bool noshift=(boundp2 && (tshifting==SHIFT_NoBound || (tshifting==SHIFT_NoFixed && CODE_GetType(code[p2])==CODE_TYPE_FIXED)));
         shiftposp1.x+=massrhop*(1.0f+tensile)*frx; 
         shiftposp1.y+=massrhop*(1.0f+tensile)*fry;
@@ -3908,18 +3908,18 @@ template<bool psimple,TpFtMode ftmode> __global__ void KerInteractionForcesShift
   (unsigned n,unsigned pinit,int hdiv,uint4 nc,unsigned cellfluid,float viscob,float viscof
   ,const int2 *begincell,int3 cellzero,const unsigned *dcell,const float *ftomassp
   ,const double2 *posxy,const double *posz,const float4 *pospress,float4 *velrhop,const word *code
-  ,TpShifting tshifting,float3 *shiftpos,double *divr,const float tensilen,const float tensiler)
+  ,TpShifting tshifting,double3 *shiftpos,double *divr,const float tensilen,const float tensiler)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
     //float visc=0,arp1=0,deltap1=0;
    // float3 acep1=make_float3(0,0,0);
-     const float Wab1=KerGetKernelWab(CTE.dp*CTE.dp);
+     const double Wab1=KerGetKernelWab(CTE.dp*CTE.dp);
     //-Vars para Shifting.
 	//-Variables for Shifting.
-    float3 shiftposp1=make_float3(0,0,0);
-    float  divrp1=0;
+    double3 shiftposp1=make_double3(0,0,0);
+    double  divrp1=0;
    /* if(shift){
       shiftposp1=make_float3(0,0,0);
       shiftdetectp1=0;
@@ -3987,10 +3987,10 @@ template<bool psimple,TpFtMode ftmode> __global__ void KerInteractionForcesShift
     }
 
     if(shiftposp1.x||shiftposp1.y||shiftposp1.z||divrp1){
-      float3 s=shiftpos[p1];
+      double3 s=shiftpos[p1];
       s.x+=shiftposp1.x; s.y+=shiftposp1.y; s.z+=shiftposp1.z;
       shiftpos[p1]=s;
-      shiftposp1=make_float3(0,0,0);
+      shiftposp1=make_double3(0,0,0);
       divr[p1]+=divrp1;
       divrp1=0;
     }
@@ -4016,7 +4016,7 @@ template<bool psimple,TpFtMode ftmode> __global__ void KerInteractionForcesShift
     }
     
     if(shiftposp1.x||shiftposp1.y||shiftposp1.z||divrp1){
-      float3 s=shiftpos[p1];
+      double3 s=shiftpos[p1];
       s.x+=shiftposp1.x; s.y+=shiftposp1.y; s.z+=shiftposp1.z;
       shiftpos[p1]=s;
       divr[p1]+=divrp1;
@@ -4030,7 +4030,7 @@ void Interaction_Shifting
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
   ,float4 *velrhop,const word *code,const float *ftomassp
-  ,TpShifting tshifting,float3 *shiftpos,double *divr,const float tensilen,const float tensiler)
+  ,TpShifting tshifting,double3 *shiftpos,double *divr,const float tensilen,const float tensiler)
 {
   const unsigned npf=np-npb;
   const int hdiv=(cellmode==CELLMODE_H? 2: 1);
@@ -4056,16 +4056,16 @@ void Interaction_Shifting
 }
 
 template<bool floating> __global__ void KerComputeShift
-  (unsigned npf,unsigned npb,const float3 *shiftpos,word *code,double2 *movxy,double *movz)
+  (unsigned npf,unsigned npb,const double3 *shiftpos,word *code,double2 *movxy,double *movz)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
   if(p<npf){
     unsigned p1=p+npb;
-    const float3 rshiftpos=shiftpos[p1];
+    const double3 rshiftpos=shiftpos[p1];
     if(!floating || CODE_GetType(code[p1])==CODE_TYPE_FLUID){//-Particulas: Fluid //-Particles: Fluid
-      double dx=double(rshiftpos.x);
-      double dy=double(rshiftpos.y);
-      double dz=double(rshiftpos.z);
+      double dx=rshiftpos.x;
+      double dy=rshiftpos.y;
+      double dz=rshiftpos.z;
       /*if(shift){
         const float3 rshiftpos=shiftpos[p];
         dx+=double(rshiftpos.x);
@@ -4078,7 +4078,7 @@ template<bool floating> __global__ void KerComputeShift
   }
 }
 
-void ComputeShift(bool floating,const unsigned bsfluid,unsigned np,unsigned npb,const float3 *shiftpos
+void ComputeShift(bool floating,const unsigned bsfluid,unsigned np,unsigned npb,const double3 *shiftpos
   ,word *code,double2 *movxy,double *movz)
 {
   const unsigned npf=np-npb;

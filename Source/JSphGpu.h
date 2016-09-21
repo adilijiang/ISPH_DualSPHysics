@@ -151,7 +151,7 @@ protected:
   float *Arg; 
   float *Deltag;     ///<ES: Acumula ajuste de Delta-SPH con DELTA_DynamicExt EN: Accumulates adjustment of Delta-SPH with DELTA_DynamicExt
 
-  float3 *ShiftPosg;    ///<Particle displacement using Shifting.
+  double3 *ShiftPosg;    ///<Particle displacement using Shifting.
 
   double VelMax;      ///<Maximum value of Vel[] sqrt(vel.x^2 + vel.y^2 + vel.z^2) computed in PreInteraction_Forces().
   double AceMax;      ///<Maximum value of Ace[] (ace.x^2 + ace.y^2 + ace.z^2) computed in Interaction_Forces().

@@ -28,11 +28,12 @@ class JLog2;
 typedef struct{
   unsigned nbound;
   float massb,massf;
-  float fourh2,h;
-  float awen,bwen;
+  double fourh2,h;
+  double awen,bwen;
   float cs0,eta2;
   float delta2h;     //delta2h=DeltaSph*H*2
-  float scell,dosh,dp;
+  float scell,dosh;
+  double dp;
   float cteb,gamma;
   float rhopzero;    //rhopzero=RhopZero
   float ovrhopzero;  //ovrhopzero=1/RhopZero
@@ -118,7 +119,7 @@ void AddDelta(unsigned n,const float *delta,float *ar);
 //# Kernels for Shifting
 void RunShifting(unsigned np,unsigned npb,double dt
   ,double shiftcoef,double freesurface,double coeftfs
-  ,float4 *velrhop,const double *divr,float3 *shiftpos);
+  ,float4 *velrhop,const double *divr,double3 *shiftpos);
 
 //# Kernels para ComputeStep (vel & rhop)
 //# Kernels for ComputeStep (vel & rhop)
@@ -252,10 +253,10 @@ void Interaction_Shifting(bool psimple,bool floating,bool usedem,TpCellMode cell
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *pospress
   ,float4 *velrhop,const word *code,const float *ftomassp
-  ,TpShifting tshifting,float3 *shiftpos,double *divr,const float tensilen,const float tensiler);
+  ,TpShifting tshifting,double3 *shiftpos,double *divr,const float tensilen,const float tensiler);
 
 void ComputeShift(bool floating,const unsigned bsfluid,unsigned np,unsigned npb
-  ,const float3 *shiftpos,word *code,double2 *movxy,double *movz);
+  ,const double3 *shiftpos,word *code,double2 *movxy,double *movz);
 
 }
 #endif

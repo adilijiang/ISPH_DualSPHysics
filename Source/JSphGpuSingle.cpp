@@ -922,7 +922,7 @@ void JSphGpuSingle::RunShifting(double dt){
   PoszPreg=ArraysGpu->ReserveDouble();
   VelrhopPreg=ArraysGpu->ReserveFloat4();
 
-  ShiftPosg=ArraysGpu->ReserveFloat3();
+  ShiftPosg=ArraysGpu->ReserveDouble3();
   Divrg=ArraysGpu->ReserveDouble();
   cudaMemset(ShiftPosg,0,sizeof(float3)*np);       //ShiftPosg[]=0
   cudaMemset(Divrg,0,sizeof(double)*np);        //Divrg[]=0
