@@ -434,7 +434,7 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
 /// Aplica correccion de Ren a la presion y densidad del contorno.
 /// Applies Ren et al. correction to the pressure and desnity of the boundaries.
 //==============================================================================
-void JSphGpuSingle::RunRenCorrection(){
+/*void JSphGpuSingle::RunRenCorrection(){
   //-Calcula presion en contorno a partir de fluido.
   //-Computes pressure in the boundary from the fluid
   float *presskf=ArraysGpu->ReserveFloat();
@@ -443,7 +443,7 @@ void JSphGpuSingle::RunRenCorrection(){
   //-Computes corrected values of pressure and density on the boundary accordng to RenBeta
   cusph::ComputeRenPress(Psimple,NpbOk,RenCorrection,presskf,Velrhopg,PsPospressg);
   ArraysGpu->Free(presskf); presskf=NULL;
-}
+}*/
 
 //==============================================================================
 /// Interaccion para el calculo de fuerzas.
@@ -453,7 +453,7 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   const char met[]="Interaction_Forces";
   PreInteraction_Forces(tinter,dt);
   TmgStart(Timers,TMG_CfForces);
-  if(RenCorrection)RunRenCorrection();
+  //if(RenCorrection)RunRenCorrection();
 
   const bool lamsps=(TVisco==VISCO_LaminarSPS);
   const unsigned bsfluid=BlockSizes.forcesfluid;
@@ -536,7 +536,6 @@ double JSphGpuSingle::ComputeStep_Sym(){
   //----------- 
   InitAdvection(dt);
   RunCellDivide(true);
-  //if(TSlipCond)BoundaryVelocity(TSlipCond);
   Interaction_Forces(INTER_Forces,dt);       //-Interaccion //-Interaction
   //const double ddt_p=DtVariable(false);   //-Calcula dt del predictor //-Computes dt in the predictor step
   //if(TShifting)RunShifting(dt*.5);        //-Shifting
@@ -841,7 +840,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   cudaMalloc((void**)&colInd,sizeof(unsigned int)*Nnz); cusph::InitArrayCol(Nnz,colInd,int(PPEDim));
   CheckCudaError(met,"Memory Assignment a");
   cusph::PopulateMatrixA(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,GravityDbl,Posxyg,Poszg,PsPospressg,Velrhopg,a,b,rowInd,colInd,POrderg,Idpg,PPEDim,Divrg,Codeg,Irelationg,FreeSurface);
- std::cout<<Gravity.z<<"\n";
+
   cusph::FreeSurfaceMark(Psimple,bsbound,bsfluid,np,npb,npbok,Divrg,a,b,rowInd,POrderg,Codeg,PI,FreeSurface);
   CheckCudaError(met,"Free Surface");
  /* unsigned int *POrderCPU; POrderCPU=new unsigned int[np]; cudaMemcpy(POrderCPU,POrderg,sizeof(unsigned int)*np,cudaMemcpyDeviceToHost);

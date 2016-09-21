@@ -927,7 +927,8 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
   //-Prepares data for interation Pos-Simple.
   if(tinter==1&&Psimple){
     PsPospressg=ArraysGpu->ReserveFloat4();
-    cusph::PreInteractionSimple(Np,Posxyg,Poszg,Velrhopg,PsPospressg,CteB,Gamma);
+    cudaMemset(PsPospressg,0,sizeof(float4)*Np);
+    //cusph::PreInteractionSimple(Np,Posxyg,Poszg,Velrhopg,PsPospressg,CteB,Gamma);
   }
   //-Inicializa arrays.
   //-Initialises arrays.
