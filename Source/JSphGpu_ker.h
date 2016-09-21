@@ -63,9 +63,9 @@ float ReduMaxFloat_w(unsigned ndata,unsigned inidata,float4* data,float* resu);
 
 void CteInteractionUp(const StCteInteraction *cte);
 void InitArray(unsigned n,float3 *v,tfloat3 value);
-void Resety(unsigned n,unsigned ini,float3 *v);
-void ComputeAceMod(unsigned n,const float3 *ace,float *acemod);
-void ComputeAceMod(unsigned n,const word *code,const float3 *ace,float *acemod);
+void Resety(unsigned n,unsigned ini,double3 *v);
+void ComputeAceMod(unsigned n,const double3 *ace,float *acemod);
+void ComputeAceMod(unsigned n,const word *code,const double3 *ace,float *acemod);
 
 void ComputeVelMod(unsigned n,const float4 *vel,float *velmod);
 
@@ -83,7 +83,7 @@ void Interaction_Forces(bool psimple,bool floating,bool usedem,TpCellMode cellmo
   ,const double2 *posxy,const double *posz,const float4 *pospress
   ,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwzcorrg
   ,const float *ftomassp,const tsymatrix3f *tau,tsymatrix3f *gradvel
-  ,float *viscdt,float* ar,float3 *ace,bool simulate2d);
+  ,float *viscdt,float* ar,double3 *ace,bool simulate2d);
 
 //# Kernels para calculo de Ren correction
 //#Kernels for calculating the REn correction
@@ -129,11 +129,11 @@ void ComputeStepVerlet(bool floating,bool shift,unsigned np,unsigned npb
   ,word *code,double2 *movxy,double *movz,float4 *velrhopnew);
 
 void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb
-  ,const float4 *velrhoppre,const float *ar,const float3 *ace,double dtm,float rhopoutmin,float rhopoutmax
+  ,const float4 *velrhoppre,const float *ar,const double3 *ace,double dtm,float rhopoutmin,float rhopoutmax
   ,word *code,double2 *movxy,double *movz,float4 *velrhop);
 
 void ComputeStepSymplecticCor(bool floating,unsigned np,unsigned npb
-  ,const float4 *velrhoppre,const float *ar,const float3 *ace,double dtm,double dt,float rhopoutmin,float rhopoutmax
+  ,const float4 *velrhoppre,const float *ar,const double3 *ace,double dtm,double dt,float rhopoutmin,float rhopoutmax
   ,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity);
 
 //# Kernels para ComputeStep (position)

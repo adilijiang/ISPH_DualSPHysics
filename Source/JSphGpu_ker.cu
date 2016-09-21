@@ -234,7 +234,7 @@ void InitArray(unsigned n,float3 *v,tfloat3 value){
 /// Pone v[].y a cero.
 /// Sets v[].y to zero.
 //------------------------------------------------------------------------------
-__global__ void KerResety(unsigned n,unsigned ini,float3 *v)
+__global__ void KerResety(unsigned n,unsigned ini,double3 *v)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n)v[p+ini].y=0;
@@ -244,7 +244,7 @@ __global__ void KerResety(unsigned n,unsigned ini,float3 *v)
 // Pone v[].y a cero.
 /// Sets v[].y to zero.
 //==============================================================================
-void Resety(unsigned n,unsigned ini,float3 *v){
+void Resety(unsigned n,unsigned ini,double3 *v){
   if(n){
     dim3 sgrid=GetGridSize(n,SPHBSIZE);
     KerResety <<<sgrid,SPHBSIZE>>> (n,ini,v);
@@ -254,11 +254,11 @@ void Resety(unsigned n,unsigned ini,float3 *v){
 //------------------------------------------------------------------------------
 /// Calculates module^2 of ace.
 //------------------------------------------------------------------------------
-__global__ void KerComputeAceMod(unsigned n,const float3 *ace,float *acemod)
+__global__ void KerComputeAceMod(unsigned n,const double3 *ace,float *acemod)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Number of particle.
   if(p<n){
-    const float3 r=ace[p];
+    const double3 r=ace[p];
     acemod[p]=r.x*r.x+r.y*r.y+r.z*r.z;
   }
 }
@@ -266,7 +266,7 @@ __global__ void KerComputeAceMod(unsigned n,const float3 *ace,float *acemod)
 //==============================================================================
 /// Calculates module^2 of ace.
 //==============================================================================
-void ComputeAceMod(unsigned n,const float3 *ace,float *acemod){
+void ComputeAceMod(unsigned n,const double3 *ace,float *acemod){
   if(n){
     dim3 sgrid=GetGridSize(n,SPHBSIZE);
     KerComputeAceMod <<<sgrid,SPHBSIZE>>> (n,ace,acemod);
@@ -276,11 +276,11 @@ void ComputeAceMod(unsigned n,const float3 *ace,float *acemod){
 //------------------------------------------------------------------------------
 /// Calculates module^2 of ace, comprobando que la particula sea normal.
 //------------------------------------------------------------------------------
-__global__ void KerComputeAceMod(unsigned n,const word *code,const float3 *ace,float *acemod)
+__global__ void KerComputeAceMod(unsigned n,const word *code,const double3 *ace,float *acemod)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Number of particle.
   if(p<n){
-    const float3 r=(CODE_GetSpecialValue(code[p])==CODE_NORMAL? ace[p]: make_float3(0,0,0));
+    const double3 r=(CODE_GetSpecialValue(code[p])==CODE_NORMAL? ace[p]: make_double3(0,0,0));
     acemod[p]=r.x*r.x+r.y*r.y+r.z*r.z;
   }
 }
@@ -288,7 +288,7 @@ __global__ void KerComputeAceMod(unsigned n,const word *code,const float3 *ace,f
 //==============================================================================
 /// Calculates module^2 of ace, comprobando que la particula sea normal.
 //==============================================================================
-void ComputeAceMod(unsigned n,const word *code,const float3 *ace,float *acemod){
+void ComputeAceMod(unsigned n,const word *code,const double3 *ace,float *acemod){
   if(n){
     dim3 sgrid=GetGridSize(n,SPHBSIZE);
     KerComputeAceMod <<<sgrid,SPHBSIZE>>> (n,code,ace,acemod);
@@ -697,7 +697,7 @@ template<bool psimple,TpFtMode ftmode> __device__ void KerInteractionForcesFluid
   ,double3 posdp1,float3 posp1,float3 velp1,float pressp1,float rhopp1
   ,const float2 &taup1_xx_xy,const float2 &taup1_xz_yy,const float2 &taup1_yz_zz
   ,float2 &grap1_xx_xy,float2 &grap1_xz_yy,float2 &grap1_yz_zz
-  ,float3 &acep1,float &arp1,float &visc)
+  ,double3 &acep1,float &arp1,float &visc)
 {
   for(int p2=pini;p2<pfin;p2++){
     float drx,dry,drz,pressp2;
@@ -748,7 +748,7 @@ template<bool psimple,TpFtMode ftmode> __device__ void KerInteractionForcesFluid
   ,double3 posdp1,float3 posp1,float3 velp1,float pressp1,float rhopp1
   ,const float2 &taup1_xx_xy,const float2 &taup1_xz_yy,const float2 &taup1_yz_zz
   ,float2 &grap1_xx_xy,float2 &grap1_xz_yy,float2 &grap1_yz_zz
-  ,float3 &acep1,float &arp1,float &visc)
+  ,double3 &acep1,float &arp1,float &visc)
 {
   for(int p2=pini;p2<pfin;p2++){
     float drx,dry,drz,pressp2;
@@ -802,13 +802,13 @@ template<bool psimple,TpFtMode ftmode> __global__ void KerInteractionForcesFluid
   ,const int2 *begincell,int3 cellzero,const unsigned *dcell
   ,const float *ftomassp,const float2 *tauff,float2 *gradvelff
   ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop,const word *code,const unsigned *idp
-  ,double3 *dwxcorrg,double3 *dwzcorrg,float *viscdt,float *ar,float3 *ace)
+  ,double3 *dwxcorrg,double3 *dwzcorrg,float *viscdt,float *ar,double3 *ace)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
     float visc=0,arp1=0; //deltap1=0;
-    float3 acep1=make_float3(0,0,0);
+    double3 acep1=make_double3(0,0,0);
 
     //-Vars para Shifting.
 	//-Variables for Shifting.
@@ -881,11 +881,11 @@ template<bool psimple,TpFtMode ftmode> __global__ void KerInteractionForcesFluid
     }
 
     if(acep1.x||acep1.y||acep1.z){
-      float3 r=ace[p1]; 
+      double3 r=ace[p1]; 
       if(tinter==1){ r.x+=acep1.x; r.y+=acep1.y; r.z+=acep1.z;} 
 	    if(tinter==2){ const float rho0=CTE.rhopzero; r.x+=(acep1.x/rho0); r.y+=(acep1.y/rho0); r.z+=(acep1.z/rho0);}
       ace[p1]=r;
-      acep1=make_float3(0,0,0);
+      acep1=make_double3(0,0,0);
     }
 
     //-Interaccion con contorno.
@@ -917,7 +917,7 @@ template<bool psimple,TpFtMode ftmode> __global__ void KerInteractionForcesFluid
         delta[p1]=(rdelta==FLT_MAX||deltap1==FLT_MAX? FLT_MAX: rdelta+deltap1);
       }*/
       //ar[p1]+=arp1;
-      float3 r=ace[p1]; 
+      double3 r=ace[p1]; 
       if(tinter==1){ r.x+=acep1.x; r.y+=acep1.y; r.z+=acep1.z;} 
 	    if(tinter==2){ const float rho0=CTE.rhopzero; r.x+=(acep1.x/rho0); r.y+=(acep1.y/rho0); r.z+=(acep1.z/rho0);}
       ace[p1]=r;
@@ -946,7 +946,7 @@ template<bool psimple,TpFtMode ftmode> void Interaction_ForcesT
   ,const double2 *posxy,const double *posz,const float4 *pospress
   ,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwzcorrg
   ,const float *ftomassp,const tsymatrix3f *tau,tsymatrix3f *gradvel
-  ,float *viscdt,float* ar,float3 *ace,bool simulate2d)
+  ,float *viscdt,float* ar,double3 *ace,bool simulate2d)
 {
   const unsigned npf=np-npb;
   const int hdiv=(cellmode==CELLMODE_H? 2: 1);
@@ -1009,7 +1009,7 @@ void Interaction_Forces(bool psimple,bool floating,bool usedem,TpCellMode cellmo
   ,const double2 *posxy,const double *posz,const float4 *pospress
   ,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwzcorrg
   ,const float *ftomassp,const tsymatrix3f *tau,tsymatrix3f *gradvel
-  ,float *viscdt,float* ar,float3 *ace,bool simulate2d)
+  ,float *viscdt,float *ar,double3 *ace,bool simulate2d)
 {
   if(psimple){      const bool psimple=true;
     if(!floating)   Interaction_ForcesT<psimple,FTMODE_None> (cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,pospress,velrhop,code,idp,dwxcorrg,dwzcorrg,ftomassp,tau,gradvel,viscdt,ar,ace,simulate2d);
@@ -1605,7 +1605,7 @@ void ComputeStepVerlet(bool floating,bool shift,unsigned np,unsigned npb
 //------------------------------------------------------------------------------
 template<bool floating> __global__ void KerComputeStepSymplecticPre
   (unsigned n,unsigned npb
-  ,const float4 *velrhoppre,const float *ar,const float3 *ace,double dtm,float rhopoutmin,float rhopoutmax
+  ,const float4 *velrhoppre,const float *ar,const double3 *ace,double dtm,float rhopoutmin,float rhopoutmax
   ,word *code,double2 *movxy,double *movz,float4 *velrhop)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
@@ -1643,7 +1643,7 @@ template<bool floating> __global__ void KerComputeStepSymplecticPre
         movz[p]=dz;
         //-Actualiza velocidad.
 		//-Updates velocity.
-        const float3 race=ace[p];
+        const double3 race=ace[p];
         rvelrhop.x=float(double(rvelrhop.x)+double(race.x)*dtm);
         rvelrhop.y=float(double(rvelrhop.y)+double(race.y)*dtm);
         rvelrhop.z=float(double(rvelrhop.z)+double(race.z)*dtm);
@@ -1663,7 +1663,7 @@ template<bool floating> __global__ void KerComputeStepSymplecticPre
 /// Updates particles using Symplectic-Predictor.
 //==============================================================================   
 void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb
-  ,const float4 *velrhoppre,const float *ar,const float3 *ace,double dtm,float rhopoutmin,float rhopoutmax
+  ,const float4 *velrhoppre,const float *ar,const double3 *ace,double dtm,float rhopoutmin,float rhopoutmax
   ,word *code,double2 *movxy,double *movz,float4 *velrhop)
 {
   if(np){
@@ -1684,7 +1684,7 @@ void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb
 //------------------------------------------------------------------------------
 template<bool floating> __global__ void KerComputeStepSymplecticCor
   (unsigned n,unsigned npb
-  ,const float4 *velrhoppre,const float *ar,const float3 *ace,double dtm,double dt,float rhopoutmin,float rhopoutmax
+  ,const float4 *velrhoppre,const float *ar,const double3 *ace,double dtm,double dt,float rhopoutmin,float rhopoutmax
   ,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
@@ -1706,7 +1706,7 @@ template<bool floating> __global__ void KerComputeStepSymplecticCor
         float4 rvelp=velrhoppre[p];
         //-Actualiza velocidad.
 		//-Updates velocity.
-        float3 race=ace[p];
+        double3 race=ace[p];
         rvelrhop.x-=float(double(race.x-gravity.x)*dt);
         rvelrhop.y-=float(double(race.y-gravity.y)*dt);
         rvelrhop.z-=float(double(race.z-gravity.z)*dt);
@@ -1746,7 +1746,7 @@ template<bool floating> __global__ void KerComputeStepSymplecticCor
 /// Updates particles using Symplectic-Corrector.
 //==============================================================================   
 void ComputeStepSymplecticCor(bool floating,unsigned np,unsigned npb
-  ,const float4 *velrhoppre,const float *ar,const float3 *ace,double dtm,double dt,float rhopoutmin,float rhopoutmax
+  ,const float4 *velrhoppre,const float *ar,const double3 *ace,double dtm,double dt,float rhopoutmin,float rhopoutmax
   ,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity)
 {
   if(np){

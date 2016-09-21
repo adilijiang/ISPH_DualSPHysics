@@ -246,10 +246,10 @@ void JSphGpu::AllocGpuMemoryParticles(unsigned np,float over){
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_2B,2);  //-code,code2
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,5);  //-idp,ar,viscdt,dcell,porderg
   if(TDeltaSph==DELTA_DynamicExt)ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,1);  //-delta
-  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,1); //-ace, dWxCorrg,dWzCorrg
+  //ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,3); //-ace, dWxCorrg,dWzCorrg
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,4); //-velrhop,posxy
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,3);  //-posz,divrg
-  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_24B,2); //-dWxCorrg,dWzCorrg
+  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_24B,3); //-ace,dWxCorrg,dWzCorrg
   if(TStep==STEP_Verlet){
     ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,1); //-velrhopm1
   }
@@ -874,7 +874,7 @@ void JSphGpu::InitRun(){
 //==============================================================================
 /// Adds variable acceleration from input files.
 //==============================================================================
-void JSphGpu::AddVarAcc(){
+/*void JSphGpu::AddVarAcc(){
   for(unsigned c=0;c<VarAcc->GetCount();c++){
     unsigned mkfluid;
     tdouble3 acclin,accang,centre,angvel,linvel;
@@ -883,7 +883,7 @@ void JSphGpu::AddVarAcc(){
     const word codesel=word(mkfluid);
     cusph::AddVarAcc(Np-Npb,Npb,codesel,acclin,accang,centre,angvel,linvel,setgravity,Gravity,Codeg,Posxyg,Poszg,Velrhopg,Aceg);
   }
-}
+}*/
 
 //==============================================================================
 /// Prepara variables para interaccion "INTER_Forces" o "INTER_ForcesCorr".
@@ -897,11 +897,11 @@ void JSphGpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
   cudaMemset(Arg,0,sizeof(float)*np);                                    //Arg[]=0
   //if(Deltag)cudaMemset(Deltag,0,sizeof(float)*np);                       //Deltag[]=0
   //if(ShiftPosg)cudaMemset(ShiftPosg,0,sizeof(tfloat3)*np);               //ShiftPosg[]=0
-  cudaMemset(Aceg,0,sizeof(tfloat3)*np);
+  cudaMemset(Aceg,0,sizeof(tdouble3)*np);
   //if(SpsGradvelg)cudaMemset(SpsGradvelg+npb,0,sizeof(tsymatrix3f)*npf);  //SpsGradvelg[]=(0,0,0,0,0,0).
 
   //-Apply the extra forces to the correct particle sets.
-  if(VarAcc)AddVarAcc();
+ // if(VarAcc)AddVarAcc();
 }
 
 //==============================================================================
@@ -915,7 +915,7 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
 
   ViscDtg=ArraysGpu->ReserveFloat();
   Arg=ArraysGpu->ReserveFloat();
-  Aceg=ArraysGpu->ReserveFloat3();
+  Aceg=ArraysGpu->ReserveDouble3();
   /*if(TDeltaSph==DELTA_DynamicExt)Deltag=ArraysGpu->ReserveFloat();
   if(TShifting!=SHIFT_None){
     ShiftPosg=ArraysGpu->ReserveFloat3();
@@ -973,7 +973,7 @@ void JSphGpu::PosInteraction_Forces(TpInter tinter){
 /// Actualizacion de particulas segun fuerzas y dt usando Verlet.
 /// Updates particles according to forces and dt using Verlet.
 //==============================================================================
-void JSphGpu::ComputeVerlet(double dt){  //pdtedom
+/*void JSphGpu::ComputeVerlet(double dt){  //pdtedom
   TmgStart(Timers,TMG_SuComputeStep);
   const bool shift=TShifting!=SHIFT_None;
   VerletStep++;
@@ -1002,7 +1002,7 @@ void JSphGpu::ComputeVerlet(double dt){  //pdtedom
   ArraysGpu->Free(movxyg);   movxyg=NULL;
   ArraysGpu->Free(movzg);    movzg=NULL;
   TmgStop(Timers,TMG_SuComputeStep);
-}
+}*/
 
 //==============================================================================
 /// Actualizacion de particulas segun fuerzas y dt usando Symplectic-Predictor.

@@ -147,7 +147,7 @@ protected:
   float4 *PsPospressg; ///<ES: Posicion y press para interaccion Pos-Simple. press=cteb*(powf(rhop/rhopzero,gamma)-1.0f); EN: Position and pressure for the interaction Pos-Simple press=cteb*(powf(rhop/rhopzero,gamma)-1.0f);
 
   float *ViscDtg;
-  float3 *Aceg;      ///<ES: Acumula fuerzas de interaccion EN: Accumulates acceleration of the particles
+  double3 *Aceg;      ///<ES: Acumula fuerzas de interaccion EN: Accumulates acceleration of the particles
   float *Arg; 
   float *Deltag;     ///<ES: Acumula ajuste de Delta-SPH con DELTA_DynamicExt EN: Accumulates adjustment of Delta-SPH with DELTA_DynamicExt
 
