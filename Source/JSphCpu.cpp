@@ -2674,7 +2674,7 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
   for(int p1=int(pinit);p1<pfin;p1++){
    
     tfloat3 shiftposp1=TFloat3(0);
-    double divrp1=divr[p1];
+    //double divrp1=divr[p1];
 
     //-Obtain data of particle p1 in case of floating objects / Obtiene datos de particula p1 en caso de existir floatings.
     //bool ftp1=false;     //-Indicate if it is floating / Indica si es floating.

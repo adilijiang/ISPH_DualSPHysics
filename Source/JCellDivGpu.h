@@ -140,10 +140,10 @@ public:
 
   void DefineDomain(unsigned cellcode,tuint3 domcelini,tuint3 domcelfin,tdouble3 domposmin,tdouble3 domposmax);
 
-  void SortBasicArrays(const unsigned *idp,const word *code,const unsigned *dcell,const double2 *posxy,const double *posz,const float4 *velrhop,unsigned *idp2,word *code2,unsigned *dcell2,double2 *posxy2,double *posz2,float4 *velrhop2);
+  void SortBasicArrays(const unsigned *idp,const word *code,const unsigned *dcell,const double2 *posxy,const double *posz,const double4 *velrhop,unsigned *idp2,word *code2,unsigned *dcell2,double2 *posxy2,double *posz2,double4 *velrhop2);
   void SortDataArrays(const float4 *a,float4 *a2);
   void SortDataArrays(const float *a,const float *b,float *a2,float *b2);
-  void SortDataArrays(const double2 *a,const double *b,const float4 *c,double2 *a2,double *b2,float4 *c2);
+  void SortDataArrays(const double2 *a,const double *b,const double4 *c,double2 *a2,double *b2,double4 *c2);
   void SortDataArrays(const tsymatrix3f *a,tsymatrix3f *a2);
 
   void CheckParticlesOut(unsigned npfout,const unsigned *idp,const tdouble3 *pos,const float *rhop,const word *code);

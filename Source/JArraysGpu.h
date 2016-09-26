@@ -51,7 +51,7 @@ protected:
   const unsigned ElementSize;
   unsigned ArraySize;
 
-  static const unsigned MAXPOINTERS=30;
+  static const unsigned MAXPOINTERS=50;
   void* Pointers[MAXPOINTERS];
   unsigned Count;
   unsigned CountUsed;

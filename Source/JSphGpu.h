@@ -111,7 +111,7 @@ protected:
   unsigned *Dcellg; ///<ES: Celda dentro de DomCells codificada con DomCellCode. EN: Cell within DomCells encoded within DomCellCode
   double2 *Posxyg;
   double *Poszg;
-  float4 *Velrhopg;
+  double4 *Velrhopg;
     
   //-Vars. para compute step: VERLET
   //-Variables for compute step: Verlet
@@ -122,7 +122,7 @@ protected:
   //-Variables for compute step: Symplectic
   double2 *PosxyPreg;  ///<ES: Sympletic: para guardar valores en predictor EN: Symplectic: for maintaining predictor values
   double *PoszPreg;
-  float4 *VelrhopPreg;
+  double4 *VelrhopPreg;
   double DtPre;   
 
   //-Variables for floating bodies.
@@ -186,6 +186,7 @@ protected:
   float4*      SaveArrayGpu(unsigned np,const float4      *datasrc)const{ return(TSaveArrayGpu<float4>     (np,datasrc)); }
   double*      SaveArrayGpu(unsigned np,const double      *datasrc)const{ return(TSaveArrayGpu<double>     (np,datasrc)); }
   double2*     SaveArrayGpu(unsigned np,const double2     *datasrc)const{ return(TSaveArrayGpu<double2>    (np,datasrc)); }
+  double4*     SaveArrayGpu(unsigned np,const double4     *datasrc)const{ return(TSaveArrayGpu<double4>    (np,datasrc)); }
   tsymatrix3f* SaveArrayGpu(unsigned np,const tsymatrix3f *datasrc)const{ return(TSaveArrayGpu<tsymatrix3f>(np,datasrc)); }
   unsigned*    SaveArrayGpu_Uint(unsigned np,const unsigned *datasrc)const;
   template<class T> void TRestoreArrayGpu(unsigned np,T *data,T *datanew)const;
@@ -195,6 +196,7 @@ protected:
   void RestoreArrayGpu(unsigned np,float4      *data,float4      *datanew)const{ TRestoreArrayGpu<float4>     (np,data,datanew); }
   void RestoreArrayGpu(unsigned np,double      *data,double      *datanew)const{ TRestoreArrayGpu<double>     (np,data,datanew); }
   void RestoreArrayGpu(unsigned np,double2     *data,double2     *datanew)const{ TRestoreArrayGpu<double2>    (np,data,datanew); }
+  void RestoreArrayGpu(unsigned np,double4      *data,double4      *datanew)const{ TRestoreArrayGpu<double4>     (np,data,datanew); }
   void RestoreArrayGpu(unsigned np,tsymatrix3f *data,tsymatrix3f *datanew)const{ TRestoreArrayGpu<tsymatrix3f>(np,data,datanew); }
   void RestoreArrayGpu_Uint(unsigned np,unsigned *data,unsigned *datanew)const;
 

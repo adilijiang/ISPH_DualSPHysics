@@ -157,8 +157,8 @@ protected:
   TpStep TStep;               //-Algitmo de paso: Verlet o Symplectic.											//-Step Algorithm: Verlet or Symplectic.
   int VerletSteps;            //-Number of steps to apply Eulerian equations
   TpKernel TKernel;           //-Tipo de kernel: Cubic o Wendland.												//-Kernel type: Cubic or Wendland.
-  float Awen;                 //-Constante para kernel wendland (awen).											//-Wendland kernel constant (awen).
-  float Bwen;                 //-Constante para kernel wendland (bwen).											//-Wendland kernel constant (bwen).
+  double Awen;                 //-Constante para kernel wendland (awen).											//-Wendland kernel constant (awen).
+  double Bwen;                 //-Constante para kernel wendland (bwen).											//-Wendland kernel constant (bwen).
   TpVisco TVisco;             //-Tipo de viscosidad: Artificial,...												//-Viscosity type: Artificial,...
   TpDeltaSph TDeltaSph;       //-Tipo de Delta-SPH: None, Basic o Dynamic.										//-Delta-SPH type: None, Basic or Dynamic.
   float DeltaSph;             //-Constante para DeltaSPH. El valor por defecto es 0.1f, con 0 no tiene efecto.	//-DeltaSPH constant. The default value is 0.1f, with 0 having no effect.
@@ -166,10 +166,10 @@ protected:
   float RenCorrection;        //-Constant for Ren correction in DBC (0-1), with 0 disabled (def=0).
 
   TpShifting TShifting; //-Tipo de Shifting: None, NoBound, NoFixed, Full.										//-Shifting type: None, NoBound, NoFixed, Full.	
-  float ShiftCoef;      //-Coefficient for shifting computation.
+  double ShiftCoef;      //-Coefficient for shifting computation.
   double FreeSurface;    //-Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (def=0).
-  float TensileN;       //-Tensile Instability Coefficient
-  float TensileR;       //-Tensile Instability Coefficient
+  double TensileN;       //-Tensile Instability Coefficient
+  double TensileR;       //-Tensile Instability Coefficient
 
   TpSlipCond TSlipCond;
   
@@ -183,8 +183,8 @@ protected:
   int Postsmooth;
   int CoarseCutoff;
 
-  float Visco;  
-  float ViscoBoundFactor;     //-Para interaccion con contorno usa Visco*ViscoBoundFactor.						//-Forboundary interaction use Visco*ViscoBoundFactor.
+  double Visco;  
+  double ViscoBoundFactor;     //-Para interaccion con contorno usa Visco*ViscoBoundFactor.						//-Forboundary interaction use Visco*ViscoBoundFactor.
   JSphVisco* ViscoTime;       //-Proporciona un valor de viscosidad en funcion del instante de la simulacion.	//-Provides a viscosity value as a function of simulation time.
 
   bool RhopOut;                //Indica si activa la correccion de densidad RhopOut o no.						//-Indicates whether the RhopOut density correction is active or not.
