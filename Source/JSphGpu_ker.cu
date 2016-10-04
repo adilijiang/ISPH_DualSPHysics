@@ -1394,7 +1394,7 @@ __global__ void KerRunShifting(unsigned n,unsigned pini,double dt
     //const double vx=double(rvel.x);
     //const double vy=double(rvel.y);
     //const double vz=double(rvel.z);
-    double umagn=-shiftcoef*double(CTE.h)*double(CTE.h);//double(shiftcoef)*double(CTE.h)*sqrt(vx*vx+vy*vy+vz*vz)*dt;
+    double umagn=-double(shiftcoef)*double(CTE.h)*double(CTE.h);//double(shiftcoef)*double(CTE.h)*sqrt(vx*vx+vy*vy+vz*vz)*dt;
 
     if(divr[p1]<freesurface){
       double NormX=-rshiftpos.x;
@@ -1424,7 +1424,7 @@ __global__ void KerRunShifting(unsigned n,unsigned pini,double dt
       double TangZ=NormX;
       double temp_s=TangX*rshiftpos.x+TangZ*rshiftpos.z;
       double temp_n=NormX*rshiftpos.x+NormZ*rshiftpos.z;
-      double FactorShift=0.5*(1-cos(PI*(divr[p1]-freesurface)/0.2));
+      double FactorShift=0.5*(1-cos(PI*double(divr[p1]-freesurface)/0.2));
       rshiftpos.x=temp_s*TangX+temp_n*NormX*FactorShift;
       rshiftpos.z=temp_s*TangZ+temp_n*NormZ*FactorShift;
       /*const float rdetect=shiftdetect[p1];

@@ -1511,47 +1511,51 @@ void JSphCpu::RunShifting(double dt){
   const double coeftfs=(Simulate2D? 2.0: 3.0)-FreeSurface;
   const double ShiftOffset=0.2;
   const int pini=int(Npb),pfin=int(Np),npf=int(Np-Npb);
-  const double difThreshold=0.1*double(H)*double(H);
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (static) if(npf>LIMIT_COMPUTELIGHT_OMP)
   #endif
   for(int p=pini;p<pfin;p++){
-    double vx=double(Velrhopc[p].x);
-    double vy=double(Velrhopc[p].y);
-    double vz=double(Velrhopc[p].z);
-    double umagn=-difThreshold;// double(ShiftCoef)*double(H)*sqrt(vx*vx+vy*vy+vz*vz)*dt;
+    //double vx=double(Velrhopc[p].x);
+    //double vy=double(Velrhopc[p].y);
+    //double vz=double(Velrhopc[p].z);
+    tfloat3 rshiftpos=ShiftPosc[p];
+    float divrp1=Divr[p];
+    double umagn=-double(ShiftCoef)*double(H)*double(H);// double(ShiftCoef)*double(H)*sqrt(vx*vx+vy*vy+vz*vz)*dt;
 
-    if(Divr[p]<FreeSurface){
-        double NormX=-ShiftPosc[p].x;
-        double NormZ=-ShiftPosc[p].z;
+    if(divrp1<FreeSurface){
+        double NormX=-rshiftpos.x;
+        double NormZ=-rshiftpos.z;
         double temp=NormX*NormX+NormZ*NormZ;
         temp=sqrt(temp);
         NormX=NormX/temp;
         NormZ=NormZ/temp;
         double TangX=-NormZ;
         double TangZ=NormX;
-        temp=TangX*ShiftPosc[p].x+TangZ*ShiftPosc[p].z;
-        ShiftPosc[p].x=temp*TangX;
-        ShiftPosc[p].z=temp*TangZ;
+        temp=TangX*rshiftpos.x+TangZ*rshiftpos.z;
+        rshiftpos.x=temp*TangX;
+        rshiftpos.z=temp*TangZ;
     }
 
-    if(Divr[p]>=FreeSurface && Divr[p]<=FreeSurface+ShiftOffset){ 
-      double NormX=-ShiftPosc[p].x;
-      double NormZ=-ShiftPosc[p].z;
+    if(divrp1>=FreeSurface && divrp1<=FreeSurface+ShiftOffset){ 
+      double NormX=-rshiftpos.x;
+      double NormZ=-rshiftpos.z;
       double temp=NormX*NormX+NormZ*NormZ;
       temp=sqrt(temp);
       NormX=NormX/temp;
       NormZ=NormZ/temp;
       double TangX=-NormZ;
       double TangZ=NormX;
-      double temp_s=TangX*ShiftPosc[p].x+TangZ*ShiftPosc[p].z;
-      double temp_n=NormX*ShiftPosc[p].x+NormZ*ShiftPosc[p].z;
-      double FactorShift=0.5*(1-cos(PI*(Divr[p]-FreeSurface)/0.2));
-      ShiftPosc[p].x=temp_s*TangX+temp_n*NormX*FactorShift;
-      ShiftPosc[p].z=temp_s*TangZ+temp_n*NormZ*FactorShift;
+      double temp_s=TangX*rshiftpos.x+TangZ*rshiftpos.z;
+      double temp_n=NormX*rshiftpos.x+NormZ*rshiftpos.z;
+      double FactorShift=0.5*(1-cos(PI*double(divrp1-FreeSurface)/0.2));
+      rshiftpos.x=temp_s*TangX+temp_n*NormX*FactorShift;
+      rshiftpos.z=temp_s*TangZ+temp_n*NormZ*FactorShift;
     }
-        
-    ShiftPosc[p]=ToTFloat3(ToTDouble3(ShiftPosc[p])*umagn); //particles in fluid bulk, normal shifting
+
+    rshiftpos.x=float(double(rshiftpos.x)*umagn);
+    rshiftpos.y=float(double(rshiftpos.y)*umagn);
+    rshiftpos.z=float(double(rshiftpos.z)*umagn);
+    ShiftPosc[p]=rshiftpos; //particles in fluid bulk, normal shifting
 
     /*//Max Shifting
     double temp=sqrt(ShiftPosc[p].x*ShiftPosc[p].x+ShiftPosc[p].z*ShiftPosc[p].z); 
@@ -2467,7 +2471,7 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
   for(int p1=int(pinit);p1<pfin;p1++){
    
     tfloat3 shiftposp1=TFloat3(0);
-    double divrp1=divr[p1];
+    float divrp1=0;
 
     //-Obtain data of particle p1 in case of floating objects / Obtiene datos de particula p1 en caso de existir floatings.
     //bool ftp1=false;     //-Indicate if it is floating / Indica si es floating.
@@ -2531,13 +2535,13 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
               shiftposp1.x+=massrhop*(1.0f+tensile)*frx; //-For boundary do not use shifting / Con boundary anula shifting.
               shiftposp1.y+=massrhop*(1.0f+tensile)*fry;
               shiftposp1.z+=massrhop*(1.0f+tensile)*frz;
-
+              divrp1-=massrhop*(drx*frx+dry*fry+drz*frz);
             //}
           }
         }
       }
     }
-      
+    divr[p1]+=divrp1;  
     shiftpos[p1]=shiftpos[p1]+shiftposp1; 
   }
 }

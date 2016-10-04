@@ -1143,15 +1143,13 @@ void JSphCpuSingle::RunShifting(double dt){
   const unsigned *begincell = CellDivSingle->GetBeginCell();
 
   PreparePosSimple();
-  FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Fluid
-  FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Bound
 
   JSphCpu::Interaction_Shifting(Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,PsPosc,Velrhopc,Idpc,Codec,ShiftPosc,Divr,TensileN,TensileR);
 
   JSphCpu::RunShifting(dt);
 
   Shift(dt);
-  
+
   ArraysCpu->Free(PosPrec);      PosPrec=NULL;
   ArraysCpu->Free(PsPosc);       PsPosc=NULL;
   ArraysCpu->Free(ShiftPosc);    ShiftPosc=NULL;
