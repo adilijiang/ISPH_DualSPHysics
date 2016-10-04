@@ -121,7 +121,6 @@ typedef enum{ SDAT_Binx=1,SDAT_Vtk=2,SDAT_Csv=4,SDAT_Info=8,SDAT_None=0 }TpSaveD
 ///Types of step algorithm.
 typedef enum{ 
   STEP_Symplectic=2,         ///<Symplectic algorithm.
-  STEP_Verlet=1,             ///<Verlet algorithm.
   STEP_None=0 
 }TpStep;                    
 
@@ -133,7 +132,6 @@ typedef enum{
 
 ///Types of viscosity treatment.
 typedef enum{ 
-  VISCO_LaminarSPS=2,        ///<Laminar viscosity and Sub-Partice Scale Turbulence.
   VISCO_Artificial=1,        ///<Artificial viscosity.
   VISCO_None=0 
 }TpVisco;            

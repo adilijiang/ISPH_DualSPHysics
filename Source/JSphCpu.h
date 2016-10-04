@@ -65,10 +65,6 @@ protected:
   tdouble3 *Posc;
   tfloat4 *Velrhopc;
     
-  //-Variables for compute step: VERLET / Vars. para compute step: VERLET
-  tfloat4 *VelrhopM1c;  //-Verlet: in order to keep previous values / Verlet: para guardar valores anteriores
-  int VerletStep;
-
   //-Variables for compute step: SYMPLECTIC / Vars. para compute step: SYMPLECTIC
   tdouble3 *PosPrec;  //-Sympletic: in order to keep previous values / Sympletic: para guardar valores en predictor
   tfloat4 *VelrhopPrec;
@@ -90,13 +86,6 @@ protected:
   double VelMax;      ///<Maximum value of Vel[] sqrt(vel.x^2 + vel.y^2 + vel.z^2) computed in PreInteraction_Forces().
   double AceMax;      ///<Maximum value of Ace[] sqrt(ace.x^2 + ace.y^2 + ace.z^2) computed in Interaction_Forces().
   float ViscDtMax;    ///<Max value of ViscDt calculated in Interaction_Forces() / Valor maximo de ViscDt calculado en Interaction_Forces().
-
-  //-Variables for computing forces [INTER_Forces,INTER_ForcesCorr] / Vars. derivadas para computo de fuerzas [INTER_Forces,INTER_ForcesCorr]
-  float *Pressc;     //- Press[]=B*((Rhop^2/Rhop0)^gamma-1)
-
-  //-Variables for Laminar+SPS viscosity.  
-  tsymatrix3f *SpsTauc;       ///<SPS sub-particle stress tensor.
-  tsymatrix3f *SpsGradvelc;   ///<Velocity gradients.
 
   TimersCpu Timers;
 
@@ -155,19 +144,6 @@ protected:
     ,int hdiv,const tint4 &nc,const tint3 &cellzero
     ,int &cxini,int &cxfin,int &yini,int &yfin,int &zini,int &zfin)const;
 
-  template<bool psimple,TpFtMode ftmode> void InteractionRenBound
-    (unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial
-    ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
-    ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,const word *code,const unsigned *idp
-    ,const float *press,float *presskf)const;
-
-  void Interaction_Ren(unsigned npbok
-    ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
-    ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,const unsigned *idp,const word *code
-    ,const float *press,float *presskf)const;
-
-  void ComputeRenPress(unsigned npbok,float beta,const float *presskf,tfloat4 *velrhop,float *press)const;
-
   template<bool psimple,TpFtMode ftmode> void InteractionForcesBound
     (unsigned n,unsigned pini,tint4 nc,int hdiv,unsigned cellinitial
     ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
@@ -203,14 +179,8 @@ protected:
     ,const tfloat3 *pspos,const tfloat4 *velrhop,const unsigned *idp,tdouble3 *dwxcorr,tdouble3 *dwzcorr,const word *code
     ,tfloat3 *ace)const;
 
-
-  void ComputeSpsTau(unsigned n,unsigned pini,const tfloat4 *velrhop,const tsymatrix3f *gradvel,tsymatrix3f *tau)const;
-
   void UpdatePos(tdouble3 pos0,double dx,double dy,double dz,bool outrhop,unsigned p,tdouble3 *pos,unsigned *cell,word *code)const;
-  //template<bool shift> void ComputeVerletVarsFluid(const tfloat4 *velrhop1,const tfloat4 *velrhop2,double dt,double dt2,tdouble3 *pos,unsigned *cell,word *code,tfloat4 *velrhopnew)const;
-  //void ComputeVelrhopBound(const tfloat4* velrhopold,double armul,tfloat4* velrhopnew)const;
 
-  //void ComputeVerlet(double dt);
   template<bool shift> void ComputeSymplecticPreT(double dt);
   void ComputeSymplecticPre(double dt);
   template<bool shift> void ComputeSymplecticCorrT(double dt);

@@ -98,11 +98,9 @@ void JSph::InitVars(){
   RunTimeDate="";
   CaseName=""; DirCase=""; DirOut=""; RunName="";
   TStep=STEP_None;
-  VerletSteps=40;
   TKernel=KERNEL_Wendland;
   Awen=Bwen=0;
   TVisco=VISCO_None;
-  TDeltaSph=DELTA_None; DeltaSph=0;
   TShifting=SHIFT_None; ShiftCoef=0;
   FreeSurface=0;
   TensileN=0;
@@ -112,7 +110,6 @@ void JSph::InitVars(){
   Iterations=0;
   Tolerance=0;
   StrongConnection=0; JacobiWeight=0; Presmooth=0; Postsmooth=0; CoarseCutoff=0;
-  RenCorrection=0;
   Visco=0; ViscoBoundFactor=1;
   UseDEM=false;  //(DEM)
   DemDtForce=0;  //(DEM)
@@ -135,7 +132,6 @@ void JSph::InitVars(){
   MassFluid=MassBound=0;
   Gravity=TFloat3(0);
   Dosh=H2=Fourh2=Eta2=0;
-  SpsSmag=SpsBlin=0;
 
   CasePosMin=CasePosMax=TDouble3(0);
   CaseNp=CaseNbound=CaseNfixed=CaseNmoving=CaseNfloat=CaseNfluid=CaseNpb=0;
@@ -318,16 +314,8 @@ void JSph::LoadConfig(const JCfgRun *cfg){
 
   //-Aplies configuration using command line.
   if(cfg->TStep)TStep=cfg->TStep;
-  if(cfg->VerletSteps>=0)VerletSteps=cfg->VerletSteps;
   if(cfg->TVisco){ TVisco=cfg->TVisco; Visco=cfg->Visco; }
   if(cfg->ViscoBoundFactor>=0)ViscoBoundFactor=cfg->ViscoBoundFactor;
-  if(cfg->DeltaSph>=0){
-    DeltaSph=cfg->DeltaSph;
-    TDeltaSph=(DeltaSph? DELTA_Dynamic: DELTA_None);
-  }
-  if(TDeltaSph==DELTA_Dynamic && Cpu)TDeltaSph=DELTA_DynamicExt; //-It is necessary because the interaction is divided in two steps: fluid-fluid/float and fluid-bound.
-
-  if(cfg->RenCorrection>=0)RenCorrection=cfg->RenCorrection;
 
   if(cfg->Shifting>=0){
     switch(cfg->Shifting){
@@ -383,16 +371,13 @@ void JSph::LoadCaseConfig(){
     case 2:  UseDEM=true;   break;
     default: RunException(met,"Rigid algorithm is not valid.");
   }
-  switch(eparms.GetValueInt("StepAlgorithm",true,1)){
-    case 1:  TStep=STEP_Verlet;      break;
+  switch(eparms.GetValueInt("StepAlgorithm",true,2)){
     case 2:  TStep=STEP_Symplectic;  break;
     default: RunException(met,"Step algorithm is not valid.");
   }
-  VerletSteps=eparms.GetValueInt("VerletSteps",true,40);
   if(eparms.GetValueInt("Kernel",true,1)!=1)RunException(met,"Kernel choice is not valid. Only Wendland is valid.");
   switch(eparms.GetValueInt("ViscoTreatment",true,1)){
     case 1:  TVisco=VISCO_Artificial;  break;
-    case 2:  TVisco=VISCO_LaminarSPS;  break;
     default: RunException(met,"Viscosity treatment is not valid.");
   }
   Visco=eparms.GetValueFloat("Visco");
@@ -402,8 +387,6 @@ void JSph::LoadCaseConfig(){
     ViscoTime=new JSphVisco();
     ViscoTime->LoadFile(DirCase+filevisco);
   }
-  DeltaSph=eparms.GetValueFloat("DeltaSPH",true,0);
-  TDeltaSph=(DeltaSph? DELTA_Dynamic: DELTA_None);
 
   switch(eparms.GetValueInt("Slip/No Slip Conditions",true,0)){
     case 0:  TSlipCond=SLIPCOND_None;     break;
@@ -447,9 +430,6 @@ void JSph::LoadCaseConfig(){
     Postsmooth=eparms.GetValueInt("Postsmooth Steps",true,1);
     CoarseCutoff=eparms.GetValueInt("Coarsening Cutoff",true,2500);
   }
-
-  RenCorrection=eparms.GetValueFloat("RenCorrection",true,0);
-  if(RenCorrection<0 || RenCorrection>1)RunException(met,"Value of RenCorrection is invalid.");
 
   FtPause=eparms.GetValueFloat("FtPause",true,0);
   TimeMax=eparms.GetValueDouble("TimeMax");
@@ -756,27 +736,24 @@ void JSph::ConfigConstants(bool simulate2d){
   const char* met="ConfigConstants";
   //-Computation of constants.
   const double h=H;
-  Delta2H=float(h*2*DeltaSph);
   Cs0=sqrt(double(Gamma)*double(CteB)/double(RhopZero));
   if(!DtIni)DtIni=h/Cs0;
   if(!DtMin)DtMin=(h/Cs0)*CoefDtMin;
+  //Dosh=float(h*3); 
   Dosh=float(h*2); 
   H2=float(h*h);
+  //Fourh2=float(h*h*9.0f);
   Fourh2=float(h*h*4.0f); 
   Eta2=float((h*1.0e-5)*(h*1.0e-5));
   if(simulate2d){
+    //Awen=float(7.0/(478.0*PI*h*h));
+    //Bwen=float(7.0/(478.0*PI*h*h*h));
     Awen=float(0.557f/(h*h)); 
     Bwen=float(-2.7852f/(h*h*h));
   }
   else{
     Awen=float(0.41778f/(h*h*h));
     Bwen=float(-2.08891f/(h*h*h*h));
-  }
-  //-Constants for Laminar viscosity + SPS turbulence model.
-  if(TVisco==VISCO_LaminarSPS){  
-    double dp_sps=(Simulate2D? sqrt(Dp*Dp*2.)/2.: sqrt(Dp*Dp*3.)/3.);  
-    SpsSmag=float(pow((0.12*dp_sps),2));
-    SpsBlin=float((2./3.)*0.0066*dp_sps*dp_sps); 
   }
   VisuConfig();
 }
@@ -794,14 +771,11 @@ void JSph::VisuConfig()const{
   Log->Print(fun::VarStr("SvTimersStep",(TimersStep!=NULL? TimersStep->GetTimeInterval(): 0)));
   Log->Print(fun::VarStr("StepAlgorithm",GetStepName(TStep)));
   if(TStep==STEP_None)RunException(met,"StepAlgorithm value is invalid.");
-  if(TStep==STEP_Verlet)Log->Print(fun::VarStr("VerletSteps",VerletSteps));
   Log->Print(fun::VarStr("Kernel",GetKernelName(TKernel)));
   Log->Print(fun::VarStr("Viscosity",GetViscoName(TVisco)));
   Log->Print(fun::VarStr("Visco",Visco));
   Log->Print(fun::VarStr("ViscoBoundFactor",ViscoBoundFactor));
   if(ViscoTime)Log->Print(fun::VarStr("ViscoTime",ViscoTime->GetFile()));
-  Log->Print(fun::VarStr("DeltaSph",GetDeltaSphName(TDeltaSph)));
-  if(TDeltaSph!=DELTA_None)Log->Print(fun::VarStr("DeltaSphValue",DeltaSph));
   Log->Print(fun::VarStr("Shifting",GetShiftingName(TShifting)));
   if(TShifting!=SHIFT_None){
     Log->Print(fun::VarStr("ShiftCoef",ShiftCoef));
@@ -809,7 +783,6 @@ void JSph::VisuConfig()const{
     Log->Print(fun::VarStr("TensileR",TensileR));
   }
   Log->Print(fun::VarStr("FreeSurface",FreeSurface));
-  Log->Print(fun::VarStr("RenCorrection",RenCorrection));
   Log->Print(fun::VarStr("FloatingFormulation",(!FtCount? "None": (UseDEM? "SPH+DEM": "SPH"))));
   Log->Print(fun::VarStr("FloatingCount",FtCount));
   if(FtCount)Log->Print(fun::VarStr("FtPause",FtPause));
@@ -842,13 +815,8 @@ void JSph::VisuConfig()const{
   Log->Print(fun::VarStr("MassFluid",MassFluid));
   Log->Print(fun::VarStr("MassBound",MassBound));
   if(TKernel==KERNEL_Wendland){
-    if(RenCorrection)Log->Print(fun::VarStr("Awen (wendland)",Awen));
     Log->Print(fun::VarStr("Bwen (wendland)",Bwen));
   }
-  if(TVisco==VISCO_LaminarSPS){     
-    Log->Print(fun::VarStr("SpsSmag",SpsSmag));
-    Log->Print(fun::VarStr("SpsBlin",SpsBlin));
-  } 
   if(CaseNfloat)Log->Print(fun::VarStr("FtPause",FtPause));
   Log->Print(fun::VarStr("TimeMax",TimeMax));
   Log->Print(fun::VarStr("TimePart",TimePart));
@@ -1403,7 +1371,7 @@ void JSph::GetResInfo(float tsim,float ttot,const std::string &headplus,const st
   dinfo=dinfo+ ";"+ fun::IntStr(Nstep)+ ";"+ fun::IntStr(Part)+ ";"+ fun::UintStr(nout);
   dinfo=dinfo+ ";"+ fun::UintStr(MaxParticles)+ ";"+ fun::UintStr(MaxCells);
   dinfo=dinfo+ ";"+ Hardware+ ";"+ GetStepName(TStep)+ ";"+ GetKernelName(TKernel)+ ";"+ GetViscoName(TVisco)+ ";"+ fun::FloatStr(Visco);
-  dinfo=dinfo+ ";"+ fun::FloatStr(DeltaSph,"%G")+ ";"+ fun::FloatStr(float(TimeMax));
+  dinfo=dinfo+ ";"+ fun::FloatStr(float(TimeMax));
   dinfo=dinfo+ ";"+ fun::UintStr(CaseNbound)+ ";"+ fun::UintStr(CaseNfixed)+ ";"+ fun::FloatStr(H);
   std::string rhopcad;
   if(RhopOut)rhopcad=fun::PrintStr("(%G-%G)",RhopOutMin,RhopOutMax); else rhopcad="None";
@@ -1472,8 +1440,7 @@ void JSph::ShowResume(bool stop,float tsim,float ttot,bool all,std::string infop
 //==============================================================================
 std::string JSph::GetStepName(TpStep tstep){
   string tx;
-  if(tstep==STEP_Verlet)tx="Verlet";
-  else if(tstep==STEP_Symplectic)tx="Symplectic";
+  if(tstep==STEP_Symplectic)tx="Symplectic";
   else tx="???";
   return(tx);
 }
@@ -1494,7 +1461,6 @@ std::string JSph::GetKernelName(TpKernel tkernel){
 std::string JSph::GetViscoName(TpVisco tvisco){
   string tx;
   if(tvisco==VISCO_Artificial)tx="Artificial";
-  else if(tvisco==VISCO_LaminarSPS)tx="Laminar+SPS";
   else tx="???";
   return(tx);
 }

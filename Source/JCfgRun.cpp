@@ -53,10 +53,9 @@ void JCfgRun::Reset(){
   DomainParticlesMin=DomainParticlesMax=TDouble3(0);
   DomainParticlesPrcMin=DomainParticlesPrcMax=TDouble3(0);
   DomainFixedMin=DomainFixedMax=TDouble3(0);
-  TStep=STEP_None; VerletSteps=-1;
+  TStep=STEP_None; 
   TVisco=VISCO_None; Visco=0; ViscoBoundFactor=-1;
   DeltaSph=-1;
-  RenCorrection=-1;
   Shifting=-1;
   SvRes=true; SvDomainVtk=false;
   Sv_Binx=false; Sv_Info=false; Sv_Vtk=false; Sv_Csv=false;
@@ -94,14 +93,9 @@ void JCfgRun::VisuInfo()const{
   printf("        2h        Lowest and the least expensive in memory (by default)\n");
   printf("        h         Fastest and the most expensive in memory\n\n");
   printf("    -symplectic      Symplectic algorithm as time step algorithm\n");
-  printf("    -verlet[:steps]  Verlet algorithm as time step algorithm and number of\n");
-  printf("                     time steps to switch equations\n\n");
   printf("    -viscoart:<float>          Artifitical viscosity [0-1]\n");
-  printf("    -viscolamsps:<float>       Laminar+SPS viscosity [order of 1E-6]\n");  
   printf("    -viscoboundfactor:<float>  Multiplies the viscosity value of boundary\n");
   printf("\n");
-  printf("    -deltasph:<float> Constant for DeltaSPH. Typical value is 0.1 (0 by default)\n\n");
-  printf("    -rencorrection:<float> Constant for Ren correction (0-1), with 0 disabled (def=0)\n\n");
   printf("    -shifting:<mode> Specify the use of Shifting correction\n");
   printf("        none       Shifting is disabled (by default)\n");
   printf("        nobound    Shifting is not applied near boundary\n");
@@ -166,12 +160,9 @@ void JCfgRun::VisuConfig()const{
   PrintVar("  CellOrder",GetNameCellOrder(CellOrder),ln);
   PrintVar("  CellMode",GetNameCellMode(CellMode),ln);
   PrintVar("  TStep",TStep,ln);
-  PrintVar("  VerletSteps",VerletSteps,ln);
   PrintVar("  TVisco",TVisco,ln);
   PrintVar("  Visco",Visco,ln);
   PrintVar("  ViscoBoundFactor",ViscoBoundFactor,ln);
-  PrintVar("  DeltaSph",DeltaSph,ln);
-  PrintVar("  RenCorrection",RenCorrection,ln);
   PrintVar("  Shifting",Shifting,ln);
   PrintVar("  SvRes",SvRes,ln);
   PrintVar("  SvTimers",SvTimers,ln);
@@ -352,18 +343,10 @@ void JCfgRun::LoadOpts(string *optlis,int optn,int lv,string file){
         if(!ok)ErrorParm(opt,c,lv,file);
       }
       else if(txword=="SYMPLECTIC")TStep=STEP_Symplectic;
-      else if(txword=="VERLET"){ TStep=STEP_Verlet; 
-        if(txopt!="")VerletSteps=atoi(txopt.c_str()); 
-      }
       else if(txword=="VISCOART"){ 
         Visco=float(atof(txopt.c_str())); 
         if(Visco>10)ErrorParm(opt,c,lv,file);
         TVisco=VISCO_Artificial;
-      }
-      else if(txword=="VISCOLAMSPS"){ 
-        Visco=float(atof(txopt.c_str())); 
-        if(Visco>0.001)ErrorParm(opt,c,lv,file);
-        TVisco=VISCO_LaminarSPS;
       }
       else if(txword=="VISCOBOUNDFACTOR"){ 
         ViscoBoundFactor=float(atof(txopt.c_str())); 
@@ -372,10 +355,6 @@ void JCfgRun::LoadOpts(string *optlis,int optn,int lv,string file){
       else if(txword=="DELTASPH"){
         DeltaSph=float(atof(txopt.c_str())); 
         if(DeltaSph<0||DeltaSph>1)ErrorParm(opt,c,lv,file);
-      }
-      else if(txword=="RENCORRECTION"){
-        RenCorrection=float(atof(txopt.c_str())); 
-        if(RenCorrection<0||RenCorrection>1)ErrorParm(opt,c,lv,file);
       }
       else if(txword=="SHIFTING"){
         const string tx=fun::StrUpper(txopt);

@@ -83,7 +83,6 @@ void JSphCpuSingle::LoadConfig(JCfgRun *cfg){
   //-Load basic general configuraction / Carga configuracion basica general
   JSph::LoadConfig(cfg);
   //-Checks compatibility of selected options.
-  if(RenCorrection && UseDEM)RunException(met,"Ren correction is not implemented with Floatings-DEM.");
   Log->Print("**Special case configuration is loaded");
 }
 
@@ -280,34 +279,6 @@ void JSphCpuSingle::PeriodicDuplicatePos(unsigned pnew,unsigned pcopy,bool inver
 /// Assume that all the particles are valid.
 /// This kernel works for single-cpu & multi-cpu because it uses domposmin.
 //==============================================================================
-void JSphCpuSingle::PeriodicDuplicateVerlet(unsigned n,unsigned pini,tuint3 cellmax,tdouble3 perinc,const unsigned *listp
-  ,unsigned *idp,word *code,unsigned *dcell,tdouble3 *pos,tfloat4 *velrhop,tsymatrix3f *spstau,tfloat4 *velrhopm1)const
-{
-  for(unsigned p=0;p<n;p++){
-    const unsigned pnew=p+pini;
-    const unsigned rp=listp[p];
-    const unsigned pcopy=(rp&0x7FFFFFFF);
-    //-Adjust position and cell of new particle / Ajusta posicion y celda de nueva particula.
-    PeriodicDuplicatePos(pnew,pcopy,(rp>=0x80000000),perinc.x,perinc.y,perinc.z,cellmax,pos,dcell);
-    //-Copy the rest of the values / Copia el resto de datos.
-    idp[pnew]=idp[pcopy];
-    code[pnew]=CODE_SetPeriodic(code[pcopy]);
-    velrhop[pnew]=velrhop[pcopy];
-    velrhopm1[pnew]=velrhopm1[pcopy];
-    if(spstau)spstau[pnew]=spstau[pcopy];
-  }
-}
-
-//==============================================================================
-/// (ES):
-/// Crea particulas periodicas a partir de una lista con las particulas a duplicar.
-/// Se presupone que todas las particulas son validas.
-/// Este kernel vale para single-cpu y multi-cpu porque usa domposmin. 
-/// (ES):
-/// Create periodic particles starting from a list of the particles to duplicate.
-/// Assume that all the particles are valid.
-/// This kernel works for single-cpu & multi-cpu because it uses domposmin.
-//==============================================================================
 void JSphCpuSingle::PeriodicDuplicateSymplectic(unsigned n,unsigned pini,tuint3 cellmax,tdouble3 perinc,const unsigned *listp
   ,unsigned *idp,word *code,unsigned *dcell,tdouble3 *pos,tfloat4 *velrhop,tsymatrix3f *spstau,tdouble3 *pospre,tfloat4 *velrhoppre)const
 {
@@ -323,7 +294,6 @@ void JSphCpuSingle::PeriodicDuplicateSymplectic(unsigned n,unsigned pini,tuint3 
     velrhop[pnew]=velrhop[pcopy];
     if(pospre)pospre[pnew]=pospre[pcopy];
     if(velrhoppre)velrhoppre[pnew]=velrhoppre[pcopy];
-    if(spstau)spstau[pnew]=spstau[pcopy];
   }
 }
 
@@ -341,7 +311,7 @@ void JSphCpuSingle::PeriodicDuplicateSymplectic(unsigned n,unsigned pini,tuint3 
 /// of the boundry and then the NpfPer fluid ones. The Np of the those leaving contains also the
 /// new periodic ones.
 //==============================================================================
-void JSphCpuSingle::RunPeriodic(){
+/*void JSphCpuSingle::RunPeriodic(){
   const char met[]="RunPeriodic";
   TmcStart(Timers,TMC_SuPeriodic);
   //-Keep number of present periodic / Guarda numero de periodicas actuales.
@@ -393,7 +363,6 @@ void JSphCpuSingle::RunPeriodic(){
             run=false;
             //-Crea nuevas particulas periodicas duplicando las particulas de la lista.
             //-Create new duplicate periodic particles in the list
-            if(TStep==STEP_Verlet)PeriodicDuplicateVerlet(count,Np,DomCells,perinc,listp,Idpc,Codec,Dcellc,Posc,Velrhopc,SpsTauc,VelrhopM1c);
             if(TStep==STEP_Symplectic){
               if((PosPrec || VelrhopPrec) && (!PosPrec || !VelrhopPrec))RunException(met,"Symplectic data is invalid.") ;
               PeriodicDuplicateSymplectic(count,Np,DomCells,perinc,listp,Idpc,Codec,Dcellc,Posc,Velrhopc,SpsTauc,PosPrec,VelrhopPrec);
@@ -411,7 +380,7 @@ void JSphCpuSingle::RunPeriodic(){
     }
   }
   TmcStop(Timers,TMC_SuPeriodic);
-}
+}*/
 
 //==============================================================================
 /// Ejecuta divide de particulas en celdas.
@@ -420,7 +389,7 @@ void JSphCpuSingle::RunPeriodic(){
 void JSphCpuSingle::RunCellDivide(bool updateperiodic){
   const char met[]="RunCellDivide";
   //-Create new periodic particles & mark the old ones to be ignored / Crea nuevas particulas periodicas y marca las viejas para ignorarlas.
-  if(updateperiodic && PeriActive)RunPeriodic();
+  //if(updateperiodic && PeriActive)RunPeriodic();
   
   //-Initial Divide / Inicia Divide.
   CellDivSingle->Divide(Npb,Np-Npb-NpbPer-NpfPer,NpbPer,NpfPer,BoundChanged,Dcellc,Codec,Idpc,Posc,Timers);
@@ -432,15 +401,11 @@ void JSphCpuSingle::RunCellDivide(bool updateperiodic){
   CellDivSingle->SortArray(Dcellc);
   CellDivSingle->SortArray(Posc);
   CellDivSingle->SortArray(Velrhopc);
-  if(TStep==STEP_Verlet){
-    CellDivSingle->SortArray(VelrhopM1c);
-  }
-  else if(TStep==STEP_Symplectic && (PosPrec || VelrhopPrec)){//In reality, this is only necessary in divide for corrector, not in predictor??? / En realidad solo es necesario en el divide del corrector, no en el predictor???
+  if(TStep==STEP_Symplectic && (PosPrec || VelrhopPrec)){//In reality, this is only necessary in divide for corrector, not in predictor??? / En realidad solo es necesario en el divide del corrector, no en el predictor???
     if(!PosPrec || !VelrhopPrec)RunException(met,"Symplectic data is invalid.") ;
     CellDivSingle->SortArray(PosPrec);
     CellDivSingle->SortArray(VelrhopPrec);
   }
-  if(TVisco==VISCO_LaminarSPS)CellDivSingle->SortArray(SpsTauc);
   
   //-Collect divide data / Recupera datos del divide.
   Np=CellDivSingle->GetNpFinal();
@@ -492,20 +457,6 @@ void JSphCpuSingle::GetInteractionCells(unsigned rcell
 }
 
 //==============================================================================
-/// Aplica correccion de Ren a la presion y densidad del contorno.
-/// Apply Ren correction to pressure and density in boundary.
-//==============================================================================
-void JSphCpuSingle::RunRenCorrection(){
-  //-Calculate pressure in boundary starting from fluid / Calcula presion en contorno a partir de fluido.
-  float *presskf=ArraysCpu->ReserveFloat();
-  Interaction_Ren(NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell()
-    ,CellDivSingle->GetCellDomainMin(),Dcellc,Posc,PsPosc,Velrhopc,Idpc,Codec,Pressc,presskf);
-  //-Recalculate pressure & density in boundary according to RenBeta / Recalcula valores de presion y densidad en contorno segun RenBeta.
-  ComputeRenPress(NpbOk,RenCorrection,presskf,Velrhopc,Pressc);
-  ArraysCpu->Free(presskf); presskf=NULL;
-}
-
-//==============================================================================
 /// Interaccion para el calculo de fuerzas.
 /// Interaction to calculate forces.
 //==============================================================================
@@ -513,7 +464,6 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter){
   const char met[]="Interaction_Forces";	
   	
   TmcStart(Timers,TMC_CfForces);
-  if(RenCorrection)RunRenCorrection();
 
   //-Interaction of Fluid-Fluid/Bound & Bound-Fluid (forces and DEM) / Interaccion Fluid-Fluid/Bound & Bound-Fluid (forces and DEM).
   float viscdt=0;
@@ -563,25 +513,6 @@ double JSphCpuSingle::ComputeAceMax(){
   }
   return(sqrt(double(acemax)));
 }
-
-//==============================================================================
-/// (ES):
-/// Realiza interaccion y actualizacion de particulas segun las fuerzas 
-/// calculadas en la interaccion usando Verlet.
-/// (ES):
-/// Perform interactions and updates of particles according to forces 
-/// calculated in the interaction using Verlet.
-//==============================================================================
-/*double JSphCpuSingle::ComputeStep_Ver(){
-  Interaction_Forces(INTER_Forces);    //-Interaction / Interaccion
-  const double dt=DtVariable(true);    //-Calculate new dt / Calcula nuevo dt
-  DemDtForce=dt;                       //(DEM)
-  if(TShifting)RunShifting(dt);        //-Shifting
-  ComputeVerlet(dt);                   //-Update particles using Verlet / Actualiza particulas usando Verlet
-  if(CaseNfloat)RunFloating(dt,false); //-Control of floating bodies / Gestion de floating bodies
-  PosInteraction_Forces();             //-Free memory used for interaction / Libera memoria de interaccion
-  return(dt);
-}*/
 
 void JSphCpuSingle::PreparePosSimple(){
   //-Prepare values for interaction  Pos-Simpe / Prepara datos para interaccion Pos-Simple.

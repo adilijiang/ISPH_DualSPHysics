@@ -155,15 +155,10 @@ protected:
   //-Opciones de ejecucion.
   //-Execution options.
   TpStep TStep;               //-Algitmo de paso: Verlet o Symplectic.											//-Step Algorithm: Verlet or Symplectic.
-  int VerletSteps;            //-Number of steps to apply Eulerian equations
   TpKernel TKernel;           //-Tipo de kernel: Cubic o Wendland.												//-Kernel type: Cubic or Wendland.
   float Awen;                 //-Constante para kernel wendland (awen).											//-Wendland kernel constant (awen).
   float Bwen;                 //-Constante para kernel wendland (bwen).											//-Wendland kernel constant (bwen).
   TpVisco TVisco;             //-Tipo de viscosidad: Artificial,...												//-Viscosity type: Artificial,...
-  TpDeltaSph TDeltaSph;       //-Tipo de Delta-SPH: None, Basic o Dynamic.										//-Delta-SPH type: None, Basic or Dynamic.
-  float DeltaSph;             //-Constante para DeltaSPH. El valor por defecto es 0.1f, con 0 no tiene efecto.	//-DeltaSPH constant. The default value is 0.1f, with 0 having no effect.
-
-  float RenCorrection;        //-Constant for Ren correction in DBC (0-1), with 0 disabled (def=0).
 
   TpShifting TShifting; //-Tipo de Shifting: None, NoBound, NoFixed, Full.										//-Shifting type: None, NoBound, NoFixed, Full.	
   float ShiftCoef;      //-Coefficient for shifting computation.
@@ -220,8 +215,6 @@ protected:
   tfloat3 Gravity;
   tdouble3 GravityDbl;
   float Dosh,H2,Fourh2,Eta2;
-  float SpsSmag;             ///<Smagorinsky constant used in SPS turbulence model.
-  float SpsBlin;             ///<Blin constant used in the SPS turbulence model.
 
   //-Informacion general del caso.
   tdouble3 CasePosMin,CasePosMax;  //-Limites de particulas del caso en instante inicial.		//-Particle limits of the case in the initial instant.
