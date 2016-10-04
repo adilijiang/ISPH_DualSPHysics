@@ -111,7 +111,7 @@ protected:
   unsigned *Dcellg; ///<ES: Celda dentro de DomCells codificada con DomCellCode. EN: Cell within DomCells encoded within DomCellCode
   double2 *Posxyg;
   double *Poszg;
-  double4 *Velrhopg;
+  float4 *Velrhopg;
     
   //-Vars. para compute step: VERLET
   //-Variables for compute step: Verlet
@@ -122,7 +122,7 @@ protected:
   //-Variables for compute step: Symplectic
   double2 *PosxyPreg;  ///<ES: Sympletic: para guardar valores en predictor EN: Symplectic: for maintaining predictor values
   double *PoszPreg;
-  double4 *VelrhopPreg;
+  float4 *VelrhopPreg;
   double DtPre;   
 
   //-Variables for floating bodies.
@@ -146,20 +146,18 @@ protected:
   //-Variables for computing forces
   float4 *PsPospressg; ///<ES: Posicion y press para interaccion Pos-Simple. press=cteb*(powf(rhop/rhopzero,gamma)-1.0f); EN: Position and pressure for the interaction Pos-Simple press=cteb*(powf(rhop/rhopzero,gamma)-1.0f);
 
-  float *ViscDtg;
-  double3 *Aceg;      ///<ES: Acumula fuerzas de interaccion EN: Accumulates acceleration of the particles
-  float *Arg; 
-  float *Deltag;     ///<ES: Acumula ajuste de Delta-SPH con DELTA_DynamicExt EN: Accumulates adjustment of Delta-SPH with DELTA_DynamicExt
+  //float *ViscDtg;
+  float3 *Aceg;      ///<ES: Acumula fuerzas de interaccion EN: Accumulates acceleration of the particles
 
-  double3 *ShiftPosg;    ///<Particle displacement using Shifting.
+  float3 *ShiftPosg;    ///<Particle displacement using Shifting.
 
   double VelMax;      ///<Maximum value of Vel[] sqrt(vel.x^2 + vel.y^2 + vel.z^2) computed in PreInteraction_Forces().
   double AceMax;      ///<Maximum value of Ace[] (ace.x^2 + ace.y^2 + ace.z^2) computed in Interaction_Forces().
   float ViscDtMax;    ///<ES: Valor maximo de ViscDt calculado en Interaction_Forces(). EN: Maximum value of ViscDt computed in Interaction_Forces()
 
   //-Variables for Laminar+SPS viscosity.  
-  tsymatrix3f *SpsTaug;       ///<SPS sub-particle stress tensor.
-  tsymatrix3f *SpsGradvelg;   ///<Velocity gradients.
+  //tsymatrix3f *SpsTaug;       ///<SPS sub-particle stress tensor.
+  //tsymatrix3f *SpsGradvelg;   ///<Velocity gradients.
 
 
   TimersGpu Timers;
@@ -186,7 +184,6 @@ protected:
   float4*      SaveArrayGpu(unsigned np,const float4      *datasrc)const{ return(TSaveArrayGpu<float4>     (np,datasrc)); }
   double*      SaveArrayGpu(unsigned np,const double      *datasrc)const{ return(TSaveArrayGpu<double>     (np,datasrc)); }
   double2*     SaveArrayGpu(unsigned np,const double2     *datasrc)const{ return(TSaveArrayGpu<double2>    (np,datasrc)); }
-  double4*     SaveArrayGpu(unsigned np,const double4     *datasrc)const{ return(TSaveArrayGpu<double4>    (np,datasrc)); }
   tsymatrix3f* SaveArrayGpu(unsigned np,const tsymatrix3f *datasrc)const{ return(TSaveArrayGpu<tsymatrix3f>(np,datasrc)); }
   unsigned*    SaveArrayGpu_Uint(unsigned np,const unsigned *datasrc)const;
   template<class T> void TRestoreArrayGpu(unsigned np,T *data,T *datanew)const;
@@ -196,7 +193,6 @@ protected:
   void RestoreArrayGpu(unsigned np,float4      *data,float4      *datanew)const{ TRestoreArrayGpu<float4>     (np,data,datanew); }
   void RestoreArrayGpu(unsigned np,double      *data,double      *datanew)const{ TRestoreArrayGpu<double>     (np,data,datanew); }
   void RestoreArrayGpu(unsigned np,double2     *data,double2     *datanew)const{ TRestoreArrayGpu<double2>    (np,data,datanew); }
-  void RestoreArrayGpu(unsigned np,double4      *data,double4      *datanew)const{ TRestoreArrayGpu<double4>     (np,data,datanew); }
   void RestoreArrayGpu(unsigned np,tsymatrix3f *data,tsymatrix3f *datanew)const{ TRestoreArrayGpu<tsymatrix3f>(np,data,datanew); }
   void RestoreArrayGpu_Uint(unsigned np,unsigned *data,unsigned *datanew)const;
 
@@ -249,7 +245,7 @@ protected:
   unsigned *POrderg;
   double3 *dWxCorrg; //Kernel correction in the x direction
   double3 *dWzCorrg; //Kernel correction in the z direction
-  double *Divrg; //Divergence of position
+  float *Divrg; //Divergence of position
   //matrix variables 
   double *b;
   double *a;

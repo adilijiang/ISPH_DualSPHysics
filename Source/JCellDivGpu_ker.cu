@@ -527,7 +527,7 @@ void CalcBeginEndCell(bool full,unsigned np,unsigned npb,unsigned sizebegcell,un
 /// Reordena datos de particulas segun idsort[]
 /// Reorders particle data according to idsort[]
 //------------------------------------------------------------------------------
-__global__ void KerSortDataParticles(unsigned n,unsigned pini,const unsigned *sortpart,const unsigned *idp,const word *code,const unsigned *dcell,const double2 *posxy,const double *posz,const double4 *velrhop,unsigned *idp2,word *code2,unsigned *dcell2,double2 *posxy2,double *posz2,double4 *velrhop2)
+__global__ void KerSortDataParticles(unsigned n,unsigned pini,const unsigned *sortpart,const unsigned *idp,const word *code,const unsigned *dcell,const double2 *posxy,const double *posz,const float4 *velrhop,unsigned *idp2,word *code2,unsigned *dcell2,double2 *posxy2,double *posz2,float4 *velrhop2)
 {
   const unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula
   if(p<n){
@@ -560,7 +560,7 @@ __global__ void KerSortDataParticles(unsigned n,unsigned pini,const unsigned *so
   }
 }
 //------------------------------------------------------------------------------
-__global__ void KerSortDataParticles(unsigned n,unsigned pini,const unsigned *sortpart,const double2 *a,const double *b,const double4 *c,double2 *a2,double *b2,double4 *c2)
+__global__ void KerSortDataParticles(unsigned n,unsigned pini,const unsigned *sortpart,const double2 *a,const double *b,const float4 *c,double2 *a2,double *b2,float4 *c2)
 {
   const unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula
   if(p<n){
@@ -584,7 +584,7 @@ __global__ void KerSortDataParticles(unsigned n,unsigned pini,const unsigned *so
 /// Reordena datos de particulas segun sortpart.
 /// Reorders particle data according to sortpart.
 //==============================================================================
-void SortDataParticles(unsigned np,unsigned pini,const unsigned *sortpart,const unsigned *idp,const word *code,const unsigned *dcell,const double2 *posxy,const double *posz,const double4 *velrhop,unsigned *idp2,word *code2,unsigned *dcell2,double2 *posxy2,double *posz2,double4 *velrhop2){
+void SortDataParticles(unsigned np,unsigned pini,const unsigned *sortpart,const unsigned *idp,const word *code,const unsigned *dcell,const double2 *posxy,const double *posz,const float4 *velrhop,unsigned *idp2,word *code2,unsigned *dcell2,double2 *posxy2,double *posz2,float4 *velrhop2){
   if(np){
     dim3 sgrid=GetGridSize(np,DIVBSIZE);
     KerSortDataParticles <<<sgrid,DIVBSIZE>>>(np,pini,sortpart,idp,code,dcell,posxy,posz,velrhop,idp2,code2,dcell2,posxy2,posz2,velrhop2);
@@ -605,7 +605,7 @@ void SortDataParticles(unsigned np,unsigned pini,const unsigned *sortpart,const 
   }
 }
 //==============================================================================
-void SortDataParticles(unsigned np,unsigned pini,const unsigned *sortpart,const double2 *a,const double *b,const double4 *c,double2 *a2,double *b2,double4 *c2){
+void SortDataParticles(unsigned np,unsigned pini,const unsigned *sortpart,const double2 *a,const double *b,const float4 *c,double2 *a2,double *b2,float4 *c2){
   if(np){
     dim3 sgrid=GetGridSize(np,DIVBSIZE);
     KerSortDataParticles <<<sgrid,DIVBSIZE>>>(np,pini,sortpart,a,b,c,a2,b2,c2);

@@ -169,9 +169,9 @@ void JSphCpu::AllocCpuMemoryParticles(unsigned np,float over){
   ArraysCpu->AddArrayCount(JArraysCpu::SIZE_4B,6);  ///<-idp,ar,viscdt,dcell,prrhop,POrder
   ArraysCpu->AddArrayCount(JArraysCpu::SIZE_8B,1);  ///<-divr
   if(TDeltaSph==DELTA_DynamicExt)ArraysCpu->AddArrayCount(JArraysCpu::SIZE_4B,1);  ///<-delta
-  ArraysCpu->AddArrayCount(JArraysCpu::SIZE_12B,3); ///<-ace, dWxCorr, dWzCorr
+  ArraysCpu->AddArrayCount(JArraysCpu::SIZE_12B,1); ///<-ace
   ArraysCpu->AddArrayCount(JArraysCpu::SIZE_16B,1); ///<-velrhop
-  ArraysCpu->AddArrayCount(JArraysCpu::SIZE_24B,2); ///<-pos
+  ArraysCpu->AddArrayCount(JArraysCpu::SIZE_24B,4); ///<-pos, dWxCorr, dWzCorr
   if(Psimple)ArraysCpu->AddArrayCount(JArraysCpu::SIZE_12B,1); ///<-pspos
   if(TStep==STEP_Verlet){
     ArraysCpu->AddArrayCount(JArraysCpu::SIZE_16B,1); ///<-velrhopm1
@@ -642,6 +642,13 @@ void JSphCpu::GetKernel(float rr2,float drx,float dry,float drz,float &frx,float
   //-Wendland kernel
   const float wqq1=1.f-0.5f*qq;
   const float fac=Bwen*qq*wqq1*wqq1*wqq1/rad;
+  /*float fac;
+  if(qq<1.0f)fac=Bwen*(-5.0f*powf(3.0f-qq,4.0f)+30.0f*powf(2.0f-qq,4.0f)-75.0f*powf(1.0f-qq,4.0f));
+  else if(qq<2.0f)fac=Bwen*(-5.0f*powf(3.0f-qq,4.0f)+30.0f*powf(2.0f-qq,4.0f));
+  else if(qq<3.0f)fac=Bwen*(-5.0f*powf(3.0f-qq,4.0f));
+  else fac=0;
+
+  fac=fac/rad;*/
   frx=fac*drx; fry=fac*dry; frz=fac*drz;
 }
 
@@ -651,6 +658,14 @@ void JSphCpu::GetKernelDouble(double rr2,double drx,double dry,double drz,double
   //-Wendland kernel
   const double wqq1=1.0-0.5*qq;
   const double fac=Bwen*qq*wqq1*wqq1*wqq1/rad;
+  /*double fac;
+
+  if(qq<1.0)fac=Bwen*(-5.0*pow(3.0-qq,4.0)+30.0*pow(2.0-qq,4.0)-75.0*pow(1.0-qq,4.0));
+  else if(qq<2.0)fac=Bwen*(-5.0*pow(3.0-qq,4.0)+30.0*powf(2.0-qq,4.0));
+  else if(qq<3.0)fac=Bwen*(-5.0*pow(3.0-qq,4.0));
+  else fac=0;
+
+  fac=fac/rad;*/
   frx=fac*drx; fry=fac*dry; frz=fac*drz;
 }
 
@@ -661,8 +676,16 @@ void JSphCpu::GetKernelDouble(double rr2,double drx,double dry,double drz,double
 float JSphCpu::GetKernelWab(float rr2)const{
   const float qq=sqrt(rr2)/H;
   //-Wendland kernel.
+  /*float wab;
+
+  if(qq<1.0f)wab=Awen*(powf(3.0f-qq,5.0f)-6.0f*powf(2.0f-qq,5.0f)+15.0f*powf(1.0f-qq,5.0f));
+  else if(qq<2.0f)wab=Awen*(powf(3.0f-qq,5.0f)-6.0f*powf(2.0f-qq,5.0f));
+  else if(qq<3.0f)wab=Awen*(powf(3.0f-qq,5.0f));
+  else wab=0;
+  return(wab);*/
   const float wqq=2.f*qq+1.f;
   const float wqq1=1.f-0.5f*qq;
+
   const float wqq2=wqq1*wqq1;
   return(Awen*wqq*wqq2*wqq2);
 }
@@ -887,7 +910,7 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
   (TpInter tinter, unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,float visco
   ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
   ,const tsymatrix3f* tau,tsymatrix3f* gradvel
-  ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,const word *code,const unsigned *idp
+  ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwzcorr,const word *code,const unsigned *idp
   ,const float *press 
   ,float &viscdt,float *ar,tfloat3 *ace,float *delta
   ,TpShifting tshifting,tfloat3 *shiftpos)const
@@ -898,9 +921,9 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
   for(int th=0;th<OmpThreads;th++)viscth[th*STRIDE_OMP]=0;
   //-Initial execution with OpenMP / Inicia ejecucion con OpenMP.
   const int pfin=int(pinit+n);
-  /*#ifdef _WITHOMP
+  #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
-  #endif*/
+  #endif
   for(int p1=int(pinit);p1<pfin;p1++){
     //float visc=0,arp1=0,deltap1=0;
     tfloat3 acep1=TFloat3(0);
@@ -916,7 +939,7 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
       //if(ftp1 && (tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt))deltap1=FLT_MAX;
       //if(ftp1 && shift)shiftposp1.x=FLT_MAX;  //-For floating objects do not calculate shifting / Para floatings no se calcula shifting.
     }*/
-
+    
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
     const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
     //const float rhopp1=velrhop[p1].w;
@@ -1136,7 +1159,7 @@ void JSphCpu::ComputeSpsTau(unsigned n,unsigned pini,const tfloat4 *velrhop,cons
 template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> void JSphCpu::Interaction_ForcesT
   (TpInter tinter, unsigned np,unsigned npb,unsigned npbok
   ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,const word *code,const unsigned *idp
+  ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwzcorr,const word *code,const unsigned *idp
   ,const float *press
   ,float &viscdt,float* ar,tfloat3 *ace,float *delta
   ,tsymatrix3f *spstau,tsymatrix3f *spsgradvel
@@ -1173,7 +1196,7 @@ template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> 
 //==============================================================================
 void JSphCpu::Interaction_Forces(TpInter tinter,unsigned np,unsigned npb,unsigned npbok
   ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const tdouble3 *pos,const tfloat4 *velrhop,const unsigned *idp,tfloat3 *dwxcorr,tfloat3 *dwzcorr,const word *code
+  ,const tdouble3 *pos,const tfloat4 *velrhop,const unsigned *idp,tdouble3 *dwxcorr,tdouble3 *dwzcorr,const word *code
   ,const float *press
   ,float &viscdt,float* ar,tfloat3 *ace,float *delta
   ,tsymatrix3f *spstau,tsymatrix3f *spsgradvel
@@ -1256,7 +1279,7 @@ void JSphCpu::Interaction_Forces(TpInter tinter,unsigned np,unsigned npb,unsigne
 //==============================================================================
 void JSphCpu::InteractionSimple_Forces(TpInter tinter,unsigned np,unsigned npb,unsigned npbok
   ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const tfloat3 *pspos,const tfloat4 *velrhop,const unsigned *idp,tfloat3 *dwxcorr,tfloat3 *dwzcorr,const word *code
+  ,const tfloat3 *pspos,const tfloat4 *velrhop,const unsigned *idp,tdouble3 *dwxcorr,tdouble3 *dwzcorr,const word *code
   ,const float *press
   ,float &viscdt,float* ar,tfloat3 *ace,float *delta
   ,tsymatrix3f *spstau,tsymatrix3f *spsgradvel
@@ -1866,8 +1889,7 @@ void JSphCpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
 ///Find the closest fluid particle to each boundary particle
 //===============================================================================
 void JSphCpu::FindIrelation(unsigned n,unsigned pinit,const tdouble3 *pos,const unsigned *idpc,unsigned *irelation,const word *code)const{
-  
-  const int pfin=int(pinit+n);
+   /* const int pfin=int(pinit+n);
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
@@ -1893,13 +1915,56 @@ void JSphCpu::FindIrelation(unsigned n,unsigned pinit,const tdouble3 *pos,const 
       }
     }
   }
+}*/
+  const int pfin=int(pinit+n);
+  #ifdef _WITHOMP
+    #pragma omp parallel for schedule (guided)
+  #endif
+  for(int p1=int(pinit);p1<pfin;p1++){
+    const unsigned idp1=idpc[p1];
+    word codep1=CODE_GetTypeValue(code[p1]);
+    if(codep1==2) irelation[idp1]=n;
+    else{
+      //-Load data of particle p1 / Carga datos de particula p1.
+      const tdouble3 posp1=pos[p1];
+      float closestR=1.5f*Fourh2;
+      if(codep1==1){
+      //-Interaction of boundary with type Fluid/Float / Interaccion de Bound con varias Fluid/Float.
+      //----------------------------------------------
+        for(int p2=int(pinit);p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==0){
+          const float drx=float(posp1.x-pos[p2].x);
+          const float dry=float(posp1.y-pos[p2].y);
+          const float drz=float(posp1.z-pos[p2].z);
+          const float rr2=drx*drx+dry*dry+drz*drz;
+          if(rr2<=closestR){
+            closestR=rr2;
+            irelation[idp1]=idpc[p2];
+          }
+        }
+      }
+      else if(codep1==0){
+      //-Interaction of boundary with type Fluid/Float / Interaccion de Bound con varias Fluid/Float.
+      //----------------------------------------------
+        for(int p2=int(pinit);p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==2){
+          const float drx=float(posp1.x-pos[p2].x);
+          const float dry=float(posp1.y-pos[p2].y);
+          const float drz=float(posp1.z-pos[p2].z);
+          const float rr2=drx*drx+dry*dry+drz*drz;
+          if(rr2<=closestR){
+            closestR=rr2;
+            irelation[idp1]=idpc[p2];
+          }
+        }
+      }
+    }
+  }
 }
 
 void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const tfloat3 *pspos,tfloat4 *velrhop,const word *code)const{
 
   const int pfin=int(pinit+n);
-  
+
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
@@ -1907,7 +1972,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,bool psimple,unsigned n,uns
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
 	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
     const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
-	
+
     float Sum1x=0.0;
     float Sum1z=0.0;
     float Sum2=0.0;
@@ -1962,7 +2027,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,bool psimple,unsigned n,uns
 ///Kernel Correction
 //===============================================================================
 void JSphCpu::KernelCorrection(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,
-	tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,tfloat3 *dwxcorr,tfloat3 *dwzcorr)const{
+	tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,tdouble3 *dwxcorr,tdouble3 *dwzcorr)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -1972,8 +2037,8 @@ void JSphCpu::KernelCorrection(bool psimple,unsigned n,unsigned pinit,tint4 nc,i
   #endif
   for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])==0||CODE_GetTypeValue(Codec[p1])==2){
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
-	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
-    const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
+	  //const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
+    const tdouble3 posp1=pos[p1];
 	
     //-Obtain interaction limits / Obtiene limites de interaccion
     int cxini,cxfin,yini,yfin,zini,zfin;
@@ -1988,19 +2053,19 @@ void JSphCpu::KernelCorrection(bool psimple,unsigned n,unsigned pinit,tint4 nc,i
         const unsigned pfin=beginendcell[cxfin+ymod];
 
 		    //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
-        float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
-		    const float volume=massp2/RhopZero; //Volume of particle j
+        double massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
+		    const double volume=massp2/double(RhopZero); //Volume of particle j
 		
         //-Interactions
         //------------------------------------------------
         for(unsigned p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(Codec[p2])==0||CODE_GetTypeValue(Codec[p2])==2){
-         const float drx=(psimple? psposp1.x-pspos[p2].x: float(posp1.x-pos[p2].x));
-         const float dry=(psimple? psposp1.y-pspos[p2].y: float(posp1.y-pos[p2].y));
-         const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
-		      const float rr2=drx*drx+dry*dry+drz*drz;
+         const double drx=posp1.x-pos[p2].x;
+         const double dry=posp1.y-pos[p2].y;
+         const double drz=posp1.z-pos[p2].z;
+		      const double rr2=drx*drx+dry*dry+drz*drz;
 		      if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-		        float frx,fry,frz;
-            GetKernel(rr2,drx,dry,drz,frx,fry,frz);
+		        double frx,fry,frz;
+            GetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
 
 		        dwxcorr[p1].x-=volume*frx*drx; dwxcorr[p1].z-=volume*frz*drx;
 		        dwzcorr[p1].x-=volume*frx*drz; dwzcorr[p1].z-=volume*frz*drz;
@@ -2011,57 +2076,7 @@ void JSphCpu::KernelCorrection(bool psimple,unsigned n,unsigned pinit,tint4 nc,i
   }
 }
 
-void JSphCpu::KernelCorrectionPressure(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,
-	tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,tfloat3 *dwxcorr,tfloat3 *dwzcorr)const{
-
-  const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
-  const int pfin=int(pinit+n);
-
-  #ifdef _WITHOMP
-    #pragma omp parallel for schedule (guided)
-  #endif
-  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])==0){
-    //-Obtain data of particle p1 / Obtiene datos de particula p1.
-	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
-    const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
-	
-    //-Obtain interaction limits / Obtiene limites de interaccion
-    int cxini,cxfin,yini,yfin,zini,zfin;
-    GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
-
-    //-Search for neighbours in adjacent cells / Busqueda de vecinos en celdas adyacentes.
-    for(int z=zini;z<zfin;z++){
-      const int zmod=(nc.w)*z+cellinitial; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
-      for(int y=yini;y<yfin;y++){
-        int ymod=zmod+nc.x*y;
-        const unsigned pini=beginendcell[cxini+ymod];
-        const unsigned pfin=beginendcell[cxfin+ymod];
-
-		    //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
-        float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
-		    const float volume=massp2/RhopZero; //Volume of particle j
-		
-        //-Interactions
-        //------------------------------------------------
-        for(unsigned p2=pini;p2<pfin;p2++){
-         const float drx=(psimple? psposp1.x-pspos[p2].x: float(posp1.x-pos[p2].x));
-         const float dry=(psimple? psposp1.y-pspos[p2].y: float(posp1.y-pos[p2].y));
-         const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
-		      const float rr2=drx*drx+dry*dry+drz*drz;
-		      if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-		        float frx,fry,frz;
-            GetKernel(rr2,drx,dry,drz,frx,fry,frz);
-
-		        dwxcorr[p1].x-=volume*frx*drx; dwxcorr[p1].z-=volume*frz*drx;
-		        dwzcorr[p1].x-=volume*frx*drz; dwzcorr[p1].z-=volume*frz*drz;
-		      }
-		    }
-	    }
-	  }
-  }
-}
-
-void JSphCpu::InverseCorrection(unsigned n, unsigned pinit, tfloat3 *dwxcorr,tfloat3 *dwzcorr)const{
+void JSphCpu::InverseCorrection(unsigned n, unsigned pinit, tdouble3 *dwxcorr,tdouble3 *dwzcorr)const{
 
 	const int pfin=int(pinit+n);
 
@@ -2069,10 +2084,10 @@ void JSphCpu::InverseCorrection(unsigned n, unsigned pinit, tfloat3 *dwxcorr,tfl
     #pragma omp parallel for schedule (guided)
   #endif
 	for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])==0||CODE_GetTypeValue(Codec[p1])==2){
-	  const float det=1.0f/(dwxcorr[p1].x*dwzcorr[p1].z-dwxcorr[p1].z*dwzcorr[p1].x);
+	  const double det=1.0/(dwxcorr[p1].x*dwzcorr[p1].z-dwxcorr[p1].z*dwzcorr[p1].x);
 	
       if(det){
-	    const float temp=dwxcorr[p1].x;
+	    const double temp=dwxcorr[p1].x;
       dwxcorr[p1].x=dwzcorr[p1].z*det;
 	    dwxcorr[p1].z=-dwxcorr[p1].z*det; 
 	    dwzcorr[p1].x=-dwzcorr[p1].x*det;
@@ -2113,7 +2128,7 @@ void JSphCpu::MatrixOrder(unsigned np,unsigned pinit,unsigned *porder,const unsi
 //===============================================================================
 void JSphCpu::FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
 	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
-	double *divr,const word *code)const{
+	float *divr,const word *code)const{
 
   const int pfin=int(pinit+n);
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
@@ -2123,9 +2138,9 @@ void JSphCpu::FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
   #endif
   for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2){
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
-	  //const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
-    const tdouble3 posp1=pos[p1];
-     
+	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
+    const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
+
     //-Obtain interaction limits / Obtiene limites de interaccion
     int cxini,cxfin,yini,yfin,zini,zfin;
     GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
@@ -2141,21 +2156,21 @@ void JSphCpu::FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
         //-Interactions
         //------------------------------------------------
         for(unsigned p2=pini;p2<pfin;p2++){
-          const double drx=posp1.x-pos[p2].x;
-          const double dry=posp1.y-pos[p2].y;
-          const double drz=posp1.z-pos[p2].z;
-          const double rr2=drx*drx+dry*dry+drz*drz;
-          if(rr2<=double(Fourh2) && rr2>=double(ALMOSTZERO)){
+          const float drx=(psimple? psposp1.x-pspos[p2].x: float(posp1.x-pos[p2].x));
+          const float dry=(psimple? psposp1.y-pspos[p2].y: float(posp1.y-pos[p2].y));
+          const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
+          const float rr2=drx*drx+dry*dry+drz*drz;
+          if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
 			      //-Wendland kernel.
-            double frx,fry,frz;
-            GetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
-
+            float frx,fry,frz;
+            GetKernel(rr2,drx,dry,drz,frx,fry,frz);
+            
 	          //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
-            double massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
-			      const double volume=massp2/double(RhopZero); //Volume of particle j
+            float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
+			      const float volume=massp2/RhopZero; //Volume of particle j
 			
 			      //=====Divergence of velocity==========
-			      const double rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
+			      const float rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
 			      divr[p1]-=volume*rDivW;
 		      }
 		    }
@@ -2169,7 +2184,7 @@ void JSphCpu::FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 //===============================================================================
 void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
 	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
-	const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const double dt, const unsigned ppedim,const double *divr,const double freesurface)const{
+	const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const double dt, const unsigned ppedim,const float *divr,const float freesurface)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -2179,9 +2194,9 @@ void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
   #endif
   for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])==0||CODE_GetTypeValue(Codec[p1])==2){
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
-    const tdouble3 velp1=TDouble3(double(velrhop[p1].x),double(velrhop[p1].y),double(velrhop[p1].z));
-	  //const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
-    const tdouble3 posp1= pos[p1];
+    const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
+	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
+    const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
 	
 	  //-Particle order in Matrix
 	  unsigned oi = porder[p1];
@@ -2202,28 +2217,28 @@ void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
           //-Interactions
           //------------------------------------------------
           for(unsigned p2=pini;p2<pfin;p2++) if(CODE_GetTypeValue(Codec[p2])==0||CODE_GetTypeValue(Codec[p2])==2){
-            const double drx=posp1.x-pos[p2].x;
-            const double dry=posp1.y-pos[p2].y;
-            const double drz=posp1.z-pos[p2].z;
-            const double rr2=drx*drx+dry*dry+drz*drz;
+          const float drx=(psimple? psposp1.x-pspos[p2].x: float(posp1.x-pos[p2].x));
+          const float dry=(psimple? psposp1.y-pspos[p2].y: float(posp1.y-pos[p2].y));
+          const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
+            const float rr2=drx*drx+dry*dry+drz*drz;
 
-            if(rr2<=double(Fourh2) && rr2>=double(ALMOSTZERO)){
+            if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
 			        //-Wendland kernel.
-              double frx,fry,frz;
-              GetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+              float frx,fry,frz;
+              GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 			
 			        //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
-              double massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
-			        const double volume=massp2/double(RhopZero); //Volume of particle j
+              float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
+			        const float volume=massp2/RhopZero; //Volume of particle j
 
 			        //=====Divergence of velocity==========
-							const double dvx=velp1.x-double(velrhop[p2].x), dvy=velp1.y-double(velrhop[p2].y), dvz=velp1.z-double(velrhop[p2].z);
+							const float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
 							
-			        const double temp_x=frx*double(dwxcorr[p1].x)+frz*double(dwzcorr[p1].x);
-			        const double temp_z=frx*double(dwxcorr[p1].z)+frz*double(dwzcorr[p1].z);
-			        double temp=dvx*temp_x+dvz*temp_z;
+			        const float temp_x=frx*dwxcorr[p1].x+frz*dwzcorr[p1].x;
+			        const float temp_z=frx*dwxcorr[p1].z+frz*dwzcorr[p1].z;
+			        float temp=dvx*temp_x+dvz*temp_z;
 
-			        matrixb[oi]-=volume*temp;
+			        matrixb[oi]-=double(volume*temp);
 		        }
 		      }
 	      }
@@ -2238,8 +2253,8 @@ void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 ///Matrix storage
 //===============================================================================
 void JSphCpu::MatrixStorage(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,double *divr,std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,
-  const unsigned ppedim,const double freesurface)const{
+  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,float *divr,std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,
+  const unsigned ppedim,const float freesurface)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -2250,7 +2265,7 @@ void JSphCpu::MatrixStorage(bool psimple,unsigned n,unsigned pinit,tint4 nc,int 
   for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2){
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
 	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
-    const tdouble3 posp1=pos[p1];
+    const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
     unsigned index = 0;
 	  //-Particle order in Matrix
 	  unsigned oi = porder[p1];
@@ -2271,11 +2286,11 @@ void JSphCpu::MatrixStorage(bool psimple,unsigned n,unsigned pinit,tint4 nc,int 
           //-Interactions
           //------------------------------------------------
           for(unsigned p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==0||CODE_GetTypeValue(code[p2])==2){
-            const double drx=posp1.x-pos[p2].x;
-            const double dry=posp1.y-pos[p2].y;
-            const double drz=posp1.z-pos[p2].z;
-            const double rr2=drx*drx+dry*dry+drz*drz;
-            if(rr2<=double(Fourh2) && rr2>=double(ALMOSTZERO)){
+            const float drx=(psimple? psposp1.x-pspos[p2].x: float(posp1.x-pos[p2].x));
+            const float dry=(psimple? psposp1.y-pspos[p2].y: float(posp1.y-pos[p2].y));
+            const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
+            const float rr2=drx*drx+dry*dry+drz*drz;
+            if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
               index++;
             }
           }
@@ -2299,8 +2314,8 @@ void JSphCpu::MatrixASetup(const unsigned ppedim,unsigned &nnz,std::vector<int> 
 ///Populate matrix with values
 //===============================================================================
 void JSphCpu::PopulateMatrixA(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
-  const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,double *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
-  const unsigned *porder,const unsigned *irelation,std::vector<double> &matrixb,const unsigned *idpc,const word *code,const unsigned ppedim,const double freesurface,tdouble3 gravity,const double rhoZero)const{
+  const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
+  const unsigned *porder,const unsigned *irelation,std::vector<double> &matrixb,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface,tfloat3 gravity,const double rhoZero)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -2310,9 +2325,9 @@ void JSphCpu::PopulateMatrixA(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
   #endif
   for(int p1=int(pinit);p1<pfin;p1++)if((CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2)&&porder[p1]!=int(Np)){
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
-    const tdouble3 velp1=TDouble3(double(velrhop[p1].x),double(velrhop[p1].y),double(velrhop[p1].z));
-	  //const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
-    const tdouble3 posp1=pos[p1];
+    const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
+	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
+    const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
     
 	  //-Particle order in Matrix
 	  unsigned oi = porder[p1];
@@ -2336,27 +2351,27 @@ void JSphCpu::PopulateMatrixA(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
           //-Interactions
           //------------------------------------------------
           for(unsigned p2=pini;p2<pfin;p2++){
-            const double drx=posp1.x-pos[p2].x;
-            const double dry=posp1.y-pos[p2].y;
-            const double drz=posp1.z-pos[p2].z;
-            const double rr2=drx*drx+dry*dry+drz*drz;
-            if(rr2<=double(Fourh2) && rr2>=double(ALMOSTZERO)){
+            const float drx=(psimple? psposp1.x-pspos[p2].x: float(posp1.x-pos[p2].x));
+            const float dry=(psimple? psposp1.y-pspos[p2].y: float(posp1.y-pos[p2].y));
+            const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
+            const float rr2=drx*drx+dry*dry+drz*drz;
+            if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
   	          unsigned oj = porder[p2];
 
 		          //-Wendland kernel.
-              double frx,fry,frz;
-              GetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+              float frx,fry,frz;
+              GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 
 			        //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
-              double massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
-			        const double volume=massp2/rhoZero; //Volume of particle j
+              float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
+			        const float volume=massp2/RhopZero; //Volume of particle j
 			
 			        //===== Laplacian operator =====
-			        const double rDivW=drx*frx+dry*fry+drz*frz;
-			        double temp=2.0*rDivW/(rhoZero*(rr2+double(Eta2)));
-              matrixInd[index]=-temp*volume;
+			        const float rDivW=drx*frx+dry*fry+drz*frz;
+			        float temp=2.0f*rDivW/(RhopZero*(rr2+Eta2));
+              matrixInd[index]=double(-temp*volume);
               col[index]=oj;
-			        matrixInd[diag]+=temp*volume;
+			        matrixInd[diag]+=double(temp*volume);
               index++;
 		        }  
           }
@@ -2367,100 +2382,6 @@ void JSphCpu::PopulateMatrixA(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
       //-Search for neighbours in adjacent cells / Busqueda de vecinos en celdas adyacentes.
       for(int z=zini;z<zfin;z++){
         const int zmod=(nc.w)*z; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
-        for(int y=yini;y<yfin;y++){
-          int ymod=zmod+nc.x*y;
-          const unsigned pini=beginendcell[cxini+ymod];
-          const unsigned pfin=beginendcell[cxfin+ymod];
-
-          //-Interactions
-          //------------------------------------------------
-          for(unsigned p2=pini;p2<pfin;p2++){
-            const double drx=posp1.x-pos[p2].x;
-            const double dry=posp1.y-pos[p2].y;
-            const double drz=posp1.z-pos[p2].z;
-            const double rr2=drx*drx+dry*dry+drz*drz;
-            if(rr2<=double(Fourh2) && rr2>=double(ALMOSTZERO)){
-              const unsigned idp2=idpc[p2];
-              const unsigned mkp2 = CODE_GetTypeValue(code[p2]);
-  	          unsigned oj=porder[p2];
-
-		          //-Wendland kernel.
-              double frx,fry,frz;
-              GetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
-
-			        //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
-              double massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
-			        const double volume=massp2/double(RhopZero); //Volume of particle j
-			
-			        //===== Laplacian operator =====
-			        const double rDivW=drx*frx+dry*fry+drz*frz;
-			        double temp=2.0*rDivW/(rhoZero*(rr2+double(Eta2)));
-              
-              if(oi!=oj){
-                for(unsigned pk=diag;pk<unsigned(row[oi+1]);pk++){ 
-                  if(col[pk]==ppedim){
-                    matrixInd[pk]=-temp*volume;
-                    col[pk]=oj;
-			              matrixInd[diag]+=temp*volume;
-                    break;
-                  }
-                  else if(col[pk]==oj){
-                    matrixInd[pk]-=temp*volume;
-                    matrixInd[diag]+=temp*volume;
-                    break;
-                  }
-                }
-              }
-              if(mkp2==1){
-                unsigned p2k;
-                for(unsigned k=0;k<Npb;k++) if(idpc[k]==irelation[idp2]){
-                  p2k=k;
-                  break;
-                }
-
-                double dist = pos[p2k].z-pos[p2].z;
-			          temp = temp * rhoZero * abs(Gravity.z) * dist;
-			          matrixb[oi]+=volume*temp; 
-              }
-		        }  
-          }
-        }
-	    }
-	  }
-    else matrixInd[diag]=1.0;
-  }
-}
-
-/*void JSphCpu::PopulateMatrixAInteractBound(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
-  const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
-  std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned *irelation,const unsigned ppedim,const float freesurface)const{
-
-  const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
-  const int pfin=int(pinit+n);
-
-  #ifdef _WITHOMP
-    #pragma omp parallel for schedule (guided)
-  #endif
-  for(int p1=int(pinit);p1<pfin;p1++) if((CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2)&&porder[p1]!=int(Np)){
-    //-Obtain data of particle p1 / Obtiene datos de particula p1.
-    const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
-	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
-    const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
-    
-	  //-Particle order in Matrix
-	  unsigned oi = porder[p1];
-
-    const unsigned diag=row[oi];
-    col[diag] = oi;
-    
-    if(divr[p1]>freesurface){   
-      //-Obtain interaction limits / Obtiene limites de interaccion
-      int cxini,cxfin,yini,yfin,zini,zfin;
-      GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
-
-      //-Search for neighbours in adjacent cells / Busqueda de vecinos en celdas adyacentes.
-      for(int z=zini;z<zfin;z++){
-        const int zmod=(nc.w)*z+cellinitial; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
         for(int y=yini;y<yfin;y++){
           int ymod=zmod+nc.x*y;
           const unsigned pini=beginendcell[cxini+ymod];
@@ -2495,7 +2416,7 @@ void JSphCpu::PopulateMatrixA(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
                   if(col[pk]==ppedim){
                     matrixInd[pk]=double(-temp*volume);
                     col[pk]=oj;
-			              matrixInd[diag]+=double(temp*volume);
+			              matrixInd[diag]+=(temp*volume);
                     break;
                   }
                   else if(col[pk]==oj){
@@ -2513,8 +2434,8 @@ void JSphCpu::PopulateMatrixA(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
                 }
 
                 float dist = pspos[p2k].z-pspos[p2].z;
-			          temp = temp * RhopZero * dist;
-			          matrixb[oi]+=double(volume*temp)* abs(Gravity.z); 
+			          temp = temp * RhopZero * fabs(Gravity.z) * dist;
+			          matrixb[oi]+=double(volume*temp); 
               }
 		        }  
           }
@@ -2524,8 +2445,8 @@ void JSphCpu::PopulateMatrixA(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
     else matrixInd[diag]=1.0;
   }
 }
-*/
-void JSphCpu::FreeSurfaceMark(unsigned n,unsigned pinit,double *divr,std::vector<double> &matrixInd,std::vector<double> &matrixb,
+
+void JSphCpu::FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,std::vector<double> &matrixInd,std::vector<double> &matrixb,
   std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim)const{
   const int pfin=int(pinit+n);
   
@@ -2536,14 +2457,12 @@ void JSphCpu::FreeSurfaceMark(unsigned n,unsigned pinit,double *divr,std::vector
 	  //-Particle order in Matrix
 	  unsigned oi = porder[p1];
     const int Mark=row[oi]+1;
-    if(divr[p1]>=FreeSurface && divr[p1]<=FreeSurface+0.2){
-      double alpha=0.5*(1.0-cos(PI*(divr[p1]-FreeSurface)/0.2));
+    if(divr[p1]>=FreeSurface && divr[p1]<=FreeSurface+0.2f){
+      double alpha=0.5*(1.0-cos(PI*double(divr[p1]-FreeSurface)/0.2));
 
       matrixb[oi]=matrixb[oi]*alpha;
 
-      for(int index=Mark;index<row[oi+1];index++){
-            matrixInd[index]=matrixInd[index]*alpha;
-      }
+      for(int index=Mark;index<row[oi+1];index++) matrixInd[index]=matrixInd[index]*alpha;
     }
   }
 }
@@ -2552,14 +2471,13 @@ void JSphCpu::FreeSurfaceMark(unsigned n,unsigned pinit,double *divr,std::vector
 ///Reorder pressure for particles
 //===============================================================================
 void JSphCpu::PressureAssign(bool psimple,unsigned np,unsigned pinit,const tdouble3 *pos,const tfloat3 *pspos,tfloat4 *velrhop,
-  const unsigned *idpc,const unsigned *irelation,const unsigned *porder,std::vector<double> &x,const word *code,const unsigned npb,double *divr,tdouble3 gravity)const{
+  const unsigned *idpc,const unsigned *irelation,const unsigned *porder,std::vector<double> &x,const word *code,const unsigned npb,float *divr,tfloat3 gravity)const{
 
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<int(np);p1++) if((CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2)&&porder[p1]!=np){
+  for(int p1=int(pinit);p1<int(np);p1++) if((CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2)&&porder[p1]!=np)
     velrhop[p1].w=float(x[porder[p1]]);
-  }
 
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
@@ -2572,11 +2490,26 @@ void JSphCpu::PressureAssign(bool psimple,unsigned np,unsigned pinit,const tdoub
         p2k=k;
         break;
       }
+
       const double drz=pos[p2k].z-pos[p1].z;
       if(divr[p2k]>0.0)velrhop[p1].w=float(x[porder[p1]]+double(RhopZero)*abs(Gravity.z)*drz);
       else velrhop[p1].w=float(double(RhopZero)*abs(Gravity.z)*drz);
     }
   }
+
+  #ifdef _WITHOMP
+    #pragma omp parallel for schedule (guided)
+  #endif
+  for(int p1=0;p1<int(NpbOk);p1++) if((CODE_GetTypeValue(code[p1])==0)&&porder[p1]!=np){
+    unsigned p2k;
+    for(unsigned k=0;k<Npb;k++) if(idpc[k]==irelation[idpc[p1]]){
+      p2k=k;
+      break;
+    }
+
+    if(divr[p2k]<=FreeSurface)velrhop[p1].w=0;
+  }
+
 }
 
 #ifndef _WITHGPU
@@ -2614,7 +2547,7 @@ void run_amg(viennacl::linalg::bicgstab_tag & bicgstab_solver,
   run_solver(vcl_compressed_matrix,vcl_vec,bicgstab_solver,vcl_amg,matrixx,ppedim);
 }
 
-void JSphCpu::solveVienna(std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz){
+void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz){
     viennacl::context ctx;
    
     typedef double ScalarType;
@@ -2628,26 +2561,30 @@ void JSphCpu::solveVienna(std::vector<double> &matrixa,std::vector<double> &matr
 
     viennacl::linalg::bicgstab_tag bicgstab(1e-5,2000);
 
-    std::cout<<"JACOBI PRECOND" <<std::endl;
-    viennacl::vector<ScalarType> vcl_result(vcl_compressed_matrix.size1(),ctx);
-    viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_compressed_matrix,viennacl::linalg::jacobi_tag());
-    run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_jacobi,matrixx,ppedim);
+    if(tprecond==PRECOND_Jacobi){
+      std::cout<<"JACOBI PRECOND" <<std::endl;
+      viennacl::vector<ScalarType> vcl_result(vcl_compressed_matrix.size1(),ctx);
+      viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_compressed_matrix,viennacl::linalg::jacobi_tag());
+      run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_jacobi,matrixx,ppedim);
+    }
+    else if(tprecond==PRECOND_AMG){
+      std::cout<<"AMG PRECOND" <<std::endl;
+      viennacl::context host_ctx(viennacl::MAIN_MEMORY);
+      viennacl::context target_ctx = viennacl::traits::context(vcl_compressed_matrix);
 
-    /*std::cout<<"AMG PRECOND" <<std::endl;
-    viennacl::context host_ctx(viennacl::MAIN_MEMORY);
-    viennacl::context target_ctx = viennacl::traits::context(vcl_compressed_matrix);
-
-    viennacl::linalg::amg_tag amg_tag_agg_pmis;
-    amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_AGGREGATION);
-    amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION);
-    amg_tag_agg_pmis.set_strong_connection_threshold(0.3);
-    amg_tag_agg_pmis.set_jacobi_weight(1.0);
-    amg_tag_agg_pmis.set_presmooth_steps(1);
-    amg_tag_agg_pmis.set_postsmooth_steps(1); 
-    amg_tag_agg_pmis.set_coarsening_cutoff(2500); 
-    amg_tag_agg_pmis.set_setup_context(host_ctx);
-    amg_tag_agg_pmis.set_target_context(target_ctx); 
-    run_amg(bicgstab,vcl_vec,vcl_compressed_matrix,"AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,matrixx,ppedim);*/
+      viennacl::linalg::amg_tag amg_tag_agg_pmis;
+      amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_AGGREGATION);
+      if(tamginter==AMGINTER_AG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION); std::cout<<"INTERPOLATION: AGGREGATION "<<std::endl; }
+      else if(tamginter==AMGINTER_SAG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_SMOOTHED_AGGREGATION); std::cout<<"INTERPOLATION: SMOOTHED AGGREGATION"<<std::endl; }
+      amg_tag_agg_pmis.set_strong_connection_threshold(strongconnection);
+      amg_tag_agg_pmis.set_jacobi_weight(jacobiweight);
+      amg_tag_agg_pmis.set_presmooth_steps(presmooth);
+      amg_tag_agg_pmis.set_postsmooth_steps(postsmooth); 
+      amg_tag_agg_pmis.set_coarsening_cutoff(coarsecutoff); 
+      amg_tag_agg_pmis.set_setup_context(host_ctx);
+      amg_tag_agg_pmis.set_target_context(target_ctx); 
+      run_amg(bicgstab,vcl_vec,vcl_compressed_matrix,"AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,matrixx,ppedim);
+    }
 }    
 #endif
 
@@ -2659,7 +2596,7 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
   (unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,float visco
   ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
   ,const tfloat3 *pspos,tfloat4 *velrhop,const word *code,const unsigned *idp
-  ,TpShifting tshifting,tfloat3 *shiftpos,double *divr,const float tensileN,const float tensileR)const
+  ,TpShifting tshifting,tfloat3 *shiftpos,float *divr,const float tensileN,const float tensileR)const
 {
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   //-Initialize viscth to calculate viscdt maximo con OpenMP / Inicializa viscth para calcular visdt maximo con OpenMP.
@@ -2674,7 +2611,7 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
   for(int p1=int(pinit);p1<pfin;p1++){
    
     tfloat3 shiftposp1=TFloat3(0);
-    //double divrp1=divr[p1];
+    double divrp1=divr[p1];
 
     //-Obtain data of particle p1 in case of floating objects / Obtiene datos de particula p1 en caso de existir floatings.
     //bool ftp1=false;     //-Indicate if it is floating / Indica si es floating.
@@ -2753,7 +2690,7 @@ void JSphCpu::Interaction_Shifting
   (unsigned np,unsigned npb,unsigned npbok
   ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
   ,const tfloat3 *pspos,tfloat4 *velrhop,const unsigned *idp,const word *code
-  ,tfloat3 *shiftpos,double *divr,const float tensileN,const float tensileR)const
+  ,tfloat3 *shiftpos,float *divr,const float tensileN,const float tensileR)const
 {
   const unsigned npf=np-npb;
   const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));

@@ -415,9 +415,6 @@ void JSph::LoadCaseConfig(){
   switch(eparms.GetValueInt("Shifting",true,0)){
     case 0:  TShifting=SHIFT_None;     break;
     case 1:  TShifting=SHIFT_Full;     break;
-    /*case 1:  TShifting=SHIFT_NoBound;  break;
-    case 2:  TShifting=SHIFT_NoFixed;  break;
-    case 3:  TShifting=SHIFT_Full;     break;*/
     default: RunException(met,"Shifting mode is not valid.");
   }
 
@@ -427,7 +424,7 @@ void JSph::LoadCaseConfig(){
     TensileR=eparms.GetValueFloat("TensileR",true,3.0f);
   }
 
-  FreeSurface=eparms.GetValueDouble("FreeSurface",true,1.6);
+  FreeSurface=eparms.GetValueFloat("FreeSurface",true,1.6f);
 
   Tolerance=eparms.GetValueDouble("Solver Tolerance",true,1e-5f);
   Iterations=eparms.GetValueInt("Max Iterations",true,100);
@@ -768,7 +765,7 @@ void JSph::ConfigConstants(bool simulate2d){
   Fourh2=float(h*h*4.0f); 
   Eta2=float((h*1.0e-5)*(h*1.0e-5));
   if(simulate2d){
-    Awen=float(0.557f/(h*h));
+    Awen=float(0.557f/(h*h)); 
     Bwen=float(-2.7852f/(h*h*h));
   }
   else{

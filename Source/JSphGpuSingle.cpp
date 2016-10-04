@@ -377,7 +377,7 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
     unsigned* dcellg=ArraysGpu->ReserveUint();
     double2*  posxyg=ArraysGpu->ReserveDouble2();
     double*   poszg=ArraysGpu->ReserveDouble();
-    double4*   velrhopg=ArraysGpu->ReserveDouble4();
+    float4*   velrhopg=ArraysGpu->ReserveFloat4();
     CellDivSingle->SortBasicArrays(Idpg,Codeg,Dcellg,Posxyg,Poszg,Velrhopg,idpg,codeg,dcellg,posxyg,poszg,velrhopg);
     swap(Idpg,idpg);           ArraysGpu->Free(idpg);
     swap(Codeg,codeg);         ArraysGpu->Free(codeg);
@@ -386,26 +386,26 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
     swap(Poszg,poszg);         ArraysGpu->Free(poszg);
     swap(Velrhopg,velrhopg);   ArraysGpu->Free(velrhopg);
   }
-  if(TStep==STEP_Verlet){
+  /*if(TStep==STEP_Verlet){
     float4* velrhopg=ArraysGpu->ReserveFloat4();
     CellDivSingle->SortDataArrays(VelrhopM1g,velrhopg);
     swap(VelrhopM1g,velrhopg);   ArraysGpu->Free(velrhopg);
   }
-  else if(TStep==STEP_Symplectic && (PosxyPreg || PoszPreg || VelrhopPreg)){//En realidad solo es necesario en el divide del corrector, no en el predictor??? //In reality, only necessary in the corrector not the predictor step?
+  else*/ if(TStep==STEP_Symplectic && (PosxyPreg || PoszPreg || VelrhopPreg)){//En realidad solo es necesario en el divide del corrector, no en el predictor??? //In reality, only necessary in the corrector not the predictor step?
     if(!PosxyPreg || !PoszPreg || !VelrhopPreg)RunException(met,"Symplectic data is invalid.") ;
     double2* posxyg=ArraysGpu->ReserveDouble2();
     double* poszg=ArraysGpu->ReserveDouble();
-    double4* velrhopg=ArraysGpu->ReserveDouble4();
+    float4* velrhopg=ArraysGpu->ReserveFloat4();
     CellDivSingle->SortDataArrays(PosxyPreg,PoszPreg,VelrhopPreg,posxyg,poszg,velrhopg);
     swap(PosxyPreg,posxyg);      ArraysGpu->Free(posxyg);
     swap(PoszPreg,poszg);        ArraysGpu->Free(poszg);
     swap(VelrhopPreg,velrhopg);  ArraysGpu->Free(velrhopg);
   }
-  if(TVisco==VISCO_LaminarSPS){
+  /*if(TVisco==VISCO_LaminarSPS){
     tsymatrix3f *spstaug=ArraysGpu->ReserveSymatrix3f();
     CellDivSingle->SortDataArrays(SpsTaug,spstaug);
     swap(SpsTaug,spstaug);  ArraysGpu->Free(spstaug);
-  }
+  }*/
 
   //-Recupera datos del divide.
   //-Retrieves division data.
@@ -434,7 +434,7 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
 /// Aplica correccion de Ren a la presion y densidad del contorno.
 /// Applies Ren et al. correction to the pressure and desnity of the boundaries.
 //==============================================================================
-/*void JSphGpuSingle::RunRenCorrection(){
+void JSphGpuSingle::RunRenCorrection(){
   //-Calcula presion en contorno a partir de fluido.
   //-Computes pressure in the boundary from the fluid
   float *presskf=ArraysGpu->ReserveFloat();
@@ -443,7 +443,7 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
   //-Computes corrected values of pressure and density on the boundary accordng to RenBeta
   cusph::ComputeRenPress(Psimple,NpbOk,RenCorrection,presskf,Velrhopg,PsPospressg);
   ArraysGpu->Free(presskf); presskf=NULL;
-}*/
+}
 
 //==============================================================================
 /// Interaccion para el calculo de fuerzas.
@@ -453,20 +453,20 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   const char met[]="Interaction_Forces";
   PreInteraction_Forces(tinter,dt);
   TmgStart(Timers,TMG_CfForces);
-  //if(RenCorrection)RunRenCorrection();
+  if(RenCorrection)RunRenCorrection();
 
-  const bool lamsps=(TVisco==VISCO_LaminarSPS);
+  //const bool lamsps=(TVisco==VISCO_LaminarSPS);
   const unsigned bsfluid=BlockSizes.forcesfluid;
   const unsigned bsbound=BlockSizes.forcesbound;
 
   //-Interaccion Fluid-Fluid/Bound & Bound-Fluid.
   //-Interaction Fluid-Fluid/Bound & Bound-Fluid.
   
-  cusph::Interaction_Forces(Psimple,WithFloating,UseDEM,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,dWxCorrg,dWzCorrg,FtoMasspg,SpsTaug,SpsGradvelg,ViscDtg,Arg,Aceg,Simulate2D);
-  if(tinter==1)cudaMemset(Velrhopg,0,sizeof(double4)*Npb);
+  cusph::Interaction_Forces(Psimple,WithFloating,UseDEM,TSlipCond,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,dWxCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D);
+  if(tinter==1)cudaMemset(Velrhopg,0,sizeof(float4)*Npb);
   //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
   //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
-//  if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,FtRidpg,DemDatag,float(DemDtForce),Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,ViscDtg,Aceg);
+  //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,FtRidpg,DemDatag,float(DemDtForce),Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,ViscDtg,Aceg);
 
   //-Calculo de Tau para Laminar+SPS
   //-Computes Tau for Laminar+SPS
@@ -536,6 +536,7 @@ double JSphGpuSingle::ComputeStep_Sym(){
   //----------- 
   InitAdvection(dt);
   RunCellDivide(true);
+  //if(TSlipCond)BoundaryVelocity(TSlipCond);
   Interaction_Forces(INTER_Forces,dt);       //-Interaccion //-Interaction
   //const double ddt_p=DtVariable(false);   //-Calcula dt del predictor //-Computes dt in the predictor step
   //if(TShifting)RunShifting(dt*.5);        //-Shifting
@@ -565,19 +566,19 @@ double JSphGpuSingle::ComputeStep_Sym(){
 /// Procesa floating objects.
 /// Processes floating objects.
 //==============================================================================
-/*void JSphGpuSingle::RunFloating(double dt,bool predictor){
+void JSphGpuSingle::RunFloating(double dt,bool predictor){
   const char met[]="RunFloating";
   if(TimeStep>=FtPause){//-Se usa >= pq si FtPause es cero en symplectic-predictor no entraria. //-Used because if FtPause is zero we don't enter the predictor.
     TmgStart(Timers,TMG_SuFloating);
     //-Calcula fuerzas sobre floatings.
 	//-Computes forces for the floating objects
-   // cusph::FtCalcForces(PeriActive!=0,FtCount,Gravity,FtoDatag,FtoMasspg,FtoCenterg,FtRidpg,Posxyg,Poszg,Aceg,FtoForcesg);
+    cusph::FtCalcForces(PeriActive!=0,FtCount,Gravity,FtoDatag,FtoMasspg,FtoCenterg,FtRidpg,Posxyg,Poszg,Aceg,FtoForcesg);
     //-Aplica movimiento sobre floatings.
 	//-Applies movement to the floating objects
     cusph::FtUpdate(PeriActive!=0,predictor,Simulate2D,FtCount,dt,Gravity,FtoDatag,FtRidpg,FtoForcesg,FtoCenterg,FtoVelg,FtoOmegag,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
     TmgStop(Timers,TMG_SuFloating);
   }
-}*/
+}
 
 //==============================================================================
 /// Inicia proceso de simulacion.
@@ -638,7 +639,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
     //if(ViscoTime)Visco=ViscoTime->GetVisco(float(TimeStep));
     double stepdt=ComputeStep_Sym();
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
-    //if(CaseNmoving)RunMotion(stepdt);
+    if(CaseNmoving)RunMotion(stepdt);
     //RunCellDivide(true);
     TimeStep+=stepdt;
     partoutstop=(Np<NpMinimum || !Np);
@@ -773,7 +774,7 @@ void JSphGpuSingle::KernelCorrection(){
 void JSphGpuSingle::InitAdvection(double dt){
     PosxyPreg=ArraysGpu->ReserveDouble2();
     PoszPreg=ArraysGpu->ReserveDouble();
-    VelrhopPreg=ArraysGpu->ReserveDouble4();
+    VelrhopPreg=ArraysGpu->ReserveFloat4();
     
     unsigned np=Np;
     unsigned npb=Npb;
@@ -782,8 +783,8 @@ void JSphGpuSingle::InitAdvection(double dt){
     //-Changes data of predictor variables for calculating the new data
     cudaMemcpy(PosxyPreg,Posxyg,sizeof(double2)*np,cudaMemcpyDeviceToDevice);     //Es decir... PosxyPre[] <= Posxy[] //i.e. PosxyPre[] <= Posxy[]
     cudaMemcpy(PoszPreg,Poszg,sizeof(double)*np,cudaMemcpyDeviceToDevice);        //Es decir... PoszPre[] <= Posz[] //i.e. PoszPre[] <= Posz[]
-    cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(double4)*np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
-	  cudaMemset(Velrhopg,0,sizeof(double4)*npb);
+    cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
+	  cudaMemset(Velrhopg,0,sizeof(float4)*npb);
     //-Copia posicion anterior del contorno.
     //-Copies previous position of the boundaries.
     //cudaMemcpy(Posxyg,PosxyPreg,sizeof(double2)*Npb,cudaMemcpyDeviceToDevice);
@@ -821,8 +822,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   const unsigned bsfluid=BlockSizes.forcesfluid;
   
   POrderg=ArraysGpu->ReserveUint(); cusph::InitArrayPOrder(np,POrderg,np);
-  Divrg=ArraysGpu->ReserveDouble(); cudaMemset(Divrg,0,sizeof(double)*np);
-
+  Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
   CheckCudaError(met,"Memory Assignment PORder");
   MatrixOrder(np,0,bsbound,bsfluid,POrderg,ncells,begincell,cellmin,dcell,Idpg,Irelationg,Codeg,PPEDim);
   CheckCudaError(met,"MatrixOrder");
@@ -840,25 +840,22 @@ void JSphGpuSingle::SolvePPE(double dt){
   cudaMalloc((void**)&a,sizeof(double)*Nnz); cudaMemset(a,0,sizeof(double)*Nnz);
   cudaMalloc((void**)&colInd,sizeof(unsigned int)*Nnz); cusph::InitArrayCol(Nnz,colInd,int(PPEDim));
   CheckCudaError(met,"Memory Assignment a");
-  cusph::PopulateMatrixA(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,GravityDbl,Posxyg,Poszg,PsPospressg,Velrhopg,a,b,rowInd,colInd,POrderg,Idpg,PPEDim,Divrg,Codeg,Irelationg,FreeSurface);
-
+  cusph::PopulateMatrixA(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,a,b,rowInd,colInd,POrderg,Idpg,PPEDim,Divrg,Codeg,Irelationg,FreeSurface);
   cusph::FreeSurfaceMark(Psimple,bsbound,bsfluid,np,npb,npbok,Divrg,a,b,rowInd,POrderg,Codeg,PI,FreeSurface);
   CheckCudaError(met,"Free Surface");
-  
+ /* unsigned int *POrderCPU; POrderCPU=new unsigned int[np]; cudaMemcpy(POrderCPU,POrderg,sizeof(unsigned int)*np,cudaMemcpyDeviceToHost);
+  unsigned int *IdCPU; IdCPU=new unsigned int[np]; cudaMemcpy(IdCPU,Idpg,sizeof(unsigned int)*np,cudaMemcpyDeviceToHost);
+  double *bcpu; bcpu=new double[PPEDim]; cudaMemcpy(bcpu,b,sizeof(double)*PPEDim,cudaMemcpyDeviceToHost);
+  double *acpu; acpu=new double[Nnz]; cudaMemcpy(acpu,a,sizeof(double)*Nnz,cudaMemcpyDeviceToHost);
+  unsigned int *rowcpu; rowcpu=new unsigned int[PPEDim+1]; cudaMemcpy(rowcpu,rowInd,sizeof(unsigned int)*(PPEDim+1),cudaMemcpyDeviceToHost);
+  unsigned int *colcpu; colcpu=new unsigned int[Nnz]; cudaMemcpy(colcpu,colInd,sizeof(unsigned int)*(Nnz),cudaMemcpyDeviceToHost);
   
   /*for(int i=0;i<(PPEDim+1);i++){
     std::cout<<i<<"\t"<<rowcpu[i]<<"\n";
     system("PAUSE");
   }*/
   
-  /*if(count>3000){
-    unsigned int *POrderCPU; POrderCPU=new unsigned int[np]; cudaMemcpy(POrderCPU,POrderg,sizeof(unsigned int)*np,cudaMemcpyDeviceToHost);
-  unsigned int *IdCPU; IdCPU=new unsigned int[np]; cudaMemcpy(IdCPU,Idpg,sizeof(unsigned int)*np,cudaMemcpyDeviceToHost);
-  double *bcpu; bcpu=new double[PPEDim]; cudaMemcpy(bcpu,b,sizeof(double)*PPEDim,cudaMemcpyDeviceToHost);
-  double *acpu; acpu=new double[Nnz]; cudaMemcpy(acpu,a,sizeof(double)*Nnz,cudaMemcpyDeviceToHost);
-  unsigned int *rowcpu; rowcpu=new unsigned int[PPEDim+1]; cudaMemcpy(rowcpu,rowInd,sizeof(unsigned int)*(PPEDim+1),cudaMemcpyDeviceToHost);
-  unsigned int *colcpu; colcpu=new unsigned int[Nnz]; cudaMemcpy(colcpu,colInd,sizeof(unsigned int)*(Nnz),cudaMemcpyDeviceToHost);
-    ofstream FileOutput;
+ /* ofstream FileOutput;
     string TimeFile;
 
     ostringstream TimeNum;
@@ -880,14 +877,7 @@ void JSphGpuSingle::SolvePPE(double dt){
     FileOutput << fixed << setprecision(20) << "particle "<< IdCPU[i] << "\t Order " << POrderCPU[i] << "\t b " << bcpu[POrderCPU[i]] << "\n";
     if(POrderCPU[i]!=np)for(int j=rowcpu[POrderCPU[i]];j<rowcpu[POrderCPU[i]+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << acpu[j] << "\t" << colcpu[j] << "\n";
   }
-  FileOutput.close(); 
-  delete[] POrderCPU; POrderCPU=NULL;
-  delete[] IdCPU; IdCPU=NULL;
-  delete[] acpu; acpu=NULL;
-  delete[] bcpu; bcpu=NULL;
- // delete[] xcpu; xcpu=NULL;
-  delete[] rowcpu; rowcpu=NULL;
-  delete[] colcpu; colcpu=NULL;}*/
+  FileOutput.close();*/
    
   //count++;
   //cusph::solveViennaCPU(a,b,X,rowInd,colInd,PPEDim,Nnz); 
@@ -911,11 +901,16 @@ void JSphGpuSingle::SolvePPE(double dt){
   delete[] xcpu; xcpu=NULL;
   delete[] rowcpu; rowcpu=NULL;
   delete[] colcpu; colcpu=NULL;*/
-  cusph::PressureAssign(Psimple,bsbound,bsfluid,np,npb,npbok,GravityDbl,Posxyg,Poszg,PsPospressg,Velrhopg,X,POrderg,Idpg,Codeg,Irelationg,Divrg);
+  cusph::PressureAssign(Psimple,bsbound,bsfluid,np,npb,npbok,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,X,POrderg,Idpg,Codeg,Irelationg,Divrg,FreeSurface);
   CheckCudaError(met,"pressure assign");
   ArraysGpu->Free(POrderg);       POrderg=NULL;
   ArraysGpu->Free(Divrg);		      Divrg=NULL;
-  cudaFree(b); b=NULL; cudaFree(X); X=NULL; cudaFree(a); a=NULL; cudaFree(rowInd); rowInd=NULL; cudaFree(colInd); colInd=NULL;
+  cudaThreadSynchronize();
+  cudaFree(b); cudaThreadSynchronize(); 
+  cudaFree(X); cudaThreadSynchronize(); 
+  cudaFree(a); cudaThreadSynchronize(); 
+  cudaFree(rowInd); cudaThreadSynchronize();
+  cudaFree(colInd); cudaThreadSynchronize();
   CheckCudaError(met,"free");
 }
 
@@ -930,18 +925,18 @@ void JSphGpuSingle::RunShifting(double dt){
 
   PosxyPreg=ArraysGpu->ReserveDouble2();
   PoszPreg=ArraysGpu->ReserveDouble();
-  VelrhopPreg=ArraysGpu->ReserveDouble4();
+  VelrhopPreg=ArraysGpu->ReserveFloat4();
 
-  ShiftPosg=ArraysGpu->ReserveDouble3();
-  Divrg=ArraysGpu->ReserveDouble();
-  cudaMemset(ShiftPosg,0,sizeof(double3)*np);       //ShiftPosg[]=0
-  cudaMemset(Divrg,0,sizeof(double)*np);        //Divrg[]=0
+  ShiftPosg=ArraysGpu->ReserveFloat3();
+  Divrg=ArraysGpu->ReserveFloat();
+  cudaMemset(ShiftPosg,0,sizeof(float3)*np);       //ShiftPosg[]=0
+  cudaMemset(Divrg,0,sizeof(float)*np);        //Divrg[]=0
 
   //-Cambia datos a variables Pre para calcular nuevos datos.
   //-Changes data of predictor variables for calculating the new data
   cudaMemcpy(PosxyPreg,Posxyg,sizeof(double2)*np,cudaMemcpyDeviceToDevice);     //Es decir... PosxyPre[] <= Posxy[] //i.e. PosxyPre[] <= Posxy[]
   cudaMemcpy(PoszPreg,Poszg,sizeof(double)*np,cudaMemcpyDeviceToDevice);        //Es decir... PoszPre[] <= Posz[] //i.e. PoszPre[] <= Posz[]
-  cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(double4)*np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
+  cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
 
   RunCellDivide(true);
 
@@ -954,65 +949,14 @@ void JSphGpuSingle::RunShifting(double dt){
   const unsigned bsfluid=BlockSizes.forcesfluid;
 
   PsPospressg=ArraysGpu->ReserveFloat4();
-//  cusph::PreInteractionSimple(Np,Posxyg,Poszg,Velrhopg,PsPospressg,CteB,Gamma);
+  cusph::PreInteractionSimple(Np,Posxyg,Poszg,Velrhopg,PsPospressg,CteB,Gamma);
 
   cusph::Interaction_Shifting(Psimple,WithFloating,UseDEM,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,FtoMasspg,TShifting,ShiftPosg,Divrg,TensileN,TensileR);
 
-  /*if(count>3050){
-    double3 *shiftcpu; shiftcpu=new double3[np]; cudaMemcpy(shiftcpu,ShiftPosg,sizeof(double3)*np,cudaMemcpyDeviceToHost);
-  unsigned int *IdCPU; IdCPU=new unsigned int[np]; cudaMemcpy(IdCPU,Idpg,sizeof(unsigned int)*np,cudaMemcpyDeviceToHost);
-  double *divcpu; divcpu=new double[np]; cudaMemcpy(divcpu,Divrg,sizeof(double)*np,cudaMemcpyDeviceToHost);
-  
-   ofstream FileOutput;
-    string TimeFile;
-
-    ostringstream TimeNum;
-    TimeNum << count;
-    ostringstream FileNum;
-    FileNum << count;
-
-  TimeFile =  "Shifting1_" + FileNum.str() + ", T = " + TimeNum.str() + ".txt";
-
-  FileOutput.open(TimeFile.c_str());
-
-  for(int i=Npb;i<Np;i++) FileOutput << fixed << setprecision(19)<<i<<"\t"<<IdCPU[i]<<"\t"<<shiftcpu[i].x<<"\t"<<shiftcpu[i].z<<"\t"<<divcpu[i]<<"\n";
-  
-  FileOutput.close(); 
-  
-  delete[] shiftcpu; shiftcpu=NULL;
-  delete[] IdCPU; IdCPU=NULL;
-  delete[] divcpu; divcpu=NULL;
-  }*/
-
   JSphGpu::RunShifting(dt);
 
-  /*if(count>3050){
-    double3 *shiftcpu; shiftcpu=new double3[np]; cudaMemcpy(shiftcpu,ShiftPosg,sizeof(double3)*np,cudaMemcpyDeviceToHost);
-  unsigned int *IdCPU; IdCPU=new unsigned int[np]; cudaMemcpy(IdCPU,Idpg,sizeof(unsigned int)*np,cudaMemcpyDeviceToHost);
-
-   ofstream FileOutput;
-    string TimeFile;
-
-    ostringstream TimeNum;
-    TimeNum << count;
-    ostringstream FileNum;
-    FileNum << count;
-
-  TimeFile =  "Shifting2_" + FileNum.str() + ", T = " + TimeNum.str() + ".txt";
-
-  FileOutput.open(TimeFile.c_str());
-
-  for(int i=Npb;i<Np;i++) FileOutput << fixed << setprecision(19)<<i<<"\t"<<IdCPU[i]<<"\t"<<shiftcpu[i].x<<"\t"<<shiftcpu[i].z<<"\n";
-  
-  FileOutput.close(); 
-
-  
-  delete[] shiftcpu; shiftcpu=NULL;
-  delete[] IdCPU; IdCPU=NULL;
-  }*/
-
   Shift(dt,bsfluid);
-
+  
   ArraysGpu->Free(PosxyPreg);     PosxyPreg=NULL;
   ArraysGpu->Free(PoszPreg);      PoszPreg=NULL;
   ArraysGpu->Free(VelrhopPreg);   VelrhopPreg=NULL;
