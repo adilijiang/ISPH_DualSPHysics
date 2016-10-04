@@ -83,7 +83,6 @@ protected:
   tfloat3 *PsPosc;    //-Position and prrhop for Pos-Simple interaction / Posicion y prrhop para interaccion Pos-Simple.
 
   tfloat3 *Acec;      //-Sum of interaction forces / Acumula fuerzas de interaccion
-  float *Arc; 
   float *Deltac;      //-Adjusted sum with Delta-SPH with DELTA_DynamicExt / Acumula ajuste de Delta-SPH con DELTA_DynamicExt
 
   tfloat3 *ShiftPosc;    //-Particle displacement using Shifting.
@@ -175,14 +174,11 @@ protected:
     ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhopp,const word *code,const unsigned *id
     ,float &viscdt,float *ar)const;
 
-  template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> void InteractionForcesFluid
+  template<bool psimple,TpFtMode ftmode> void InteractionForcesFluid
     (TpInter tinter, unsigned n,unsigned pini,tint4 nc,int hdiv,unsigned cellfluid,float visco
     ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
-    ,const tsymatrix3f* tau,tsymatrix3f* gradvel
     ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwzcorr,const word *code,const unsigned *idp
-    ,const float *press
-    ,float &viscdt,float *ar,tfloat3 *ace,float *delta
-    ,TpShifting tshifting,tfloat3 *shiftpos)const;
+    ,tfloat3 *ace)const;
 
   template<bool psimple> void InteractionForcesDEM
     (unsigned nfloat,tint4 nc,int hdiv,unsigned cellfluid
@@ -191,30 +187,21 @@ protected:
     ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,const word *code,const unsigned *idp
     ,float &viscdt,tfloat3 *ace)const;
 
-  template<bool psimple,TpFtMode ftmode,bool lamsps,TpDeltaSph tdelta,bool shift> void Interaction_ForcesT
+  template<bool psimple,TpFtMode ftmode> void Interaction_ForcesT
     (TpInter tinter,unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwzcorr,const word *code,const unsigned *idp
-    ,const float *press
-    ,float &viscdt,float* ar,tfloat3 *ace,float *delta
-    ,tsymatrix3f *spstau,tsymatrix3f *spsgradvel
-    ,TpShifting tshifting,tfloat3 *shiftpos)const;
+    ,tfloat3 *ace)const;
 
   void Interaction_Forces(TpInter tinter,unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tdouble3 *pos,const tfloat4 *velrhop,const unsigned *idp,tdouble3 *dwxcorr,tdouble3 *dwzcorr,const word *code
-    ,const float *press
-    ,float &viscdt,float* ar,tfloat3 *ace,float *delta
-    ,tsymatrix3f *spstau,tsymatrix3f *spsgradvel
-    ,tfloat3 *shiftpos)const;
+    ,tfloat3 *ace)const;
 
   void InteractionSimple_Forces(TpInter tinter,unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tfloat3 *pspos,const tfloat4 *velrhop,const unsigned *idp,tdouble3 *dwxcorr,tdouble3 *dwzcorr,const word *code
-    ,const float *press
-    ,float &viscdt,float* ar,tfloat3 *ace,float *delta
-    ,tsymatrix3f *spstau,tsymatrix3f *spsgradvel
-    ,tfloat3 *shiftpos)const;
+    ,tfloat3 *ace)const;
 
 
   void ComputeSpsTau(unsigned n,unsigned pini,const tfloat4 *velrhop,const tsymatrix3f *gradvel,tsymatrix3f *tau)const;
