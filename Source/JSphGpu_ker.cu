@@ -555,6 +555,14 @@ __device__ void KerGetKernel(float rr2,float drx,float dry,float drz
 {
   const float rad=sqrt(rr2);
   const float qq=rad/CTE.h;
+
+  /*float fac;
+  if(qq<1.0f)fac=CTE.bwen*(-5.0f*powf(3.0f-qq,4.0f)+30.0f*powf(2.0f-qq,4.0f)-75.0f*powf(1.0f-qq,4.0f));
+  else if(qq<2.0f)fac=CTE.bwen*(-5.0f*powf(3.0f-qq,4.0f)+30.0f*powf(2.0f-qq,4.0f));
+  else if(qq<3.0f)fac=CTE.bwen*(-5.0f*powf(3.0f-qq,4.0f));
+  else fac=0;
+  fac=fac/rad;*/
+  
   //-Wendland kernel.
   const float wqq1=1.f-0.5f*qq;
   const float fac=CTE.bwen*qq*wqq1*wqq1*wqq1/rad;
@@ -566,6 +574,14 @@ __device__ void KerGetKernelDouble(double rr2,double drx,double dry,double drz
 {
   const double rad=sqrt(rr2);
   const double qq=rad/CTE.h;
+
+  /*double fac;
+  if(qq<1.0)fac=CTE.bwen*(-5.0*pow(3.0-qq,4.0)+30.0*pow(2.0-qq,4.0)-75.0*pow(1.0-qq,4.0));
+  else if(qq<2.0)fac=CTE.bwen*(-5.0*pow(3.0-qq,4.0)+30.0*powf(2.0-qq,4.0));
+  else if(qq<3.0)fac=CTE.bwen*(-5.0*pow(3.0-qq,4.0));
+  else fac=0;
+  fac=fac/rad;*/
+
   //-Wendland kernel.
   const double wqq1=1.f-0.5f*qq;
   const double fac=CTE.bwen*qq*wqq1*wqq1*wqq1/rad;
@@ -580,10 +596,19 @@ __device__ float KerGetKernelWab(float rr2)
 {
   const float rad=sqrt(rr2);
   const float qq=rad/CTE.h;
+
+  /*float wab;
+  if(qq<1.0f)wab=CTE.awen*(powf(3.0f-qq,5.0f)-6.0f*powf(2.0f-qq,5.0f)+15.0f*powf(1.0f-qq,5.0f));
+  else if(qq<2.0f)wab=CTE.awen*(powf(3.0f-qq,5.0f)-6.0f*powf(2.0f-qq,5.0f));
+  else if(qq<3.0f)wab=CTE.awen*(powf(3.0f-qq,5.0f));
+  else wab=0;
+  return(wab);*/
+
   //-Wendland kernel.
   const float wqq=2.f*qq+1.f;
   const float wqq1=1.f-0.5f*qq;
   const float wqq2=wqq1*wqq1;
+
   return(CTE.awen*wqq*wqq2*wqq2);
 }
 
