@@ -113,11 +113,6 @@ protected:
   double *Poszg;
   float4 *Velrhopg;
     
-  //-Vars. para compute step: VERLET
-  //-Variables for compute step: Verlet
-  float4 *VelrhopM1g;  ///<ES: Verlet: para guardar valores anteriores EN: Verlet: for maintaining previous values
-  int VerletStep;
-
   //-Vars. para compute step: SYMPLECTIC
   //-Variables for compute step: Symplectic
   double2 *PosxyPreg;  ///<ES: Sympletic: para guardar valores en predictor EN: Symplectic: for maintaining predictor values
@@ -155,14 +150,8 @@ protected:
   double AceMax;      ///<Maximum value of Ace[] (ace.x^2 + ace.y^2 + ace.z^2) computed in Interaction_Forces().
   float ViscDtMax;    ///<ES: Valor maximo de ViscDt calculado en Interaction_Forces(). EN: Maximum value of ViscDt computed in Interaction_Forces()
 
-  //-Variables for Laminar+SPS viscosity.  
-  //tsymatrix3f *SpsTaug;       ///<SPS sub-particle stress tensor.
-  //tsymatrix3f *SpsGradvelg;   ///<Velocity gradients.
-
-
   TimersGpu Timers;
-
-
+  
   void InitVars();
   void RunExceptionCuda(const std::string &method,const std::string &msg,cudaError_t error);
   void CheckCudaError(const std::string &method,const std::string &msg);
@@ -220,7 +209,6 @@ protected:
   void PreInteraction_Forces(TpInter tinter,double dt);
   void PosInteraction_Forces(TpInter tinter);
   
-  void ComputeVerlet(double dt);
   void ComputeSymplecticPre(double dt);
   void ComputeSymplecticCorr(double dt);
   double DtVariable(bool final);

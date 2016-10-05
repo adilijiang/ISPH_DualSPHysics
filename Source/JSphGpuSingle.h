@@ -44,13 +44,9 @@ protected:
   void RunPeriodic();
   void RunCellDivide(bool updateperiodic);
 
-  void RunRenCorrection();
   void Interaction_Forces(TpInter tinter,double dt);
   double ComputeAceMax(float *auxmem);
 
-  //double ComputeStep(){ return(TStep==STEP_Verlet? ComputeStep_Ver(): ComputeStep_Sym()); }
-
-  //double ComputeStep_Ver();
   double ComputeStep_Sym();
 
   void RunFloating(double dt,bool predictor);

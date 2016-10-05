@@ -118,7 +118,6 @@ void JSphGpuSingle::LoadConfig(JCfgRun *cfg){
   //-Loads general configuration
   JSph::LoadConfig(cfg);
   //-Checks compatibility of selected options.
-  if(RenCorrection && UseDEM)RunException(met,"Ren correction is not implemented with Floatings-DEM.");
   Log->Print("**Special case configuration is loaded");
 }
 
@@ -334,7 +333,6 @@ void JSphGpuSingle::ResizeParticlesSize(unsigned newsize,float oversize,bool upd
             run=false;
             //-Crea nuevas particulas periodicas duplicando las particulas de la lista.
 			//-Create new periodic particles duplicating the particles from the list
-            if(TStep==STEP_Verlet)cusph::PeriodicDuplicateVerlet(count,Np,DomCells,perinc,listpg,Idpg,Codeg,Dcellg,Posxyg,Poszg,Velrhopg,SpsTaug,VelrhopM1g);
             if(TStep==STEP_Symplectic){
               if((PosxyPreg || PoszPreg || VelrhopPreg) && (!PosxyPreg || !PoszPreg || !VelrhopPreg))RunException(met,"Symplectic data is invalid.") ;
               cusph::PeriodicDuplicateSymplectic(count,Np,DomCells,perinc,listpg,Idpg,Codeg,Dcellg,Posxyg,Poszg,Velrhopg,SpsTaug,PosxyPreg,PoszPreg,VelrhopPreg);
@@ -386,12 +384,7 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
     swap(Poszg,poszg);         ArraysGpu->Free(poszg);
     swap(Velrhopg,velrhopg);   ArraysGpu->Free(velrhopg);
   }
-  /*if(TStep==STEP_Verlet){
-    float4* velrhopg=ArraysGpu->ReserveFloat4();
-    CellDivSingle->SortDataArrays(VelrhopM1g,velrhopg);
-    swap(VelrhopM1g,velrhopg);   ArraysGpu->Free(velrhopg);
-  }
-  else*/ if(TStep==STEP_Symplectic && (PosxyPreg || PoszPreg || VelrhopPreg)){//En realidad solo es necesario en el divide del corrector, no en el predictor??? //In reality, only necessary in the corrector not the predictor step?
+  if(TStep==STEP_Symplectic && (PosxyPreg || PoszPreg || VelrhopPreg)){//En realidad solo es necesario en el divide del corrector, no en el predictor??? //In reality, only necessary in the corrector not the predictor step?
     if(!PosxyPreg || !PoszPreg || !VelrhopPreg)RunException(met,"Symplectic data is invalid.") ;
     double2* posxyg=ArraysGpu->ReserveDouble2();
     double* poszg=ArraysGpu->ReserveDouble();
@@ -401,11 +394,6 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
     swap(PoszPreg,poszg);        ArraysGpu->Free(poszg);
     swap(VelrhopPreg,velrhopg);  ArraysGpu->Free(velrhopg);
   }
-  /*if(TVisco==VISCO_LaminarSPS){
-    tsymatrix3f *spstaug=ArraysGpu->ReserveSymatrix3f();
-    CellDivSingle->SortDataArrays(SpsTaug,spstaug);
-    swap(SpsTaug,spstaug);  ArraysGpu->Free(spstaug);
-  }*/
 
   //-Recupera datos del divide.
   //-Retrieves division data.
@@ -421,28 +409,13 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
   //-Manages excluded particles (boundary and fluid).
   TmgStart(Timers,TMG_NlOutCheck);
   unsigned npout=CellDivSingle->GetNpOut();
-  if(npout){
+  /*if(npout){
     ParticlesDataDown(npout,Np,true,true,false);
     CellDivSingle->CheckParticlesOut(npout,Idp,AuxPos,AuxRhop,Code);
     AddParticlesOut(npout,Idp,AuxPos,AuxVel,AuxRhop,CellDivSingle->GetNpfOutRhop(),CellDivSingle->GetNpfOutMove());
-  }
+  }*/
   TmgStop(Timers,TMG_NlOutCheck);
   BoundChanged=false;
-}
-
-//==============================================================================
-/// Aplica correccion de Ren a la presion y densidad del contorno.
-/// Applies Ren et al. correction to the pressure and desnity of the boundaries.
-//==============================================================================
-void JSphGpuSingle::RunRenCorrection(){
-  //-Calcula presion en contorno a partir de fluido.
-  //-Computes pressure in the boundary from the fluid
-  float *presskf=ArraysGpu->ReserveFloat();
-  cusph::Interaction_Ren(Psimple,WithFloating,CellMode,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,FtoMasspg,Gravity,presskf);
-  //-Recalcula valores de presion y densidad en contorno segun RenBeta.
-  //-Computes corrected values of pressure and density on the boundary accordng to RenBeta
-  cusph::ComputeRenPress(Psimple,NpbOk,RenCorrection,presskf,Velrhopg,PsPospressg);
-  ArraysGpu->Free(presskf); presskf=NULL;
 }
 
 //==============================================================================
@@ -453,9 +426,7 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   const char met[]="Interaction_Forces";
   PreInteraction_Forces(tinter,dt);
   TmgStart(Timers,TMG_CfForces);
-  if(RenCorrection)RunRenCorrection();
 
-  //const bool lamsps=(TVisco==VISCO_LaminarSPS);
   const unsigned bsfluid=BlockSizes.forcesfluid;
   const unsigned bsbound=BlockSizes.forcesbound;
 
@@ -467,10 +438,6 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
   //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
   //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,FtRidpg,DemDatag,float(DemDtForce),Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,ViscDtg,Aceg);
-
-  //-Calculo de Tau para Laminar+SPS
-  //-Computes Tau for Laminar+SPS
-  //if(lamsps)cusph::ComputeSpsTau(Np,Npb,SpsSmag,SpsBlin,Velrhopg,SpsGradvelg,SpsTaug);
 
   //-Para simulaciones 2D anula siempre la 2º componente
   //-For 2D simulations always overrides the 2nd component (Y axis)
@@ -504,26 +471,6 @@ double JSphGpuSingle::ComputeAceMax(float *auxmem){
 //==============================================================================
 /// ES:
 /// Realiza interaccion y actualizacion de particulas segun las fuerzas 
-/// calculadas en la interaccion usando Verlet.
-///
-/// EN:
-/// Particle interaction and update of particle data according to
-/// the computed forces using the Verlet time stepping scheme
-//==============================================================================
-/*double JSphGpuSingle::ComputeStep_Ver(){
-  Interaction_Forces(INTER_Forces);     //-Interaccion //-Interaction
-  const double dt=DtVariable(true);     //-Calcula nuevo dt //-Calculate new dt
-  DemDtForce=dt;                        //(DEM)
-  if(TShifting)RunShifting(dt);         //-Shifting
-  ComputeVerlet(dt);                    //-Actualiza particulas usando Verlet //-Update particle data using Verlet
-  if(CaseNfloat)RunFloating(dt,false); //-Gestion de floating bodies //-Management of floating bodies
-  PosInteraction_Forces();              //-Libera memoria de interaccion //-Releases memory of interaction
-  return(dt);
-}*/
-
-//==============================================================================
-/// ES:
-/// Realiza interaccion y actualizacion de particulas segun las fuerzas 
 /// calculadas en la interaccion usando Symplectic.
 ///
 /// EN:
@@ -536,29 +483,22 @@ double JSphGpuSingle::ComputeStep_Sym(){
   //----------- 
   InitAdvection(dt);
   RunCellDivide(true);
-  //if(TSlipCond)BoundaryVelocity(TSlipCond);
-  Interaction_Forces(INTER_Forces,dt);       //-Interaccion //-Interaction
-  //const double ddt_p=DtVariable(false);   //-Calcula dt del predictor //-Computes dt in the predictor step
-  //if(TShifting)RunShifting(dt*.5);        //-Shifting
-  ComputeSymplecticPre(dt);               //-Aplica Symplectic-Predictor a las particulas //Applies Symplectic-Predictor to the particles
-  //if(CaseNfloat)RunFloating(dt*.5,true);  //-Gestion de floating bodies //-Management of the floating bodies
-  PosInteraction_Forces(INTER_Forces);                //-Libera memoria de interaccion //-Releases memory of the interaction
+  Interaction_Forces(INTER_Forces,dt);        //-Interaction
+  ComputeSymplecticPre(dt);                   //-Applies Symplectic-Predictor to the particles
+  //if(CaseNfloat)RunFloating(dt*.5,true);    //-Management of the floating bodies
+  PosInteraction_Forces(INTER_Forces);        //-Releases memory of the interaction
   //-Pressure Poisson equation
   //-----------
-  KernelCorrection();
-  
-  SolvePPE(dt); //-Solve pressure Poisson equation
+  KernelCorrection();                         //-Kernel correction
+  SolvePPE(dt);                               //-Solve pressure Poisson equation
   //-Corrector
   //-----------
-  //DemDtForce=dt;                          //(DEM)
-  Interaction_Forces(INTER_ForcesCorr,dt);   //-Interaccion //-interaction
-  //const double ddt_c=DtVariable(true);    //-Calcula dt del corrector //Computes dt in the corrector step
-  ComputeSymplecticCorr(dt);              //-Aplica Symplectic-Corrector a las particulas //Applies Symplectic-Corrector to the particles
-  //if(CaseNfloat)RunFloating(dt,false);    //-Gestion de floating bodies //-Management of the floating bodies
-  PosInteraction_Forces(INTER_ForcesCorr);                //-Libera memoria de interaccion //-Releases memory of the interaction
-  if(TShifting)RunShifting(dt);           //-Shifting
-  //DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep //-Computes dt for the next ComputeStep
-  count++;
+  //DemDtForce=dt;                            //(DEM)
+  Interaction_Forces(INTER_ForcesCorr,dt);    //-Interaccion //-interaction
+  ComputeSymplecticCorr(dt);                  //Applies Symplectic-Corrector to the particles
+  //if(CaseNfloat)RunFloating(dt,false);      //-Management of the floating bodies
+  PosInteraction_Forces(INTER_ForcesCorr);    //-Releases memory of the interaction
+  if(TShifting)RunShifting(dt);               //-Shifting
   return(dt);
 }
 
@@ -633,14 +573,12 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   Log->Print(string("\n[Initialising simulation (")+RunCode+")  "+fun::GetDateTime()+"]");
   PrintHeadPart();
   //-finding dummy particle relations to wall particles
-  FindIrelation(); count =1;
+  FindIrelation();
   while(TimeStep<TimeMax){
     clock_t start = clock(); 
-    //if(ViscoTime)Visco=ViscoTime->GetVisco(float(TimeStep));
     double stepdt=ComputeStep_Sym();
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
     if(CaseNmoving)RunMotion(stepdt);
-    //RunCellDivide(true);
     TimeStep+=stepdt;
     partoutstop=(Np<NpMinimum || !Np);
     if((TimeStep-TimeStepIni)-TimePart*((Part-PartIni)-1)>=TimePart || partoutstop){
@@ -785,10 +723,6 @@ void JSphGpuSingle::InitAdvection(double dt){
     cudaMemcpy(PoszPreg,Poszg,sizeof(double)*np,cudaMemcpyDeviceToDevice);        //Es decir... PoszPre[] <= Posz[] //i.e. PoszPre[] <= Posz[]
     cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
 	  cudaMemset(Velrhopg,0,sizeof(float4)*npb);
-    //-Copia posicion anterior del contorno.
-    //-Copies previous position of the boundaries.
-    //cudaMemcpy(Posxyg,PosxyPreg,sizeof(double2)*Npb,cudaMemcpyDeviceToDevice);
-    //cudaMemcpy(Poszg,PoszPreg,sizeof(double)*Npb,cudaMemcpyDeviceToDevice);
     
     double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*np);
     double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*np);
@@ -823,22 +757,22 @@ void JSphGpuSingle::SolvePPE(double dt){
   
   POrderg=ArraysGpu->ReserveUint(); cusph::InitArrayPOrder(np,POrderg,np);
   Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
-  CheckCudaError(met,"Memory Assignment PORder");
+  CheckCudaError(met,"Memory Assignment POrder");
   MatrixOrder(np,0,bsbound,bsfluid,POrderg,ncells,begincell,cellmin,dcell,Idpg,Irelationg,Codeg,PPEDim);
   CheckCudaError(met,"MatrixOrder");
   cusph::FreeSurfaceFind(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,Divrg);
   CheckCudaError(met,"FreeSurfaceFind");
   //Create matrix
-  cudaMalloc((void**)&b,sizeof(double)*PPEDim); cudaMemset(b,0,sizeof(double)*PPEDim);
-  cudaMalloc((void**)&X,sizeof(double)*PPEDim); cudaMemset(X,0,sizeof(double)*PPEDim);
-  cudaMalloc((void**)&rowInd,sizeof(unsigned int)*(PPEDim+1)); cudaMemset(rowInd,0,sizeof(unsigned int)*(PPEDim+1));
+  b=ArraysGpu->ReserveDouble(); cudaMemset(b,0,sizeof(double)*np);
+  X=ArraysGpu->ReserveDouble(); cudaMemset(X,0,sizeof(double)*np);
+  cudaMemset(rowInd,0,sizeof(unsigned int)*(PPEDim+1));
   CheckCudaError(met,"Memory Assignment b");
   cusph::PopulateMatrixB(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,PsPospressg,Velrhopg,dWxCorrg,dWzCorrg,b,POrderg,Idpg,dt,PPEDim,Divrg,Codeg,FreeSurface);
   cusph::MatrixStorage(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,Divrg,POrderg,rowInd,FreeSurface);
   CheckCudaError(met,"MatrixStorage");
   unsigned Nnz=MatrixASetup(PPEDim,rowInd);
-  cudaMalloc((void**)&a,sizeof(double)*Nnz); cudaMemset(a,0,sizeof(double)*Nnz);
-  cudaMalloc((void**)&colInd,sizeof(unsigned int)*Nnz); cusph::InitArrayCol(Nnz,colInd,int(PPEDim));
+  cudaMemset(a,0,sizeof(double)*Nnz);
+  cusph::InitArrayCol(Nnz,colInd,int(PPEDim));
   CheckCudaError(met,"Memory Assignment a");
   cusph::PopulateMatrixA(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,a,b,rowInd,colInd,POrderg,Idpg,PPEDim,Divrg,Codeg,Irelationg,FreeSurface);
   cusph::FreeSurfaceMark(Psimple,bsbound,bsfluid,np,npb,npbok,Divrg,a,b,rowInd,POrderg,Codeg,PI,FreeSurface);
@@ -905,12 +839,8 @@ void JSphGpuSingle::SolvePPE(double dt){
   CheckCudaError(met,"pressure assign");
   ArraysGpu->Free(POrderg);       POrderg=NULL;
   ArraysGpu->Free(Divrg);		      Divrg=NULL;
-  cudaThreadSynchronize();
-  cudaFree(b); cudaThreadSynchronize(); 
-  cudaFree(X); cudaThreadSynchronize(); 
-  cudaFree(a); cudaThreadSynchronize(); 
-  cudaFree(rowInd); cudaThreadSynchronize();
-  cudaFree(colInd); cudaThreadSynchronize();
+  ArraysGpu->Free(b);             b=NULL;
+  ArraysGpu->Free(X);             X=NULL;
   CheckCudaError(met,"free");
 }
 

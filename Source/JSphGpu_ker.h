@@ -84,18 +84,6 @@ void Interaction_Forces(bool psimple,bool floating,bool usedem,TpSlipCond tslipc
   ,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwzcorrg
   ,const float *ftomassp,float3 *ace,bool simulate2d);
 
-//# Kernels para calculo de Ren correction
-//#Kernels for calculating the REn correction
-void Interaction_Ren(bool psimple,bool floating,TpCellMode cellmode
-  ,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,const float4 *velrhop,const word *code,const unsigned *idp
-  ,const float *ftomassp,tfloat3 gravity,float *presskf);
-
-void ComputeRenPress(bool psimple,unsigned npbok
-  ,float beta,const float *presskf,float4 *velrhop,float4 *pospress);
-
-
 //# Kernels para calculo de fuerzas DEM
 //# for the calculation of the DEM forces
 void Interaction_ForcesDem(bool psimple,TpCellMode cellmode,unsigned bsize
@@ -103,11 +91,6 @@ void Interaction_ForcesDem(bool psimple,TpCellMode cellmode,unsigned bsize
   ,const unsigned *ftridp,const float4 *demdata,float dtforce
   ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop
   ,const word *code,const unsigned *idp,float *viscdt,float3 *ace);
-
-//# Kernels para viscosidad Laminar+SPS
-//# Kernels for calculating the Laminar+SPS viscosity
-void ComputeSpsTau(unsigned np,unsigned npb,float smag,float blin
-  ,const float4 *velrhop,const tsymatrix3f *gradvelg,tsymatrix3f *tau);
 
 //# Kernels para Delta-SPH
 //# Kernels for Delta-SPH
@@ -118,14 +101,6 @@ void AddDelta(unsigned n,const float *delta,float *ar);
 void RunShifting(unsigned np,unsigned npb,double dt
   ,double shiftcoef,float freesurface,double coeftfs
   ,float4 *velrhop,const float *divr,float3 *shiftpos);
-
-//# Kernels para ComputeStep (vel & rhop)
-//# Kernels for ComputeStep (vel & rhop)
-void ComputeStepVerlet(bool floating,bool shift,unsigned np,unsigned npb
-  ,const float4 *velrhop1,const float4 *velrhop2
-  ,const float *ar,const float3 *ace,const float3 *shiftpos
-  ,double dt,double dt2,float rhopoutmin,float rhopoutmax
-  ,word *code,double2 *movxy,double *movz,float4 *velrhopnew);
 
 void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb
   ,const float4 *velrhoppre,const float3 *ace,double dtm,float rhopoutmin,float rhopoutmax
@@ -161,9 +136,6 @@ void FtUpdate(bool periactive,bool predictor,bool simulate2d,unsigned ftcount
 //# Kernels for periodic conditions
 void PeriodicIgnore(unsigned n,word *code);
 unsigned PeriodicMakeList(unsigned n,unsigned pini,bool stable,unsigned nmax,tdouble3 mapposmin,tdouble3 mapposmax,tdouble3 perinc,const double2 *posxy,const double *posz,const word *code,unsigned *listp);
-void PeriodicDuplicateVerlet(unsigned n,unsigned pini,tuint3 domcells,tdouble3 perinc
-  ,const unsigned *listp,unsigned *idp,word *code,unsigned *dcell
-  ,double2 *posxy,double *posz,float4 *velrhop,tsymatrix3f *spstau,float4 *velrhopm1);
 void PeriodicDuplicateSymplectic(unsigned n,unsigned pini
   ,tuint3 domcells,tdouble3 perinc,const unsigned *listp,unsigned *idp,word *code,unsigned *dcell
   ,double2 *posxy,double *posz,float4 *velrhop,tsymatrix3f *spstau,double2 *posxypre,double *poszpre,float4 *velrhoppre);

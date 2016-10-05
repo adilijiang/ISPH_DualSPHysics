@@ -2099,20 +2099,6 @@ void JSphCpu::PressureAssign(bool psimple,unsigned np,unsigned pinit,const tdoub
       else velrhop[p1].w=float(double(RhopZero)*abs(Gravity.z)*drz);
     }
   }
-
-  #ifdef _WITHOMP
-    #pragma omp parallel for schedule (guided)
-  #endif
-  for(int p1=0;p1<int(NpbOk);p1++) if((CODE_GetTypeValue(code[p1])==0)&&porder[p1]!=np){
-    unsigned p2k;
-    for(unsigned k=0;k<Npb;k++) if(idpc[k]==irelation[idpc[p1]]){
-      p2k=k;
-      break;
-    }
-
-    if(divr[p2k]<=FreeSurface)velrhop[p1].w=0;
-  }
-
 }
 
 #ifndef _WITHGPU

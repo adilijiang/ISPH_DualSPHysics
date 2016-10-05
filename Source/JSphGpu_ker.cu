@@ -915,42 +915,6 @@ template<bool psimple,TpFtMode ftmode> void Interaction_ForcesT
   }
 }
 //==============================================================================
-/*template<bool psimple,TpFtMode ftmode,bool lamsps> void Interaction_Forces_t2(TpDeltaSph tdelta,TpCellMode cellmode
-  ,float viscob,float viscof,unsigned bsbound,unsigned bsfluid
-  ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
-  ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,float4 *velrhop,const word *code,const unsigned *idp,float3 *dwxcorrg,float3 *dwzcorrg
-  ,const float *ftomassp,const tsymatrix3f *tau,tsymatrix3f *gradvel
-  ,float *viscdt,float* ar,float3 *ace,float *delta
-  ,TpShifting tshifting,float3 *shiftpos,bool simulate2d)
-{
-  if(tshifting){                const bool shift=true;
-    if(tdelta==DELTA_None)      Interaction_ForcesT<psimple,ftmode,lamsps,DELTA_None,shift>       (cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,pospress,velrhop,code,idp,dwxcorrg,dwzcorrg,ftomassp,tau,gradvel,viscdt,ar,ace,delta,tshifting,shiftpos,simulate2d);
-    if(tdelta==DELTA_Dynamic)   Interaction_ForcesT<psimple,ftmode,lamsps,DELTA_Dynamic,shift>    (cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,pospress,velrhop,code,idp,dwxcorrg,dwzcorrg,ftomassp,tau,gradvel,viscdt,ar,ace,delta,tshifting,shiftpos,simulate2d);
-    if(tdelta==DELTA_DynamicExt)Interaction_ForcesT<psimple,ftmode,lamsps,DELTA_DynamicExt,shift> (cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,pospress,velrhop,code,idp,dwxcorrg,dwzcorrg,ftomassp,tau,gradvel,viscdt,ar,ace,delta,tshifting,shiftpos,simulate2d);
-  }
-  else{                         const bool shift=false;
-    if(tdelta==DELTA_None)      Interaction_ForcesT<psimple,ftmode,lamsps,DELTA_None,shift>       (cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,pospress,velrhop,code,idp,dwxcorrg,dwzcorrg,ftomassp,tau,gradvel,viscdt,ar,ace,delta,tshifting,shiftpos,simulate2d);
-    if(tdelta==DELTA_Dynamic)   Interaction_ForcesT<psimple,ftmode,lamsps,DELTA_Dynamic,shift>    (cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,pospress,velrhop,code,idp,dwxcorrg,dwzcorrg,ftomassp,tau,gradvel,viscdt,ar,ace,delta,tshifting,shiftpos,simulate2d);
-    if(tdelta==DELTA_DynamicExt)Interaction_ForcesT<psimple,ftmode,lamsps,DELTA_DynamicExt,shift> (cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,pospress,velrhop,code,idp,dwxcorrg,dwzcorrg,ftomassp,tau,gradvel,viscdt,ar,ace,delta,tshifting,shiftpos,simulate2d);
-  }
-}
-//==============================================================================
-template<bool psimple,TpFtMode ftmode> void Interaction_Forces_t1(bool lamsps,TpDeltaSph tdelta,TpCellMode cellmode
-  ,float viscob,float viscof,unsigned bsbound,unsigned bsfluid
-  ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
-  ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,float4 *velrhop,const word *code,const unsigned *idp,float3 *dwxcorrg,float3 *dwzcorrg
-  ,const float *ftomassp,const tsymatrix3f *tau,tsymatrix3f *gradvel
-  ,float *viscdt,float* ar,float3 *ace,float *delta
-  ,TpShifting tshifting,float3 *shiftpos,bool simulate2d)
-{
-  if(lamsps)Interaction_Forces_t2<psimple,ftmode,true>  (tdelta,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,pospress,velrhop,code,idp,dwxcorrg,dwzcorrg,ftomassp,tau,gradvel,viscdt,ar,ace,delta,tshifting,shiftpos,simulate2d);
-  else      Interaction_Forces_t2<psimple,ftmode,false> (tdelta,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,pospress,velrhop,code,idp,dwxcorrg,dwzcorrg,ftomassp,tau,gradvel,viscdt,ar,ace,delta,tshifting,shiftpos,simulate2d);
-}*/
-//==============================================================================
 void Interaction_Forces(bool psimple,bool floating,bool usedem,TpSlipCond tslipcond,TpCellMode cellmode
   ,float viscob,float viscof,unsigned bsbound,unsigned bsfluid
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
@@ -969,154 +933,6 @@ void Interaction_Forces(bool psimple,bool floating,bool usedem,TpSlipCond tslipc
     else            Interaction_ForcesT<psimple,FTMODE_Dem>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,pospress,velrhop,code,idp,dwxcorrg,dwzcorrg,ftomassp,ace,simulate2d);
   }
 }
-
-//##############################################################################
-//# Kernels para Ren correction.
-//# Kernels for the Ren correction.
-//##############################################################################
-//------------------------------------------------------------------------------
-/// Realiza la interaccion de una particula con un conjunto de ellas. Bound-Fluid/Float
-/// Interaction of a particle with a set of particles (Bound-Fluid/Float).
-//------------------------------------------------------------------------------
-template<bool psimple,TpFtMode ftmode> __device__ void KerInteractionRenBoundBox
-  (unsigned p1,const unsigned &pini,const unsigned &pfin
-  ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,const float4 *velrhop,const word *code,const unsigned* idp
-  ,const float *ftomassp,float3 gravity
-  ,float massf,double3 posdp1,float3 posp1,float &pkfap1,float &pkfbp1)
-{
-  for(int p2=pini;p2<pfin;p2++){
-    float drx,dry,drz,pressp2;
-    KerGetParticlesDr<psimple>(p2,posxy,posz,pospress,posdp1,posp1,drx,dry,drz,pressp2);
-
-    float rr2=drx*drx+dry*dry+drz*drz;
-    if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
-      //-Wendland kernel
-      const float wab=KerGetKernelWab(rr2);
-
-      //===== Obtiene datos de particula p2 ===== 
-	  //===== Obtains particle p2 data =====
-      const float rhopp2=velrhop[p2].w;
-      if(!psimple)pressp2=(CTE.cteb*(powf(rhopp2*CTE.ovrhopzero,CTE.gamma)-1.0f));
-      float ftmassp2;    //-Contiene masa de particula floating o massf si es fluid. //-Contains mass of floating particle or massf if it is fluid.
-      if(USE_FLOATING){
-        const word cod=code[p2];
-        bool ftp2=(CODE_GetType(cod)==CODE_TYPE_FLOATING);
-        ftmassp2=(ftp2? ftomassp[CODE_GetTypeValue(cod)]: massf);
-      }
-
-      //-Acumula numerador y denominador para calculo de Pkf.
-	  //-Sums numerator and denominator for the Pkf computation.
-      const float pkf=((USE_FLOATING? ftmassp2: massf)/rhopp2)*wab;
-      pkfap1+=pkf*(pressp2+rhopp2*gravity.z*drz); //<--La gravedad debe aplicarse de forma general... //<--Gravity must apply in general form... !!ASKJOSE!!!
-      pkfbp1+=pkf;
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-/// Realiza interaccion entre particulas para Ren correction. Bound-Fluid/Float
-/// Interaction between particles for the Ren correction. Bound-Fluid/Float
-//------------------------------------------------------------------------------
-template<bool psimple,TpFtMode ftmode> __global__ void KerInteractionRenBound
-  (unsigned n,int hdiv,uint4 nc,const int2 *begincell,int3 cellzero,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,const float4 *velrhop,const word *code,const unsigned *idp
-  ,const float *ftomassp,float3 gravity,float *presskf)
-{
-  unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
-  if(p1<n){
-    float pkfap1=0,pkfbp1=0;
-
-    //-Carga datos de particula p1.
-	//-Loads particle p1 data.
-    double3 posdp1;
-    float3 posp1;
-    KerGetParticleData<psimple>(p1,posxy,posz,pospress,posdp1,posp1);
-
-    //-Obtiene limites de interaccion
-	//-Obtains interaction limits.
-    int cxini,cxfin,yini,yfin,zini,zfin;
-    KerGetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
-    //-Interaccion de Contorno con Fluidas.
-	//-Interaction of boundaries with fluids.
-    for(int z=zini;z<zfin;z++){
-      int zmod=(nc.w)*z+(nc.w*nc.z+1);//-Le suma Nct+1 que es la primera celda de fluido. //-Adds Nct+1 which is the first cell fluid.
-      for(int y=yini;y<yfin;y++){
-        int ymod=zmod+nc.x*y;
-        unsigned pini,pfin=0;
-        for(int x=cxini;x<cxfin;x++){
-          int2 cbeg=begincell[x+ymod];
-          if(cbeg.y){
-            if(!pfin)pini=cbeg.x;
-            pfin=cbeg.y;
-          }
-        }
-        if(pfin)KerInteractionRenBoundBox<psimple,ftmode> (p1,pini,pfin,posxy,posz,pospress,velrhop,code,idp,ftomassp,gravity,CTE.massf,posdp1,posp1,pkfap1,pkfbp1);
-      }
-    }
-    //-Almacena resultados.
-	//-Stores results.
-    presskf[p1]=(pkfbp1!=0? pkfap1/pkfbp1: 0); //<--Se deberia controlar cuando se aplica en función de las particulas de fluido que vea... //<--It should be controlled when applied according to the fluid particles you see...
-  }
-}
-
-//==============================================================================
-/// Realiza interaccion entre particulas para Ren correction. Bound-Fluid/Float
-/// Interaction between particles for the Ren correction. Bound-Fluid/Float
-//==============================================================================
-void Interaction_Ren(bool psimple,bool floating,TpCellMode cellmode
-  ,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,const float4 *velrhop,const word *code,const unsigned *idp
-  ,const float *ftomassp,tfloat3 gravity,float *presskf)
-{
-  const int hdiv=(cellmode==CELLMODE_H? 2: 1);
-  const uint4 nc=make_uint4(ncells.x,ncells.y,ncells.z,ncells.x*ncells.y);
-  const int3 cellzero=make_int3(cellmin.x,cellmin.y,cellmin.z);
-  if(npbok){
-    const unsigned bsbound=SPHBSIZE;
-    dim3 sgridb=GetGridSize(npbok,bsbound);
-    if(psimple){      const bool psimple=true;
-      if(!floating)   KerInteractionRenBound<psimple,FTMODE_None> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,pospress,velrhop,code,idp,ftomassp,Float3(gravity),presskf);
-      else            KerInteractionRenBound<psimple,FTMODE_Sph>  <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,pospress,velrhop,code,idp,ftomassp,Float3(gravity),presskf);
-    }else{            const bool psimple=false;
-      if(!floating)   KerInteractionRenBound<psimple,FTMODE_None> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,pospress,velrhop,code,idp,ftomassp,Float3(gravity),presskf);
-      else            KerInteractionRenBound<psimple,FTMODE_Sph>  <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,pospress,velrhop,code,idp,ftomassp,Float3(gravity),presskf);
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-/// Calcula nuevo valor de presion y desidad aplicando Ren correction.
-/// Computes new value by applying pressure and Ren density correction.
-//------------------------------------------------------------------------------
-template<bool psimple> __global__ void KerComputeRenPress(unsigned n
-  ,float beta,const float *presskf,float4 *velrhop,float4 *pospress)
-{
-  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
-  if(p<n){
-    const float pressp=(psimple? pospress[p].w: (CTE.cteb*(powf(velrhop[p].w*CTE.ovrhopzero,CTE.gamma)-1.0f)));
-    const float pressc=beta*presskf[p]+(1.f-beta)*pressp;
-    if(psimple)pospress[p].w=pressc;
-    velrhop[p].w=CTE.rhopzero*pow(pressc/CTE.cteb+1.f,1.f/CTE.gamma);
-  }
-}
-
-//==============================================================================
-/// Calcula nuevo valor de presion y desidad aplicando Ren correction.
-/// Computes new value by applying pressure and Ren density correction.
-//==============================================================================
-void ComputeRenPress(bool psimple,unsigned npbok
-  ,float beta,const float *presskf,float4 *velrhop,float4 *pospress)
-{
-  if(npbok){
-    dim3 sgrid=GetGridSize(npbok,SPHBSIZE);
-    if(psimple)KerComputeRenPress<true>  <<<sgrid,SPHBSIZE>>> (npbok,beta,presskf,velrhop,pospress);
-    else       KerComputeRenPress<false> <<<sgrid,SPHBSIZE>>> (npbok,beta,presskf,velrhop,pospress);
-  }
-}
-
 
 //##############################################################################
 //# Kernels para interaccion DEM.
@@ -1292,88 +1108,6 @@ void Interaction_ForcesDem(bool psimple,TpCellMode cellmode,unsigned bsize
   else       Interaction_ForcesDemT<false> (cellmode,bsize,nfloat,ncells,begincell,cellmin,dcell,ftridp,demdata,dtforce,posxy,posz,pospress,velrhop,code,idp,viscdt,ace);
 }
 
-
-//##############################################################################
-//# Kernels para Laminar+SPS.
-//##############################################################################
-//------------------------------------------------------------------------------
-/// Computes sub-particle stress tensor (Tau) for SPS turbulence model.
-//------------------------------------------------------------------------------
-__global__ void KerComputeSpsTau(unsigned n,unsigned pini,float smag,float blin
-  ,const float4 *velrhop,const float2 *gradvelff,float2 *tauff)
-{
-  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; 
-  if(p<n){
-    const unsigned p1=p+pini;
-    float2 rr=gradvelff[p1*3];   const float grad_xx=rr.x,grad_xy=rr.y;
-           rr=gradvelff[p1*3+1]; const float grad_xz=rr.x,grad_yy=rr.y;
-           rr=gradvelff[p1*3+2]; const float grad_yz=rr.x,grad_zz=rr.y;
-    const float pow1=grad_xx*grad_xx + grad_yy*grad_yy + grad_zz*grad_zz;
-    const float prr= grad_xy*grad_xy + grad_xz*grad_xz + grad_yz*grad_yz + pow1+pow1;
-    const float visc_sps=smag*sqrt(prr);
-    const float div_u=grad_xx+grad_yy+grad_zz;
-    const float sps_k=(2.0f/3.0f)*visc_sps*div_u;
-    const float sps_blin=blin*prr;
-    const float sumsps=-(sps_k+sps_blin);
-    const float twovisc_sps=(visc_sps+visc_sps);
-    float one_rho2=1.0f/velrhop[p1].w;
-    //-Calcula nuevos valores de tau[].
-	//-Computes new values of tau[].
-    const float tau_xx=one_rho2*(twovisc_sps*grad_xx +sumsps);
-    const float tau_xy=one_rho2*(visc_sps   *grad_xy);
-    tauff[p1*3]=make_float2(tau_xx,tau_xy);
-    const float tau_xz=one_rho2*(visc_sps   *grad_xz);
-    const float tau_yy=one_rho2*(twovisc_sps*grad_yy +sumsps);
-    tauff[p1*3+1]=make_float2(tau_xz,tau_yy);
-    const float tau_yz=one_rho2*(visc_sps   *grad_yz);
-    const float tau_zz=one_rho2*(twovisc_sps*grad_zz +sumsps);
-    tauff[p1*3+2]=make_float2(tau_yz,tau_zz);
-  }
-}
-
-//==============================================================================
-/// Computes sub-particle stress tensor (Tau) for SPS turbulence model.
-//==============================================================================
-void ComputeSpsTau(unsigned np,unsigned npb,float smag,float blin
-  ,const float4 *velrhop,const tsymatrix3f *gradvelg,tsymatrix3f *tau)
-{
-  const unsigned npf=np-npb;
-  if(npf){
-    dim3 sgridf=GetGridSize(npf,SPHBSIZE);
-    KerComputeSpsTau <<<sgridf,SPHBSIZE>>> (npf,npb,smag,blin,velrhop,(const float2*)gradvelg,(float2*)tau);
-  }
-}
-
-
-//##############################################################################
-//# Kernels para Delta-SPH.
-//# Kernels for Delta-SPH.
-//##############################################################################
-//------------------------------------------------------------------------------
-/// Añade valor de delta[] a ar[] siempre que no sea FLT_MAX.
-/// Adds value of delta[] to ar[] provided it is not FLT_MAX.
-//------------------------------------------------------------------------------
-__global__ void KerAddDelta(unsigned n,const float *delta,float *ar)
-{
-  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
-  if(p<n){
-    float rdelta=delta[p];
-    if(rdelta!=FLT_MAX)ar[p]+=rdelta;
-  }
-}
-
-//==============================================================================
-/// Añade valor de delta[] a ar[] siempre que no sea FLT_MAX.
-/// Adds value of delta[] to ar[] provided it is not FLT_MAX.
-//==============================================================================
-void AddDelta(unsigned n,const float *delta,float *ar){
-  if(n){
-    dim3 sgrid=GetGridSize(n,SPHBSIZE);
-    KerAddDelta <<<sgrid,SPHBSIZE>>> (n,delta,ar);
-  }
-}
-
-
 //##############################################################################
 //# Kernels para Shifting.
 //# Shifting kernels.
@@ -1452,98 +1186,6 @@ void RunShifting(unsigned np,unsigned npb,double dt
   if(npf){
     dim3 sgrid=GetGridSize(npf,SPHBSIZE);
     KerRunShifting <<<sgrid,SPHBSIZE>>> (npf,npb,dt,shiftcoef,freesurface,coeftfs,velrhop,divr,shiftpos,ShiftOffset);
-  }
-}
-
-
-//##############################################################################
-//# Kernels para ComputeStep (vel & rhop)
-//# Kernels for ComputeStep (vel & rhop)
-//##############################################################################
-//------------------------------------------------------------------------------
-/// ES:
-/// Calcula nuevos valores de  Pos, Check, Vel y Rhop (usando Verlet).
-/// El valor de Vel para bound siempre se pone a cero.
-/// - EN:
-/// Computes new values for Pos, Check, Vel and Ros (using Verlet).
-/// The value of Vel always set to be reset.
-//------------------------------------------------------------------------------
-template<bool floating,bool shift> __global__ void KerComputeStepVerlet
-  (unsigned n,unsigned npb,float rhopoutmin,float rhopoutmax
-  ,const float4 *velrhop1,const float4 *velrhop2
-  ,const float *ar,const float3 *ace,const float3 *shiftpos
-  ,double dt,double dt205,double dt2
-  ,double2 *movxy,double *movz,word *code,float4 *velrhopnew)
-{
-  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
-  if(p<n){
-    if(p<npb){//-Particulas: Fixed & Moving //-Particles: Fixed & Moving
-      float rrhop=float(double(velrhop2[p].w)+dt2*ar[p]);
-      rrhop=(rrhop<CTE.rhopzero? CTE.rhopzero: rrhop); //-Evita q las boundary absorvan a las fluidas. //-To prevent absorption of fluid particles by boundaries.
-      velrhopnew[p]=make_float4(0,0,0,rrhop);
-    }
-    else{ //-Particulas: Floating & Fluid //-Particles: Floating & Fluid
-      //-Actualiza densidad.
-	  //-Updates density.
-      float4 rvelrhop2=velrhop2[p];
-      rvelrhop2.w=float(double(rvelrhop2.w)+dt2*ar[p]);
-      float4 rvel1=velrhop1[p];
-      if(!floating || CODE_GetType(code[p])==CODE_TYPE_FLUID){//-Particulas: Fluid //-Particles: Fluid
-        //-Comprueba limites de rhop.
-		//-Checks rhop limits.
-        if(rvelrhop2.w<rhopoutmin||rvelrhop2.w>rhopoutmax){//-Solo marca como excluidas las normales (no periodicas). //-Only brands as excluded normal particles (not periodic)
-          const word rcode=code[p];
-          if(CODE_GetSpecialValue(rcode)==CODE_NORMAL)code[p]=CODE_SetOutRhop(rcode);
-        }
-        //-Calcula y graba desplazamiento de posicion.
-		//-Comutes and stores position displacement.
-        const float3 race=ace[p];
-        double dx=double(rvel1.x)*dt + double(race.x)*dt205;
-        double dy=double(rvel1.y)*dt + double(race.y)*dt205;
-        double dz=double(rvel1.z)*dt + double(race.z)*dt205;
-        if(shift){
-          const float3 rshiftpos=shiftpos[p];
-          dx+=double(rshiftpos.x);
-          dy+=double(rshiftpos.y);
-          dz+=double(rshiftpos.z);
-        }
-        movxy[p]=make_double2(dx,dy);
-        movz[p]=dz;
-        //-Actualiza velocidad.
-		//-Updates velocity.
-        rvelrhop2.x=float(double(rvelrhop2.x)+double(race.x)*dt2);
-        rvelrhop2.y=float(double(rvelrhop2.y)+double(race.y)*dt2);
-        rvelrhop2.z=float(double(rvelrhop2.z)+double(race.z)*dt2);
-        velrhopnew[p]=rvelrhop2;
-      }
-      else{//-Particulas: Floating //-Particles: Floating.
-        rvel1.w=(rvelrhop2.w<CTE.rhopzero? CTE.rhopzero: rvelrhop2.w); //-Evita q las floating absorvan a las fluidas. //-To prevent absorption of fluid particles by boundaries.
-        velrhopnew[p]=rvel1;
-      }
-    }
-  }
-}
-
-//==============================================================================
-/// Actualizacion de particulas segun fuerzas y dt usando Verlet.
-/// Updates particles according to forces and dt using Verlet. 
-//==============================================================================
-void ComputeStepVerlet(bool floating,bool shift,unsigned np,unsigned npb
-  ,const float4 *velrhop1,const float4 *velrhop2
-  ,const float *ar,const float3 *ace,const float3 *shiftpos
-  ,double dt,double dt2,float rhopoutmin,float rhopoutmax
-  ,word *code,double2 *movxy,double *movz,float4 *velrhopnew)
-{
-  double dt205=(0.5*dt*dt);
-  if(np){
-    dim3 sgrid=GetGridSize(np,SPHBSIZE);
-    if(shift){    const bool shift=true;
-      if(floating)KerComputeStepVerlet<true,shift>  <<<sgrid,SPHBSIZE>>> (np,npb,rhopoutmin,rhopoutmax,velrhop1,velrhop2,ar,ace,shiftpos,dt,dt205,dt2,movxy,movz,code,velrhopnew);
-      else        KerComputeStepVerlet<false,shift> <<<sgrid,SPHBSIZE>>> (np,npb,rhopoutmin,rhopoutmax,velrhop1,velrhop2,ar,ace,shiftpos,dt,dt205,dt2,movxy,movz,code,velrhopnew);
-    }else{        const bool shift=false;
-      if(floating)KerComputeStepVerlet<true,shift>  <<<sgrid,SPHBSIZE>>> (np,npb,rhopoutmin,rhopoutmax,velrhop1,velrhop2,ar,ace,shiftpos,dt,dt205,dt2,movxy,movz,code,velrhopnew);
-      else        KerComputeStepVerlet<false,shift> <<<sgrid,SPHBSIZE>>> (np,npb,rhopoutmin,rhopoutmax,velrhop1,velrhop2,ar,ace,shiftpos,dt,dt205,dt2,movxy,movz,code,velrhopnew);
-    }
   }
 }
 
@@ -1627,7 +1269,7 @@ void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb
 /// Calcula los nuevos valores de Pos, Vel y Rhop (usandopara Symplectic-Corrector)
 /// Pone vel de contorno a cero.
 /// - EN:
-/// Computes new values for Pos, Check, Vel and Ros (using Verlet).
+/// Computes new values for Pos, Check, Vel and Ros (using Symplectic-Corrector).
 /// The value of Vel always set to be reset.
 //------------------------------------------------------------------------------
 template<bool floating> __global__ void KerComputeStepSymplecticCor
@@ -2514,53 +2156,6 @@ __device__ void KerPeriodicDuplicatePos(unsigned pnew,unsigned pcopy
 /// It is assumed that all particles are valid.
 /// This kernel applies to single-GPU and multi-GPU because it uses domposmin.
 //------------------------------------------------------------------------------
-__global__ void KerPeriodicDuplicateVerlet(unsigned n,unsigned pini,uint3 cellmax,double3 perinc
-  ,const unsigned *listp,unsigned *idp,word *code,unsigned *dcell
-  ,double2 *posxy,double *posz,float4 *velrhop,tsymatrix3f *spstau,float4 *velrhopm1)
-{
-  const unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
-  if(p<n){
-    const unsigned pnew=p+pini;
-    const unsigned rp=listp[p];
-    const unsigned pcopy=(rp&0x7FFFFFFF);
-    //-Ajusta posicion y celda de nueva particula.
-	//-Adjusts cell position of the new particles.
-    KerPeriodicDuplicatePos(pnew,pcopy,(rp>=0x80000000),perinc.x,perinc.y,perinc.z,cellmax,posxy,posz,dcell);
-    //-Copia el resto de datos.
-	//-Copies the remaining data.
-    idp[pnew]=idp[pcopy];
-    code[pnew]=CODE_SetPeriodic(code[pcopy]);
-    velrhop[pnew]=velrhop[pcopy];
-    velrhopm1[pnew]=velrhopm1[pcopy];
-    if(spstau)spstau[pnew]=spstau[pcopy];
-  }
-}
-
-//==============================================================================
-/// Crea particulas periodicas a partir de una lista con las particulas a duplicar.
-/// Creates periodic particles from a list of particles to duplicate.
-//==============================================================================
-void PeriodicDuplicateVerlet(unsigned n,unsigned pini,tuint3 domcells,tdouble3 perinc
-  ,const unsigned *listp,unsigned *idp,word *code,unsigned *dcell
-  ,double2 *posxy,double *posz,float4 *velrhop,tsymatrix3f *spstau,float4 *velrhopm1)
-{
-  if(n){
-    uint3 cellmax=make_uint3(domcells.x-1,domcells.y-1,domcells.z-1);
-    dim3 sgrid=GetGridSize(n,SPHBSIZE);
-    KerPeriodicDuplicateVerlet <<<sgrid,SPHBSIZE>>> (n,pini,cellmax,Double3(perinc),listp,idp,code,dcell,posxy,posz,velrhop,spstau,velrhopm1);
-  }
-}
-
-//------------------------------------------------------------------------------
-/// ES:
-/// Crea particulas periodicas a partir de una lista con las particulas a duplicar.
-/// Se presupone que todas las particulas son validas.
-/// Este kernel vale para single-gpu y multi-gpu porque usa domposmin. 
-/// - EN:
-/// Creates periodic particles from a list of particles to duplicate.
-/// It is assumed that all particles are valid.
-/// This kernel applies to single-GPU and multi-GPU because it uses domposmin.
-//------------------------------------------------------------------------------
 template<bool varspre> __global__ void KerPeriodicDuplicateSymplectic(unsigned n,unsigned pini
   ,uint3 cellmax,double3 perinc,const unsigned *listp,unsigned *idp,word *code,unsigned *dcell
   ,double2 *posxy,double *posz,float4 *velrhop,tsymatrix3f *spstau,double2 *posxypre,double *poszpre,float4 *velrhoppre)
@@ -2583,7 +2178,6 @@ template<bool varspre> __global__ void KerPeriodicDuplicateSymplectic(unsigned n
       poszpre[pnew]=poszpre[pcopy];
       velrhoppre[pnew]=velrhoppre[pcopy];
     }
-    if(spstau)spstau[pnew]=spstau[pcopy];
   }
 }
 
@@ -3802,15 +3396,6 @@ template<bool psimple> __global__ void KerPressureAssignCode1
         else velrhop[p1].w=float(double(CTE.rhopzero)*abs(gravity.z)*drz);
       }
     }
-    else if(CODE_GetTypeValue(code[p1])==0&&porder[p1]!=np){
-      unsigned p2k;
-      for(unsigned k=0;k<npb;k++) if(idp[k]==irelationg[idp[p1]]){
-        p2k=k;
-        break;
-      }
-
-      if(divr[p2k]<=freesurface)velrhop[p1].w=0;
-    }
   }
 }
 
@@ -3866,59 +3451,6 @@ void InitArrayCol(unsigned n,unsigned int *v,int value){
 //==============================================================================
 /// Solve matrix with ViennaCL
 //==============================================================================
-
-template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
-void run_solverCPU(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,std::vector<double> &vectorx,const unsigned ppedim){ 
-  VectorType result(rhs);
-  VectorType residual(rhs);
-  viennacl::tools::timer timer;
-  timer.start();   
-  result = viennacl::linalg::solve(matrix, rhs, solver, precond);
-  viennacl::backend::finish();    
-  std::cout << "  > Solver time: " << timer.get() << std::endl;   
-  residual -= viennacl::linalg::prod(matrix, result); 
-  std::cout << "  > Relative residual: " << viennacl::linalg::norm_2(residual) / viennacl::linalg::norm_2(rhs) << std::endl;  
-  std::cout << "  > Iterations: " << solver.iters() << std::endl;
-
-  copy(result,vectorx);
-}
-
-void solveViennaCPU(double *matrixa, double *matrixb, double *matrixx,unsigned int *row, unsigned int *col,const unsigned ppedim,const unsigned nnz){
-    viennacl::context ctx;
-   
-    typedef double ScalarType;
-
-    double *matrixaCPU; matrixaCPU=new double[nnz]; cudaMemcpy(matrixaCPU,matrixa,sizeof(double)*nnz,cudaMemcpyDeviceToHost);
-    double *matrixbCPU; matrixbCPU=new double[ppedim]; cudaMemcpy(matrixbCPU,matrixb,sizeof(double)*ppedim,cudaMemcpyDeviceToHost);
-    double *matrixxCPU; matrixxCPU=new double[ppedim]; cudaMemcpy(matrixxCPU,matrixx,sizeof(double)*ppedim,cudaMemcpyDeviceToHost);
-    unsigned int *rowCPU; rowCPU=new unsigned int[ppedim+1]; cudaMemcpy(rowCPU,row,sizeof(unsigned int)*(ppedim+1),cudaMemcpyDeviceToHost);
-    unsigned int *colCPU; colCPU=new unsigned int[nnz]; cudaMemcpy(colCPU,col,sizeof(unsigned int)*nnz,cudaMemcpyDeviceToHost);
-    
-    std::vector<double>vectora; vectora.resize(nnz); for(int i=0;i<nnz;i++) vectora[i]=matrixaCPU[i];
-    std::vector<double>vectorb; vectorb.resize(ppedim); for(int i=0;i<ppedim;i++) vectorb[i]=matrixbCPU[i];
-    std::vector<double>vectorx; vectorx.resize(ppedim); for(int i=0;i<ppedim;i++) vectorx[i]=matrixxCPU[i];
-    std::vector<int>vectorrow; vectorrow.resize(ppedim+1); for(int i=0;i<(ppedim+1);i++) vectorrow[i]=rowCPU[i];
-    std::vector<int>vectorcol; vectorcol.resize(nnz); for(int i=0;i<nnz;i++) vectorcol[i]=colCPU[i];
-
-    viennacl::compressed_matrix<ScalarType> vcl_compressed_matrix(ctx);
-    vcl_compressed_matrix.set(&vectorrow[0],&vectorcol[0],&vectora[0],ppedim,ppedim,nnz);
-
-    viennacl::vector<ScalarType> vcl_vec(vectorb.size(),ctx);
-    
-    copy(vectorb,vcl_vec);
-
-    viennacl::linalg::bicgstab_tag bicgstab(1e-5,2000);
-
-    std::cout<<"JACOBI PRECOND GPUCPU" <<std::endl;
-    viennacl::vector<ScalarType> vcl_result(vcl_compressed_matrix.size1(),ctx);
-    viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_compressed_matrix,viennacl::linalg::jacobi_tag());
-    run_solverCPU(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_jacobi,vectorx,ppedim);
-
-    for(int i=0;i<ppedim;i++) matrixxCPU[i]=vectorx[i]; cudaMemcpy(matrixx,matrixxCPU,sizeof(double)*ppedim,cudaMemcpyHostToDevice);
-    delete[] matrixaCPU; delete[] matrixbCPU; delete[] matrixxCPU; delete[] rowCPU; delete[] colCPU;
-    vectora.clear(); vectorb.clear(); vectorx.clear(); vectorrow.clear();vectorcol.clear();
-}    
-
 template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag,typename ScalarType>
 void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,viennacl::vector<ScalarType> & vcl_result){ 
   VectorType result(rhs);
@@ -4069,23 +3601,7 @@ template<bool psimple,TpFtMode ftmode> __global__ void KerInteractionForcesShift
     float rhopp1,pressp1;
     KerGetParticleData<psimple>(p1,posxy,posz,pospress,velrhop,velp1,rhopp1,posdp1,posp1,pressp1);
     pressp1=velrhop[p1].w;
-    //-Vars para Laminar+SPS
-	//-Variables for Laminar+SPS
-   // float2 taup1_xx_xy,taup1_xz_yy,taup1_yz_zz;
-    /*if(lamsps){
-      taup1_xx_xy=tauff[p1*3];
-      taup1_xz_yy=tauff[p1*3+1];
-      taup1_yz_zz=tauff[p1*3+2];
-    }*/
-    //-Vars para Laminar+SPS (calculo).
-	//-Variables for Laminar+SPS (computation).
-   // float2 grap1_xx_xy,grap1_xz_yy,grap1_yz_zz;
-    /*if(lamsps){
-      grap1_xx_xy=make_float2(0,0);
-      grap1_xz_yy=make_float2(0,0);
-      grap1_yz_zz=make_float2(0,0);
-    }*/
-
+   
     //-Obtiene limites de interaccion
 	//-Obtains interaction limits
     int cxini,cxfin,yini,yfin,zini,zfin;
@@ -4191,12 +3707,6 @@ template<bool floating> __global__ void KerComputeShift
       double dx=double(rshiftpos.x);
       double dy=double(rshiftpos.y);
       double dz=double(rshiftpos.z);
-      /*if(shift){
-        const float3 rshiftpos=shiftpos[p];
-        dx+=double(rshiftpos.x);
-        dy+=double(rshiftpos.y);
-        dz+=double(rshiftpos.z);
-      }*/
       movxy[p1]=make_double2(dx,dy);
       movz[p1]=dz;
     }
