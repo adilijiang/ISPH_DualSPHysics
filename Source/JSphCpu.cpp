@@ -1912,11 +1912,259 @@ void JSphCpu::MatrixASetup(const unsigned ppedim,unsigned &nnz,std::vector<int> 
   }
   row[ppedim]=nnz;
 }
-
+#include<iomanip>
 //===============================================================================
 ///Populate matrix with values
 //===============================================================================
-void JSphCpu::PopulateMatrixA(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
+void JSphCpu::PopulateMatrixAFluid(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
+  const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
+  const unsigned *porder,const unsigned *irelation,std::vector<double> &matrixb,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface,tfloat3 gravity,const double rhoZero)const{
+
+  const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
+  const int pfin=int(pinit+n);
+
+  /*#ifdef _WITHOMP
+    #pragma omp parallel for schedule (guided)
+  #endif*/
+  for(int p1=int(pinit);p1<pfin;p1++)if((CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2)&&porder[p1]!=int(Np)){
+    //-Obtain data of particle p1 / Obtiene datos de particula p1.
+    const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
+	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
+    const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
+    
+		//-Particle order in Matrix
+		unsigned oi = porder[p1];
+		const unsigned diag=row[oi];
+		col[diag]=oi;
+		unsigned index=diag+1;
+	  if(divr[p1]>freesurface){  
+			unsigned m=row[oi+1]-row[oi]-1; //number of neighbours
+			unsigned n=5; //number of equaitons
+			unsigned mCount=0;
+			int BCol=2*n+m+2;
+			double *B=new double[BCol*(m+1)];
+			std::memset(B,0,sizeof(double)*BCol*(m+1));
+      //FLUID INTERACTION
+      //-Obtain interaction limits / Obtiene limites de interaccion
+      int cxini,cxfin,yini,yfin,zini,zfin;
+      GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+
+      //-Search for neighbours in adjacent cells / Busqueda de vecinos en celdas adyacentes.
+      for(int z=zini;z<zfin;z++){
+        const int zmod=(nc.w)*z+cellinitial; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
+        for(int y=yini;y<yfin;y++){
+          int ymod=zmod+nc.x*y;
+          const unsigned pini=beginendcell[cxini+ymod];
+          const unsigned pfin=beginendcell[cxfin+ymod];
+
+          //-Interactions
+          //------------------------------------------------
+          for(unsigned p2=pini;p2<pfin;p2++){
+            const float drx=(psimple? psposp1.x-pspos[p2].x: float(posp1.x-pos[p2].x));
+            const float dry=(psimple? psposp1.y-pspos[p2].y: float(posp1.y-pos[p2].y));
+            const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
+            const float rr2=drx*drx+dry*dry+drz*drz;
+            if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
+  	          unsigned oj = porder[p2];
+
+		          //-Wendland kernel.
+              float frx,fry,frz;
+              GetKernel(rr2,drx,dry,drz,frx,fry,frz);
+							float wab=GetKernelWab(rr2);
+							B[mCount*BCol+0]=drx;			B[mCount*BCol+1]=-drx;
+							B[mCount*BCol+2]=drz;			B[mCount*BCol+3]=-drz;
+							B[mCount*BCol+4]=drx*drz; B[mCount*BCol+5]=-drx*drz;
+							B[mCount*BCol+6]=drx*drx; B[mCount*BCol+7]=-drx*drx;
+							B[mCount*BCol+8]=drz*drz; B[mCount*BCol+9]=-drz*drz;
+							B[mCount*BCol+2*n+mCount]=1.0;
+							B[(mCount+1)*BCol-1]=1.0/double(wab);
+							mCount++;
+
+			        //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
+              float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
+			        const float volume=massp2/RhopZero; //Volume of particle j
+			
+			        //===== Laplacian operator =====
+			        const float rDivW=drx*frx+dry*fry+drz*frz;
+			        float temp=2.0f*rDivW/(RhopZero*(rr2+Eta2));
+              matrixInd[index]=double(-temp*volume);
+              col[index]=oj;
+			        matrixInd[diag]+=double(temp*volume);
+              index++;
+		        }  
+          }
+        }
+	    }
+
+      //BOUNDARY INTERACTION
+      //-Search for neighbours in adjacent cells / Busqueda de vecinos en celdas adyacentes.
+      for(int z=zini;z<zfin;z++){
+        const int zmod=(nc.w)*z; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
+        for(int y=yini;y<yfin;y++){
+          int ymod=zmod+nc.x*y;
+          const unsigned pini=beginendcell[cxini+ymod];
+          const unsigned pfin=beginendcell[cxfin+ymod];
+
+          //-Interactions
+          //------------------------------------------------
+          for(unsigned p2=pini;p2<pfin;p2++){
+            const float drx=(psimple? psposp1.x-pspos[p2].x: float(posp1.x-pos[p2].x));
+            const float dry=(psimple? psposp1.y-pspos[p2].y: float(posp1.y-pos[p2].y));
+            const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
+            const float rr2=drx*drx+dry*dry+drz*drz;
+            if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
+              const unsigned idp2=idpc[p2];
+              const unsigned mkp2 = CODE_GetTypeValue(code[p2]);
+  	          unsigned oj=porder[p2];
+
+		          //-Wendland kernel.
+              float frx,fry,frz;
+              GetKernel(rr2,drx,dry,drz,frx,fry,frz);
+
+							if(mkp2!=1){
+								float wab=GetKernelWab(rr2);
+								B[mCount*BCol+0]=drx;			B[mCount*BCol+1]=-drx;
+								B[mCount*BCol+2]=drz;			B[mCount*BCol+3]=-drz;
+								B[mCount*BCol+4]=drx*drz; B[mCount*BCol+5]=-drx*drz;
+								B[mCount*BCol+6]=drx*drx; B[mCount*BCol+7]=-drx*drx;
+								B[mCount*BCol+8]=drz*drz; B[mCount*BCol+9]=-drz*drz;
+								B[mCount*BCol+2*n+mCount]=1.0;
+								B[(mCount+1)*BCol-1]=1.0/double(wab);
+								mCount++;
+							}
+
+			        //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
+              float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
+			        const float volume=massp2/RhopZero; //Volume of particle j
+			
+			        //===== Laplacian operator =====
+			        const float rDivW=drx*frx+dry*fry+drz*frz;
+			        float temp=2.0f*rDivW/(RhopZero*(rr2+Eta2));
+              
+              if(oi!=oj){
+                for(unsigned pk=diag;pk<unsigned(row[oi+1]);pk++){ 
+                  if(col[pk]==ppedim){
+                    matrixInd[pk]=double(-temp*volume);
+                    col[pk]=oj;
+			              matrixInd[diag]+=(temp*volume);
+                    break;
+                  }
+                  else if(col[pk]==oj){
+                    matrixInd[pk]-=double(temp*volume);
+                    matrixInd[diag]+=double(temp*volume);
+                    break;
+                  }
+                }
+              }
+              if(mkp2==1){
+                unsigned p2k;
+                for(unsigned k=0;k<Npb;k++) if(idpc[k]==irelation[idp2]){
+                  p2k=k;
+                  break;
+                }
+
+                float dist = pspos[p2k].z-pspos[p2].z;
+			          temp = temp * RhopZero * fabs(Gravity.z) * dist;
+			          matrixb[oi]+=double(volume*temp); 
+              }
+		        }  
+          }
+        }
+	    }
+
+			B[BCol*m+6]=-2.0; B[BCol*m+7]=2.0;
+			B[BCol*m+8]=-2.0; B[BCol*m+9]=2.0;
+
+
+			
+	std::ofstream FileOutput;
+  std::string TimeFile;   
+
+  TimeFile =  "Matrix.txt";
+
+  FileOutput.open(TimeFile.c_str());
+
+	for(int i=0;i<m+1;i++){
+		for(int j=0;j<BCol;j++){
+			FileOutput<<std::fixed<<std::setprecision(2)<<B[i*BCol+j]<<"\t";
+		}
+		FileOutput<<"\n";
+	}
+
+	FileOutput<<"\n";
+			bool optimal=false;
+			do{
+				optimal=true;
+    
+				unsigned colPiv;
+				double mostNegative=0.0;
+				for(int i=0;i<int(n*2);i++){
+					if(B[BCol*m+i]<mostNegative){
+						mostNegative=B[BCol*m+i];
+						colPiv=i;
+						optimal=false;
+					}
+				}
+
+				unsigned rowPiv=0;
+				if(!optimal){
+					double smallestFactor=-1.0;
+					for(int i=0;i<int(m);i++){
+						double colNumber=B[BCol*i+colPiv];
+						double lastCol=B[BCol*(i+1)-1];
+						if(colNumber!=0){
+							if((colNumber<0&&lastCol<0)||(colNumber>0&&lastCol>=0)){
+								if(smallestFactor==-1.0){
+									smallestFactor=B[BCol*(i+1)-1]/B[BCol*i+colPiv];
+									rowPiv=i;
+								}
+								else{
+									double currentFactor=B[BCol*(i+1)-1]/B[BCol*i+colPiv];
+									if(currentFactor<smallestFactor){
+										smallestFactor=currentFactor;
+										rowPiv=i;
+									}
+								}
+							}
+						}
+					}
+				}
+
+				double factor=1.0/B[BCol*rowPiv+colPiv];
+				for(int j=0;j<BCol;j++) B[BCol*rowPiv+j]=B[BCol*rowPiv+j]*factor;
+
+				for(int i=0;i<int(m+1);i++){
+					if(B[BCol*i+colPiv]!=0){
+						if(i!=rowPiv){
+							double factor=B[BCol*i+colPiv];
+							for(int j=0;j<BCol;j++) B[BCol*i+j]=B[BCol*i+j]-B[BCol*rowPiv+j]*factor;
+						}
+					}
+				}
+				
+
+				for(int i=0;i<m+1;i++){
+					for(int j=0;j<BCol;j++){
+						FileOutput<<std::fixed<<std::setprecision(2)<<B[i*BCol+j]<<"\t";
+					}
+					FileOutput<<"\n";
+				}
+
+				FileOutput<<"\n";
+	
+			}while(optimal==false);
+			FileOutput.close();
+			for(int i=0;i<int(m);i++){
+				double stencil=B[BCol*m+2*n+i];
+				int indexStencil=diag+1+i;
+				if(stencil>0) matrixInd[indexStencil]=matrixInd[indexStencil]*stencil;
+			}
+	  }
+    else matrixInd[diag]=1.0;
+  }
+}
+
+void JSphCpu::PopulateMatrixABoundary(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
   const unsigned *porder,const unsigned *irelation,std::vector<double> &matrixb,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface,tfloat3 gravity,const double rhoZero)const{
 
@@ -1932,12 +2180,12 @@ void JSphCpu::PopulateMatrixA(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
     const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
     
-	  //-Particle order in Matrix
-	  unsigned oi = porder[p1];
-    const unsigned diag=row[oi];
-    col[diag]=oi;
-    unsigned index=diag+1;
-    if(divr[p1]>freesurface){   
+		//-Particle order in Matrix
+		unsigned oi = porder[p1];
+		const unsigned diag=row[oi];
+		col[diag]=oi;
+		unsigned index=diag+1;
+	  if(divr[p1]>freesurface){  
       //FLUID INTERACTION
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;
