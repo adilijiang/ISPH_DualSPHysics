@@ -955,42 +955,43 @@ void JSphCpuSingle::SolvePPE(double dt){
   //Matrix Order and Free Surface
   POrder=ArraysCpu->ReserveUint(); memset(POrder,np,sizeof(unsigned)*np);
   Divr=ArraysCpu->ReserveFloat(); memset(Divr,0,sizeof(float)*np);
- 
+
   FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Fluid
   FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Bound
   FreeSurfaceFind(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Bound-Fluid
   FreeSurfaceFind(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Bound-Bound
   MatrixOrder(np,0,POrder,Idpc,Irelationc,Codec,PPEDim);
-
-  //RHS
   b.resize(PPEDim,0);
-  PopulateMatrixB(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Fluid-Fluid
-  PopulateMatrixB(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Fluid-Bound
-  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Bound-Fluid
-  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Bound-Bound
   rowInd.resize(PPEDim+1,0);
-    
   unsigned Nnz=0;
-
   //Organising storage for parallelism
   MatrixStorage(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface);//-Fluid-Fluid
   MatrixStorage(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface);//-Fluid-Bound
   MatrixStorage(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface);//-Bound-Fluid
   MatrixStorage(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface);//-Bound-Bound
   MatrixASetup(PPEDim,Nnz,rowInd); 
+  stencil.resize((Nnz-PPEDim),1);
+  //FindStencilFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,stencil,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface);
+  //FindStencilFluid(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,stencil,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface);
+  //RHS
+  PopulateMatrixB(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface,stencil,rowInd); //-Fluid-Fluid
+  PopulateMatrixB(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface,stencil,rowInd); //-Fluid-Bound
+  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface,stencil,rowInd); //-Bound-Fluid
+  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface,stencil,rowInd); //-Bound-Bound
   colInd.resize(Nnz,PPEDim); 
   a.resize(Nnz,0);
   //LHS
-  PopulateMatrixAFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Irelationc,b,Idpc,Codec,PPEDim,FreeSurface,Gravity,RhopZero);//-Fluid-Fluid
+  PopulateMatrixAFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Irelationc,b,Idpc,Codec,PPEDim,FreeSurface,Gravity,RhopZero,stencil);//-Fluid-Fluid
   //PopulateMatrixAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,FreeSurface);//-Fluid-Bound
   PopulateMatrixABoundary(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Irelationc,b,Idpc,Codec,PPEDim,FreeSurface,Gravity,RhopZero); //-Fluid-Fluid
   //PopulateMatrixAInteractBound(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,FreeSurface); //-Fluid-Bound
-  //FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
-  //FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
+  FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
+  FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
   // allocate vectors
   x.resize(PPEDim,0);
   
-   /*ofstream FileOutput;
+ 
+   /* ofstream FileOutput;
     string TimeFile;
 
     ostringstream TimeNum;
@@ -1003,17 +1004,21 @@ void JSphCpuSingle::SolvePPE(double dt){
     FileOutput.open(TimeFile.c_str());
 
   for(int i=0;i<npbok;i++){
-    FileOutput << fixed << setprecision(19) << "particle "<< Idpc[i] << "\t Order " << POrder[i] << "\t b " << b[POrder[i]] << "\n";
-    if(POrder[i]!=np)for(int j=rowInd[POrder[i]];j<rowInd[POrder[i]+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\n";
+    if(POrder[i]!=np){
+      FileOutput << fixed << setprecision(19) << "particle "<< Idpc[i] << "\t Order " << POrder[i] << "\t b " << b[POrder[i]] << "\n";
+      for(int j=rowInd[POrder[i]];j<rowInd[POrder[i]+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\n";
+    }
   }
 
   for(int i=npb;i<np;i++){
-    FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << POrder[i] << "\t b " << b[POrder[i]] << "\n";
-    if(POrder[i]!=np) for(int j=rowInd[POrder[i]];j<rowInd[POrder[i]+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\n";
+    if(POrder[i]!=np){
+      FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << POrder[i] << "\t b " << b[POrder[i]] << "\n";
+      for(int j=rowInd[POrder[i]];j<rowInd[POrder[i]+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\n";
+    }
   }
-  FileOutput.close();
-
-  count++;*/ 
+  FileOutput.close();  
+  
+  count++;
   //solvers
 #ifndef _WITHGPU
   solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,b,x,rowInd,colInd,PPEDim,Nnz); 
@@ -1029,7 +1034,6 @@ void JSphCpuSingle::SolvePPE(double dt){
   FileOutput.close();
 
   count++; */
-
   PressureAssign(Psimple,np,0,Posc,PsPosc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb,Divr,Gravity);
   //for(int i=0;i<Np;i++)Velrhopc[i].w=Divr[i];
   b.clear();
@@ -1037,6 +1041,7 @@ void JSphCpuSingle::SolvePPE(double dt){
   x.clear();
   rowInd.clear();
   colInd.clear();
+  stencil.clear();
 }
 
 //==============================================================================
