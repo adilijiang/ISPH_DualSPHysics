@@ -976,17 +976,21 @@ void JSphCpuSingle::SolvePPE(double dt){
   MatrixStorage(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface,Mrow);//-Fluid-Bound
   MatrixStorage(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface,Mrow);//-Bound-Fluid
   MatrixStorage(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface,Mrow);//-Bound-Bound
-  MatrixASetup(PPEDim,Nnz,rowInd,mNnz,Mrow); 
+  MatrixStencilSetup(PPEDim,mNnz,Mrow); 
   stencil.resize(mNnz,0.0);
-  FindStencilFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,stencil,Mrow,POrder,Idpc,Codec,PPEDim,FreeSurface);
-  FindStencilFluid(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,stencil,Mrow,POrder,Idpc,Codec,PPEDim,FreeSurface);
-
+  stencilParticle.resize(mNnz,PPEDim);
+  FindStencilFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,stencil,Mrow,POrder,Idpc,Codec,PPEDim,FreeSurface,stencilParticle,rowInd);
+  FindStencilFluid(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,stencil,Mrow,POrder,Idpc,Codec,PPEDim,FreeSurface,stencilParticle,rowInd);
+  MatrixASetup(PPEDim,Nnz,rowInd); 
   colInd.resize(Nnz,PPEDim); 
   a.resize(Nnz,0);
+  PopulateMatrixAStencil(npf,npb,stencil,stencilParticle,Mrow,a,b,rowInd,colInd,Divr,POrder,Irelationc,Idpc,Codec,FreeSurface,Gravity,RhopZero,PsPosc,PPEDim);
+  PopulateMatrixAStencil(npbok,0,stencil,stencilParticle,Mrow,a,b,rowInd,colInd,Divr,POrder,Irelationc,Idpc,Codec,FreeSurface,Gravity,RhopZero,PsPosc,PPEDim);
+
   //LHS
-  PopulateMatrixAFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Irelationc,b,Idpc,Codec,PPEDim,FreeSurface,Gravity,RhopZero,stencil,Mrow);//-Fluid-Fluid
+  //PopulateMatrixAFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Irelationc,b,Idpc,Codec,PPEDim,FreeSurface,Gravity,RhopZero,stencil,Mrow);//-Fluid-Fluid
   //PopulateMatrixAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,FreeSurface);//-Fluid-Bound
-  PopulateMatrixABoundary(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Irelationc,b,Idpc,Codec,PPEDim,FreeSurface,Gravity,RhopZero,stencil,Mrow); //-Fluid-Fluid
+  //PopulateMatrixABoundary(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Irelationc,b,Idpc,Codec,PPEDim,FreeSurface,Gravity,RhopZero,stencil,Mrow); //-Fluid-Fluid
   //PopulateMatrixAInteractBound(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,FreeSurface); //-Fluid-Bound
   FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
   FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);

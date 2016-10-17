@@ -219,6 +219,7 @@ protected:
   std::vector<int> rowInd;
   std::vector<double> x;
   std::vector<double> stencil;
+  std::vector<int> stencilParticle;
   std::vector<int> Mrow;
   void KernelCorrection(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
 	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,tdouble3 *dwxcorr,tdouble3 *dwzcorr)const;
@@ -234,7 +235,8 @@ protected:
     const tdouble3 *pos,const tfloat3 *pspos,float *divr,const word *code)const;
   void MatrixStorage(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
 	  float *divr,std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface,std::vector<int> &mrow)const;
-  void MatrixASetup(const unsigned ppedim,unsigned &nnz,std::vector<int> &row,unsigned &mnnz,std::vector<int> &mrow)const;
+  void MatrixStencilSetup(const unsigned ppedim,unsigned &mnnz,std::vector<int> &mrow)const;
+  void MatrixASetup(const unsigned ppedim,unsigned &nnz,std::vector<int> &row)const;
   void PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
 	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,
     const unsigned *idpc,const double dt,const unsigned ppedim,const float *divr,const float freesurface,std::vector<int> &row)const;
@@ -251,8 +253,11 @@ protected:
   void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz);
  
   void FindStencilFluid(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,float *divr,std::vector<double> &Stencil,std::vector<int> &row,
-  const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface)const;
+	const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,float *divr,std::vector<double> &stencil,std::vector<int> &mrow,
+  const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface,std::vector<int> &stencilparticle,std::vector<int> &row)const;
+
+  void PopulateMatrixAStencil(unsigned n,unsigned pinit,std::vector<double> &stencil,std::vector<int> &stencilparticle,std::vector<int> &mrow,std::vector<double> &matrixInd,std::vector<double> &matrixb
+    ,std::vector<int> &row,std::vector<int> &col,float *divr,const unsigned *porder,const unsigned *irelation,const unsigned *idpc,const word *code,const float freesurface,tfloat3 gravity,const double rhoZero,const tfloat3 *pspos,const unsigned ppedim)const;
 
   void Interaction_Shifting(unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
