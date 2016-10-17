@@ -1740,16 +1740,18 @@ void JSphCpu::FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
   }
 }
 
+#include <iomanip>
 void JSphCpu::FindStencilFluid(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,float *divr,std::vector<double> &Stencil,std::vector<int> &row,
+	const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,float *divr,std::vector<double> &Stencil,std::vector<int> &mrow,
   const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
-
-  #ifdef _WITHOMP
+  ofstream FileOutput;
+  FileOutput.open("MATRIX.txt");
+  /*#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
-  #endif
+  #endif*/
   for(int p1=int(pinit);p1<pfin;p1++)if((CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2)&&porder[p1]!=int(Np)){
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
 	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
@@ -1757,9 +1759,10 @@ void JSphCpu::FindStencilFluid(bool psimple,unsigned n,unsigned pinit,tint4 nc,i
     
 		//-Particle order in Matrix
 		unsigned oi = porder[p1];
-		const unsigned diag=row[oi];
 	  if(divr[p1]>freesurface){  
-			unsigned m=row[oi+1]-row[oi]-1; //number of neighbours
+     FileOutput << "Particle " << idpc[p1] << "\n";
+			unsigned m=mrow[oi+1]-mrow[oi]-1; //number of neighbours
+      unsigned diag=mrow[oi];
 			unsigned n=5; //number of equaitons
 			unsigned mCount=0;
 			int BCol=2*n+m+2;
@@ -1790,15 +1793,14 @@ void JSphCpu::FindStencilFluid(bool psimple,unsigned n,unsigned pinit,tint4 nc,i
               float frx,fry,frz;
               GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 							float wab=GetKernelWab(rr2);
-							B[mCount*BCol+0]=drx;			B[mCount*BCol+1]=-drx;
-							B[mCount*BCol+2]=drz;			B[mCount*BCol+3]=-drz;
-							B[mCount*BCol+4]=drx*drz; B[mCount*BCol+5]=-drx*drz;
-							B[mCount*BCol+6]=drx*drx; B[mCount*BCol+7]=-drx*drx;
-							B[mCount*BCol+8]=drz*drz; B[mCount*BCol+9]=-drz*drz;
+							B[mCount*BCol+0]=drx;			B[mCount*BCol+1]=(drx==0.0? 0.0:-drx);
+							B[mCount*BCol+2]=drz;			B[mCount*BCol+3]=(drz==0.0? 0.0:-drz);
+							B[mCount*BCol+4]=drx*drz; B[mCount*BCol+5]=(drx*drz==0.0? 0.0:-drx*drz);
+							B[mCount*BCol+6]=drx*drx; B[mCount*BCol+7]=(drx==0.0? 0.0:-drx*drx);
+							B[mCount*BCol+8]=drz*drz; B[mCount*BCol+9]=(drz==0.0? 0.0:-drz*drz);
 							B[mCount*BCol+2*n+mCount]=1.0;
 							B[(mCount+1)*BCol-1]=1.0/double(wab);
 							mCount++;
-              //if(idpc[p1]==195||idpc[p1]==275)std::cout<<idpc[p1]<<"\t"<<idpc[p2]<<"\n";
 		        }  
           }
         }
@@ -1821,43 +1823,29 @@ void JSphCpu::FindStencilFluid(bool psimple,unsigned n,unsigned pinit,tint4 nc,i
             const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
             const float rr2=drx*drx+dry*dry+drz*drz;
             if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-              const unsigned idp2=idpc[p2];
-              const unsigned mkp2 = CODE_GetTypeValue(code[p2]);
-  	          unsigned oj=porder[p2];
-
 		          //-Wendland kernel.
               float frx,fry,frz;
               GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 
-              if(mkp2!=1){
-   						  float wab=GetKernelWab(rr2);
-							  B[mCount*BCol+0]=drx;			B[mCount*BCol+1]=-drx;
-							  B[mCount*BCol+2]=drz;			B[mCount*BCol+3]=-drz;
-							  B[mCount*BCol+4]=drx*drz; B[mCount*BCol+5]=-drx*drz;
-							  B[mCount*BCol+6]=drx*drx; B[mCount*BCol+7]=-drx*drx;
-							  B[mCount*BCol+8]=drz*drz; B[mCount*BCol+9]=-drz*drz;
-							  B[mCount*BCol+2*n+mCount]=1.0;
-							  B[(mCount+1)*BCol-1]=1.0/double(wab);
-							  mCount++;
-              }
-              //if(idpc[p1]==195||idpc[p1]==275)std::cout<<idpc[p1]<<"\t"<<idpc[p2]<<"\n";
+ 						  float wab=GetKernelWab(rr2);
+							B[mCount*BCol+0]=drx;			B[mCount*BCol+1]=(drx==0.0? 0.0:-drx);
+							B[mCount*BCol+2]=drz;			B[mCount*BCol+3]=(drz==0.0? 0.0:-drz);
+							B[mCount*BCol+4]=drx*drz; B[mCount*BCol+5]=(drx*drz==0.0? 0.0:-drx*drz);
+							B[mCount*BCol+6]=drx*drx; B[mCount*BCol+7]=(drx==0.0? 0.0:-drx*drx);
+							B[mCount*BCol+8]=drz*drz; B[mCount*BCol+9]=(drz==0.0? 0.0:-drz*drz);
+							B[mCount*BCol+2*n+mCount]=1.0;
+							B[(mCount+1)*BCol-1]=1.0/double(wab);
+							mCount++;
 		        }  
           }
         }
 	    }
-
+      //------------------------------POSSIBLE BUG HERE, REVERSE SIGNS???
 			B[BCol*m+6]=-2.0; B[BCol*m+7]=2.0;
 			B[BCol*m+8]=-2.0; B[BCol*m+9]=2.0;
+      //---------
 
-
- /*     std::ofstream FileOutput;
-  std::string TimeFile;   
-
-  TimeFile =  "Matrix.txt";
-
-  FileOutput.open(TimeFile.c_str());
-
-	for(int i=0;i<m+1;i++){
+      /*for(int i=0;i<m+1;i++){
 		for(int j=0;j<BCol;j++){
 			FileOutput<<std::fixed<<std::setprecision(2)<<B[i*BCol+j]<<"\t";
 		}
@@ -1865,7 +1853,6 @@ void JSphCpu::FindStencilFluid(bool psimple,unsigned n,unsigned pinit,tint4 nc,i
 	}
 
 	FileOutput<<"\n";*/
-  
 			bool optimal=false;
 			do{
 				optimal=true;
@@ -1902,19 +1889,31 @@ void JSphCpu::FindStencilFluid(bool psimple,unsigned n,unsigned pinit,tint4 nc,i
 							}
 						}
 					}
-				
+				  
+				  double factor1=1.0/B[BCol*rowPiv+colPiv];
+				  for(int j=0;j<BCol;j++){
+            int index = BCol*rowPiv+j;
+            B[index]=B[index]*factor1;
+          }
 
-				  double factor=1.0/B[BCol*rowPiv+colPiv];
-				  for(int j=0;j<BCol;j++) B[BCol*rowPiv+j]=B[BCol*rowPiv+j]*factor;
+          //Make sure Negative zero does not occur in last column - POSSIBLE BUG if other negative values should ever be present (without this correction)
+          B[BCol*(rowPiv+1)-1] = abs(B[BCol*(rowPiv+1)-1]);
 
-				  for(int i=0;i<int(m+1);i++){
-					  if(B[BCol*i+colPiv]!=0){
+          for(int i=0;i<int(m+1);i++){
+					  if(B[BCol*i+colPiv]!=0.0){
 						  if(i!=rowPiv){
-							  double factor=B[BCol*i+colPiv];
-							  for(int j=0;j<BCol;j++) B[BCol*i+j]=B[BCol*i+j]-B[BCol*rowPiv+j]*factor;
+							  double factor2=B[BCol*i+colPiv];
+							  for(int j=0;j<BCol;j++){
+                  int index = BCol*i+j;
+                  B[index]=B[index]-B[BCol*rowPiv+j]*factor2;
+                  if(abs(B[index])<=ALMOSTZERO)B[index]=0.0;
+                }
+                 //Make sure Negative zero does not occur in last column - POSSIBLE BUG if other negative values should ever be present (without this correction)
+                 B[BCol*(i+1)-1] = abs(B[BCol*(i+1)-1]);
 						  }
 					  }
 				  }	
+         
         }
 
 	/*for(int i=0;i<m+1;i++){
@@ -1926,24 +1925,26 @@ void JSphCpu::FindStencilFluid(bool psimple,unsigned n,unsigned pinit,tint4 nc,i
 
 	FileOutput<<"\n";*/
 			}while(optimal==false);
-	 /* std::cout<<"\n";
-      FileOutput.close();
-  system("PAUSE");*/
-      for(int i=0;i<m;i++){
-        //if(idpc[p1]==195||idpc[p1]==275)std::cout<<idpc[p1]<<"\t"<<B[BCol*m+2*n+i]<<"\n";
-        if(B[BCol*m+2*n+i]>0.0)Stencil[diag-oi+i]=B[BCol*m+2*n+i];
-        else Stencil[diag-oi+i]=1.0;
+      
+      double centralWeight=0.0;
+      for(int i=0;i<int(m);i++){
+        double sten=B[BCol*m+2*n+i];
+        Stencil[diag+1+i]=sten;
+        centralWeight-=sten;
       }
-     // system("PAUSE");
+      Stencil[diag]=centralWeight;
+      FileOutput << Stencil[diag] << "\n";
+      for(int i=0;i<int(m);i++) if(Stencil[diag+1+i]!=0)FileOutput << Stencil[diag+1+i] << "\n";
     }
   }
+  FileOutput.close();
 }
 //===============================================================================
 ///Populate matrix b with values
 //===============================================================================
 void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
 	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
-	const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const double dt, const unsigned ppedim,const float *divr,const float freesurface,std::vector<double> &Stencil,std::vector<int> &row)const{
+	const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const double dt, const unsigned ppedim,const float *divr,const float freesurface,std::vector<int> &row)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -1959,7 +1960,6 @@ void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 	
 	  //-Particle order in Matrix
 	  unsigned oi = porder[p1];
-    unsigned stenCount=0;
     const unsigned diag=row[oi];
     if(divr[p1]>freesurface){
       //-Obtain interaction limits / Obtiene limites de interaccion
@@ -1998,8 +1998,7 @@ void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 			        const float temp_z=frx*dwxcorr[p1].z+frz*dwzcorr[p1].z;
 			        float temp=dvx*temp_x+dvz*temp_z;
 
-			        matrixb[oi]-=stencil[diag-oi+stenCount]*double(volume*temp);
-              stenCount++;
+			        matrixb[oi]-=double(volume*temp);
 		        }
 		      }
 	      }
@@ -2015,19 +2014,20 @@ void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 //===============================================================================
 void JSphCpu::MatrixStorage(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
   const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,float *divr,std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,
-  const unsigned ppedim,const float freesurface)const{
+  const unsigned ppedim,const float freesurface,std::vector<int> &Mrow)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
   
- /* #ifdef _WITHOMP
+  #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
-  #endif*/
+  #endif
   for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2){
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
 	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
     const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
     unsigned index = 0;
+    unsigned Mindex=0;
 	  //-Particle order in Matrix
 	  unsigned oi = porder[p1];
 
@@ -2046,30 +2046,36 @@ void JSphCpu::MatrixStorage(bool psimple,unsigned n,unsigned pinit,tint4 nc,int 
           
           //-Interactions
           //------------------------------------------------
-          for(unsigned p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==0||CODE_GetTypeValue(code[p2])==2){
+          for(unsigned p2=pini;p2<pfin;p2++){
             const float drx=(psimple? psposp1.x-pspos[p2].x: float(posp1.x-pos[p2].x));
             const float dry=(psimple? psposp1.y-pspos[p2].y: float(posp1.y-pos[p2].y));
             const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
             const float rr2=drx*drx+dry*dry+drz*drz;
             if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-              if(idpc[p1]==491) std::cout<< idpc[p2] <<"\n";
-              index++;
+              if(CODE_GetTypeValue(code[p2])==0||CODE_GetTypeValue(code[p2])==2) index++;
+              Mindex++;
             }
           }
         }
       }
     }
     row[oi]+=index;
+    Mrow[oi]+=Mindex;
   }
 }
 
-void JSphCpu::MatrixASetup(const unsigned ppedim,unsigned &nnz,std::vector<int> &row)const{
+void JSphCpu::MatrixASetup(const unsigned ppedim,unsigned &nnz,std::vector<int> &row,unsigned &mnnz,std::vector<int> &mrow)const{
   for(unsigned i=0;i<ppedim;i++){
     unsigned nnzOld=nnz;
     nnz += row[i]+1;
     row[i] = nnzOld;
+
+    unsigned mnnzOld=mnnz;
+    mnnz += mrow[i]+1;
+    mrow[i] = mnnzOld;
   }
   row[ppedim]=nnz;
+  mrow[ppedim]=mnnz;
 }
 #include<iomanip>
 //===============================================================================
@@ -2078,7 +2084,7 @@ void JSphCpu::MatrixASetup(const unsigned ppedim,unsigned &nnz,std::vector<int> 
 void JSphCpu::PopulateMatrixAFluid(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
   const unsigned *porder,const unsigned *irelation,std::vector<double> &matrixb,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface,tfloat3 gravity,const double rhoZero,
-  std::vector<double> &stencil)const{
+  std::vector<double> &stencil,std::vector<int> &mrow)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -2095,6 +2101,7 @@ void JSphCpu::PopulateMatrixAFluid(bool psimple,unsigned n,unsigned pinit,tint4 
 		//-Particle order in Matrix
 		unsigned oi = porder[p1];
     unsigned stenCount=0;
+    const unsigned mdiag=mrow[oi];
 		const unsigned diag=row[oi];
 		col[diag]=oi;
 		unsigned index=diag+1;
@@ -2148,9 +2155,9 @@ void JSphCpu::PopulateMatrixAFluid(bool psimple,unsigned n,unsigned pinit,tint4 
 			        //===== Laplacian operator =====
 			        const float rDivW=drx*frx+dry*fry+drz*frz;
 			        float temp=2.0f*rDivW/(RhopZero*(rr2+Eta2));
-              matrixInd[index]=stencil[diag-oi+stenCount]*double(-temp*volume);
+              matrixInd[index]=stencil[mdiag-oi+stenCount]*double(-temp*volume);
               col[index]=oj;
-			        matrixInd[diag]+=stencil[diag-oi+stenCount]*double(temp*volume);
+			        matrixInd[diag]+=stencil[mdiag-oi+stenCount]*double(temp*volume);
               index++;
               stenCount++;
 		        }  
@@ -2203,7 +2210,7 @@ void JSphCpu::PopulateMatrixAFluid(bool psimple,unsigned n,unsigned pinit,tint4 
 			        const float rDivW=drx*frx+dry*fry+drz*frz;
 			        float temp=2.0f*rDivW/(RhopZero*(rr2+Eta2));
               double sten=1.0;
-              if(mkp2!=1)sten=stencil[diag-oi+stenCount];
+              sten=stencil[mdiag-oi+stenCount];
               if(oi!=oj){
                 for(unsigned pk=diag;pk<unsigned(row[oi+1]);pk++){ 
                   if(col[pk]==ppedim){
@@ -2230,7 +2237,7 @@ void JSphCpu::PopulateMatrixAFluid(bool psimple,unsigned n,unsigned pinit,tint4 
 
                 float dist = pspos[p2k].z-pspos[p2].z;
 			          temp = temp * RhopZero * fabs(Gravity.z) * dist;
-			          matrixb[oi]+=double(volume*temp); 
+			          matrixb[oi]+=sten*double(volume*temp); 
               }
 		        }  
           }
@@ -2331,7 +2338,7 @@ void JSphCpu::PopulateMatrixAFluid(bool psimple,unsigned n,unsigned pinit,tint4 
 
 void JSphCpu::PopulateMatrixABoundary(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
-  const unsigned *porder,const unsigned *irelation,std::vector<double> &matrixb,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface,tfloat3 gravity,const double rhoZero)const{
+  const unsigned *porder,const unsigned *irelation,std::vector<double> &matrixb,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface,tfloat3 gravity,const double rhoZero,std::vector<double> &Stencil,std::vector<int> &mrow)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -2348,6 +2355,7 @@ void JSphCpu::PopulateMatrixABoundary(bool psimple,unsigned n,unsigned pinit,tin
 		//-Particle order in Matrix
 		unsigned oi = porder[p1];
     unsigned stenCount=0;
+    const unsigned mdiag=mrow[oi];
 		const unsigned diag=row[oi];
 		col[diag]=oi;
 		unsigned index=diag+1;
@@ -2386,9 +2394,9 @@ void JSphCpu::PopulateMatrixABoundary(bool psimple,unsigned n,unsigned pinit,tin
 			        //===== Laplacian operator =====
 			        const float rDivW=drx*frx+dry*fry+drz*frz;
 			        float temp=2.0f*rDivW/(RhopZero*(rr2+Eta2));
-              matrixInd[index]=stencil[diag-oi+stenCount]*double(-temp*volume);
+              matrixInd[index]=stencil[mdiag-oi+stenCount]*double(-temp*volume);
               col[index]=oj;
-			        matrixInd[diag]+=stencil[diag-oi+stenCount]*double(temp*volume);
+			        matrixInd[diag]+=stencil[mdiag-oi+stenCount]*double(temp*volume);
               index++;
               stenCount++;
 		        }  
@@ -2429,7 +2437,7 @@ void JSphCpu::PopulateMatrixABoundary(bool psimple,unsigned n,unsigned pinit,tin
 			        const float rDivW=drx*frx+dry*fry+drz*frz;
 			        float temp=2.0f*rDivW/(RhopZero*(rr2+Eta2));
               double sten=1.0;
-              if(mkp2!=1)sten=stencil[diag-oi+stenCount];
+              sten=stencil[mdiag-oi+stenCount];
               if(oi!=oj){
                 for(unsigned pk=diag;pk<unsigned(row[oi+1]);pk++){ 
                   if(col[pk]==ppedim){
@@ -2456,7 +2464,7 @@ void JSphCpu::PopulateMatrixABoundary(bool psimple,unsigned n,unsigned pinit,tin
 
                 float dist = pspos[p2k].z-pspos[p2].z;
 			          temp = temp * RhopZero * fabs(Gravity.z) * dist;
-			          matrixb[oi]+=double(volume*temp); 
+			          matrixb[oi]+=sten*double(volume*temp); 
               }
 		        }  
           }
@@ -2580,7 +2588,7 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
       viennacl::context target_ctx = viennacl::traits::context(vcl_compressed_matrix);
 
       viennacl::linalg::amg_tag amg_tag_agg_pmis;
-      amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_MIS2_AGGREGATION);
+      amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_AGGREGATION);
       if(tamginter==AMGINTER_AG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION); std::cout<<"INTERPOLATION: AGGREGATION "<<std::endl; }
       else if(tamginter==AMGINTER_SAG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_SMOOTHED_AGGREGATION); std::cout<<"INTERPOLATION: SMOOTHED AGGREGATION"<<std::endl; }
       amg_tag_agg_pmis.set_strong_connection_threshold(strongconnection);
