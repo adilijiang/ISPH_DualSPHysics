@@ -966,27 +966,33 @@ void JSphCpuSingle::SolvePPE(double dt){
   Mrow.resize(PPEDim+1,0);
   unsigned Nnz=0;
   unsigned mNnz=0;
-  //RHS
+ /* //RHS
   PopulateMatrixB(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface,rowInd); //-Fluid-Fluid
   PopulateMatrixB(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface,rowInd); //-Fluid-Bound
   PopulateMatrixB(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface,rowInd); //-Bound-Fluid
-  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface,rowInd); //-Bound-Bound
+  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface,rowInd); //-Bound-Bound*/
   //Organising storage for parallelism
   MatrixStorage(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface,Mrow);//-Fluid-Fluid
   MatrixStorage(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface,Mrow);//-Fluid-Bound
   MatrixStorage(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface,Mrow);//-Bound-Fluid
   MatrixStorage(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface,Mrow);//-Bound-Bound
+
+
+
   MatrixStencilSetup(PPEDim,mNnz,Mrow); 
   stencil.resize(mNnz,0.0);
   stencilParticle.resize(mNnz,PPEDim);
   FindStencilFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,stencil,Mrow,POrder,Idpc,Codec,PPEDim,FreeSurface,stencilParticle,rowInd);
   FindStencilFluid(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,stencil,Mrow,POrder,Idpc,Codec,PPEDim,FreeSurface,stencilParticle,rowInd);
+  PopulateMatrixBStencil(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface,stencilParticle,Mrow,rowInd);
   MatrixASetup(PPEDim,Nnz,rowInd); 
   colInd.resize(Nnz,PPEDim); 
   a.resize(Nnz,0);
   PopulateMatrixAStencil(npf,npb,stencil,stencilParticle,Mrow,a,b,rowInd,colInd,Divr,POrder,Irelationc,Idpc,Codec,FreeSurface,Gravity,RhopZero,PsPosc,PPEDim);
   PopulateMatrixAStencil(npbok,0,stencil,stencilParticle,Mrow,a,b,rowInd,colInd,Divr,POrder,Irelationc,Idpc,Codec,FreeSurface,Gravity,RhopZero,PsPosc,PPEDim);
-
+  stencil.clear();
+  stencilParticle.clear();
+  Mrow.clear();
   //LHS
   //PopulateMatrixAFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Irelationc,b,Idpc,Codec,PPEDim,FreeSurface,Gravity,RhopZero,stencil,Mrow);//-Fluid-Fluid
   //PopulateMatrixAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,FreeSurface);//-Fluid-Bound
@@ -1048,7 +1054,6 @@ void JSphCpuSingle::SolvePPE(double dt){
   x.clear();
   rowInd.clear();
   colInd.clear();
-  stencil.clear();
 }
 
 //==============================================================================

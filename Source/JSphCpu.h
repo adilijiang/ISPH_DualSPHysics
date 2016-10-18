@@ -259,6 +259,10 @@ protected:
   void PopulateMatrixAStencil(unsigned n,unsigned pinit,std::vector<double> &stencil,std::vector<int> &stencilparticle,std::vector<int> &mrow,std::vector<double> &matrixInd,std::vector<double> &matrixb
     ,std::vector<int> &row,std::vector<int> &col,float *divr,const unsigned *porder,const unsigned *irelation,const unsigned *idpc,const word *code,const float freesurface,tfloat3 gravity,const double rhoZero,const tfloat3 *pspos,const unsigned ppedim)const;
 
+  void PopulateMatrixBStencil(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,
+    const unsigned *idpc,const double dt,const unsigned ppedim,const float *divr,const float freesurface,std::vector<int> &stencilparticle,std::vector<int> &mrow,std::vector<int> &row)const;
+
   void Interaction_Shifting(unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tfloat3 *pspos,tfloat4 *velrhop,const unsigned *idp,const word *code

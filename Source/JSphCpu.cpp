@@ -1944,6 +1944,7 @@ void JSphCpu::FindStencilFluid(bool psimple,unsigned n,unsigned pinit,tint4 nc,i
       //FileOutput << Stencil[diag] << "\n";
       //for(int i=0;i<int(m);i++) if(Stencil[diag+1+i]!=0)FileOutput << Stencil[diag+1+i] << "\n";
       row[oi]=NonZeroCount;
+      delete[] B; B=NULL;
     }
   }
   FileOutput.close();
@@ -2071,6 +2072,57 @@ void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 	  }
 
     if(boundp2) matrixb[oi]=matrixb[oi]/dt;
+  } 
+}
+
+void JSphCpu::PopulateMatrixBStencil(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
+	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
+	const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,
+  const unsigned *idpc,const double dt, const unsigned ppedim,const float *divr,const float freesurface,std::vector<int> &stencilparticle,
+  std::vector<int> &mrow,std::vector<int> &row)const{
+
+  const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
+  const int pfin=int(pinit+n);
+
+  #ifdef _WITHOMP
+    #pragma omp parallel for schedule (guided)
+  #endif
+  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])==0||CODE_GetTypeValue(Codec[p1])==2){
+    if(divr[p1]>freesurface){
+      //-Obtain data of particle p1 / Obtiene datos de particula p1.
+      const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
+	    const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
+      const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
+	    unsigned oi = porder[p1];
+      const unsigned mdiag=mrow[oi];
+
+      for(int i=mdiag+1;i<mrow[oi+1];i++){
+        const unsigned p2=stencilparticle[i];
+        if(CODE_GetTypeValue(Codec[p2])==0||CODE_GetTypeValue(Codec[p2])==2){
+          const float drx=(psimple? psposp1.x-pspos[p2].x: float(posp1.x-pos[p2].x));
+          const float dry=(psimple? psposp1.y-pspos[p2].y: float(posp1.y-pos[p2].y));
+          const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
+          const float rr2=drx*drx+dry*dry+drz*drz;
+		      //-Wendland kernel.
+          float frx,fry,frz;
+          GetKernel(rr2,drx,dry,drz,frx,fry,frz);
+			
+          //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
+          float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
+			    const float volume=massp2/RhopZero; //Volume of particle j
+          
+          //=====Divergence of velocity==========
+					const float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
+							
+			    const float temp_x=frx*dwxcorr[p1].x+frz*dwzcorr[p1].x;
+			    const float temp_z=frx*dwxcorr[p1].z+frz*dwzcorr[p1].z;
+			    float temp=dvx*temp_x+dvz*temp_z;
+          float temp2=dvx*stencil[i]+dvz*stencil[i];
+			    matrixb[oi]-=double(volume*temp2);
+	      }
+        if(boundp2) matrixb[oi]=matrixb[oi]/dt;
+      }
+    }
   } 
 }
 
@@ -2540,7 +2592,7 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
       viennacl::context target_ctx = viennacl::traits::context(vcl_compressed_matrix);
 
       viennacl::linalg::amg_tag amg_tag_agg_pmis;
-      amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_MIS2_AGGREGATION);
+      amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_AGGREGATION);
       if(tamginter==AMGINTER_AG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION); std::cout<<"INTERPOLATION: AGGREGATION "<<std::endl; }
       else if(tamginter==AMGINTER_SAG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_SMOOTHED_AGGREGATION); std::cout<<"INTERPOLATION: SMOOTHED AGGREGATION"<<std::endl; }
       amg_tag_agg_pmis.set_strong_connection_threshold(strongconnection);
