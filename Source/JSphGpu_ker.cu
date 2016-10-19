@@ -2391,12 +2391,9 @@ __device__ void KerGetParticleDataIrelation(unsigned p1
 
 __device__ void KerFindIrelationCalc
   (unsigned p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
-  ,const word *code,const unsigned *idp,float massp2,double3 posdp1,unsigned idpg1,unsigned *irelationg,float &closestr,const word codep1)
+  ,const word *code,const unsigned *idp,float massp2,double3 posdp1,unsigned idpg1,unsigned *irelationg,float &closestr)
 {
-  word codep2;
-  if(codep1==1) codep2=0;
-  else if(codep1==0) codep2=2;
-  for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==codep2){
+  for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==0){
     float drx,dry,drz;
     KerGetParticlesIrelationDr(p2,posxy,posz,posdp1,drx,dry,drz);
     float rr2=drx*drx+dry*dry+drz*drz;
@@ -2411,7 +2408,7 @@ __global__ void KerFindIrelation
   (unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,unsigned *irelationg)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
-  /*if(p1<npb){
+  if(p1<npb){
     if(CODE_GetTypeValue(code[p1])==1){
       //-Carga datos de particula p1.
 	    //-Loads particle p1 data.
@@ -2423,21 +2420,7 @@ __global__ void KerFindIrelation
 
       KerFindIrelationCalc(p1,0,npb,posxy,posz,code,idp,CTE.massf,posdp1,idpg1,irelationg,closestr);
     }
-  }*/
-  if(p1<npb){
-      //-Carga datos de particula p1.
-	    //-Loads particle p1 data.
-      unsigned idpg1=idp[p1];
-      word codep1=CODE_GetTypeValue(code[p1]);
-      if(codep1==2)irelationg[idpg1]=npb;
-      else{
-        double3 posdp1;
-        KerGetParticleDataIrelation(p1,posxy,posz,posdp1);
-        float closestr=CTE.fourh2;
-        KerFindIrelationCalc(p1,0,npb,posxy,posz,code,idp,CTE.massf,posdp1,idpg1,irelationg,closestr,codep1);
-    }
   }
-
 }
 
 void FindIrelation(const unsigned bsbound,unsigned npb,const double2 *posxy
