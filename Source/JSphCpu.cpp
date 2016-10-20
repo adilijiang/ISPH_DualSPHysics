@@ -1923,9 +1923,9 @@ void JSphCpu::PopulateMatrixAFluid(bool psimple,unsigned n,unsigned pinit,tint4 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
 
-  /*#ifdef _WITHOMP
+  #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
-  #endif*/
+  #endif
   for(int p1=int(pinit);p1<pfin;p1++)if((CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2)&&porder[p1]!=int(Np)){
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
     const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
@@ -1938,12 +1938,6 @@ void JSphCpu::PopulateMatrixAFluid(bool psimple,unsigned n,unsigned pinit,tint4 
 		col[diag]=oi;
 		unsigned index=diag+1;
 	  if(divr[p1]>freesurface){  
-			unsigned m=row[oi+1]-row[oi]-1; //number of neighbours
-			unsigned n=5; //number of equaitons
-			unsigned mCount=0;
-			int BCol=2*n+m+2;
-			double *B=new double[BCol*(m+1)];
-			std::memset(B,0,sizeof(double)*BCol*(m+1));
       //FLUID INTERACTION
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;
@@ -1970,15 +1964,6 @@ void JSphCpu::PopulateMatrixAFluid(bool psimple,unsigned n,unsigned pinit,tint4 
 		          //-Wendland kernel.
               float frx,fry,frz;
               GetKernel(rr2,drx,dry,drz,frx,fry,frz);
-							float wab=GetKernelWab(rr2);
-							B[mCount*BCol+0]=drx;			B[mCount*BCol+1]=-drx;
-							B[mCount*BCol+2]=drz;			B[mCount*BCol+3]=-drz;
-							B[mCount*BCol+4]=drx*drz; B[mCount*BCol+5]=-drx*drz;
-							B[mCount*BCol+6]=drx*drx; B[mCount*BCol+7]=-drx*drx;
-							B[mCount*BCol+8]=drz*drz; B[mCount*BCol+9]=-drz*drz;
-							B[mCount*BCol+2*n+mCount]=1.0;
-							B[(mCount+1)*BCol-1]=1.0/double(wab);
-							mCount++;
 
 			        //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
               float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
@@ -2021,18 +2006,6 @@ void JSphCpu::PopulateMatrixAFluid(bool psimple,unsigned n,unsigned pinit,tint4 
               float frx,fry,frz;
               GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 
-							if(mkp2!=1){
-								float wab=GetKernelWab(rr2);
-								B[mCount*BCol+0]=drx;			B[mCount*BCol+1]=-drx;
-								B[mCount*BCol+2]=drz;			B[mCount*BCol+3]=-drz;
-								B[mCount*BCol+4]=drx*drz; B[mCount*BCol+5]=-drx*drz;
-								B[mCount*BCol+6]=drx*drx; B[mCount*BCol+7]=-drx*drx;
-								B[mCount*BCol+8]=drz*drz; B[mCount*BCol+9]=-drz*drz;
-								B[mCount*BCol+2*n+mCount]=1.0;
-								B[(mCount+1)*BCol-1]=1.0/double(wab);
-								mCount++;
-							}
-
 			        //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
               float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
 			        const float volume=massp2/RhopZero; //Volume of particle j
@@ -2071,94 +2044,6 @@ void JSphCpu::PopulateMatrixAFluid(bool psimple,unsigned n,unsigned pinit,tint4 
           }
         }
 	    }
-
-			B[BCol*m+6]=-2.0; B[BCol*m+7]=2.0;
-			B[BCol*m+8]=-2.0; B[BCol*m+9]=2.0;
-
-
-			
-	std::ofstream FileOutput;
-  std::string TimeFile;   
-
-  TimeFile =  "Matrix.txt";
-
-  FileOutput.open(TimeFile.c_str());
-
-	for(int i=0;i<m+1;i++){
-		for(int j=0;j<BCol;j++){
-			FileOutput<<std::fixed<<std::setprecision(2)<<B[i*BCol+j]<<"\t";
-		}
-		FileOutput<<"\n";
-	}
-
-	FileOutput<<"\n";
-			bool optimal=false;
-			do{
-				optimal=true;
-    
-				unsigned colPiv;
-				double mostNegative=0.0;
-				for(int i=0;i<int(n*2);i++){
-					if(B[BCol*m+i]<mostNegative){
-						mostNegative=B[BCol*m+i];
-						colPiv=i;
-						optimal=false;
-					}
-				}
-
-				unsigned rowPiv=0;
-				if(!optimal){
-					double smallestFactor=-1.0;
-					for(int i=0;i<int(m);i++){
-						double colNumber=B[BCol*i+colPiv];
-						double lastCol=B[BCol*(i+1)-1];
-						if(colNumber!=0){
-							if((colNumber<0&&lastCol<0)||(colNumber>0&&lastCol>=0)){
-								if(smallestFactor==-1.0){
-									smallestFactor=B[BCol*(i+1)-1]/B[BCol*i+colPiv];
-									rowPiv=i;
-								}
-								else{
-									double currentFactor=B[BCol*(i+1)-1]/B[BCol*i+colPiv];
-									if(currentFactor<smallestFactor){
-										smallestFactor=currentFactor;
-										rowPiv=i;
-									}
-								}
-							}
-						}
-					}
-				}
-
-				double factor=1.0/B[BCol*rowPiv+colPiv];
-				for(int j=0;j<BCol;j++) B[BCol*rowPiv+j]=B[BCol*rowPiv+j]*factor;
-
-				for(int i=0;i<int(m+1);i++){
-					if(B[BCol*i+colPiv]!=0){
-						if(i!=rowPiv){
-							double factor=B[BCol*i+colPiv];
-							for(int j=0;j<BCol;j++) B[BCol*i+j]=B[BCol*i+j]-B[BCol*rowPiv+j]*factor;
-						}
-					}
-				}
-				
-
-				for(int i=0;i<m+1;i++){
-					for(int j=0;j<BCol;j++){
-						FileOutput<<std::fixed<<std::setprecision(2)<<B[i*BCol+j]<<"\t";
-					}
-					FileOutput<<"\n";
-				}
-
-				FileOutput<<"\n";
-	
-			}while(optimal==false);
-			FileOutput.close();
-			for(int i=0;i<int(m);i++){
-				double stencil=B[BCol*m+2*n+i];
-				int indexStencil=diag+1+i;
-				if(stencil>0) matrixInd[indexStencil]=matrixInd[indexStencil]*stencil;
-			}
 	  }
     else matrixInd[diag]=1.0;
   }
