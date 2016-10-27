@@ -1320,6 +1320,7 @@ void JSphCpu::RunShifting(double dt){
           double TangZ=(NormX*rshiftpos.y-NormY*rshiftpos.x)/temp;
           temp=TangX*rshiftpos.x+TangY*rshiftpos.y+TangZ*rshiftpos.z;
           rshiftpos.x=temp*TangX;
+          rshiftpos.y=temp*TangY;
           rshiftpos.z=temp*TangZ;
         }
       }
