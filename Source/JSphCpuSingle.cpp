@@ -26,10 +26,10 @@
 #include "JWaveGen.h"
 
 #include <climits>
-#include <time.h>
+#include <time.h> 
 
 #include <vector>
-
+ 
 using namespace std;
 
 //==============================================================================
@@ -467,8 +467,8 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter){
 
   //-Interaction of Fluid-Fluid/Bound & Bound-Fluid (forces and DEM) / Interaccion Fluid-Fluid/Bound & Bound-Fluid (forces and DEM).
   float viscdt=0;
-  if(Psimple)JSphCpu::InteractionSimple_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,PsPosc,Velrhopc,Idpc,dWxCorr,dWzCorr,Codec,Acec);
-  else JSphCpu::Interaction_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,dWxCorr,dWzCorr,Codec,Acec);
+  if(Psimple)JSphCpu::InteractionSimple_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,PsPosc,Velrhopc,Idpc,dWxCorr,dWyCorr,dWzCorr,Codec,Acec);
+  else JSphCpu::Interaction_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,dWxCorr,dWyCorr,dWzCorr,Codec,Acec);
 
   //-For 2-D simulations zero the 2nd component / Para simulaciones 2D anula siempre la 2º componente
   if(Simulate2D)for(unsigned p=Npb;p<Np;p++)Acec[p].y=0;
@@ -918,17 +918,26 @@ void JSphCpuSingle::KernelCorrection(){
   const unsigned npf=np-npb;
 
   dWxCorr=ArraysCpu->ReserveDouble3();
+  dWyCorr=ArraysCpu->ReserveDouble3();
   dWzCorr=ArraysCpu->ReserveDouble3();
 
-  memset(dWxCorr,0,sizeof(tdouble3)*np);						
+  memset(dWxCorr,0,sizeof(tdouble3)*np);
+  memset(dWyCorr,0,sizeof(tdouble3)*np);
   memset(dWzCorr,0,sizeof(tdouble3)*np);								
 
-  JSphCpu::KernelCorrection(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Fluid-Fluid
-  JSphCpu::KernelCorrection(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Fluid-Bound
-  JSphCpu::KernelCorrection(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Bound-Fluid
-  JSphCpu::KernelCorrection(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Bound-Bound
-  JSphCpu::InverseCorrection(npf,npb,dWxCorr,dWzCorr);
-  JSphCpu::InverseCorrection(npbok,0,dWxCorr,dWzCorr);
+  JSphCpu::KernelCorrection(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWyCorr,dWzCorr); //-Fluid-Fluid
+  JSphCpu::KernelCorrection(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWyCorr,dWzCorr); //-Fluid-Bound
+  JSphCpu::KernelCorrection(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWyCorr,dWzCorr); //-Bound-Fluid
+  JSphCpu::KernelCorrection(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWyCorr,dWzCorr); //-Bound-Bound
+
+  if(Simulate2D){
+    JSphCpu::InverseCorrection(npf,npb,dWxCorr,dWzCorr);
+    JSphCpu::InverseCorrection(npbok,0,dWxCorr,dWzCorr);
+  }
+  else{
+    JSphCpu::InverseCorrection3D(npf,npb,dWxCorr,dWyCorr,dWzCorr);
+    JSphCpu::InverseCorrection3D(npbok,0,dWxCorr,dWyCorr,dWzCorr);
+  }
 }
 //==============================================================================
 /// PPE Solver
@@ -964,10 +973,10 @@ void JSphCpuSingle::SolvePPE(double dt){
 
   //RHS
   b.resize(PPEDim,0);
-  PopulateMatrixB(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Fluid-Fluid
-  PopulateMatrixB(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Fluid-Bound
-  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Bound-Fluid
-  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Bound-Bound
+  PopulateMatrixB(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Fluid-Fluid
+  PopulateMatrixB(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Fluid-Bound
+  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWzCorr,dWyCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Bound-Fluid
+  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Bound-Bound
   rowInd.resize(PPEDim+1,0);
     
   unsigned Nnz=0;
@@ -985,8 +994,8 @@ void JSphCpuSingle::SolvePPE(double dt){
   //PopulateMatrixAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,FreeSurface);//-Fluid-Bound
   PopulateMatrixABoundary(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Irelationc,b,Idpc,Codec,PPEDim,FreeSurface,Gravity,RhopZero); //-Fluid-Fluid
   //PopulateMatrixAInteractBound(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,FreeSurface); //-Fluid-Bound
-  //FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
-  //FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
+  FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
+  FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
   // allocate vectors
   x.resize(PPEDim,0);
   
@@ -1013,11 +1022,12 @@ void JSphCpuSingle::SolvePPE(double dt){
   }
   FileOutput.close();
 
-  count++;*/ 
+  count++;*/
   //solvers
 #ifndef _WITHGPU
   solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,b,x,rowInd,colInd,PPEDim,Nnz); 
 #endif
+  
   /*TimeFile =  "Pressure" + FileNum.str() + ", T = " + TimeNum.str() + ".txt";
 
     FileOutput.open(TimeFile.c_str());

@@ -16,7 +16,7 @@
 */
 
 #ifndef _WITHGPU
-  #define VIENNACL_WITH_OPENMP
+  //#define VIENNACL_WITH_OPENMP
   #include "viennacl/vector.hpp"
   #include "viennacl/compressed_matrix.hpp"
   #include "viennacl/linalg/bicgstab.hpp"
@@ -26,6 +26,7 @@
 
   #include "viennacl/linalg/amg.hpp" 
   #include "viennacl/tools/timer.hpp"
+  #include "viennacl/io/matrix_market.hpp"
 #endif
 
 #include "JSphCpu.h"
@@ -168,7 +169,7 @@ void JSphCpu::AllocCpuMemoryParticles(unsigned np,float over){
   //if(TDeltaSph==DELTA_DynamicExt)ArraysCpu->AddArrayCount(JArraysCpu::SIZE_4B,1);  ///<-delta
   ArraysCpu->AddArrayCount(JArraysCpu::SIZE_12B,1); ///<-ace
   ArraysCpu->AddArrayCount(JArraysCpu::SIZE_16B,1); ///<-velrhop
-  ArraysCpu->AddArrayCount(JArraysCpu::SIZE_24B,4); ///<-pos, dWxCorr, dWzCorr
+  ArraysCpu->AddArrayCount(JArraysCpu::SIZE_24B,5); ///<-pos, dWxCorr, dWyCorr, dWzCorr
   if(Psimple)ArraysCpu->AddArrayCount(JArraysCpu::SIZE_12B,1); ///<-pspos
   if(TStep==STEP_Symplectic){
     ArraysCpu->AddArrayCount(JArraysCpu::SIZE_24B,1); ///<-pospre
@@ -588,6 +589,7 @@ void JSphCpu::PosInteraction_Forces(TpInter tinter){
 	  ArraysCpu->Free(Divr);		 Divr=NULL;
     ArraysCpu->Free(POrder);    POrder=NULL;
 	  ArraysCpu->Free(dWxCorr);	 dWxCorr=NULL;
+    ArraysCpu->Free(dWyCorr);	 dWyCorr=NULL;
 	  ArraysCpu->Free(dWzCorr);	 dWzCorr=NULL;
     ArraysCpu->Free(PsPosc);       PsPosc=NULL;
   }
@@ -763,7 +765,7 @@ template<bool psimple,TpFtMode ftmode> void JSphCpu::InteractionForcesBound
 template<bool psimple,TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
   (TpInter tinter, unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,float visco
   ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
-  ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwzcorr,const word *code,const unsigned *idp
+  ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,const word *code,const unsigned *idp
   ,tfloat3 *ace)const
 {
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
@@ -844,10 +846,11 @@ template<bool psimple,TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
 
 			      //===== Acceleration from pressure gradient ===== 
             if(compute && tinter==2){
-			        const float temp_x=frx*dwxcorr[p1].x+frz*dwzcorr[p1].x; 
-			        const float temp_z=frx*dwxcorr[p1].z+frz*dwzcorr[p1].z; 
+			        const float temp_x=frx*dwxcorr[p1].x+fry*dwycorr[p1].x+frz*dwzcorr[p1].x;
+              const float temp_y=frx*dwxcorr[p1].y+fry*dwycorr[p1].y+frz*dwzcorr[p1].y;
+			        const float temp_z=frx*dwxcorr[p1].z+fry*dwycorr[p1].z+frz*dwzcorr[p1].z;
 			        const float temp=volumep2*(velrhop[p2].w-pressp1);
-              acep1.x+=temp*temp_x; acep1.y+=temp*fry; acep1.z+=temp*temp_z;
+              acep1.x+=temp*temp_x; acep1.y+=temp*temp_y; acep1.z+=temp*temp_z;
 			      }
           }
         }
@@ -981,7 +984,7 @@ template<bool psimple> void JSphCpu::InteractionForcesDEM
 template<bool psimple,TpFtMode ftmode> void JSphCpu::Interaction_ForcesT
   (TpInter tinter, unsigned np,unsigned npb,unsigned npbok
   ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwzcorr,const word *code,const unsigned *idp
+  ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,const word *code,const unsigned *idp
   ,tfloat3 *ace)const
 {
   const unsigned npf=np-npb;
@@ -992,10 +995,10 @@ template<bool psimple,TpFtMode ftmode> void JSphCpu::Interaction_ForcesT
 
   if(npf){
     //-Interaction Fluid-Fluid / Interaccion Fluid-Fluid
-    InteractionForcesFluid<psimple,ftmode> (tinter,npf,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,pspos,velrhop,dwxcorr,dwzcorr,code,idp,ace);
+    InteractionForcesFluid<psimple,ftmode> (tinter,npf,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,pspos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace);
 
 	  //-Interaction Fluid-Bound / Interaccion Fluid-Bound
-    InteractionForcesFluid<psimple,ftmode> (tinter,npf,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,pspos,velrhop,dwxcorr,dwzcorr,code,idp,ace);
+    InteractionForcesFluid<psimple,ftmode> (tinter,npf,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,pspos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace);
 
     //-Interaction of DEM Floating-Bound & Floating-Floating / Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
     //if(USE_DEM)InteractionForcesDEM<psimple> (CaseNfloat,nc,hdiv,cellfluid,begincell,cellzero,dcell,FtRidp,DemObjs,pos,pspos,velrhop,code,idp,viscdt,ace);
@@ -1012,14 +1015,14 @@ template<bool psimple,TpFtMode ftmode> void JSphCpu::Interaction_ForcesT
 //==============================================================================
 void JSphCpu::Interaction_Forces(TpInter tinter,unsigned np,unsigned npb,unsigned npbok
   ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const tdouble3 *pos,const tfloat4 *velrhop,const unsigned *idp,tdouble3 *dwxcorr,tdouble3 *dwzcorr,const word *code
+  ,const tdouble3 *pos,const tfloat4 *velrhop,const unsigned *idp,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,const word *code
   ,tfloat3 *ace)const
 {
   tfloat3 *pspos=NULL;
   const bool psimple=false;
-  if(!WithFloating) Interaction_ForcesT<psimple,FTMODE_None> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,pspos,velrhop,dwxcorr,dwzcorr,code,idp,ace);
-  else if(!UseDEM)  Interaction_ForcesT<psimple,FTMODE_Sph> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,pspos,velrhop,dwxcorr,dwzcorr,code,idp,ace);
-  else              Interaction_ForcesT<psimple,FTMODE_Dem> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,pspos,velrhop,dwxcorr,dwzcorr,code,idp,ace);
+  if(!WithFloating) Interaction_ForcesT<psimple,FTMODE_None> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,pspos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace);
+  else if(!UseDEM)  Interaction_ForcesT<psimple,FTMODE_Sph> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,pspos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace);
+  else              Interaction_ForcesT<psimple,FTMODE_Dem> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,pspos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace);
 }
 
 //==============================================================================
@@ -1028,14 +1031,14 @@ void JSphCpu::Interaction_Forces(TpInter tinter,unsigned np,unsigned npb,unsigne
 //==============================================================================
 void JSphCpu::InteractionSimple_Forces(TpInter tinter,unsigned np,unsigned npb,unsigned npbok
   ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const tfloat3 *pspos,const tfloat4 *velrhop,const unsigned *idp,tdouble3 *dwxcorr,tdouble3 *dwzcorr,const word *code
+  ,const tfloat3 *pspos,const tfloat4 *velrhop,const unsigned *idp,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,const word *code
   ,tfloat3 *ace)const
 {
   tdouble3 *pos=NULL;
   const bool psimple=true;
-  if(!WithFloating) Interaction_ForcesT<psimple,FTMODE_None> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,pspos,velrhop,dwxcorr,dwzcorr,code,idp,ace);
-  else if(!UseDEM)  Interaction_ForcesT<psimple,FTMODE_Sph> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,pspos,velrhop,dwxcorr,dwzcorr,code,idp,ace);
-  else              Interaction_ForcesT<psimple,FTMODE_Dem> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,pspos,velrhop,dwxcorr,dwzcorr,code,idp,ace);                             
+  if(!WithFloating) Interaction_ForcesT<psimple,FTMODE_None> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,pspos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace);
+  else if(!UseDEM)  Interaction_ForcesT<psimple,FTMODE_Sph> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,pspos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace);
+  else              Interaction_ForcesT<psimple,FTMODE_Dem> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,pspos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace);                             
 }
 
 //==============================================================================
@@ -1265,34 +1268,85 @@ void JSphCpu::RunShifting(double dt){
     float divrp1=Divr[p];
     double umagn=-double(ShiftCoef)*double(H)*double(H);// double(ShiftCoef)*double(H)*sqrt(vx*vx+vy*vy+vz*vz)*dt;
 
-    if(divrp1<FreeSurface){
+    if(Simulate2D){
+      if(divrp1<FreeSurface){
+          double NormX=-rshiftpos.x;
+          double NormZ=-rshiftpos.z;
+          double temp=NormX*NormX+NormZ*NormZ;
+          if(temp){
+            temp=sqrt(temp);
+            NormX=NormX/temp;
+            NormZ=NormZ/temp;
+            double TangX=-NormZ;
+            double TangZ=NormX;
+            temp=TangX*rshiftpos.x+TangZ*rshiftpos.z;
+            rshiftpos.x=temp*TangX;
+            rshiftpos.z=temp*TangZ;
+          }
+      }
+
+      if(divrp1>=FreeSurface && divrp1<=FreeSurface+ShiftOffset){ 
         double NormX=-rshiftpos.x;
         double NormZ=-rshiftpos.z;
         double temp=NormX*NormX+NormZ*NormZ;
-        temp=sqrt(temp);
-        NormX=NormX/temp;
-        NormZ=NormZ/temp;
-        double TangX=-NormZ;
-        double TangZ=NormX;
-        temp=TangX*rshiftpos.x+TangZ*rshiftpos.z;
-        rshiftpos.x=temp*TangX;
-        rshiftpos.z=temp*TangZ;
+        if(temp){
+          temp=sqrt(temp);
+          NormX=NormX/temp;
+          NormZ=NormZ/temp;
+          double TangX=-NormZ;
+          double TangZ=NormX;
+          double temp_s=TangX*rshiftpos.x+TangZ*rshiftpos.z;
+          double temp_n=NormX*rshiftpos.x+NormZ*rshiftpos.z;
+          double FactorShift=0.5*(1-cos(PI*double(divrp1-FreeSurface)/0.2));
+          rshiftpos.x=temp_s*TangX+temp_n*NormX*FactorShift;
+          rshiftpos.z=temp_s*TangZ+temp_n*NormZ*FactorShift;
+        }
+      }
     }
+    else{
+      if(divrp1<FreeSurface){
+        double NormX=-rshiftpos.x;
+        double NormY=-rshiftpos.y;
+        double NormZ=-rshiftpos.z;
+        double temp=NormX*NormX+NormY*NormY+NormZ*NormZ;
 
-    if(divrp1>=FreeSurface && divrp1<=FreeSurface+ShiftOffset){ 
-      double NormX=-rshiftpos.x;
-      double NormZ=-rshiftpos.z;
-      double temp=NormX*NormX+NormZ*NormZ;
-      temp=sqrt(temp);
-      NormX=NormX/temp;
-      NormZ=NormZ/temp;
-      double TangX=-NormZ;
-      double TangZ=NormX;
-      double temp_s=TangX*rshiftpos.x+TangZ*rshiftpos.z;
-      double temp_n=NormX*rshiftpos.x+NormZ*rshiftpos.z;
-      double FactorShift=0.5*(1-cos(PI*double(divrp1-FreeSurface)/0.2));
-      rshiftpos.x=temp_s*TangX+temp_n*NormX*FactorShift;
-      rshiftpos.z=temp_s*TangZ+temp_n*NormZ*FactorShift;
+        if(temp){
+          temp=sqrt(temp);
+          NormX=NormX/temp;
+          NormY=NormY/temp;
+          NormZ=NormZ/temp;
+          double TangX=(NormY*rshiftpos.z-NormZ*rshiftpos.y)/temp;
+          double TangY=(NormZ*rshiftpos.x-NormX*rshiftpos.z)/temp;
+          double TangZ=(NormX*rshiftpos.y-NormY*rshiftpos.x)/temp;
+          temp=TangX*rshiftpos.x+TangY*rshiftpos.y+TangZ*rshiftpos.z;
+          rshiftpos.x=temp*TangX;
+          rshiftpos.z=temp*TangZ;
+        }
+      }
+
+      if(divrp1>=FreeSurface && divrp1<=FreeSurface+ShiftOffset){ 
+        double NormX=-rshiftpos.x;
+        double NormY=-rshiftpos.y;
+        double NormZ=-rshiftpos.z;
+        double temp=NormX*NormX+NormY*NormY+NormZ*NormZ;
+
+        if(temp){
+          temp=sqrt(temp);
+          NormX=NormX/temp;
+          NormY=NormY/temp;
+          NormZ=NormZ/temp;
+          double TangX=(NormY*rshiftpos.z-NormZ*rshiftpos.y)/temp;
+          double TangY=(NormZ*rshiftpos.x-NormX*rshiftpos.z)/temp;
+          double TangZ=(NormX*rshiftpos.y-NormY*rshiftpos.x)/temp;
+
+          double temp_s=TangX*rshiftpos.x+TangY*rshiftpos.y+TangZ*rshiftpos.z;
+          double temp_n=NormX*rshiftpos.x+NormY*rshiftpos.y+NormZ*rshiftpos.z;
+          double FactorShift=0.5*(1-cos(PI*double(divrp1-FreeSurface)/0.2));
+          rshiftpos.x=temp_s*TangX+temp_n*NormX*FactorShift;
+          rshiftpos.y=temp_s*TangY+temp_n*NormY*FactorShift;
+          rshiftpos.z=temp_s*TangZ+temp_n*NormZ*FactorShift;
+        }
+      }
     }
 
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
@@ -1492,7 +1546,7 @@ void JSphCpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
 ///Find the closest fluid particle to each boundary particle
 //===============================================================================
 void JSphCpu::FindIrelation(unsigned n,unsigned pinit,const tdouble3 *pos,const unsigned *idpc,unsigned *irelation,const word *code)const{
-   /* const int pfin=int(pinit+n);
+  const int pfin=int(pinit+n);
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
@@ -1518,49 +1572,6 @@ void JSphCpu::FindIrelation(unsigned n,unsigned pinit,const tdouble3 *pos,const 
       }
     }
   }
-}*/
-  const int pfin=int(pinit+n);
-  #ifdef _WITHOMP
-    #pragma omp parallel for schedule (guided)
-  #endif
-  for(int p1=int(pinit);p1<pfin;p1++){
-    const unsigned idp1=idpc[p1];
-    word codep1=CODE_GetTypeValue(code[p1]);
-    if(codep1==2) irelation[idp1]=n;
-    else{
-      //-Load data of particle p1 / Carga datos de particula p1.
-      const tdouble3 posp1=pos[p1];
-      float closestR=1.5f*Fourh2;
-      if(codep1==1){
-      //-Interaction of boundary with type Fluid/Float / Interaccion de Bound con varias Fluid/Float.
-      //----------------------------------------------
-        for(int p2=int(pinit);p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==0){
-          const float drx=float(posp1.x-pos[p2].x);
-          const float dry=float(posp1.y-pos[p2].y);
-          const float drz=float(posp1.z-pos[p2].z);
-          const float rr2=drx*drx+dry*dry+drz*drz;
-          if(rr2<=closestR){
-            closestR=rr2;
-            irelation[idp1]=idpc[p2];
-          }
-        }
-      }
-      else if(codep1==0){
-      //-Interaction of boundary with type Fluid/Float / Interaccion de Bound con varias Fluid/Float.
-      //----------------------------------------------
-        for(int p2=int(pinit);p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==2){
-          const float drx=float(posp1.x-pos[p2].x);
-          const float dry=float(posp1.y-pos[p2].y);
-          const float drz=float(posp1.z-pos[p2].z);
-          const float rr2=drx*drx+dry*dry+drz*drz;
-          if(rr2<=closestR){
-            closestR=rr2;
-            irelation[idp1]=idpc[p2];
-          }
-        }
-      }
-    }
-  }
 }
 
 void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
@@ -1577,6 +1588,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,bool psimple,unsigned n,uns
     const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
 
     float Sum1x=0.0;
+    float Sum1y=0.0;
     float Sum1z=0.0;
     float Sum2=0.0;
 
@@ -1606,6 +1618,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,bool psimple,unsigned n,uns
 		      if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
             const float W=GetKernelWab(rr2);
             Sum1x+=W*velrhop[p2].x;
+            Sum1y+=W*velrhop[p2].y;
             Sum1z+=W*velrhop[p2].z;
             Sum2+=W;
           }
@@ -1616,10 +1629,12 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,bool psimple,unsigned n,uns
     if(Sum2){
       if(TSlipCond==SLIPCOND_Slip){
         velrhop[p1].x=(Sum1x/Sum2)/2.0f;
+        velrhop[p1].y=(Sum1y/Sum2)/2.0f;
         velrhop[p1].z=(Sum1z/Sum2)/2.0f;
       }
       else if(TSlipCond==SLIPCOND_NoSlip){
         velrhop[p1].x=-(Sum1x/Sum2)/2.0f;
+        velrhop[p1].y=-(Sum1y/Sum2)/2.0f;
         velrhop[p1].z=-(Sum1z/Sum2)/2.0f;
       }
     }
@@ -1630,7 +1645,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,bool psimple,unsigned n,uns
 ///Kernel Correction
 //===============================================================================
 void JSphCpu::KernelCorrection(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,
-	tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,tdouble3 *dwxcorr,tdouble3 *dwzcorr)const{
+	tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -1670,8 +1685,9 @@ void JSphCpu::KernelCorrection(bool psimple,unsigned n,unsigned pinit,tint4 nc,i
 		        double frx,fry,frz;
             GetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
 
-		        dwxcorr[p1].x-=volume*frx*drx; dwxcorr[p1].z-=volume*frz*drx;
-		        dwzcorr[p1].x-=volume*frx*drz; dwzcorr[p1].z-=volume*frz*drz;
+		        dwxcorr[p1].x-=volume*frx*drx; dwxcorr[p1].y-=volume*fry*drx; dwxcorr[p1].z-=volume*frz*drx;
+            dwycorr[p1].x-=volume*frx*dry; dwycorr[p1].y-=volume*fry*dry; dwycorr[p1].z-=volume*frz*dry;
+		        dwzcorr[p1].x-=volume*frx*drz; dwzcorr[p1].y-=volume*fry*drz; dwzcorr[p1].z-=volume*frz*drz;
 		      }
 		    }
 	    }
@@ -1696,6 +1712,32 @@ void JSphCpu::InverseCorrection(unsigned n, unsigned pinit, tdouble3 *dwxcorr,td
 	    dwzcorr[p1].x=-dwzcorr[p1].x*det;
 	    dwzcorr[p1].z=temp*det;
 	  }
+	}
+}
+
+void JSphCpu::InverseCorrection3D(unsigned n, unsigned pinit,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr)const{
+
+	const int pfin=int(pinit+n);
+
+  #ifdef _WITHOMP
+    #pragma omp parallel for schedule (guided)
+  #endif
+	for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])==0||CODE_GetTypeValue(Codec[p1])==2){
+    tdouble3 dwx=dwxcorr[p1];
+    tdouble3 dwy=dwycorr[p1];
+    tdouble3 dwz=dwzcorr[p1];
+    const double detiner=(dwx.x*dwy.y*dwz.z+dwx.y*dwy.z*dwz.x+dwy.x*dwz.y*dwx.z-(dwz.x*dwy.y*dwx.z+dwy.x*dwx.y*dwz.z+dwy.z*dwz.y*dwx.x));
+    if(detiner){
+      dwxcorr[p1].x= (dwy.y*dwz.z-dwy.z*dwz.y)/detiner;
+      dwxcorr[p1].y=-(dwx.y*dwz.z-dwx.z*dwz.y)/detiner;
+      dwxcorr[p1].z= (dwx.y*dwy.z-dwx.z*dwy.y)/detiner;
+      dwycorr[p1].x=-(dwy.x*dwz.z-dwy.z*dwz.x)/detiner;
+      dwycorr[p1].y= (dwx.x*dwz.z-dwx.z*dwz.x)/detiner;
+      dwycorr[p1].z=-(dwx.x*dwy.z-dwx.z*dwy.x)/detiner;
+      dwzcorr[p1].x= (dwy.x*dwz.y-dwy.y*dwz.x)/detiner;
+      dwzcorr[p1].y=-(dwx.x*dwz.y-dwx.y*dwz.x)/detiner;
+      dwzcorr[p1].z= (dwx.x*dwy.y-dwx.y*dwy.x)/detiner;
+    }
 	}
 }
 
@@ -1787,7 +1829,7 @@ void JSphCpu::FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 //===============================================================================
 void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
 	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
-	const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const double dt, const unsigned ppedim,const float *divr,const float freesurface)const{
+	const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,const unsigned *idpc,const double dt, const unsigned ppedim,const float *divr,const float freesurface)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -1837,9 +1879,10 @@ void JSphCpu::PopulateMatrixB(bool psimple,unsigned n,unsigned pinit,tint4 nc,in
 			        //=====Divergence of velocity==========
 							const float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
 							
-			        const float temp_x=frx*dwxcorr[p1].x+frz*dwzcorr[p1].x;
-			        const float temp_z=frx*dwxcorr[p1].z+frz*dwzcorr[p1].z;
-			        float temp=dvx*temp_x+dvz*temp_z;
+			        const float temp_x=frx*dwxcorr[p1].x+fry*dwycorr[p1].x+frz*dwzcorr[p1].x;
+              const float temp_y=frx*dwxcorr[p1].y+fry*dwycorr[p1].y+frz*dwzcorr[p1].y;
+			        const float temp_z=frx*dwxcorr[p1].z+fry*dwycorr[p1].z+frz*dwzcorr[p1].z;
+			        float temp=dvx*temp_x+dvy*temp_y+dvz*temp_z;
 
 			        matrixb[oi]-=double(volume*temp);
 		        }
@@ -2263,6 +2306,8 @@ void run_amg(viennacl::linalg::bicgstab_tag & bicgstab_solver,
   viennacl::tools::timer timer;
   timer.start();
   vcl_amg.setup(); 
+  std::cout << "levels = " << vcl_amg.levels() << "\n";
+  for(int i =0; i< vcl_amg.levels();i++) std::cout << "level " << i << "\t" << "size = " << vcl_amg.size(i) << "\n";
   viennacl::backend::finish(); 
   std::cout << "  > Setup time: " << timer.get() << std::endl;
   std::cout << " * CG solver (ViennaCL types)..." << std::endl;
@@ -2274,14 +2319,19 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
    
     typedef double ScalarType;
 
-    viennacl::compressed_matrix<ScalarType> vcl_compressed_matrix(ctx);
-    vcl_compressed_matrix.set(&row[0],&col[0],&matrixa[0],ppedim,ppedim,nnz);
-
     viennacl::vector<ScalarType> vcl_vec(matrixb.size(),ctx);
     
     copy(matrixb,vcl_vec);
 
-    viennacl::linalg::bicgstab_tag bicgstab(1e-5,2000);
+    viennacl::compressed_matrix<ScalarType> vcl_compressed_matrix;
+    vcl_compressed_matrix.set(&row[0],&col[0],&matrixa[0],ppedim,ppedim,nnz);
+
+    /*string filename="Matrix_A.mtx";
+    std::vector<std::map<unsigned int, ScalarType> >  temp(vcl_compressed_matrix.size1());
+    viennacl::copy(vcl_compressed_matrix, temp);
+    viennacl::io::write_matrix_market_file(temp, filename);*/
+
+    viennacl::linalg::bicgstab_tag bicgstab(tolerance,iterations);
 
     if(tprecond==PRECOND_Jacobi){
       std::cout<<"JACOBI PRECOND" <<std::endl;

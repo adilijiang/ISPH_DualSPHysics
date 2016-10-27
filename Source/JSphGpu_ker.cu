@@ -1148,47 +1148,41 @@ __global__ void KerRunShifting(unsigned n,unsigned pini,double dt
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
   if(p<n){
     const unsigned p1=p+pini;
-    //const float4 rvel=velrhop[p1];
     float3 rshiftpos=shiftpos[p1];
-    //const double vx=double(rvel.x);
-    //const double vy=double(rvel.y);
-    //const double vz=double(rvel.z);
-    double umagn=-double(shiftcoef)*double(CTE.h)*double(CTE.h);//double(shiftcoef)*double(CTE.h)*sqrt(vx*vx+vy*vy+vz*vz)*dt;
+    double umagn=-double(shiftcoef)*double(CTE.h)*double(CTE.h);
 
     if(divr[p1]<freesurface){
       double NormX=-rshiftpos.x;
       double NormZ=-rshiftpos.z;
       double temp=NormX*NormX+NormZ*NormZ;
-      temp=sqrt(temp);
-      NormX=NormX/temp;
-      NormZ=NormZ/temp;
-      double TangX=-NormZ;
-      double TangZ=NormX;
-      temp=TangX*rshiftpos.x+TangZ*rshiftpos.z;
-      rshiftpos.x=temp*TangX;
-      rshiftpos.z=temp*TangZ;
-      /*const float rdetect=shiftdetect[p1];
-      if(rdetect<freesurface)umagn=0;
-      else umagn*=(double(rdetect)-freesurface)/coeftfs;*/
+      if(temp){
+        temp=sqrt(temp);
+        NormX=NormX/temp;
+        NormZ=NormZ/temp;
+        double TangX=-NormZ;
+        double TangZ=NormX;
+        temp=TangX*rshiftpos.x+TangZ*rshiftpos.z;
+        rshiftpos.x=temp*TangX;
+        rshiftpos.z=temp*TangZ;
+      }
     }
 
     if(divr[p1]>=freesurface && divr[p1]<=freesurface+ShiftOffset){
       double NormX=-rshiftpos.x;
       double NormZ=-rshiftpos.z;
       double temp=NormX*NormX+NormZ*NormZ;
-      temp=sqrt(temp);
-      NormX=NormX/temp;
-      NormZ=NormZ/temp;
-      double TangX=-NormZ;
-      double TangZ=NormX;
-      double temp_s=TangX*rshiftpos.x+TangZ*rshiftpos.z;
-      double temp_n=NormX*rshiftpos.x+NormZ*rshiftpos.z;
-      double FactorShift=0.5*(1-cos(PI*double(divr[p1]-freesurface)/0.2));
-      rshiftpos.x=temp_s*TangX+temp_n*NormX*FactorShift;
-      rshiftpos.z=temp_s*TangZ+temp_n*NormZ*FactorShift;
-      /*const float rdetect=shiftdetect[p1];
-      if(rdetect<freesurface)umagn=0;
-      else umagn*=(double(rdetect)-freesurface)/coeftfs;*/
+      if(temp){
+        temp=sqrt(temp);
+        NormX=NormX/temp;
+        NormZ=NormZ/temp;
+        double TangX=-NormZ;
+        double TangZ=NormX;
+        double temp_s=TangX*rshiftpos.x+TangZ*rshiftpos.z;
+        double temp_n=NormX*rshiftpos.x+NormZ*rshiftpos.z;
+        double FactorShift=0.5*(1-cos(PI*double(divr[p1]-freesurface)/0.2));
+        rshiftpos.x=temp_s*TangX+temp_n*NormX*FactorShift;
+        rshiftpos.z=temp_s*TangZ+temp_n*NormZ*FactorShift;
+      }
     }
         
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
