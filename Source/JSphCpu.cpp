@@ -1268,86 +1268,51 @@ void JSphCpu::RunShifting(double dt){
     float divrp1=Divr[p];
     double umagn=-double(ShiftCoef)*double(H)*double(H);// double(ShiftCoef)*double(H)*sqrt(vx*vx+vy*vy+vz*vz)*dt;
 
-    if(Simulate2D){
-      if(divrp1<FreeSurface){
-          double NormX=-rshiftpos.x;
-          double NormZ=-rshiftpos.z;
-          double temp=NormX*NormX+NormZ*NormZ;
-          if(temp){
-            temp=sqrt(temp);
-            NormX=NormX/temp;
-            NormZ=NormZ/temp;
-            double TangX=-NormZ;
-            double TangZ=NormX;
-            temp=TangX*rshiftpos.x+TangZ*rshiftpos.z;
-            rshiftpos.x=temp*TangX;
-            rshiftpos.z=temp*TangZ;
-          }
-      }
+ 	  tfloat3 norm=TFloat3(-rshiftpos.x,-rshiftpos.y,-rshiftpos.z);
+	  tfloat3 tang=TFloat3(0);
+	  tfloat3 bitang=TFloat3(0);
 
-      if(divrp1>=FreeSurface && divrp1<=FreeSurface+ShiftOffset){ 
-        double NormX=-rshiftpos.x;
-        double NormZ=-rshiftpos.z;
-        double temp=NormX*NormX+NormZ*NormZ;
-        if(temp){
-          temp=sqrt(temp);
-          NormX=NormX/temp;
-          NormZ=NormZ/temp;
-          double TangX=-NormZ;
-          double TangZ=NormX;
-          double temp_s=TangX*rshiftpos.x+TangZ*rshiftpos.z;
-          double temp_n=NormX*rshiftpos.x+NormZ*rshiftpos.z;
-          double FactorShift=0.5*(1-cos(PI*double(divrp1-FreeSurface)/0.2));
-          rshiftpos.x=temp_s*TangX+temp_n*NormX*FactorShift;
-          rshiftpos.z=temp_s*TangZ+temp_n*NormZ*FactorShift;
-        }
-      }
+	  //-tangent and bitangent calculation
+	  tang.x=norm.z+norm.y;		
+	  if(!Simulate2D)tang.y=-(norm.x+norm.z);	
+	  tang.z=-norm.x+norm.y;
+	  bitang.x=tang.y*norm.z-norm.y*tang.z;
+	  if(!Simulate2D)bitang.y=norm.x*tang.z-tang.x*norm.z;
+	  bitang.z=tang.x*norm.y-norm.x*tang.y;
+
+	  //-unit normal vector
+	  float temp=norm.x*norm.x+norm.y*norm.y+norm.z*norm.z;
+	  temp=sqrt(temp);
+	  norm.x=norm.x/temp; norm.y=norm.y/temp; norm.z=norm.z/temp;
+	  if(!temp){norm.x=0.f; norm.y=0.f; norm.z=0.f;}
+
+	  //-unit tangent vector
+	  temp=tang.x*tang.x+tang.y*tang.y+tang.z*tang.z;
+	  temp=sqrt(temp);
+	  tang.x=tang.x/temp; tang.y=tang.y/temp; tang.z=tang.z/temp;
+	  if(!temp){tang.x=0.f; tang.y=0.f; tang.z=0.f;}
+
+	  //-unit bitangent vector
+	  temp=bitang.x*bitang.x+bitang.y*bitang.y+bitang.z*bitang.z;
+	  temp=sqrt(temp);
+	  bitang.x=bitang.x/temp; bitang.y=bitang.y/temp; bitang.z=bitang.z/temp;
+	  if(!temp){bitang.x=0.f; bitang.y=0.f; bitang.z=0.f;}
+
+	  //-gradient calculation
+	  float dcds=tang.x*rshiftpos.x+tang.z*rshiftpos.z+tang.y*rshiftpos.y;
+	  float dcdn=norm.x*rshiftpos.x+norm.z*rshiftpos.z+norm.y*rshiftpos.y;
+	  float dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
+
+    if(divrp1<FreeSurface){
+      rshiftpos.x=dcds*tang.x+dcdb*bitang.x;
+      rshiftpos.y=dcds*tang.y+dcdb*bitang.y;
+      rshiftpos.z=dcds*tang.z+dcdb*bitang.z;
     }
-    else{
-      if(divrp1<FreeSurface){
-        double NormX=-rshiftpos.x;
-        double NormY=-rshiftpos.y;
-        double NormZ=-rshiftpos.z;
-        double temp=NormX*NormX+NormY*NormY+NormZ*NormZ;
-
-        if(temp){
-          temp=sqrt(temp);
-          NormX=NormX/temp;
-          NormY=NormY/temp;
-          NormZ=NormZ/temp;
-          double TangX=(NormY*rshiftpos.z-NormZ*rshiftpos.y)/temp;
-          double TangY=(NormZ*rshiftpos.x-NormX*rshiftpos.z)/temp;
-          double TangZ=(NormX*rshiftpos.y-NormY*rshiftpos.x)/temp;
-          temp=TangX*rshiftpos.x+TangY*rshiftpos.y+TangZ*rshiftpos.z;
-          rshiftpos.x=temp*TangX;
-          rshiftpos.y=temp*TangY;
-          rshiftpos.z=temp*TangZ;
-        }
-      }
-
-      if(divrp1>=FreeSurface && divrp1<=FreeSurface+ShiftOffset){ 
-        double NormX=-rshiftpos.x;
-        double NormY=-rshiftpos.y;
-        double NormZ=-rshiftpos.z;
-        double temp=NormX*NormX+NormY*NormY+NormZ*NormZ;
-
-        if(temp){
-          temp=sqrt(temp);
-          NormX=NormX/temp;
-          NormY=NormY/temp;
-          NormZ=NormZ/temp;
-          double TangX=(NormY*rshiftpos.z-NormZ*rshiftpos.y)/temp;
-          double TangY=(NormZ*rshiftpos.x-NormX*rshiftpos.z)/temp;
-          double TangZ=(NormX*rshiftpos.y-NormY*rshiftpos.x)/temp;
-
-          double temp_s=TangX*rshiftpos.x+TangY*rshiftpos.y+TangZ*rshiftpos.z;
-          double temp_n=NormX*rshiftpos.x+NormY*rshiftpos.y+NormZ*rshiftpos.z;
-          double FactorShift=0.5*(1-cos(PI*double(divrp1-FreeSurface)/0.2));
-          rshiftpos.x=temp_s*TangX+temp_n*NormX*FactorShift;
-          rshiftpos.y=temp_s*TangY+temp_n*NormY*FactorShift;
-          rshiftpos.z=temp_s*TangZ+temp_n*NormZ*FactorShift;
-        }
-      }
+    else if(divrp1>=FreeSurface && divrp1<=FreeSurface+ShiftOffset){ 
+      double FactorShift=0.5*(1-cos(PI*double(divrp1-FreeSurface)/0.2));
+      rshiftpos.x=dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*FactorShift;
+      rshiftpos.y=dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*FactorShift;
+      rshiftpos.z=dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*FactorShift;
     }
 
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
@@ -1724,21 +1689,21 @@ void JSphCpu::InverseCorrection3D(unsigned n, unsigned pinit,tdouble3 *dwxcorr,t
     #pragma omp parallel for schedule (guided)
   #endif
 	for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])==0||CODE_GetTypeValue(Codec[p1])==2){
-    tdouble3 dwx=dwxcorr[p1];
-    tdouble3 dwy=dwycorr[p1];
-    tdouble3 dwz=dwzcorr[p1];
-    const double detiner=(dwx.x*dwy.y*dwz.z+dwx.y*dwy.z*dwz.x+dwy.x*dwz.y*dwx.z-(dwz.x*dwy.y*dwx.z+dwy.x*dwx.y*dwz.z+dwy.z*dwz.y*dwx.x));
-    if(detiner){
-      dwxcorr[p1].x= (dwy.y*dwz.z-dwy.z*dwz.y)/detiner;
-      dwxcorr[p1].y=-(dwx.y*dwz.z-dwx.z*dwz.y)/detiner;
-      dwxcorr[p1].z= (dwx.y*dwy.z-dwx.z*dwy.y)/detiner;
-      dwycorr[p1].x=-(dwy.x*dwz.z-dwy.z*dwz.x)/detiner;
-      dwycorr[p1].y= (dwx.x*dwz.z-dwx.z*dwz.x)/detiner;
-      dwycorr[p1].z=-(dwx.x*dwy.z-dwx.z*dwy.x)/detiner;
-      dwzcorr[p1].x= (dwy.x*dwz.y-dwy.y*dwz.x)/detiner;
-      dwzcorr[p1].y=-(dwx.x*dwz.y-dwx.y*dwz.x)/detiner;
-      dwzcorr[p1].z= (dwx.x*dwy.y-dwx.y*dwy.x)/detiner;
-    }
+    tdouble3 dwx=dwxcorr[p1]; //  dwx.x   dwx.y   dwx.z
+    tdouble3 dwy=dwycorr[p1]; //  dwy.x   dwy.y   dwy.z
+    tdouble3 dwz=dwzcorr[p1]; //  dwz.x   dwz.y   dwz.z
+
+    double det=dwx.x*(dwy.y*dwz.z-dwz.y*dwy.z) + dwx.y*(dwy.x*dwz.z-dwz.x*dwy.z)+dwx.z*(dwy.x*dwz.y-dwz.x*dwy.y);
+
+    dwxcorr[p1].x=(dwy.y*dwz.z-dwz.y*dwy.z)/det;
+    dwxcorr[p1].y=-(dwx.y*dwz.z-dwz.y*dwx.z)/det;
+    dwxcorr[p1].z=(dwx.y*dwy.z-dwy.y*dwx.z)/det;
+    dwycorr[p1].x=-(dwy.x*dwz.z-dwz.x*dwy.z)/det;
+    dwycorr[p1].y=(dwx.x*dwz.z-dwz.x*dwx.z)/det;
+    dwycorr[p1].z=-(dwx.x*dwy.z-dwy.x*dwx.z)/det;
+    dwzcorr[p1].x=(dwy.x*dwz.y-dwz.x*dwy.y)/det;
+    dwzcorr[p1].y=-(dwx.x*dwz.y-dwz.x*dwx.y)/det;
+    dwzcorr[p1].z=(dwx.x*dwz.y-dwz.x*dwy.x)/det;
 	}
 }
 
@@ -2326,11 +2291,6 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
 
     viennacl::compressed_matrix<ScalarType> vcl_compressed_matrix;
     vcl_compressed_matrix.set(&row[0],&col[0],&matrixa[0],ppedim,ppedim,nnz);
-
-    /*string filename="Matrix_A.mtx";
-    std::vector<std::map<unsigned int, ScalarType> >  temp(vcl_compressed_matrix.size1());
-    viennacl::copy(vcl_compressed_matrix, temp);
-    viennacl::io::write_matrix_market_file(temp, filename);*/
 
     viennacl::linalg::bicgstab_tag bicgstab(tolerance,iterations);
 
