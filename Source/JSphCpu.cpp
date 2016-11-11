@@ -16,7 +16,7 @@
 */
 
 #ifndef _WITHGPU
-  //#define VIENNACL_WITH_OPENMP
+  #define VIENNACL_WITH_OPENMP
   #include "viennacl/vector.hpp"
   #include "viennacl/compressed_matrix.hpp"
   #include "viennacl/linalg/bicgstab.hpp"

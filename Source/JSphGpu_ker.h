@@ -98,7 +98,7 @@ void AddDelta(unsigned n,const float *delta,float *ar);
 
 //# Kernels para Shifting
 //# Kernels for Shifting
-void RunShifting(unsigned np,unsigned npb,double dt
+void RunShifting(const bool simulate2d,unsigned np,unsigned npb,double dt
   ,double shiftcoef,float freesurface,double coeftfs
   ,float4 *velrhop,const float *divr,float3 *shiftpos);
 

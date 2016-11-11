@@ -758,14 +758,14 @@ void JSphGpuSingle::SolvePPE(double dt){
   POrderg=ArraysGpu->ReserveUint(); cusph::InitArrayPOrder(np,POrderg,np);
   Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
   CheckCudaError(met,"Memory Assignment POrder");
-  MatrixOrder(np,0,bsbound,bsfluid,POrderg,ncells,begincell,cellmin,dcell,Idpg,Irelationg,Codeg,PPEDim);
+  MatrixOrder(np,0,npb,npbok,bsbound,bsfluid,POrderg,ncells,begincell,cellmin,dcell,Idpg,Irelationg,Codeg,PPEDim);
   CheckCudaError(met,"MatrixOrder");
   cusph::FreeSurfaceFind(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,Divrg);
   CheckCudaError(met,"FreeSurfaceFind");
   //Create matrix
   b=ArraysGpu->ReserveDouble(); cudaMemset(b,0,sizeof(double)*np);
   X=ArraysGpu->ReserveDouble(); cudaMemset(X,0,sizeof(double)*np);
-  cudaMemset(rowInd,0,sizeof(unsigned int)*(PPEDim+1));
+  rowInd=ArraysGpu->ReserveUint(); cudaMemset(rowInd,0,sizeof(unsigned int)*(PPEDim+1));
   CheckCudaError(met,"Memory Assignment b");
   cusph::PopulateMatrixB(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,PsPospressg,Velrhopg,dWxCorrg,dWzCorrg,b,POrderg,Idpg,dt,PPEDim,Divrg,Codeg,FreeSurface);
   cusph::MatrixStorage(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,Divrg,POrderg,rowInd,FreeSurface);
@@ -777,68 +777,14 @@ void JSphGpuSingle::SolvePPE(double dt){
   cusph::PopulateMatrixA(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,a,b,rowInd,colInd,POrderg,Idpg,PPEDim,Divrg,Codeg,Irelationg,FreeSurface);
   cusph::FreeSurfaceMark(Psimple,bsbound,bsfluid,np,npb,npbok,Divrg,a,b,rowInd,POrderg,Codeg,PI,FreeSurface);
   CheckCudaError(met,"Free Surface");
- /* unsigned int *POrderCPU; POrderCPU=new unsigned int[np]; cudaMemcpy(POrderCPU,POrderg,sizeof(unsigned int)*np,cudaMemcpyDeviceToHost);
-  unsigned int *IdCPU; IdCPU=new unsigned int[np]; cudaMemcpy(IdCPU,Idpg,sizeof(unsigned int)*np,cudaMemcpyDeviceToHost);
-  double *bcpu; bcpu=new double[PPEDim]; cudaMemcpy(bcpu,b,sizeof(double)*PPEDim,cudaMemcpyDeviceToHost);
-  double *acpu; acpu=new double[Nnz]; cudaMemcpy(acpu,a,sizeof(double)*Nnz,cudaMemcpyDeviceToHost);
-  unsigned int *rowcpu; rowcpu=new unsigned int[PPEDim+1]; cudaMemcpy(rowcpu,rowInd,sizeof(unsigned int)*(PPEDim+1),cudaMemcpyDeviceToHost);
-  unsigned int *colcpu; colcpu=new unsigned int[Nnz]; cudaMemcpy(colcpu,colInd,sizeof(unsigned int)*(Nnz),cudaMemcpyDeviceToHost);
-  
-  /*for(int i=0;i<(PPEDim+1);i++){
-    std::cout<<i<<"\t"<<rowcpu[i]<<"\n";
-    system("PAUSE");
-  }*/
-  
- /* ofstream FileOutput;
-    string TimeFile;
-
-    ostringstream TimeNum;
-    TimeNum << count;
-    ostringstream FileNum;
-    FileNum << count;
-
-    TimeFile =  "GPU Fluid Properties_" + FileNum.str() + ", T = " + TimeNum.str() + ".txt";
-
-    FileOutput.open(TimeFile.c_str());
-    FileOutput << fixed << setprecision(19) << Gravity.z << "\n";
-    FileOutput << fixed << setprecision(19) << GravityDbl.z << "\n";
-  for(int i=0;i<npbok;i++){
-    FileOutput << fixed << setprecision(19) << "particle "<< IdCPU[i] << "\t Order " << POrderCPU[i] << "\t b " << bcpu[POrderCPU[i]] << "\n";
-    if(POrderCPU[i]!=np)for(int j=rowcpu[POrderCPU[i]];j<rowcpu[POrderCPU[i]+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << acpu[j] << "\t" << colcpu[j] << "\n";
-  }
-
-  for(int i=npb;i<np;i++){
-    FileOutput << fixed << setprecision(20) << "particle "<< IdCPU[i] << "\t Order " << POrderCPU[i] << "\t b " << bcpu[POrderCPU[i]] << "\n";
-    if(POrderCPU[i]!=np)for(int j=rowcpu[POrderCPU[i]];j<rowcpu[POrderCPU[i]+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << acpu[j] << "\t" << colcpu[j] << "\n";
-  }
-  FileOutput.close();*/
-   
-  //count++;
-  //cusph::solveViennaCPU(a,b,X,rowInd,colInd,PPEDim,Nnz); 
 
   cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,X,b,rowInd,colInd,Nnz,PPEDim); 
 
-  /*double *xcpu; xcpu=new double[PPEDim]; cudaMemcpy(xcpu,X,sizeof(double)*PPEDim,cudaMemcpyDeviceToHost);
-
-    TimeFile =  "Pressure" + FileNum.str() + ", T = " + TimeNum.str() + ".txt";
-
-    FileOutput.open(TimeFile.c_str());
-
-  for(int i=0;i<PPEDim;i++){
-    FileOutput << fixed << setprecision(10) << i << "\t" << xcpu[i] <<"\n";
-  }
-  FileOutput.close();
-    delete[] POrderCPU; POrderCPU=NULL;
-  delete[] IdCPU; IdCPU=NULL;
-  delete[] acpu; acpu=NULL;
-  delete[] bcpu; bcpu=NULL;
-  delete[] xcpu; xcpu=NULL;
-  delete[] rowcpu; rowcpu=NULL;
-  delete[] colcpu; colcpu=NULL;*/
   cusph::PressureAssign(Psimple,bsbound,bsfluid,np,npb,npbok,Gravity,Posxyg,Poszg,PsPospressg,Velrhopg,X,POrderg,Idpg,Codeg,Irelationg,Divrg,FreeSurface);
   CheckCudaError(met,"pressure assign");
   ArraysGpu->Free(POrderg);       POrderg=NULL;
   ArraysGpu->Free(Divrg);		      Divrg=NULL;
+  ArraysGpu->Free(rowInd);        rowInd=NULL;
   ArraysGpu->Free(b);             b=NULL;
   ArraysGpu->Free(X);             X=NULL;
   CheckCudaError(met,"free");

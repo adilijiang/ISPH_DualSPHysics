@@ -1141,7 +1141,7 @@ void Interaction_ForcesDem(bool psimple,TpCellMode cellmode,unsigned bsize
 /// Calcula Shifting final para posicion de particulas.
 /// Computes final shifting for the particle position.
 //------------------------------------------------------------------------------
-__global__ void KerRunShifting(unsigned n,unsigned pini,double dt
+__global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,double dt
   ,float shiftcoef,float freesurface,double coeftfs
   ,float4 *velrhop,const float *divr,float3 *shiftpos,const double ShiftOffset)
 {
@@ -1149,46 +1149,77 @@ __global__ void KerRunShifting(unsigned n,unsigned pini,double dt
   if(p<n){
     const unsigned p1=p+pini;
     float3 rshiftpos=shiftpos[p1];
+    float divrp1=divr[p1];
     double umagn=-double(shiftcoef)*double(CTE.h)*double(CTE.h);
 
-    if(divr[p1]<freesurface){
-      double NormX=-rshiftpos.x;
-      double NormZ=-rshiftpos.z;
-      double temp=NormX*NormX+NormZ*NormZ;
-      if(temp){
-        temp=sqrt(temp);
-        NormX=NormX/temp;
-        NormZ=NormZ/temp;
-        double TangX=-NormZ;
-        double TangZ=NormX;
-        temp=TangX*rshiftpos.x+TangZ*rshiftpos.z;
-        rshiftpos.x=temp*TangX;
-        rshiftpos.z=temp*TangZ;
-      }
+ 	  float3 norm=make_float3(-rshiftpos.x,-rshiftpos.y,-rshiftpos.z);
+	  float3 tang=make_float3(0,0,0);
+	  float3 bitang=make_float3(0,0,0);
+
+	  //-tangent and bitangent calculation
+	  tang.x=norm.z+norm.y;		
+	  if(!simulate2d)tang.y=-(norm.x+norm.z);	
+	  tang.z=-norm.x+norm.y;
+	  bitang.x=tang.y*norm.z-norm.y*tang.z;
+	  if(!simulate2d)bitang.y=norm.x*tang.z-tang.x*norm.z;
+	  bitang.z=tang.x*norm.y-norm.x*tang.y;
+
+	  //-unit normal vector
+	  float temp=norm.x*norm.x+norm.y*norm.y+norm.z*norm.z;
+	  temp=sqrt(temp);
+	  norm.x=norm.x/temp; norm.y=norm.y/temp; norm.z=norm.z/temp;
+	  if(!temp){norm.x=0.f; norm.y=0.f; norm.z=0.f;}
+
+	  //-unit tangent vector
+	  temp=tang.x*tang.x+tang.y*tang.y+tang.z*tang.z;
+	  temp=sqrt(temp);
+	  tang.x=tang.x/temp; tang.y=tang.y/temp; tang.z=tang.z/temp;
+	  if(!temp){tang.x=0.f; tang.y=0.f; tang.z=0.f;}
+
+	  //-unit bitangent vector
+	  temp=bitang.x*bitang.x+bitang.y*bitang.y+bitang.z*bitang.z;
+	  temp=sqrt(temp);
+	  bitang.x=bitang.x/temp; bitang.y=bitang.y/temp; bitang.z=bitang.z/temp;
+	  if(!temp){bitang.x=0.f; bitang.y=0.f; bitang.z=0.f;}
+
+	  //-gradient calculation
+	  float dcds=tang.x*rshiftpos.x+tang.z*rshiftpos.z+tang.y*rshiftpos.y;
+	  float dcdn=norm.x*rshiftpos.x+norm.z*rshiftpos.z+norm.y*rshiftpos.y;
+	  float dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
+
+    if(divrp1<freesurface){
+      rshiftpos.x=dcds*tang.x+dcdb*bitang.x;
+      rshiftpos.y=dcds*tang.y+dcdb*bitang.y;
+      rshiftpos.z=dcds*tang.z+dcdb*bitang.z;
+    }
+    else if(divrp1>=freesurface && divrp1<=freesurface+ShiftOffset){ 
+      double FactorShift=0.5*(1-cos(PI*double(divrp1-freesurface)/0.2));
+      rshiftpos.x=dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*FactorShift;
+      rshiftpos.y=dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*FactorShift;
+      rshiftpos.z=dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*FactorShift;
     }
 
-    if(divr[p1]>=freesurface && divr[p1]<=freesurface+ShiftOffset){
-      double NormX=-rshiftpos.x;
-      double NormZ=-rshiftpos.z;
-      double temp=NormX*NormX+NormZ*NormZ;
-      if(temp){
-        temp=sqrt(temp);
-        NormX=NormX/temp;
-        NormZ=NormZ/temp;
-        double TangX=-NormZ;
-        double TangZ=NormX;
-        double temp_s=TangX*rshiftpos.x+TangZ*rshiftpos.z;
-        double temp_n=NormX*rshiftpos.x+NormZ*rshiftpos.z;
-        double FactorShift=0.5*(1-cos(PI*double(divr[p1]-freesurface)/0.2));
-        rshiftpos.x=temp_s*TangX+temp_n*NormX*FactorShift;
-        rshiftpos.z=temp_s*TangZ+temp_n*NormZ*FactorShift;
-      }
-    }
-        
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
     rshiftpos.y=float(double(rshiftpos.y)*umagn);
     rshiftpos.z=float(double(rshiftpos.z)*umagn);
-    shiftpos[p1]=rshiftpos;
+    shiftpos[p1]=rshiftpos; //particles in fluid bulk, normal shifting
+
+    //Max Shifting
+    double Maxx=abs(velrhop[p1].x*dt);
+    double Maxy=abs(velrhop[p1].y*dt);
+    double Maxz=abs(velrhop[p1].z*dt);
+    if(abs(shiftpos[p1].x)>Maxx){
+      if(shiftpos[p1].x>0) shiftpos[p1].x=Maxx;
+      else shiftpos[p1].x=-Maxx;
+    }
+    if(abs(shiftpos[p1].z)>Maxz){
+      if(shiftpos[p1].z>0) shiftpos[p1].z=Maxz;
+      else shiftpos[p1].z=-Maxz;
+    }
+    if(abs(shiftpos[p1].y)>Maxy){
+      if(shiftpos[p1].y>0) shiftpos[p1].y=Maxy;
+      else shiftpos[p1].y=-Maxy;
+    }
   }
 }
 
@@ -1196,7 +1227,7 @@ __global__ void KerRunShifting(unsigned n,unsigned pini,double dt
 /// Calcula Shifting final para posicion de particulas.
 /// Computes final shifting for the particle position.
 //==============================================================================
-void RunShifting(unsigned np,unsigned npb,double dt
+void RunShifting(const bool simulate2d,unsigned np,unsigned npb,double dt
   ,double shiftcoef,float freesurface,double coeftfs
   ,float4 *velrhop,const float *divr,float3 *shiftpos)
 {
@@ -1204,7 +1235,7 @@ void RunShifting(unsigned np,unsigned npb,double dt
   const double ShiftOffset=0.2;
   if(npf){
     dim3 sgrid=GetGridSize(npf,SPHBSIZE);
-    KerRunShifting <<<sgrid,SPHBSIZE>>> (npf,npb,dt,shiftcoef,freesurface,coeftfs,velrhop,divr,shiftpos,ShiftOffset);
+    KerRunShifting <<<sgrid,SPHBSIZE>>> (simulate2d,npf,npb,dt,shiftcoef,freesurface,coeftfs,velrhop,divr,shiftpos,ShiftOffset);
   }
 }
 
@@ -3360,13 +3391,15 @@ void FreeSurfaceMark(bool psimple,const unsigned bsbound,const unsigned bsfluid,
 ///Pressure Assign 
 //------------------------------------------------------------------------------
 template<bool psimple> __global__ void KerPressureAssignCode0
-  (unsigned np,unsigned n,unsigned pinit,float4 *velrhop,const word *code,const unsigned *porder,double *press)
+  (unsigned np,unsigned n,unsigned pinit,unsigned npb,float4 *velrhop,const word *code,const unsigned *porder,double *press)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if((CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2)&&porder[p1]!=np) 
+    if((CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2)&&porder[p1]!=np){
       velrhop[p1].w=float(press[porder[p1]]);
+      if(p1<npb&&velrhop[p1].w<0)velrhop[p1].w=0.0;
+    }
   }
 }
 
@@ -3410,13 +3443,13 @@ void PressureAssign(bool psimple,const unsigned bsbound,const unsigned bsfluid,u
     dim3 sgridf=GetGridSize(npf,bsfluid);
     dim3 sgridb=GetGridSize(npb,bsbound);
     if(psimple){
-      KerPressureAssignCode0<true> <<<sgridf,bsfluid>>> (np,npf,npb,velrhop,code,porder,press);
-      KerPressureAssignCode0<true> <<<sgridb,bsbound>>> (np,npbok,0,velrhop,code,porder,press);
+      KerPressureAssignCode0<true> <<<sgridf,bsfluid>>> (np,npf,npb,npb,velrhop,code,porder,press);
+      KerPressureAssignCode0<true> <<<sgridb,bsbound>>> (np,npbok,0,npb,velrhop,code,porder,press);
       KerPressureAssignCode1<true> <<<sgridb,bsbound>>> (np,npb,npbok,0,gravity,posxy,posz,pospress,velrhop,press,porder,idp,code,irelationg,divr,freesurface); 
     }
     else{
-      KerPressureAssignCode0<false> <<<sgridf,bsfluid>>> (np,npf,npb,velrhop,code,porder,press);
-      KerPressureAssignCode0<false> <<<sgridb,bsbound>>> (np,npbok,0,velrhop,code,porder,press);
+      KerPressureAssignCode0<false> <<<sgridf,bsfluid>>> (np,npf,npb,npb,velrhop,code,porder,press);
+      KerPressureAssignCode0<false> <<<sgridb,bsbound>>> (np,npbok,0,npb,velrhop,code,porder,press);
       KerPressureAssignCode1<false> <<<sgridb,bsbound>>> (np,npb,npbok,0,gravity,posxy,posz,pospress,velrhop,press,porder,idp,code,irelationg,divr,freesurface); 
     }
   }
@@ -3513,7 +3546,7 @@ void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int it
     amg_tag_agg_pmis.set_jacobi_weight(jacobiweight);
     amg_tag_agg_pmis.set_presmooth_steps(presmooth);
     amg_tag_agg_pmis.set_postsmooth_steps(postsmooth); 
-    amg_tag_agg_pmis.set_coarsening_cutoff(coarsecutoff); 
+    amg_tag_agg_pmis.set_coarsening_cutoff(ppedim*0.3); 
     run_amg(bicgstab,vcl_vec,vcl_A_cuda,"MIS2 AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,vcl_result);
   }
 }

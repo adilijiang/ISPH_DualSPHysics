@@ -241,7 +241,10 @@ protected:
   unsigned int *rowInd;
   double *X;
   int count;
-  void MatrixOrder(unsigned n,unsigned pinit,unsigned bsbound,unsigned bsfluid,unsigned *porder,tuint3 ncells,const int2 *begincell,tuint3 cellmin,
+  word *Codehost;
+  unsigned *Porderhost;
+  unsigned int *rowCpu;
+  void MatrixOrder(unsigned n,unsigned pinit,unsigned npb,unsigned npbok,unsigned bsbound,unsigned bsfluid,unsigned *porder,tuint3 ncells,const int2 *begincell,tuint3 cellmin,
     const unsigned *dcell,const unsigned *idpg,const unsigned *irelation,const word *code, unsigned &ppedim);
   unsigned MatrixASetup(const unsigned ppedim,unsigned int *rowGpu);
 
