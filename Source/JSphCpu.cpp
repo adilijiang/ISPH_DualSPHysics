@@ -1261,12 +1261,9 @@ void JSphCpu::RunShifting(double dt){
     #pragma omp parallel for schedule (static) if(npf>LIMIT_COMPUTELIGHT_OMP)
   #endif
   for(int p=pini;p<pfin;p++){
-    //double vx=double(Velrhopc[p].x);
-    //double vy=double(Velrhopc[p].y);
-    //double vz=double(Velrhopc[p].z);
     tfloat3 rshiftpos=ShiftPosc[p];
     float divrp1=Divr[p];
-    double umagn=-double(ShiftCoef)*double(H)*double(H);// double(ShiftCoef)*double(H)*sqrt(vx*vx+vy*vy+vz*vz)*dt;
+    double umagn=-double(ShiftCoef)*double(H)*double(H);
 
  	  tfloat3 norm=TFloat3(-rshiftpos.x,-rshiftpos.y,-rshiftpos.z);
 	  tfloat3 tang=TFloat3(0);
@@ -1320,16 +1317,22 @@ void JSphCpu::RunShifting(double dt){
     rshiftpos.z=float(double(rshiftpos.z)*umagn);
     ShiftPosc[p]=rshiftpos; //particles in fluid bulk, normal shifting
 
-    /*//Max Shifting
-    double temp=sqrt(ShiftPosc[p].x*ShiftPosc[p].x+ShiftPosc[p].z*ShiftPosc[p].z); 
-    if(abs(ShiftPosc[p].x)>0.1*Dp){
-      ShiftPosc[p].x=0.1*Dp*ShiftPosc[p].x/temp;
-      std::cout<<Idpc[p]<<"x\n";
+    //Max Shifting
+    double Maxx=abs(Velrhopc[p].x*dt);
+    double Maxy=abs(Velrhopc[p].y*dt);
+    double Maxz=abs(Velrhopc[p].z*dt);
+    if(abs(ShiftPosc[p].x)>Maxx){
+      if(ShiftPosc[p].x>0) ShiftPosc[p].x=Maxx;
+      else ShiftPosc[p].x=-Maxx;
     }
-    if(abs(ShiftPosc[p].z)>0.1*Dp){
-      ShiftPosc[p].z=0.1*Dp*ShiftPosc[p].z/temp;
-      std::cout<<Idpc[p]<<"z\n";
-    }*/
+    if(abs(ShiftPosc[p].z)>Maxz){
+      if(ShiftPosc[p].z>0) ShiftPosc[p].z=Maxz;
+      else ShiftPosc[p].z=-Maxz;
+    }
+    if(abs(ShiftPosc[p].y)>Maxy){
+      if(ShiftPosc[p].y>0) ShiftPosc[p].y=Maxy;
+      else ShiftPosc[p].y=-Maxy;
+    }
   }
   TmcStop(Timers,TMC_SuShifting);
 }
@@ -1521,8 +1524,7 @@ void JSphCpu::FindIrelation(unsigned n,unsigned pinit,const tdouble3 *pos,const 
     const tdouble3 posp1=pos[p1];
     const unsigned idp1=idpc[p1];
     irelation[idp1]=n;
-    float closestR=Fourh2;
-  
+    float closestR=10*Fourh2;
     //-Interaction of boundary with type Fluid/Float / Interaccion de Bound con varias Fluid/Float.
     //----------------------------------------------
     for(int p2=int(pinit);p2<pfin;p2++){
@@ -2221,8 +2223,11 @@ void JSphCpu::PressureAssign(bool psimple,unsigned np,unsigned pinit,const tdoub
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<int(np);p1++) if((CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2)&&porder[p1]!=np)
+  for(int p1=int(pinit);p1<int(np);p1++) if((CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2)&&porder[p1]!=np){
     velrhop[p1].w=float(x[porder[p1]]);
+
+    if(p1<npb&&velrhop[p1].w<0)velrhop[p1].w=0.0;
+  }
 
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
@@ -2313,7 +2318,7 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
       amg_tag_agg_pmis.set_jacobi_weight(jacobiweight);
       amg_tag_agg_pmis.set_presmooth_steps(presmooth);
       amg_tag_agg_pmis.set_postsmooth_steps(postsmooth); 
-      amg_tag_agg_pmis.set_coarsening_cutoff(coarsecutoff); 
+      amg_tag_agg_pmis.set_coarsening_cutoff(ppedim*0.3); 
       amg_tag_agg_pmis.set_setup_context(host_ctx);
       amg_tag_agg_pmis.set_target_context(target_ctx); 
       run_amg(bicgstab,vcl_vec,vcl_compressed_matrix,"AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,matrixx,ppedim);

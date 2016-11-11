@@ -784,7 +784,7 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
     double stepdt=ComputeStep_Sym();
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
     if(CaseNmoving)RunMotion(stepdt);
-    //RunCellDivide(true);
+
     TimeStep+=stepdt;
     partoutstop=(Np<NpMinimum || !Np);
     if((TimeStep-TimeStepIni)-TimePart*((Part-PartIni)-1)>=TimePart || partoutstop){
@@ -970,12 +970,12 @@ void JSphCpuSingle::SolvePPE(double dt){
   FreeSurfaceFind(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Bound-Fluid
   FreeSurfaceFind(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Bound-Bound
   MatrixOrder(np,0,POrder,Idpc,Irelationc,Codec,PPEDim);
-
+  
   //RHS
   b.resize(PPEDim,0);
   PopulateMatrixB(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Fluid-Fluid
   PopulateMatrixB(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Fluid-Bound
-  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWzCorr,dWyCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Bound-Fluid
+  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Bound-Fluid
   PopulateMatrixB(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Bound-Bound
   rowInd.resize(PPEDim+1,0);
     
@@ -998,50 +998,14 @@ void JSphCpuSingle::SolvePPE(double dt){
   FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
   // allocate vectors
   x.resize(PPEDim,0);
-  
-   /*ofstream FileOutput;
-    string TimeFile;
 
-    ostringstream TimeNum;
-    TimeNum << count;
-    ostringstream FileNum;
-    FileNum << count;
-
-    TimeFile =  "CPU Fluid Properties_" + FileNum.str() + ", T = " + TimeNum.str() + ".txt";
-
-    FileOutput.open(TimeFile.c_str());
-
-  for(int i=0;i<npbok;i++){
-    FileOutput << fixed << setprecision(19) << "particle "<< Idpc[i] << "\t Order " << POrder[i] << "\t b " << b[POrder[i]] << "\n";
-    if(POrder[i]!=np)for(int j=rowInd[POrder[i]];j<rowInd[POrder[i]+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\n";
-  }
-
-  for(int i=npb;i<np;i++){
-    FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << POrder[i] << "\t b " << b[POrder[i]] << "\n";
-    if(POrder[i]!=np) for(int j=rowInd[POrder[i]];j<rowInd[POrder[i]+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\n";
-  }
-  FileOutput.close();
-
-  count++;*/
   //solvers
 #ifndef _WITHGPU
   solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,b,x,rowInd,colInd,PPEDim,Nnz); 
 #endif
   
-  /*TimeFile =  "Pressure" + FileNum.str() + ", T = " + TimeNum.str() + ".txt";
-
-    FileOutput.open(TimeFile.c_str());
-
-  for(int i=0;i<PPEDim;i++){
-    FileOutput << fixed << setprecision(10) << i << "\t" << x[i] <<"\n";
-  }
-
-  FileOutput.close();
-
-  count++; */
-
   PressureAssign(Psimple,np,0,Posc,PsPosc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb,Divr,Gravity);
-  //for(int i=0;i<Np;i++)Velrhopc[i].w=Divr[i];
+  //for(int i=0;i<Np;i++) Velrhopc[i].w=Divr[i];
   b.clear();
   a.clear();
   x.clear();
