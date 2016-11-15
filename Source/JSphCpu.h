@@ -23,6 +23,15 @@
 #include "JSph.h"
 #include <string>
 
+#ifndef _WITHGPU
+  #define VIENNACL_WITH_OPENMP
+  #include "viennacl/vector.hpp"
+  #include "viennacl/compressed_matrix.hpp"
+  #include "viennacl/linalg/bicgstab.hpp"
+  #include "viennacl/linalg/norm_2.hpp"
+  #include "viennacl/linalg/amg.hpp" 
+#endif
+
 class JPartsOut;
 class JArraysCpu;
 class JCellDivCpu;
@@ -212,13 +221,20 @@ protected:
   tdouble3 *dWzCorr; //Kernel correction in the z direction
   float *Divr; //Divergence of position
   unsigned *POrder; //Position in Matrix
-
+  unsigned *POrderOld; //Position in Matrix
   //matrix variables for CULA
   std::vector<double> b;
   std::vector<double> a;
   std::vector<int> colInd;
   std::vector<int> rowInd;
   std::vector<double> x;
+  
+#ifndef _WITHGPU
+  viennacl::linalg::amg_precond<viennacl::compressed_matrix<double> > vcl_oldAmg;
+  template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
+  void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,std::vector<double> &matrixx,const unsigned ppedim); 
+#endif
+  void CheckPOrder(unsigned np,unsigned pinit,const unsigned *porder,unsigned *porderold,bool &newamg,unsigned &ppedimold,unsigned ppedim);
 
   void KernelCorrection(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
 	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr)const;
@@ -249,7 +265,7 @@ protected:
     std::vector<double> &matrixx,const word *code,const unsigned npb,float *divr,tfloat3 gravity)const;
   void FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,std::vector<double> &matrixInd,std::vector<double> &matrixb,std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim)const;
 
-  void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz);
+  void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz,const bool newamg);
  
   void Interaction_Shifting(unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
@@ -264,6 +280,7 @@ protected:
 
   void Shift(double dt);
   int count;
+  unsigned PPEDimOld;
 public:
   JSphCpu(bool withmpi);
   ~JSphCpu();

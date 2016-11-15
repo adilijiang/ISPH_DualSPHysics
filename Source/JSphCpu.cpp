@@ -90,7 +90,7 @@ void JSphCpu::InitVars(){
   Idpc=NULL; Codec=NULL; Dcellc=NULL; Posc=NULL; Velrhopc=NULL;
   PosPrec=NULL; VelrhopPrec=NULL; //-Symplectic
   PsPosc=NULL;                    //-Interaccion Pos-Simple.
-  Acec=NULL; Deltac=NULL; Divr=NULL; POrder=NULL;
+  Acec=NULL; Deltac=NULL; Divr=NULL; POrder=NULL; POrderOld=NULL;
   dWxCorr=NULL; dWzCorr=NULL;
   ShiftPosc=NULL; 
   RidpMove=NULL; 
@@ -164,7 +164,7 @@ void JSphCpu::AllocCpuMemoryParticles(unsigned np,float over){
   //-Calculate which arrays / Calcula cuantos arrays.
   ArraysCpu->SetArraySize(np2);
   ArraysCpu->AddArrayCount(JArraysCpu::SIZE_2B,2);  ///<-code
-  ArraysCpu->AddArrayCount(JArraysCpu::SIZE_4B,5);  ///<-idp,dcell,POrder
+  ArraysCpu->AddArrayCount(JArraysCpu::SIZE_4B,6);  ///<-idp,dcell,POrder,POrderOld
   ArraysCpu->AddArrayCount(JArraysCpu::SIZE_8B,1);  ///<-divr
   //if(TDeltaSph==DELTA_DynamicExt)ArraysCpu->AddArrayCount(JArraysCpu::SIZE_4B,1);  ///<-delta
   ArraysCpu->AddArrayCount(JArraysCpu::SIZE_12B,1); ///<-ace
@@ -1736,6 +1736,30 @@ void JSphCpu::MatrixOrder(unsigned np,unsigned pinit,unsigned *porder,const unsi
   ppedim=index;
 }
 
+void JSphCpu::CheckPOrder(unsigned np,unsigned pinit,const unsigned *porder,unsigned *porderold,bool &newamg,unsigned &ppedimold,const unsigned ppedim){
+  const int pfin=int(pinit+np);
+
+  if(ppedimold==ppedim){
+    /*#ifdef _WITHOMP
+      #pragma omp parallel for schedule (guided)
+    #endif*/
+    for(int p1=int(pinit);p1<pfin;p1++){
+      if(porder[p1]!=porderold[p1]) {newamg=true; break;}
+    }
+  }
+  else{
+    newamg=true;
+    ppedimold=ppedim;
+  }
+  std::cout<<newamg<<"\n";
+  if(newamg){
+    #ifdef _WITHOMP
+      #pragma omp parallel for schedule (guided)
+    #endif
+    for(int p1=int(pinit);p1<pfin;p1++) porderold[p1]=porder[p1];
+  }
+}
+
 //===============================================================================
 ///Find free surface
 //===============================================================================
@@ -1923,7 +1947,7 @@ void JSphCpu::MatrixASetup(const unsigned ppedim,unsigned &nnz,std::vector<int> 
   }
   row[ppedim]=nnz;
 }
-#include<iomanip>
+
 //===============================================================================
 ///Populate matrix with values
 //===============================================================================
@@ -2250,42 +2274,22 @@ void JSphCpu::PressureAssign(bool psimple,unsigned np,unsigned pinit,const tdoub
 
 #ifndef _WITHGPU
 template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
-void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,std::vector<double> &matrixx,const unsigned ppedim){ 
+void JSphCpu::run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,std::vector<double> &matrixx,const unsigned ppedim){ 
   VectorType result(rhs);
   VectorType residual(rhs);
   viennacl::tools::timer timer;
   timer.start();
   result = viennacl::linalg::solve(matrix, rhs, solver, precond);
   viennacl::backend::finish();    
-  std::cout << "  > Solver time: " << timer.get() << std::endl;   
+  Log->Printf("  > Solver time: %f",timer.get());   
   residual -= viennacl::linalg::prod(matrix, result); 
-  std::cout << "  > Relative residual: " << viennacl::linalg::norm_2(residual) / viennacl::linalg::norm_2(rhs) << std::endl;  
-  std::cout << "  > Iterations: " << solver.iters() << std::endl;
+  Log->Printf("  > Relative residual: %e",viennacl::linalg::norm_2(residual) / viennacl::linalg::norm_2(rhs));  
+  Log->Printf("  > Iterations: %u",solver.iters());
 
   copy(result,matrixx);
 }
 
-template<typename ScalarType>
-void run_amg(viennacl::linalg::bicgstab_tag & bicgstab_solver,
-             viennacl::vector<ScalarType> & vcl_vec,
-             viennacl::compressed_matrix<ScalarType> & vcl_compressed_matrix,
-             std::string info,
-             viennacl::linalg::amg_tag & amg_tag,std::vector<double> &matrixx,const unsigned ppedim)  
-{
-  viennacl::linalg::amg_precond<viennacl::compressed_matrix<ScalarType> > vcl_amg(vcl_compressed_matrix, amg_tag);
-  std::cout << " * Setup phase (ViennaCL types)..." << std::endl;
-  viennacl::tools::timer timer;
-  timer.start();
-  vcl_amg.setup(); 
-  std::cout << "levels = " << vcl_amg.levels() << "\n";
-  for(int i =0; i< vcl_amg.levels();i++) std::cout << "level " << i << "\t" << "size = " << vcl_amg.size(i) << "\n";
-  viennacl::backend::finish(); 
-  std::cout << "  > Setup time: " << timer.get() << std::endl;
-  std::cout << " * CG solver (ViennaCL types)..." << std::endl;
-  run_solver(vcl_compressed_matrix,vcl_vec,bicgstab_solver,vcl_amg,matrixx,ppedim);
-}
-
-void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz){
+void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz,const bool newamg){
     viennacl::context ctx;
    
     typedef double ScalarType;
@@ -2300,28 +2304,42 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
     viennacl::linalg::bicgstab_tag bicgstab(tolerance,iterations);
 
     if(tprecond==PRECOND_Jacobi){
-      std::cout<<"JACOBI PRECOND" <<std::endl;
+      Log->Printf("JACOBI PRECOND");
       viennacl::vector<ScalarType> vcl_result(vcl_compressed_matrix.size1(),ctx);
       viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_compressed_matrix,viennacl::linalg::jacobi_tag());
       run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_jacobi,matrixx,ppedim);
     }
     else if(tprecond==PRECOND_AMG){
-      std::cout<<"AMG PRECOND" <<std::endl;
-      viennacl::context host_ctx(viennacl::MAIN_MEMORY);
-      viennacl::context target_ctx = viennacl::traits::context(vcl_compressed_matrix);
+      if(true){
+        Log->Printf("AMG PRECOND");
+        viennacl::context host_ctx(viennacl::MAIN_MEMORY);
+        viennacl::context target_ctx = viennacl::traits::context(vcl_compressed_matrix);
 
-      viennacl::linalg::amg_tag amg_tag_agg_pmis;
-      amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_AGGREGATION);
-      if(tamginter==AMGINTER_AG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION); std::cout<<"INTERPOLATION: AGGREGATION "<<std::endl; }
-      else if(tamginter==AMGINTER_SAG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_SMOOTHED_AGGREGATION); std::cout<<"INTERPOLATION: SMOOTHED AGGREGATION"<<std::endl; }
-      amg_tag_agg_pmis.set_strong_connection_threshold(strongconnection);
-      amg_tag_agg_pmis.set_jacobi_weight(jacobiweight);
-      amg_tag_agg_pmis.set_presmooth_steps(presmooth);
-      amg_tag_agg_pmis.set_postsmooth_steps(postsmooth); 
-      amg_tag_agg_pmis.set_coarsening_cutoff(ppedim*0.3); 
-      amg_tag_agg_pmis.set_setup_context(host_ctx);
-      amg_tag_agg_pmis.set_target_context(target_ctx); 
-      run_amg(bicgstab,vcl_vec,vcl_compressed_matrix,"AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,matrixx,ppedim);
+        viennacl::linalg::amg_tag amg_tag_agg_pmis;
+        amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_AGGREGATION);
+        if(tamginter==AMGINTER_AG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION); Log->Printf("INTERPOLATION: AGGREGATION ");}
+        else if(tamginter==AMGINTER_SAG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_SMOOTHED_AGGREGATION); Log->Printf("INTERPOLATION: SMOOTHED AGGREGATION");}
+        amg_tag_agg_pmis.set_strong_connection_threshold(strongconnection);
+        amg_tag_agg_pmis.set_jacobi_weight(jacobiweight);
+        amg_tag_agg_pmis.set_presmooth_steps(presmooth);
+        amg_tag_agg_pmis.set_postsmooth_steps(postsmooth); 
+        amg_tag_agg_pmis.set_coarsening_cutoff(ppedim*0.3); 
+        amg_tag_agg_pmis.set_setup_context(host_ctx);
+        amg_tag_agg_pmis.set_target_context(target_ctx); 
+        vcl_oldAmg.change(vcl_compressed_matrix, amg_tag_agg_pmis);
+        Log->Printf(" * Setup phase (ViennaCL types)...");
+        viennacl::tools::timer timer;
+        timer.start();
+        vcl_oldAmg.setup(); 
+        std::cout << "levels = " << vcl_oldAmg.levels() << "\n";
+        for(int i =0; i< vcl_oldAmg.levels();i++) std::cout << "level " << i << "\t" << "size = " << vcl_oldAmg.size(i) << "\n";
+        viennacl::backend::finish(); 
+        Log->Printf("  > Setup time: %f",timer.get());
+        run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_oldAmg,matrixx,ppedim);
+      }
+      else{
+        run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_oldAmg,matrixx,ppedim);
+      }
     }
 }    
 #endif

@@ -777,6 +777,7 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 
   //-finding dummy particle relations to wall particles
   count=1;
+  POrderOld=ArraysCpu->ReserveUint(); memset(POrderOld,Np,sizeof(unsigned)*Np);
   FindIrelation(); 
   while(TimeStep<TimeMax){
     clock_t start = clock(); 
@@ -807,7 +808,7 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
     cout<<"Timestep Time = " << dif << "ms\n";
   }
   TimerSim.Stop(); TimerTot.Stop();
-
+  ArraysCpu->Free(POrderOld);    POrderOld=NULL;
   //-End of Simulation / Fin de simulacion
   //--------------------
   FinishRun(partoutstop);
@@ -971,6 +972,10 @@ void JSphCpuSingle::SolvePPE(double dt){
   FreeSurfaceFind(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Bound-Bound
   MatrixOrder(np,0,POrder,Idpc,Irelationc,Codec,PPEDim);
   
+  bool NewAMG=false;
+
+ // CheckPOrder(np,0,POrder,POrderOld,NewAMG,PPEDimOld,PPEDim);
+
   //RHS
   b.resize(PPEDim,0);
   PopulateMatrixB(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Fluid-Fluid
@@ -1001,7 +1006,7 @@ void JSphCpuSingle::SolvePPE(double dt){
 
   //solvers
 #ifndef _WITHGPU
-  solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,b,x,rowInd,colInd,PPEDim,Nnz); 
+  solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,b,x,rowInd,colInd,PPEDim,Nnz,NewAMG); 
 #endif
   
   PressureAssign(Psimple,np,0,Posc,PsPosc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb,Divr,Gravity);
