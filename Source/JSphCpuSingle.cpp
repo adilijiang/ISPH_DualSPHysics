@@ -974,8 +974,10 @@ void JSphCpuSingle::SolvePPE(double dt){
   
   bool NewAMG=false;
 
- // CheckPOrder(np,0,POrder,POrderOld,NewAMG,PPEDimOld,PPEDim);
-
+  //CheckPOrder(npf,npb,POrder,POrderOld,npbok,NewAMG,PPEDimOld,PPEDim,Idpc);
+  npfOld=npf;
+  npbokOld=npbok;
+  PPEDimOld=PPEDim;
   //RHS
   b.resize(PPEDim,0);
   PopulateMatrixB(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Fluid-Fluid

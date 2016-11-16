@@ -222,6 +222,8 @@ protected:
   float *Divr; //Divergence of position
   unsigned *POrder; //Position in Matrix
   unsigned *POrderOld; //Position in Matrix
+  unsigned npfOld;
+  unsigned npbokOld;
   //matrix variables for CULA
   std::vector<double> b;
   std::vector<double> a;
@@ -233,8 +235,9 @@ protected:
   viennacl::linalg::amg_precond<viennacl::compressed_matrix<double> > vcl_oldAmg;
   template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
   void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,std::vector<double> &matrixx,const unsigned ppedim); 
+  void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz,const bool newamg);
 #endif
-  void CheckPOrder(unsigned np,unsigned pinit,const unsigned *porder,unsigned *porderold,bool &newamg,unsigned &ppedimold,unsigned ppedim);
+  void CheckPOrder(unsigned npf,unsigned npb,const unsigned *porder,unsigned *porderold,unsigned npbok,bool &newamg,unsigned &ppedimold,unsigned ppedim,const unsigned *idpc);
 
   void KernelCorrection(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
 	  const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr)const;
@@ -265,8 +268,7 @@ protected:
     std::vector<double> &matrixx,const word *code,const unsigned npb,float *divr,tfloat3 gravity)const;
   void FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,std::vector<double> &matrixInd,std::vector<double> &matrixb,std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim)const;
 
-  void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz,const bool newamg);
- 
+  
   void Interaction_Shifting(unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tfloat3 *pspos,tfloat4 *velrhop,const unsigned *idp,const word *code

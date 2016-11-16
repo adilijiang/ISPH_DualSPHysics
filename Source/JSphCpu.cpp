@@ -1736,27 +1736,24 @@ void JSphCpu::MatrixOrder(unsigned np,unsigned pinit,unsigned *porder,const unsi
   ppedim=index;
 }
 
-void JSphCpu::CheckPOrder(unsigned np,unsigned pinit,const unsigned *porder,unsigned *porderold,bool &newamg,unsigned &ppedimold,const unsigned ppedim){
-  const int pfin=int(pinit+np);
+void JSphCpu::CheckPOrder(unsigned npf,unsigned npb,const unsigned *porder,unsigned *porderold,unsigned npbok,bool &newamg,unsigned &ppedimold,const unsigned ppedim,const unsigned *idpc){
+  const int pfin=int(npb+npf);
 
-  if(ppedimold==ppedim){
-    /*#ifdef _WITHOMP
-      #pragma omp parallel for schedule (guided)
-    #endif*/
-    for(int p1=int(pinit);p1<pfin;p1++){
-      if(porder[p1]!=porderold[p1]) {newamg=true; break;}
-    }
+  if(ppedimold!=ppedim||npfOld!=npf||npbokOld!=npbok){
+    newamg=true;
   }
   else{
-    newamg=true;
-    ppedimold=ppedim;
-  }
-  std::cout<<newamg<<"\n";
-  if(newamg){
     #ifdef _WITHOMP
       #pragma omp parallel for schedule (guided)
     #endif
-    for(int p1=int(pinit);p1<pfin;p1++) porderold[p1]=porder[p1];
+    for(int p1=int(npb);p1<pfin;p1++){
+      if(idpc[p1]!=porderold[p1]) newamg=true;
+    }
+
+    #ifdef _WITHOMP
+      #pragma omp parallel for schedule (guided)
+    #endif
+    for(int p1=int(npb);p1<pfin;p1++) porderold[p1]=idpc[p1];
   }
 }
 
@@ -2323,7 +2320,7 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
         amg_tag_agg_pmis.set_jacobi_weight(jacobiweight);
         amg_tag_agg_pmis.set_presmooth_steps(presmooth);
         amg_tag_agg_pmis.set_postsmooth_steps(postsmooth); 
-        amg_tag_agg_pmis.set_coarsening_cutoff(ppedim*0.3); 
+        amg_tag_agg_pmis.set_coarsening_cutoff(coarsecutoff); 
         amg_tag_agg_pmis.set_setup_context(host_ctx);
         amg_tag_agg_pmis.set_target_context(target_ctx); 
         vcl_oldAmg.change(vcl_compressed_matrix, amg_tag_agg_pmis);

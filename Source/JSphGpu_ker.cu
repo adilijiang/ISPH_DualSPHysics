@@ -47,7 +47,7 @@
 __constant__ StCteInteraction CTE;
 
 namespace cusph{
-
+  
 //==============================================================================
 /// Comprueba error y finaliza ejecucion.
 /// Checks mistake and ends execution.
@@ -3486,6 +3486,7 @@ void InitArrayCol(unsigned n,unsigned int *v,int value){
 //==============================================================================
 /// Solve matrix with ViennaCL
 //==============================================================================
+viennacl::linalg::amg_precond<viennacl::compressed_matrix<double> > vcl_AMG;
 template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag,typename ScalarType>
 void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,viennacl::vector<ScalarType> & vcl_result){ 
   VectorType result(rhs);
@@ -3499,22 +3500,6 @@ void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag cons
   std::cout << "  > Relative residual: " << viennacl::linalg::norm_2(residual) / viennacl::linalg::norm_2(rhs) << std::endl;  
   std::cout << "  > Iterations: " << solver.iters() << std::endl;
   viennacl::copy(result,vcl_result);
-}
-
-template<typename ScalarType>
-void run_amg(viennacl::linalg::bicgstab_tag & bicgstab_solver,viennacl::vector<ScalarType> & vcl_vec,viennacl::compressed_matrix<ScalarType> & matrix,
-             std::string info,viennacl::linalg::amg_tag & amg_tag,viennacl::vector<ScalarType> & vcl_result){
-  viennacl::linalg::amg_precond<viennacl::compressed_matrix<ScalarType> > vcl_amg(matrix, amg_tag);
-  std::cout << " * Setup phase (ViennaCL types)..." << std::endl;
-  viennacl::tools::timer timer; 
-  timer.start(); 
-  vcl_amg.setup(); 
-  //std::cout << "levels = " << vcl_amg.levels() << "\n";
-  //for(int i =0; i< vcl_amg.levels();i++) std::cout << "level " << i << "\t" << "size = " << vcl_amg.size(i) << "\n";
-  viennacl::backend::finish();
-  std::cout << "  > Setup time: " << timer.get() << std::endl;
-  std::cout << " * CG solver (ViennaCL types)..." << std::endl;
-  run_solver(matrix,vcl_vec,bicgstab_solver,vcl_amg,vcl_result);
 }
 
 void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned nnz,const unsigned ppedim){
@@ -3546,8 +3531,17 @@ void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int it
     amg_tag_agg_pmis.set_jacobi_weight(jacobiweight);
     amg_tag_agg_pmis.set_presmooth_steps(presmooth);
     amg_tag_agg_pmis.set_postsmooth_steps(postsmooth); 
-    amg_tag_agg_pmis.set_coarsening_cutoff(ppedim*0.3); 
-    run_amg(bicgstab,vcl_vec,vcl_A_cuda,"MIS2 AGGREGATION COARSENING, AGGREGATION INTERPOLATION",amg_tag_agg_pmis,vcl_result);
+    amg_tag_agg_pmis.set_coarsening_cutoff(coarsecutoff); 
+    vcl_AMG.change(vcl_A_cuda, amg_tag_agg_pmis);
+    std::cout << " * Setup phase (ViennaCL types)..." << std::endl;
+    viennacl::tools::timer timer; 
+    timer.start(); 
+    vcl_AMG.setup();
+    std::cout << "levels = " << vcl_AMG.levels() << "\n";
+    for(int i =0; i< vcl_AMG.levels();i++) std::cout << "level " << i << "\t" << "size = " << vcl_AMG.size(i) << "\n";
+    viennacl::backend::finish();
+    std::cout << "  > Setup time: " << timer.get() << std::endl;
+    run_solver(vcl_A_cuda,vcl_vec,bicgstab,vcl_AMG,vcl_result);
   }
 }
 
