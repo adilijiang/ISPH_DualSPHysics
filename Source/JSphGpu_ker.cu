@@ -2717,21 +2717,40 @@ void KernelCorrection(bool psimple,TpCellMode cellmode
 //==============================================================================
 ///Matrix Order 
 //==============================================================================
-__global__ void KerMatrixOrderFluid
-  (unsigned npf,unsigned npb,unsigned *porder,const unsigned matrixBound)
-{
-  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
-  if(p<npf){
-    unsigned p1=p+npb;
-    porder[p1]=matrixBound+p;
+__global__ void kerPOrder(const unsigned np,const unsigned npb,const unsigned npbok,const word *code,unsigned *porder,unsigned *index){
+   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
+   if(p1==0){
+     unsigned count=0;
+	   for(int i=0;i<int(npbok);i++) if(CODE_GetTypeValue(code[i])==0||CODE_GetTypeValue(code[i])==2){
+       porder[i]=count;
+       count++;  
+     }
+     index[0]=count+np-npb;
+   }
+}
+
+void POrderBound(const unsigned np,const unsigned npb,const unsigned npbok,const word *code,unsigned *porder,unsigned *index){
+  if(npbok){
+    kerPOrder <<<1,1>>> (np,npb,npbok,code,porder,index);
   }
 }
 
-void MatrixOrderFluid(const unsigned bsfluid,unsigned np,unsigned npb, unsigned *porder,const unsigned matrixBound){
+__global__ void KerMatrixOrderFluid
+  (unsigned npf,unsigned npb,unsigned *porder,const unsigned *index)
+{
+  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
+  if(p<npf){
+    const unsigned matrixboundary=index[0]-npf;
+    unsigned p1=p+npb;
+    porder[p1]=matrixboundary+p;
+  }
+}
+
+void MatrixOrderFluid(const unsigned bsfluid,unsigned np,unsigned npb, unsigned *porder,const unsigned *index){
   const unsigned npf=np-npb;
   if(npf){
     dim3 sgridf=GetGridSize(npf,bsfluid);
-    KerMatrixOrderFluid <<<sgridf,bsfluid>>> (npf,npb,porder,matrixBound);
+    KerMatrixOrderFluid <<<sgridf,bsfluid>>> (npf,npb,porder,index);
   }
 }
 
@@ -3162,6 +3181,27 @@ void MatrixStorage(bool psimple,TpCellMode cellmode
 }
 
 //==============================================================================
+///Matrix A Setup
+//==============================================================================
+__global__ void kerMatrixASetup(const unsigned ppedim,unsigned int*row,unsigned *nnz){
+   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
+   if(p1==0){
+	   for(int i=0;i<int(ppedim);i++){
+       unsigned nnzOld=nnz[0];
+       nnz[0] +=row[i]+1;
+       row[i]=nnzOld;  
+     }
+     row[ppedim]=nnz[0];
+   }
+}
+
+void MatrixASetup(const unsigned ppedim,unsigned int*row,unsigned *nnz){
+  if(ppedim){
+    kerMatrixASetup <<<1,1>>> (ppedim,row,nnz);
+  }
+}
+
+//==============================================================================
 ///Matrix A Population
 //==============================================================================
 template<bool psimple> __device__ void KerMatrixAFluid
@@ -3486,7 +3526,6 @@ void InitArrayCol(unsigned n,unsigned int *v,int value){
 //==============================================================================
 /// Solve matrix with ViennaCL
 //==============================================================================
-viennacl::linalg::amg_precond<viennacl::compressed_matrix<double> > vcl_AMG;
 template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag,typename ScalarType>
 void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,viennacl::vector<ScalarType> & vcl_result){ 
   VectorType result(rhs);
@@ -3512,7 +3551,6 @@ void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int it
   viennacl::vector<ScalarType> vcl_result(matrixx, viennacl::CUDA_MEMORY, ppedim);
 
   viennacl::linalg::bicgstab_tag bicgstab(1e-5,2000);
-  //viennacl::linalg::gmres_tag gmres(tolerance,iterations,20);
 
   if(tprecond==PRECOND_Jacobi){
     std::cout<<"JACOBI PRECOND" <<std::endl;
@@ -3530,9 +3568,9 @@ void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int it
     amg_tag_agg_pmis.set_strong_connection_threshold(strongconnection);
     amg_tag_agg_pmis.set_jacobi_weight(jacobiweight);
     amg_tag_agg_pmis.set_presmooth_steps(presmooth);
-    amg_tag_agg_pmis.set_postsmooth_steps(postsmooth); 
+    amg_tag_agg_pmis.set_postsmooth_steps(postsmooth);
     amg_tag_agg_pmis.set_coarsening_cutoff(coarsecutoff); 
-    vcl_AMG.change(vcl_A_cuda, amg_tag_agg_pmis);
+    viennacl::linalg::amg_precond<viennacl::compressed_matrix<double> > vcl_AMG(vcl_A_cuda, amg_tag_agg_pmis);
     std::cout << " * Setup phase (ViennaCL types)..." << std::endl;
     viennacl::tools::timer timer; 
     timer.start(); 

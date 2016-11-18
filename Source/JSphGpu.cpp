@@ -35,7 +35,7 @@ using namespace std;
 //==============================================================================
 JSphGpu::JSphGpu(bool withmpi):JSph(false,withmpi){
   ClassName="JSphGpu";
-  Codehost=NULL; Porderhost=NULL; rowCpu=NULL;
+  Codehost=NULL; Porderhost=NULL; rowCpu=NULL; counterCPU=NULL;
   Idp=NULL; Code=NULL; Dcell=NULL; Posxy=NULL; Posz=NULL; Velrhop=NULL; 
   AuxPos=NULL; AuxVel=NULL; AuxRhop=NULL;
   FtoForces=NULL; FtoCenter=NULL;   //-Floatings.
@@ -78,6 +78,7 @@ void JSphGpu::InitVars(){
   a=NULL;
   colInd=NULL;
   rowInd=NULL;
+  counterGPU=NULL;
   X=NULL;
   dWxCorrg=NULL; dWzCorrg=NULL;
   POrderg=NULL;
@@ -121,6 +122,7 @@ void JSphGpu::FreeGpuMemoryFixed(){
   if(Irelationg)cudaFree(Irelationg); Irelationg=NULL;
   if(a)cudaFree(a);                   a=NULL;
   if(colInd)cudaFree(colInd);         colInd=NULL;
+  if(counterGPU)cudaFree(counterGPU); counterGPU=NULL;
   if(RidpMoveg)cudaFree(RidpMoveg);   RidpMoveg=NULL;
   if(FtRidpg)cudaFree(FtRidpg);       FtRidpg=NULL;
   if(FtoMasspg)cudaFree(FtoMasspg);   FtoMasspg=NULL;
@@ -159,6 +161,8 @@ void JSphGpu::AllocGpuMemoryFixed(){
   cudaMalloc((void**)&a,m);    MemGpuFixed+=m;
   m=sizeof(unsigned)*Np*matrixMemory;
   cudaMalloc((void**)&colInd,m);    MemGpuFixed+=m;
+  m=sizeof(unsigned);
+  cudaMalloc((void**)&counterGPU,sizeof(unsigned)); MemGpuFixed+=m;
   //-Allocates memory for moving objects.
   if(CaseNmoving){
     m=sizeof(unsigned)*CaseNmoving;
@@ -194,8 +198,7 @@ void JSphGpu::AllocGpuMemoryFixed(){
 void JSphGpu::FreeCpuMemoryParticles(){
   CpuParticlesSize=0;
   MemCpuParticles=0;
-  delete[] Codehost;   Codehost=NULL;
-  delete[] Porderhost; Porderhost=NULL;
+  delete[] counterCPU; counterCPU=NULL;
   delete[] rowCpu;     rowCpu=NULL;
   delete[] Idp;        Idp=NULL;
   delete[] Code;       Code=NULL;
@@ -220,8 +223,7 @@ void JSphGpu::AllocCpuMemoryParticles(unsigned np){
   CpuParticlesSize=np;
   if(np>0){
     try{
-      Codehost=new word[np];     MemCpuParticles+=sizeof(word)*np;
-      Porderhost=new unsigned[np]; MemCpuParticles+=sizeof(unsigned)*np;
+      counterCPU=new unsigned[1];MemCpuParticles+=sizeof(unsigned);
       rowCpu=new unsigned[np];   MemCpuParticles+=sizeof(unsigned)*np;
       Idp=new unsigned[np];      MemCpuParticles+=sizeof(unsigned)*np;
       Code=new word[np];         MemCpuParticles+=sizeof(word)*np;
@@ -1122,43 +1124,30 @@ void JSphGpu::MatrixOrder(unsigned np,unsigned pinit,unsigned npb,unsigned npbok
   const unsigned *dcell,const unsigned *idpg,const unsigned *irelationg,const word *code, unsigned &ppedim){
 	const char met[]="MatrixOrder";
 
-  const int pfin=int(pinit+np);
+  cudaMemset(counterGPU, 0, sizeof(unsigned));
 
-  cudaMemcpy(Codehost,code,sizeof(word)*npbok ,cudaMemcpyDeviceToHost);
+  cusph::POrderBound(np,npb,npbok,Codeg,porder,counterGPU);
 
-  unsigned index=0;
-	for(int p1=0;p1<int(npbok);p1++) if(CODE_GetTypeValue(Codehost[p1])==0||CODE_GetTypeValue(Codehost[p1])==2){
-      Porderhost[p1]=index;
-      index++;
-  }
+  cudaMemcpy(counterCPU,counterGPU,sizeof(unsigned),cudaMemcpyDeviceToHost);
+  cusph::MatrixOrderFluid(bsfluid,np,npb,porder,counterGPU);
 
-  cudaMemcpy(porder,Porderhost,sizeof(unsigned)*npbok,cudaMemcpyHostToDevice);
-  cusph::MatrixOrderFluid(bsfluid,np,npb,porder,index);
-  index+=(np-npb);
   cusph::MatrixOrderDummy(CellMode,bsbound,np,npb,ncells,begincell,cellmin,dcell,Codeg,Idpg,irelationg,porder);
-  ppedim = index;
+  ppedim = counterCPU[0];
   CheckCudaError(met,"MatrixOrder");
 }
 
 //===============================================================================
 ///Matrix storage
 //===============================================================================
-unsigned JSphGpu::MatrixASetup(const unsigned ppedim,unsigned int *rowGpu){
+unsigned JSphGpu::MatrixASetup(const unsigned ppedim,unsigned int *row){
  
-  unsigned nnz=0;
+  cudaMemset(counterGPU, 0, sizeof(unsigned));
   
-  cudaMemcpy(rowCpu,rowGpu,sizeof(unsigned int)*(ppedim+1),cudaMemcpyDeviceToHost);
+  cusph::MatrixASetup(ppedim,row,counterGPU);
 
-  for(unsigned i=0;i<ppedim;i++){
-    unsigned nnzOld=nnz;
-    nnz += rowCpu[i]+1;
-    rowCpu[i] = nnzOld;
-  }
-  rowCpu[ppedim]=nnz;
+  cudaMemcpy(counterCPU,counterGPU,sizeof(unsigned),cudaMemcpyDeviceToHost);
 
-  cudaMemcpy(rowGpu,rowCpu,sizeof(unsigned int)*(ppedim+1),cudaMemcpyHostToDevice); 
-  
-  return nnz;
+  return counterCPU[0];
 }
 
 //===============================================================================

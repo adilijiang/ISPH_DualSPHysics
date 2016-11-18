@@ -162,12 +162,15 @@ void KernelCorrection(bool psimple,TpCellMode cellmode
   ,const float4 *velrhop,double3 *dwxcorrg,double3 *dwzcorrg,const word *codeg);
 
 //# Kernels for particle matrix order
-void MatrixOrderFluid(const unsigned bsfluid,unsigned np,unsigned npb, unsigned *porder,const unsigned matrixBound);
+void MatrixOrderFluid(const unsigned bsfluid,unsigned np,unsigned npb, unsigned *porder,const unsigned *index);
 
 void MatrixOrderDummy(TpCellMode cellmode
   ,const unsigned bsbound,unsigned np,unsigned npb,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const word *code,const unsigned *idp,const unsigned *irelationg,unsigned *porder);
+
+void POrderBound(const unsigned np,const unsigned npb,const unsigned npbok,const word *code,unsigned *porder,unsigned *index);
+void MatrixASetup(const unsigned ppedim,unsigned int*row,unsigned *nnz);
 
 //# Kernels for finding the freesurface
 void FreeSurfaceFind(bool psimple,TpCellMode cellmode

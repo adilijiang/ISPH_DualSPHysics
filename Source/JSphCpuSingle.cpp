@@ -960,7 +960,6 @@ void JSphCpuSingle::SolvePPE(double dt){
   const unsigned npbok=NpbOk;
   const unsigned npf=np-npb;
   unsigned PPEDim=0;
-  unsigned PPEDimDummy=0;
 
   //Matrix Order and Free Surface
   POrder=ArraysCpu->ReserveUint(); memset(POrder,np,sizeof(unsigned)*np);
@@ -972,12 +971,6 @@ void JSphCpuSingle::SolvePPE(double dt){
   FreeSurfaceFind(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Bound-Bound
   MatrixOrder(np,0,POrder,Idpc,Irelationc,Codec,PPEDim);
   
-  bool NewAMG=false;
-
-  //CheckPOrder(npf,npb,POrder,POrderOld,npbok,NewAMG,PPEDimOld,PPEDim,Idpc);
-  npfOld=npf;
-  npbokOld=npbok;
-  PPEDimOld=PPEDim;
   //RHS
   b.resize(PPEDim,0);
   PopulateMatrixB(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Fluid-Fluid
@@ -998,9 +991,7 @@ void JSphCpuSingle::SolvePPE(double dt){
   a.resize(Nnz,0);
   //LHS
   PopulateMatrixAFluid(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Irelationc,b,Idpc,Codec,PPEDim,FreeSurface,Gravity,RhopZero);//-Fluid-Fluid
-  //PopulateMatrixAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,FreeSurface);//-Fluid-Bound
   PopulateMatrixABoundary(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Irelationc,b,Idpc,Codec,PPEDim,FreeSurface,Gravity,RhopZero); //-Fluid-Fluid
-  //PopulateMatrixAInteractBound(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,FreeSurface); //-Fluid-Bound
   FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
   FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
   // allocate vectors
@@ -1008,11 +999,11 @@ void JSphCpuSingle::SolvePPE(double dt){
 
   //solvers
 #ifndef _WITHGPU
-  solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,b,x,rowInd,colInd,PPEDim,Nnz,NewAMG); 
+  solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,b,x,rowInd,colInd,PPEDim,Nnz); 
 #endif
   
   PressureAssign(Psimple,np,0,Posc,PsPosc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb,Divr,Gravity);
-  //for(int i=0;i<Np;i++) Velrhopc[i].w=Divr[i];
+
   b.clear();
   a.clear();
   x.clear();

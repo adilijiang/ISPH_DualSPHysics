@@ -2046,31 +2046,18 @@ void JSphCpu::PopulateMatrixAFluid(bool psimple,unsigned n,unsigned pinit,tint4 
 			        const float rDivW=drx*frx+dry*fry+drz*frz;
 			        float temp=2.0f*rDivW/(RhopZero*(rr2+Eta2));
               
-              if(oi!=oj){
-                for(unsigned pk=diag;pk<unsigned(row[oi+1]);pk++){ 
-                  if(col[pk]==ppedim){
-                    matrixInd[pk]=double(-temp*volume);
-                    col[pk]=oj;
-			              matrixInd[diag]+=(temp*volume);
-                    break;
-                  }
-                  else if(col[pk]==oj){
-                    matrixInd[pk]-=double(temp*volume);
-                    matrixInd[diag]+=double(temp*volume);
-                    break;
-                  }
-                }
-              }
-              if(mkp2==1){
-                unsigned p2k;
-                for(unsigned k=0;k<Npb;k++) if(idpc[k]==irelation[idp2]){
-                  p2k=k;
+              for(unsigned pk=diag;pk<unsigned(row[oi+1]);pk++){ 
+                if(col[pk]==ppedim){
+                  matrixInd[pk]=double(-temp*volume);
+                  col[pk]=oj;
+			            matrixInd[diag]+=(temp*volume);
                   break;
                 }
-
-                float dist = pspos[p2k].z-pspos[p2].z;
-			          temp = temp * RhopZero * fabs(Gravity.z) * dist;
-			          matrixb[oi]+=double(volume*temp); 
+                else if(col[pk]==oj){
+                  matrixInd[pk]-=double(temp*volume);
+                  matrixInd[diag]+=double(temp*volume);
+                  break;
+                }
               }
 		        }  
           }
@@ -2286,7 +2273,7 @@ void JSphCpu::run_solver(MatrixType const & matrix, VectorType const & rhs,Solve
   copy(result,matrixx);
 }
 
-void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz,const bool newamg){
+void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz){
     viennacl::context ctx;
    
     typedef double ScalarType;
@@ -2307,7 +2294,6 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
       run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_jacobi,matrixx,ppedim);
     }
     else if(tprecond==PRECOND_AMG){
-      if(true){
         Log->Printf("AMG PRECOND");
         viennacl::context host_ctx(viennacl::MAIN_MEMORY);
         viennacl::context target_ctx = viennacl::traits::context(vcl_compressed_matrix);
@@ -2323,20 +2309,16 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
         amg_tag_agg_pmis.set_coarsening_cutoff(coarsecutoff); 
         amg_tag_agg_pmis.set_setup_context(host_ctx);
         amg_tag_agg_pmis.set_target_context(target_ctx); 
-        vcl_oldAmg.change(vcl_compressed_matrix, amg_tag_agg_pmis);
+        viennacl::linalg::amg_precond<viennacl::compressed_matrix<double> > vcl_AMG(vcl_compressed_matrix,amg_tag_agg_pmis);
         Log->Printf(" * Setup phase (ViennaCL types)...");
         viennacl::tools::timer timer;
         timer.start();
-        vcl_oldAmg.setup(); 
-        std::cout << "levels = " << vcl_oldAmg.levels() << "\n";
-        for(int i =0; i< vcl_oldAmg.levels();i++) std::cout << "level " << i << "\t" << "size = " << vcl_oldAmg.size(i) << "\n";
+        vcl_AMG.setup(); 
+        std::cout << "levels = " << vcl_AMG.levels() << "\n";
+        for(int i =0; i< vcl_AMG.levels();i++) std::cout << "level " << i << "\t" << "size = " << vcl_AMG.size(i) << "\n";
         viennacl::backend::finish(); 
         Log->Printf("  > Setup time: %f",timer.get());
-        run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_oldAmg,matrixx,ppedim);
-      }
-      else{
-        run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_oldAmg,matrixx,ppedim);
-      }
+        run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_AMG,matrixx,ppedim);
     }
 }    
 #endif

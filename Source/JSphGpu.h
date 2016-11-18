@@ -240,7 +240,8 @@ protected:
   unsigned int *colInd;
   unsigned int *rowInd;
   double *X;
-  int count;
+  unsigned *counterGPU;
+  unsigned *counterCPU;
   word *Codehost;
   unsigned *Porderhost;
   unsigned int *rowCpu;

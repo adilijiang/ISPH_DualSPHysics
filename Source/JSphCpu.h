@@ -23,15 +23,6 @@
 #include "JSph.h"
 #include <string>
 
-#ifndef _WITHGPU
-  #define VIENNACL_WITH_OPENMP
-  #include "viennacl/vector.hpp"
-  #include "viennacl/compressed_matrix.hpp"
-  #include "viennacl/linalg/bicgstab.hpp"
-  #include "viennacl/linalg/norm_2.hpp"
-  #include "viennacl/linalg/amg.hpp" 
-#endif
-
 class JPartsOut;
 class JArraysCpu;
 class JCellDivCpu;
@@ -232,10 +223,10 @@ protected:
   std::vector<double> x;
   
 #ifndef _WITHGPU
-  viennacl::linalg::amg_precond<viennacl::compressed_matrix<double> > vcl_oldAmg;
   template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
   void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,std::vector<double> &matrixx,const unsigned ppedim); 
-  void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,std::vector<double> &matrixa,std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz,const bool newamg);
+  void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,std::vector<double> &matrixa,
+    std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz);
 #endif
   void CheckPOrder(unsigned npf,unsigned npb,const unsigned *porder,unsigned *porderold,unsigned npbok,bool &newamg,unsigned &ppedimold,unsigned ppedim,const unsigned *idpc);
 
