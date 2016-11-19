@@ -50,7 +50,7 @@ protected:
     ,int hdiv,const tint4 &nc,const tint3 &cellzero
     ,int &cxini,int &cxfin,int &yini,int &yfin,int &zini,int &zfin)const;
 
-  void Interaction_Forces(TpInter tinter);
+  void Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond);
   double ComputeAceMax();
 
   double ComputeStep_Sym();
@@ -65,8 +65,6 @@ protected:
   void PreparePosSimple();
   void SolvePPE(double dt);
   void FindIrelation();
-  void BoundaryVelocity(TpSlipCond TSlipCond);
-  void KernelCorrection();
   void RunShifting(double dt);
 
 public:
