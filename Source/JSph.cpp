@@ -92,7 +92,6 @@ void JSph::InitVars(){
   OutPosCount=OutRhopCount=OutMoveCount=0;
   Simulate2D=false;
   Stable=false;
-  Psimple=true;
   SvDouble=false;
   RunCode=CalcRunCode();
   RunTimeDate="";
@@ -277,7 +276,6 @@ void JSph::LoadConfig(const JCfgRun *cfg){
   const char* met="LoadConfig";
   TimerTot.Start();
   Stable=cfg->Stable;
-  Psimple=cfg->Psimple;
   SvDouble=cfg->SvDouble;
   DirOut=fun::GetDirWithSlash(cfg->DirOut);
   CaseName=cfg->CaseName; 
