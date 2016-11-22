@@ -80,7 +80,7 @@ void JSphGpu::InitVars(){
   rowInd=NULL;
   counterGPU=NULL;
   X=NULL;
-  dWxCorrg=NULL; dWzCorrg=NULL;
+  dWxCorrg=NULL; dWyCorrg=NULL; dWzCorrg=NULL;
   POrderg=NULL;
   Divrg=NULL;
   ShiftPosg=NULL; //-Shifting.
@@ -274,7 +274,7 @@ void JSphGpu::AllocGpuMemoryParticles(unsigned np,float over){
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,1); //-ace
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,4); //-velrhop,posxy
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,2);  //-posz,divrg
-  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_24B,2); //-dWxCorrg,dWzCorrg
+  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_24B,3); //-dWxCorrg,dWyCorrg,dWzCorrg
   if(TStep==STEP_Symplectic){
     ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,3);  //-poszpre,b,x
     ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,2); //-posxypre,velrhoppre

@@ -232,6 +232,7 @@ protected:
   //unsigned int *rowCpu;
   unsigned *POrderg;
   double3 *dWxCorrg; //Kernel correction in the x direction
+  double3 *dWyCorrg; //Kernel correction in the y direction
   double3 *dWzCorrg; //Kernel correction in the z direction
   float *Divrg; //Divergence of position
   //matrix variables 

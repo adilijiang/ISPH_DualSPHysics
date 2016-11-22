@@ -433,7 +433,7 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   //-Interaccion Fluid-Fluid/Bound & Bound-Fluid.
   //-Interaction Fluid-Fluid/Bound & Bound-Fluid.
   
-  cusph::Interaction_Forces(Psimple,WithFloating,UseDEM,TSlipCond,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,dWxCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D);
+  cusph::Interaction_Forces(Psimple,WithFloating,UseDEM,TSlipCond,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D);
   if(tinter==1)cudaMemset(Velrhopg,0,sizeof(float4)*Npb);
   //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
   //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
@@ -482,15 +482,16 @@ double JSphGpuSingle::ComputeStep_Sym(){
   //-Predictor
   //----------- 
   InitAdvection(dt);
-  RunCellDivide(true);
+	RunCellDivide(true);
   Interaction_Forces(INTER_Forces,dt);        //-Interaction
-  ComputeSymplecticPre(dt);                   //-Applies Symplectic-Predictor to the particles
-  //if(CaseNfloat)RunFloating(dt*.5,true);    //-Management of the floating bodies
+	ComputeSymplecticPre(dt);                   //-Applies Symplectic-Predictor to the particles
+	//if(CaseNfloat)RunFloating(dt*.5,true);    //-Management of the floating bodies
   PosInteraction_Forces(INTER_Forces);        //-Releases memory of the interaction
-  //-Pressure Poisson equation
+
+	//-Pressure Poisson equation
   //-----------
   KernelCorrection();                         //-Kernel correction
-  SolvePPE(dt);                               //-Solve pressure Poisson equation
+	SolvePPE(dt);                               //-Solve pressure Poisson equation
   //-Corrector
   //-----------
   //DemDtForce=dt;                            //(DEM)
@@ -573,7 +574,11 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   Log->Print(string("\n[Initialising simulation (")+RunCode+")  "+fun::GetDateTime()+"]");
   PrintHeadPart();
   //-finding dummy particle relations to wall particles
+	clock_t start = clock(); 
   FindIrelation();
+	clock_t stop = clock();   
+    double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
+    cout<<"FindIrelation = " << dif << "ms\n";
   while(TimeStep<TimeMax){
     clock_t start = clock(); 
     double stepdt=ComputeStep_Sym();
@@ -698,12 +703,14 @@ void JSphGpuSingle::KernelCorrection(){
   const unsigned bsbound=BlockSizes.forcesbound;
 
   dWxCorrg=ArraysGpu->ReserveDouble3();
+	dWyCorrg=ArraysGpu->ReserveDouble3();
   dWzCorrg=ArraysGpu->ReserveDouble3();
 
-  cudaMemset(dWxCorrg,0,sizeof(double3)*Np);						
+  cudaMemset(dWxCorrg,0,sizeof(double3)*Np);	
+	cudaMemset(dWyCorrg,0,sizeof(double)*Np);
   cudaMemset(dWzCorrg,0,sizeof(double3)*Np);
   
-  cusph::KernelCorrection(Psimple,CellMode,bsfluid,bsbound,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,dWxCorrg,dWzCorrg,Codeg);
+  cusph::KernelCorrection(Psimple,Simulate2D,CellMode,bsfluid,bsbound,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PsPospressg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,Codeg);
 }
 
 //==============================================================================
@@ -767,7 +774,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   X=ArraysGpu->ReserveDouble(); cudaMemset(X,0,sizeof(double)*np);
   rowInd=ArraysGpu->ReserveUint(); cudaMemset(rowInd,0,sizeof(unsigned int)*(PPEDim+1));
   CheckCudaError(met,"Memory Assignment b");
-  cusph::PopulateMatrixB(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,PsPospressg,Velrhopg,dWxCorrg,dWzCorrg,b,POrderg,Idpg,dt,PPEDim,Divrg,Codeg,FreeSurface);
+  cusph::PopulateMatrixB(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,PsPospressg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,b,POrderg,Idpg,dt,PPEDim,Divrg,Codeg,FreeSurface);
   cusph::MatrixStorage(Psimple,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,Divrg,POrderg,rowInd,FreeSurface);
   CheckCudaError(met,"MatrixStorage");
   unsigned Nnz=MatrixASetup(PPEDim,rowInd);
