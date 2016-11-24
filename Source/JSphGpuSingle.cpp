@@ -581,9 +581,9 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
     cout<<"FindIrelation = " << dif << "ms\n";
   while(TimeStep<TimeMax){
     clock_t start = clock(); 
+		if(CaseNmoving)RunMotion(DtPre);
     double stepdt=ComputeStep_Sym();
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
-    if(CaseNmoving)RunMotion(stepdt);
     TimeStep+=stepdt;
     partoutstop=(Np<NpMinimum || !Np);
     if((TimeStep-TimeStepIni)-TimePart*((Part-PartIni)-1)>=TimePart || partoutstop){

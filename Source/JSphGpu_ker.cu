@@ -2564,7 +2564,7 @@ template<bool psimple> __device__ void KerKernelCorCalc
   (unsigned p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz,const float4 *pospress
   ,float massp2,double3 posdp1,float3 posp1,double3 &dwxcorrgp1,double3 &dwycorrgp1,double3 &dwzcorrgp1,const word *code)
 {
-  for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==0||CODE_GetTypeValue(code[p2])==2){
+  for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])!=1){
     double drx,dry,drz,pressp2;
     KerGetParticlesDrDouble<psimple> (p2,posxy,posz,pospress,posdp1,posp1,drx,dry,drz,pressp2);
     double rr2=drx*drx+dry*dry+drz*drz;
@@ -2586,7 +2586,7 @@ __global__ void KerInverseKernelCor2D(unsigned n,unsigned pinit,double3 *dwxcorr
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if(CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2){
+    if(CODE_GetTypeValue(code[p1])!=1){
       const double det=1.0/(dwxcorrg[p1].x*dwzcorrg[p1].z-dwxcorrg[p1].z*dwzcorrg[p1].x);
 
       if(det){
@@ -2605,7 +2605,7 @@ __global__ void KerInverseKernelCor3D(unsigned n,unsigned pinit,double3 *dwxcorr
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if(CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2){
+    if(CODE_GetTypeValue(code[p1])!=1){
       double3 dwx=dwxcorrg[p1]; //  dwx.x   dwx.y   dwx.z
 			double3 dwy=dwycorrg[p1]; //  dwy.x   dwy.y   dwy.z
 			double3 dwz=dwzcorrg[p1]; //  dwz.x   dwz.y   dwz.z
@@ -2632,7 +2632,7 @@ template<bool psimple> __global__ void KerKernelCorrection
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
       unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-      if(CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2){
+      if(CODE_GetTypeValue(code[p1])!=1){
       //-Obtiene datos basicos de particula p1.
   	  //-Obtains basic data of particle p1.
       double3 posdp1;
@@ -2767,7 +2767,7 @@ __global__ void kerPOrder(const unsigned np,const unsigned npb,const unsigned np
    unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
    if(p1==0){
      unsigned count=0;
-	   for(int i=0;i<int(npbok);i++) if(CODE_GetTypeValue(code[i])==0||CODE_GetTypeValue(code[i])==2){
+	   for(int i=0;i<int(npbok);i++) if(CODE_GetTypeValue(code[i])!=1){
        porder[i]=count;
        count++;  
      }
@@ -2889,7 +2889,8 @@ template<bool psimple> __global__ void KerFreeSurfaceFind
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
       unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-      if(CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2){
+			unsigned codep1=CODE_GetTypeValue(code[p1]);
+      if(codep1!=1){
       //-Obtiene datos basicos de particula p1.
   	  //-Obtains basic data of particle p1.
       double3 posdp1;
@@ -2949,6 +2950,7 @@ template<bool psimple> __global__ void KerFreeSurfaceFind
       }
 
       if(divr1) divr[p1]+=divr1;
+			if(codep1==3) divr[p1]=-1.0;
     }
   }
 }
@@ -2989,7 +2991,7 @@ template<bool psimple> __device__ void KerPopMatrixBCalc
   (unsigned p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz,const float4 *pospress
   ,const float4 *velrhop,const float3 velp1,const float massp2,const double3 posdp1,const float3 posp1,const double3 dwxcorrgp1,const double3 dwycorrgp1,const double3 dwzcorrgp1,double &matrixbp1,const word *code)
 {
-  for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==0||CODE_GetTypeValue(code[p2])==2){
+  for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])!=1){
     float drx,dry,drz,pressp2;
     KerGetParticlesDr<psimple> (p2,posxy,posz,pospress,posdp1,posp1,drx,dry,drz,pressp2);
     float rr2=drx*drx+dry*dry+drz*drz;
@@ -3019,7 +3021,7 @@ template<bool psimple> __global__ void KerPopulateMatrixB
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if(CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2){
+    if(CODE_GetTypeValue(code[p1])!=1){
       if(divr[p1]>freesurface){
         //-Obtiene datos basicos de particula p1.
   	    //-Obtains basic data of particle p1.
@@ -3124,7 +3126,7 @@ template<bool psimple> __device__ void KerMatrixStorageCalc
   (unsigned p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz,const float4 *pospress
   ,double3 posdp1,float3 posp1,const word *code,unsigned &index)
 {
-  for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==0||CODE_GetTypeValue(code[p2])==2){
+  for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])!=1){
     float drx,dry,drz,pressp2;
     KerGetParticlesDr<psimple> (p2,posxy,posz,pospress,posdp1,posp1,drx,dry,drz,pressp2);
     float rr2=drx*drx+dry*dry+drz*drz;
@@ -3141,7 +3143,7 @@ template<bool psimple> __global__ void KerMatrixStorage
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
       unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-      if(CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2){
+      if(CODE_GetTypeValue(code[p1])!=1){
         if(divr[p1]>freesurface){
         //-Obtiene datos basicos de particula p1.
   	    //-Obtains basic data of particle p1.
@@ -3340,7 +3342,7 @@ template<bool psimple> __global__ void KerPopulateMatrixA
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if((CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2)&&porder[p1]!=int(np)){
+    if((CODE_GetTypeValue(code[p1])!=1)&&porder[p1]!=int(np)){
       unsigned oi=porder[p1];
       const unsigned diag=row[oi];
       col[diag]=oi;
@@ -3439,7 +3441,7 @@ template<bool psimple> __global__ void KerFreeSurfaceMark
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
       unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-      if(CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2){
+      if(CODE_GetTypeValue(code[p1])!=1){
         unsigned oi=porder[p1];
         const int Mark=row[oi]+1;
         if(divr[p1]>=freesurface && divr[p1]<=freesurface+0.2f){
@@ -3484,7 +3486,7 @@ template<bool psimple> __global__ void KerPressureAssignCode0
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if((CODE_GetTypeValue(code[p1])==0||CODE_GetTypeValue(code[p1])==2)&&porder[p1]!=np){
+    if((CODE_GetTypeValue(code[p1])!=1)&&porder[p1]!=np){
       velrhop[p1].w=float(press[porder[p1]]);
       if(p1<npb&&velrhop[p1].w<0)velrhop[p1].w=0.0;
     }

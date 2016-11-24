@@ -82,6 +82,7 @@ void JSphCpuSingle::LoadConfig(JCfgRun *cfg){
   ConfigOmp(cfg);
   //-Load basic general configuraction / Carga configuracion basica general
   JSph::LoadConfig(cfg);
+
   //-Checks compatibility of selected options.
   Log->Print("**Special case configuration is loaded");
 }
@@ -523,12 +524,16 @@ double JSphCpuSingle::ComputeAceMax(){
 //==============================================================================
 double JSphCpuSingle::ComputeStep_Sym(){
   const double dt=DtPre;
+
   //-Predictor
   //-----------
   PreInteraction_Forces(INTER_Forces);
   RunCellDivide(true);
   Interaction_Forces(INTER_Forces,TSlipCond);      //-Interaction / Interaccion
-  if(TSlipCond)memset(Velrhopc,0,sizeof(tfloat4)*Npb);
+  if(TSlipCond){
+		if(!CaseNmoving)memset(Velrhopc,0,sizeof(tfloat4)*Npb);
+		//else ;
+	}
   //const double ddt_p=DtVariable(false);   //-Calculate dt of predictor step / Calcula dt del predictor
   //if(TShifting)RunShifting(dt*.5);        //-Shifting
   ComputeSymplecticPre(dt);               //-Apply Symplectic-Predictor to particles / Aplica Symplectic-Predictor a las particulas
@@ -769,10 +774,11 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   while(TimeStep<TimeMax){
     clock_t start = clock(); 
     //if(ViscoTime)Visco=ViscoTime->GetVisco(float(TimeStep));
+
+		if(CaseNmoving)RunMotion(DtPre);
     double stepdt=ComputeStep_Sym();
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
-    if(CaseNmoving)RunMotion(stepdt);
-
+    
     TimeStep+=stepdt;
     partoutstop=(Np<NpMinimum || !Np);
     if((TimeStep-TimeStepIni)-TimePart*((Part-PartIni)-1)>=TimePart || partoutstop){
@@ -901,7 +907,6 @@ void JSphCpuSingle::SolvePPE(double dt){
   const unsigned npf=np-npb;
 
   //RHS
-  
   RHSandLHSStorage(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface,rowInd); //-Fluid-Fluid
   RHSandLHSStorage(npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface,rowInd); //-Fluid-Bound
   RHSandLHSStorage(npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface,rowInd); //-Bound-Fluid
@@ -918,7 +923,6 @@ void JSphCpuSingle::SolvePPE(double dt){
   FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
   // allocate vectors
   x.resize(PPEDim,0);
-
   //solvers
 #ifndef _WITHGPU
   solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,b,x,rowInd,colInd,PPEDim,Nnz); 

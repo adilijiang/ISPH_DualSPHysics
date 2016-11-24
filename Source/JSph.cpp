@@ -506,7 +506,7 @@ void JSph::LoadCaseConfig(){
 
   //-Loads and configures MK of particles.
   LoadMkInfo(&parts);
-
+	
   //-Configuration of WaveGen.
   if(xml.GetNode("case.execution.special.wavepaddles",false)){
     WaveGen=new JWaveGen(Log,DirCase,&xml,"case.execution.special.wavepaddles");
@@ -621,6 +621,7 @@ void JSph::LoadMkInfo(const JSpaceParts *parts){
   //-Allocates memory.
   MkList=new StMkInfo[MkListSize];
   //-Gets info for each block of particles.
+	std::cout<<"HEELELELEOEOEOELELEO    " << MkListSize<<"\n";
   for(unsigned c=0;c<MkListSize;c++){
     const JSpacePartBlock &block=parts->GetBlock(c);
     MkList[c].begin=block.GetBegin();
@@ -827,7 +828,6 @@ void JSph::VisuConfig()const{
     Log->Print(fun::VarStr("RhopOutMax",RhopOutMax));
   }
   if(VarAcc)Log->Print(fun::VarStr("VarAcc",VarAcc->GetBaseFile()+":"+fun::UintStr(VarAcc->GetCount())));
-  if(CteB==0)RunException(met,"Constant \'b\' can not be zero.\n\'b\' is zero when fluid height is zero (or fluid particles were not created)");
 }
 
 //==============================================================================

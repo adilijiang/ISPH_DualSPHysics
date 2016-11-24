@@ -946,6 +946,7 @@ void JSphGpu::PosInteraction_Forces(TpInter tinter){
   ArraysGpu->Free(Aceg);            Aceg=NULL;
   if(tinter==2){
 	  ArraysGpu->Free(dWxCorrg);	    dWxCorrg=NULL;
+		ArraysGpu->Free(dWyCorrg);	    dWyCorrg=NULL;
 	  ArraysGpu->Free(dWzCorrg);	    dWzCorrg=NULL;
     ArraysGpu->Free(PsPospressg);   PsPospressg=NULL;
   }

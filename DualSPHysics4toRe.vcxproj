@@ -369,7 +369,7 @@ IF EXIST cg_variables.h move cg_variables.h $(Configuration)\
       </OmitFramePointers>
       <EnableFiberSafeOptimizations>false</EnableFiberSafeOptimizations>
       <WholeProgramOptimization>true</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\ViennaCLLibrary;$(CULASPARSE_INC_PATH);$(CUDA_PATH_V5_5)/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\ViennaCLLibrary;$(CULASPARSE_INC_PATH);$(CUDA_PATH_V7_5)/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_WITHGPU;WIN32;_CONSOLE;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
@@ -384,7 +384,7 @@ IF EXIST cg_variables.h move cg_variables.h $(Configuration)\
     <Link>
       <AdditionalDependencies>cudart.lib;JWaveGen_$(PlatformName).lib;JFormatFiles2_$(PlatformName).lib;JSphMotion_$(PlatformName).lib;JXml_$(PlatformName).lib;cula_sparse.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
-      <AdditionalLibraryDirectories>$(CUDA_PATH_V5_5)/lib/$(PlatformName);Libs;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(CUDA_PATH_V7_5)/lib/$(PlatformName);Libs;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -594,7 +594,7 @@ IF EXIST cg_variables.h move cg_variables.h $(Configuration)\
     <CustomBuild Include="Source\JCellDivGpu_ker.cu">
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">rem ***Vars de compilacion
-set CudaPath=$(CUDA_PATH_V5_5)
+set CudaPath=$(CUDA_PATH_V7_5)
 set CudaNvcc="%CudaPath%\bin\nvcc.exe"
 set CudaInc="%CudaPath%\include"
 rem ***Seleccion de GPU hardware para compilacion
@@ -630,7 +630,7 @@ rem ***Sentencia de compilacion
     <CustomBuild Include="Source\JCellDivGpuSingle_ker.cu">
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">rem ***Vars de compilacion
-set CudaPath=$(CUDA_PATH_V5_5)
+set CudaPath=$(CUDA_PATH_V7_5)
 set CudaNvcc="%CudaPath%\bin\nvcc.exe"
 set CudaInc="%CudaPath%\include"
 rem ***Seleccion de GPU hardware para compilacion
@@ -667,7 +667,7 @@ rem ***Sentencia de compilacion
     <CustomBuild Include="Source\JSphGpu_ker.cu">
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">rem ***Vars de compilacion
-set CudaPath=$(CUDA_PATH_V5_5)
+set CudaPath=$(CUDA_PATH_V7_5)
 set CudaNvcc="%CudaPath%\bin\nvcc.exe"
 set CudaInc="%CudaPath%\include"
 set CudaInc=$(ProjectDir)..\ViennaCLLibrary
