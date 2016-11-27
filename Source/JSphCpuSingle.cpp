@@ -465,7 +465,13 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
   const char met[]="Interaction_Forces";	
   	
   TmcStart(Timers,TMC_CfForces);
-
+	if(tinter==1){
+		POrder=ArraysCpu->ReserveUint(); memset(POrder,Np,sizeof(unsigned)*Np);
+ 
+		MatrixOrder(Np,0,POrder,Idpc,Irelationc,Codec,PPEDim);
+		b.resize(PPEDim,0);
+		rowInd.resize(PPEDim+1,0);
+	}
   //-Interaction of Fluid-Fluid/Bound & Bound-Fluid (forces and DEM) / Interaccion Fluid-Fluid/Bound & Bound-Fluid (forces and DEM).
   float viscdt=0;
 	JSphCpu::Interaction_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,dWxCorr,dWyCorr,dWzCorr,Codec,Acec,Divr);

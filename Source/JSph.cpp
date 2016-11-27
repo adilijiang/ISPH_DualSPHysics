@@ -110,6 +110,7 @@ void JSph::InitVars(){
   Iterations=0;
   Tolerance=0;
   StrongConnection=0; JacobiWeight=0; Presmooth=0; Postsmooth=0; CoarseCutoff=0;
+	NegativePressureBound=true;
   Visco=0; ViscoBoundFactor=1;
   UseDEM=false;  //(DEM)
   DemDtForce=0;  //(DEM)
@@ -394,9 +395,10 @@ void JSph::LoadCaseConfig(){
     default: RunException(met,"Slip/No Slip Condition mode is not valid.");
   }
 
-  switch(eparms.GetValueInt("Shifting",true,0)){
+  switch(eparms.GetValueInt("Shifting",true,1)){
     case 0:  TShifting=SHIFT_None;     break;
     case 1:  TShifting=SHIFT_Full;     break;
+		case 2:	 TShifting=SHIFT_Max;			 break;
     default: RunException(met,"Shifting mode is not valid.");
   }
 
@@ -422,12 +424,18 @@ void JSph::LoadCaseConfig(){
       case 0:  TAMGInter=AMGINTER_AG;   break;
       case 1:  TAMGInter=AMGINTER_SAG;  break;
       default: RunException(met,"AMG Interpolation is not valid.");
-    }
+  }
     StrongConnection=eparms.GetValueFloat("Strong Connection Threshold",true,0.3f);
     JacobiWeight=eparms.GetValueFloat("Jacobi Weight",true,0.7f);
     Presmooth=eparms.GetValueInt("Presmooth Steps",true,1);
     Postsmooth=eparms.GetValueInt("Postsmooth Steps",true,1);
     CoarseCutoff=eparms.GetValueInt("Coarsening Cutoff",true,2500);
+  }
+
+	switch(eparms.GetValueInt("NegativePressureBound",true,1)){
+    case 0:  NegativePressureBound=false;     break;
+    case 1:  NegativePressureBound=true;     break;
+    default: RunException(met,"NegativePressureBound can only be 0 (no) or 1 (yes)");
   }
 
   FtPause=eparms.GetValueFloat("FtPause",true,0);

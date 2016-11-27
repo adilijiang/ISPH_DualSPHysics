@@ -177,6 +177,7 @@ protected:
   int Presmooth;
   int Postsmooth;
   int CoarseCutoff;
+	bool NegativePressureBound; //Allow negative pressure in the boundary
 
   float Visco;  
   float ViscoBoundFactor;     //-Para interaccion con contorno usa Visco*ViscoBoundFactor.						//-Forboundary interaction use Visco*ViscoBoundFactor.

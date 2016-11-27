@@ -238,13 +238,12 @@ protected:
   //matrix variables 
   double *b;
   double *a;
+  unsigned PPEDim;
   unsigned int *colInd;
   unsigned int *rowInd;
   double *X;
   unsigned *counterGPU;
   unsigned *counterCPU;
-  word *Codehost;
-  unsigned *Porderhost;
   unsigned int *rowCpu;
   void MatrixOrder(unsigned n,unsigned pinit,unsigned npb,unsigned npbok,unsigned bsbound,unsigned bsfluid,unsigned *porder,tuint3 ncells,const int2 *begincell,tuint3 cellmin,
     const unsigned *dcell,const unsigned *idpg,const unsigned *irelation,const word *code, unsigned &ppedim);

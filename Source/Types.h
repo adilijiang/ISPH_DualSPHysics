@@ -151,9 +151,8 @@ typedef enum{
 }TpSlipCond; //Slip/NoSlip Conditions for boundary velocity interpolation
 
 typedef enum{
-  SHIFT_Full=3,
-  SHIFT_NoFixed=2,
-  SHIFT_NoBound=1,
+  SHIFT_Max=2,
+  SHIFT_Full=1,
   SHIFT_None=0
 }TpShifting; //-Modos de Shifting. //-Shifting modes.
 

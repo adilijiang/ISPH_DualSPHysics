@@ -549,11 +549,6 @@ void JSphCpu::PreInteraction_Forces(TpInter tinter){
 
 		Divr=ArraysCpu->ReserveFloat(); memset(Divr,0,sizeof(float)*np);
 		//Matrix Order and Free Surface
-		POrder=ArraysCpu->ReserveUint(); memset(POrder,np,sizeof(unsigned)*np);
- 
-		MatrixOrder(np,0,POrder,Idpc,Irelationc,Codec,PPEDim);
-		b.resize(PPEDim,0);
-		rowInd.resize(PPEDim+1,0);
   }
   //-Assign memory / Asigna memoria.
   Acec=ArraysCpu->ReserveFloat3();
@@ -697,12 +692,6 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
   #endif
   for(int p1=int(pinit);p1<pfin;p1++){
 		unsigned codep1=CODE_GetTypeValue(Codec[p1]);
-		/*	unsigned typep1=CODE_GetType(Codec[p1]);
-			unsigned valuep1=CODE_GetTypeValue(Codec[p1]);
-			unsigned typevaluep1=CODE_GetTypeAndValue(Codec[p1]);
-		if(Idpc[p1]==4180||Idpc[p1]==310||Idpc[p1]==7468||Idpc[p1]==8567||Idpc[p1]==10109||Idpc[p1]==8587){
-				std::cout<<Idpc[p1]<<"\t"<<typep1<<"\t"<<valuep1<<"\t"<<typevaluep1<<"\n";
-		}*/
 		if(codep1!=1){
 			//-Obtain data of particle p1 / Obtiene datos de particula p1.
 			const tdouble3 posp1=pos[p1];
@@ -779,17 +768,18 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 						const double drz=posp1.z-pos[p2].z;
 						const double rr2=drx*drx+dry*dry+drz*drz;
 						if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-							if(CODE_GetTypeValue(Codec[p1])==codep1+10){
+							if(CODE_GetTypeValue(Codec[p2])==codep1+10){
 								wallVelocity.x=velrhop[p2].x;
 								wallVelocity.y=velrhop[p2].y;
 								wallVelocity.z=velrhop[p2].z;
 							}
+
 							//-Wendland kernel.
 							double frx,fry,frz;
 							GetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
 							const float rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
 							divrp1-=volume*rDivW;
-
+						
 							dwxp1.x-=volume*frx*drx; dwxp1.y-=volume*fry*drx; dwxp1.z-=volume*frz*drx;
 							dwyp1.x-=volume*frx*dry; dwyp1.y-=volume*fry*dry; dwyp1.z-=volume*frz*dry;
 							dwzp1.x-=volume*frx*drz; dwzp1.y-=volume*fry*drz; dwzp1.z-=volume*frz*drz;
@@ -797,7 +787,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 					}
 				}
 			}
-
+			
 			if(Sum2){
 				if(TSlipCond==SLIPCOND_Slip){
 					velrhop[p1].x=(wallVelocity.x-(Sum1.x/Sum2))/2.0f;
@@ -812,8 +802,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 			}
 
 			if(divrp1) divr[p1]=divrp1;
-			if(codep1==3)divr[p1]=-1;
-
+	
 			if(dwxp1.x||dwxp1.y||dwxp1.z
 				||dwyp1.x||dwyp1.y||dwyp1.z
 				||dwzp1.x||dwzp1.y||dwzp1.z){
@@ -1392,21 +1381,23 @@ void JSphCpu::RunShifting(double dt){
     ShiftPosc[p]=rshiftpos; //particles in fluid bulk, normal shifting
 
     //Max Shifting
-    double Maxx=abs(Velrhopc[p].x*dt);
-    double Maxy=abs(Velrhopc[p].y*dt);
-    double Maxz=abs(Velrhopc[p].z*dt);
-    if(abs(ShiftPosc[p].x)>Maxx){
-      if(ShiftPosc[p].x>0) ShiftPosc[p].x=Maxx;
-      else ShiftPosc[p].x=-Maxx;
-    }
-    if(abs(ShiftPosc[p].z)>Maxz){
-      if(ShiftPosc[p].z>0) ShiftPosc[p].z=Maxz;
-      else ShiftPosc[p].z=-Maxz;
-    }
-    if(abs(ShiftPosc[p].y)>Maxy){
-      if(ShiftPosc[p].y>0) ShiftPosc[p].y=Maxy;
-      else ShiftPosc[p].y=-Maxy;
-    }
+		if(TShifting==SHIFT_Max){
+			double Maxx=abs(Velrhopc[p].x*dt);
+			double Maxy=abs(Velrhopc[p].y*dt);
+			double Maxz=abs(Velrhopc[p].z*dt);
+			if(abs(ShiftPosc[p].x)>Maxx){
+				if(ShiftPosc[p].x>0) ShiftPosc[p].x=Maxx;
+				else ShiftPosc[p].x=-Maxx;
+			}
+			if(abs(ShiftPosc[p].z)>Maxz){
+				if(ShiftPosc[p].z>0) ShiftPosc[p].z=Maxz;
+				else ShiftPosc[p].z=-Maxz;
+			}
+			if(abs(ShiftPosc[p].y)>Maxy){
+				if(ShiftPosc[p].y>0) ShiftPosc[p].y=Maxy;
+				else ShiftPosc[p].y=-Maxy;
+			}
+		}
   }
   TmcStop(Timers,TMC_SuShifting);
 }
@@ -2116,7 +2107,7 @@ void JSphCpu::PressureAssign(unsigned np,unsigned pinit,const tdouble3 *pos,tflo
   for(int p1=int(pinit);p1<int(np);p1++) if((CODE_GetTypeValue(code[p1])!=1)&&porder[p1]!=np){
     velrhop[p1].w=float(x[porder[p1]]);
 
-    if(p1<int(npb)&&velrhop[p1].w<0)velrhop[p1].w=0.0;
+    if(!NegativePressureBound)if(p1<int(npb)&&velrhop[p1].w<0)velrhop[p1].w=0.0;
   }
 
   #ifdef _WITHOMP

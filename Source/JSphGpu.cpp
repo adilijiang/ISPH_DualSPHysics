@@ -35,7 +35,7 @@ using namespace std;
 //==============================================================================
 JSphGpu::JSphGpu(bool withmpi):JSph(false,withmpi){
   ClassName="JSphGpu";
-  Codehost=NULL; Porderhost=NULL; rowCpu=NULL; counterCPU=NULL;
+  rowCpu=NULL; counterCPU=NULL;
   Idp=NULL; Code=NULL; Dcell=NULL; Posxy=NULL; Posz=NULL; Velrhop=NULL; 
   AuxPos=NULL; AuxVel=NULL; AuxRhop=NULL;
   FtoForces=NULL; FtoCenter=NULL;   //-Floatings.
@@ -76,6 +76,7 @@ void JSphGpu::InitVars(){
   Aceg=NULL;
   b=NULL;
   a=NULL;
+	PPEDim=0;
   colInd=NULL;
   rowInd=NULL;
   counterGPU=NULL;
@@ -911,6 +912,15 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
   //-Allocates memory.
   Aceg=ArraysGpu->ReserveFloat3();
 
+	if(tinter==1){
+		dWxCorrg=ArraysGpu->ReserveDouble3();
+		dWyCorrg=ArraysGpu->ReserveDouble3();
+		dWzCorrg=ArraysGpu->ReserveDouble3();
+		cudaMemset(dWxCorrg,0,sizeof(double3)*Np);	
+		cudaMemset(dWyCorrg,0,sizeof(double)*Np);
+		cudaMemset(dWzCorrg,0,sizeof(double3)*Np);
+	}
+
   //-Prepara datos para interaccion Pos-Simple.
   //-Prepares data for interation Pos-Simple.
   if(tinter==1&&Psimple){
@@ -1031,7 +1041,9 @@ double JSphGpu::DtVariable(bool final){
 void JSphGpu::RunShifting(double dt){
   TmgStart(Timers,TMG_SuShifting);
   const double coeftfs=(Simulate2D? 2.0: 3.0)-FreeSurface;
-  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,coeftfs,Velrhopg,Divrg,ShiftPosg);
+	bool maxShift=false;
+	if(TShifting==SHIFT_Max) maxShift=true;
+  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,coeftfs,Velrhopg,Divrg,ShiftPosg,maxShift);
   TmgStop(Timers,TMG_SuShifting);
 }
 
@@ -1125,15 +1137,9 @@ void JSphGpu::MatrixOrder(unsigned np,unsigned pinit,unsigned npb,unsigned npbok
   const unsigned *dcell,const unsigned *idpg,const unsigned *irelationg,const word *code, unsigned &ppedim){
 	const char met[]="MatrixOrder";
 
-  cudaMemset(counterGPU, 0, sizeof(unsigned));
 
-  cusph::POrderBound(np,npb,npbok,Codeg,porder,counterGPU);
 
-  cudaMemcpy(counterCPU,counterGPU,sizeof(unsigned),cudaMemcpyDeviceToHost);
-  cusph::MatrixOrderFluid(bsfluid,np,npb,porder,counterGPU);
-
-  cusph::MatrixOrderDummy(CellMode,bsbound,np,npb,ncells,begincell,cellmin,dcell,Codeg,Idpg,irelationg,porder);
-  ppedim = counterCPU[0];
+  
   CheckCudaError(met,"MatrixOrder");
 }
 
