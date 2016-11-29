@@ -142,7 +142,6 @@ protected:
 
   bool Simulate2D;  //-Activa o desactiva simulacion en 2D (anula fuerzas en eje Y).	//-Toggles 2D simulation (cancels forces in Y axis).
   bool Stable;
-	bool Psimple;
   bool SvDouble;  //-Indica si en los ficheros bi4 se guarda Pos como double.			//-Indicates whether Pos is saved as double in bi4 files.
 
   std::string AppName;

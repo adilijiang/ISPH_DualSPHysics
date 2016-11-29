@@ -76,12 +76,11 @@ void PreInteractionSimple(unsigned np,const double2 *posxy,const double *posz
 
 //# Kernels para calculo de fuerzas.
 //# Kernels for the force calculation.
-void Interaction_Forces(bool psimple,bool floating,bool usedem,TpSlipCond tslipcond,TpCellMode cellmode
+void Interaction_Forces(bool floating,bool usedem,TpSlipCond tslipcond,TpCellMode cellmode
   ,float viscob,float viscof,unsigned bsbound,unsigned bsfluid
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg
+  ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg
   ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,unsigned *irelationg,float *divr);
 
 //# Kernels para calculo de fuerzas DEM
@@ -158,44 +157,30 @@ void FindIrelation(const unsigned bsbound,unsigned npbok
 void POrderBound(const unsigned np,const unsigned npb,const unsigned npbok,const word *code,unsigned *porder,unsigned *index);
 void MatrixASetup(const unsigned ppedim,unsigned int*row,unsigned *nnz);
 
-//# Kernels for finding the freesurface
-void FreeSurfaceFind(bool psimple,TpCellMode cellmode
-  ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
-  ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,const float4 *pospress,float4 *velrhop
-  ,const word *code,const unsigned *idp,float *divr);
-
 //# Kernels for marking the freesurface
-void FreeSurfaceMark(bool psimple,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,float *divr
+void FreeSurfaceMark(const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,float *divr
   ,double *matrixInd,double *matrixb,unsigned int *row,const unsigned *porder,const word *code,const double pi,const float freesurface);
 
 //# Kernels for Populating matrix B
-void RHSandLHSStorage(bool psimple,TpCellMode cellmode
+void RHSandLHSStorage(TpCellMode cellmode
   ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,const float4 *pospress
+  ,const double2 *posxy,const double *posz
   ,const float4 *velrhop,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg,double *matrixb
   ,const unsigned *porder,const unsigned *idp,const double dt,const unsigned ppedim,const float *divr,const word *code,const float freesurface,unsigned *row);
 
-//# Kernels for matrix storage
-void MatrixStorage(bool psimple,TpCellMode cellmode
-  ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
-  ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop
-  ,const word *code,const unsigned *idp,float *divr,const unsigned *porder,unsigned int *row,const float freesurface);
-
 //# Kernels for Populating matrix A
-void PopulateMatrixA(bool psimple,TpCellMode cellmode
+void PopulateMatrixA(TpCellMode cellmode
   ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell,tfloat3 gravity,const double2 *posxy
-  ,const double *posz,const float4 *pospress,const float4 *velrhop,double *matrixInd,double *matrixb
+  ,const double *posz,const float4 *velrhop,double *matrixInd,double *matrixb
   ,unsigned int *row,unsigned int *col,const unsigned *porder,const unsigned *idp,const unsigned ppedim
   ,const float *divr,const word *code,const unsigned *irelationg,const float freesurface);
 
 //# Kernels for Assigning Pressure
-void PressureAssign(bool psimple,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
-  ,const tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *pospress
- ,float4 *velrhop,double *press,const unsigned *porder,const unsigned *idp,const word *code,const unsigned *irelationg,const float *divr,const float freesurface,bool negpresbound);
+void PressureAssign(const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
+  ,const tfloat3 gravity,const double2 *posxy,const double *posz
+	,float4 *velrhop,double *press,const unsigned *porder,const unsigned *idp,const word *code,const unsigned *irelationg,const float *divr,const float freesurface,bool negpresbound);
 
 //# Kernels for ArrayInitialisation
 void InitArrayPOrder(unsigned n,unsigned *v,unsigned value);
@@ -206,11 +191,11 @@ void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int it
 void solveViennaCPU(double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned ppedim,const unsigned nnz);
 
 //Kernels for shifting
-void Interaction_Shifting(bool psimple,bool floating,bool usedem,TpCellMode cellmode
+void Interaction_Shifting(bool floating,bool usedem,TpCellMode cellmode
   ,float viscob,float viscof,unsigned bsfluid
   ,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,const float4 *pospress
+  ,const double2 *posxy,const double *posz
   ,float4 *velrhop,const word *code,const float *ftomassp
   ,TpShifting tshifting,float3 *shiftpos,float *divr,const float tensilen,const float tensiler);
 

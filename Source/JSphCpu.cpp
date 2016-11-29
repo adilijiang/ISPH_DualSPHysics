@@ -802,7 +802,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 			}
 
 			if(divrp1) divr[p1]=divrp1;
-	
+			//if(Idpc[p1]==3130||Idpc[p1]==3337||Idpc[p1]==3544||Idpc[p1]==8467)divr[p1]=-1;
 			if(dwxp1.x||dwxp1.y||dwxp1.z
 				||dwyp1.x||dwyp1.y||dwyp1.z
 				||dwzp1.x||dwzp1.y||dwzp1.z){
@@ -2154,18 +2154,18 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
    
     typedef double ScalarType;
 
-    viennacl::vector<ScalarType> vcl_vec(matrixb.size(),ctx);
-    
-    copy(matrixb,vcl_vec);
-
-    viennacl::compressed_matrix<ScalarType> vcl_compressed_matrix;
+		viennacl::compressed_matrix<ScalarType> vcl_compressed_matrix;
     vcl_compressed_matrix.set(&row[0],&col[0],&matrixa[0],ppedim,ppedim,nnz);
+
+    viennacl::vector<ScalarType> vcl_vec(matrixb.size(),ctx);
+    viennacl::vector<ScalarType> vcl_result(vcl_compressed_matrix.size1(),ctx);
+    copy(matrixb,vcl_vec);
+		copy(matrixx,vcl_result);
 
     viennacl::linalg::bicgstab_tag bicgstab(tolerance,iterations);
 
     if(tprecond==PRECOND_Jacobi){
       Log->Printf("JACOBI PRECOND");
-      viennacl::vector<ScalarType> vcl_result(vcl_compressed_matrix.size1(),ctx);
       viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_compressed_matrix,viennacl::linalg::jacobi_tag());
       run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_jacobi,matrixx,ppedim);
     }

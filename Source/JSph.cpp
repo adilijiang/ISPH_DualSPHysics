@@ -92,7 +92,6 @@ void JSph::InitVars(){
   OutPosCount=OutRhopCount=OutMoveCount=0;
   Simulate2D=false;
   Stable=false;
-	Psimple=true;
   SvDouble=false;
   RunCode=CalcRunCode();
   RunTimeDate="";

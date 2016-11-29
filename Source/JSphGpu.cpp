@@ -72,7 +72,6 @@ void JSphGpu::InitVars(){
   FreeCpuMemoryParticles();
   Idpg=NULL; Codeg=NULL; Dcellg=NULL; Posxyg=NULL; Poszg=NULL; Velrhopg=NULL;
   PosxyPreg=NULL; PoszPreg=NULL; VelrhopPreg=NULL; //-Symplectic
-  PsPospressg=NULL;                                //-Interaccion Pos-Simple. //-Interaction Pos-Simple
   Aceg=NULL;
   b=NULL;
   a=NULL;
@@ -144,16 +143,16 @@ void JSphGpu::AllocGpuMemoryFixed(){
   unsigned matrixMemory; //Predicts max number of neighbours per particle dependant on kernel support size
 
   if(H/Dp<1.5){
-    if(Simulate2D) matrixMemory=20;
-    else matrixMemory=80;
+    if(Simulate2D) matrixMemory=25;
+    else matrixMemory=125;
   }
   else if(H/Dp<2.0){
-    if(Simulate2D) matrixMemory=35;
-    else matrixMemory=175;
+    if(Simulate2D) matrixMemory=45;
+    else matrixMemory=280;
   }
   else if(H/Dp<2.5){
-    if(Simulate2D) matrixMemory=57;
-    else matrixMemory=339;
+    if(Simulate2D) matrixMemory=69;
+    else matrixMemory=493;
   }
   std::cout<<H<<"\t"<<matrixMemory<<"\n";
   size_t m=sizeof(unsigned)*Npb;
@@ -722,9 +721,9 @@ void JSphGpu::ConfigBlockSizes(bool usezone,bool useperi){
     const bool lamsps=false;
     const bool shift=(TShifting!=SHIFT_None);
     const int TDeltaSph=0;
-    BlockSizes.forcesbound=BlockSizeConfig("BsForcesBound",smgpu,pt.GetData("cusph_KerInteractionForcesBound",smcode,Psimple,ftmode));
-    BlockSizes.forcesfluid=BlockSizeConfig("BsForcesFluid",smgpu,pt.GetData("cusph_KerInteractionForcesFluid",smcode,Psimple,ftmode,lamsps,TDeltaSph,shift));
-    if(UseDEM)BlockSizes.forcesdem=BlockSizeConfig("BsForcesDEM",smgpu,pt.GetData("cusph_KerInteractionForcesDem",smcode,Psimple));
+    BlockSizes.forcesbound=BlockSizeConfig("BsForcesBound",smgpu,pt.GetData("cusph_KerInteractionForcesBound",smcode,0,ftmode));
+    BlockSizes.forcesfluid=BlockSizeConfig("BsForcesFluid",smgpu,pt.GetData("cusph_KerInteractionForcesFluid",smcode,0,ftmode,lamsps,TDeltaSph,shift));
+    if(UseDEM)BlockSizes.forcesdem=BlockSizeConfig("BsForcesDEM",smgpu,pt.GetData("cusph_KerInteractionForcesDem",smcode,0));
   }
   else RunException(met,"CellMode unrecognised.");
   Log->Print(" ");
@@ -743,7 +742,6 @@ void JSphGpu::ConfigRunMode(std::string preinfo){
   #endif
   RunMode=preinfo+RunMode;
   if(Stable)RunMode=string("Stable, ")+RunMode;
-  if(Psimple)RunMode=string("Pos-Simple, ")+RunMode;
   else RunMode=string("Pos-Double, ")+RunMode;
   Log->Print(fun::VarStr("RunMode",RunMode));
   if(!RunMode.empty())RunMode=RunMode+", "+BlockSizesStr;
@@ -921,12 +919,6 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
 		cudaMemset(dWzCorrg,0,sizeof(double3)*Np);
 	}
 
-  //-Prepara datos para interaccion Pos-Simple.
-  //-Prepares data for interation Pos-Simple.
-  if(tinter==1&&Psimple){
-    PsPospressg=ArraysGpu->ReserveFloat4();
-    cusph::PreInteractionSimple(Np,Posxyg,Poszg,Velrhopg,PsPospressg,CteB,Gamma);
-  }
   //-Inicializa arrays.
   //-Initialises arrays.
   PreInteractionVars_Forces(tinter,Np,Npb);
@@ -958,7 +950,6 @@ void JSphGpu::PosInteraction_Forces(TpInter tinter){
 	  ArraysGpu->Free(dWxCorrg);	    dWxCorrg=NULL;
 		ArraysGpu->Free(dWyCorrg);	    dWyCorrg=NULL;
 	  ArraysGpu->Free(dWzCorrg);	    dWzCorrg=NULL;
-    ArraysGpu->Free(PsPospressg);   PsPospressg=NULL;
   }
 }
 
