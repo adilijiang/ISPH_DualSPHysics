@@ -155,8 +155,8 @@ protected:
   //-Execution options.
   TpStep TStep;               //-Algitmo de paso: Verlet o Symplectic.											//-Step Algorithm: Verlet or Symplectic.
   TpKernel TKernel;           //-Tipo de kernel: Cubic o Wendland.												//-Kernel type: Cubic or Wendland.
-  float Awen;                 //-Constante para kernel wendland (awen).											//-Wendland kernel constant (awen).
-  float Bwen;                 //-Constante para kernel wendland (bwen).											//-Wendland kernel constant (bwen).
+  double Awen;                 //-Constante para kernel wendland (awen).											//-Wendland kernel constant (awen).
+  double Bwen;                 //-Constante para kernel wendland (bwen).											//-Wendland kernel constant (bwen).
   TpVisco TVisco;             //-Tipo de viscosidad: Artificial,...												//-Viscosity type: Artificial,...
 
   TpShifting TShifting; //-Tipo de Shifting: None, NoBound, NoFixed, Full.										//-Shifting type: None, NoBound, NoFixed, Full.	

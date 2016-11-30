@@ -564,13 +564,6 @@ __device__ void KerGetKernel(float rr2,float drx,float dry,float drz
 {
   const float rad=sqrt(rr2);
   const float qq=rad/CTE.h;
-
-  /*float fac;
-  if(qq<1.0f)fac=CTE.bwen*(-5.0f*powf(3.0f-qq,4.0f)+30.0f*powf(2.0f-qq,4.0f)-75.0f*powf(1.0f-qq,4.0f));
-  else if(qq<2.0f)fac=CTE.bwen*(-5.0f*powf(3.0f-qq,4.0f)+30.0f*powf(2.0f-qq,4.0f));
-  else if(qq<3.0f)fac=CTE.bwen*(-5.0f*powf(3.0f-qq,4.0f));
-  else fac=0;
-  fac=fac/rad;*/
   
   //-Wendland kernel.
   const float wqq1=1.f-0.5f*qq;
@@ -584,15 +577,8 @@ __device__ void KerGetKernelDouble(double rr2,double drx,double dry,double drz
   const double rad=sqrt(rr2);
   const double qq=rad/CTE.h;
 
-  /*double fac;
-  if(qq<1.0)fac=CTE.bwen*(-5.0*pow(3.0-qq,4.0)+30.0*pow(2.0-qq,4.0)-75.0*pow(1.0-qq,4.0));
-  else if(qq<2.0)fac=CTE.bwen*(-5.0*pow(3.0-qq,4.0)+30.0*powf(2.0-qq,4.0));
-  else if(qq<3.0)fac=CTE.bwen*(-5.0*pow(3.0-qq,4.0));
-  else fac=0;
-  fac=fac/rad;*/
-
   //-Wendland kernel.
-  const double wqq1=1.f-0.5f*qq;
+  const double wqq1=1.0-0.5*qq;
   const double fac=CTE.bwen*qq*wqq1*wqq1*wqq1/rad;
   frx=fac*drx; fry=fac*dry; frz=fac*drz;
 }
@@ -744,7 +730,7 @@ template<TpFtMode ftmode> __device__ void KerInteractionForcesBoundBound
   for(int p2=pini;p2<pfin;p2++){
     double drx,dry,drz;
     KerGetParticlesDrDouble(p2,posxy,posz,posdp1,drx,dry,drz);
-    double rr2=drx*drx+dry*dry+drz*drz;
+    const double rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
 			if(CODE_GetTypeValue(code[p2])==2){
 				wallVelocity.x=velrhop[p2].x;
@@ -901,11 +887,11 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
 				}
 			}
 
-			if(divrp1) divr[p1]+=divrp1;
-
-			if(dwxp1.x||dwxp1.y||dwxp1.z||
-				dwyp1.x||dwyp1.y||dwyp1.z||
-				dwzp1.x||dwzp1.y||dwzp1.z){
+			if(divrp1) divr[p1]=divrp1;
+			if(idp[p1]==3130||idp[p1]==3337||idp[p1]==3544||idp[p1]==8467)divr[p1]=-1;
+			if(dwxp1.x||dwxp1.y||dwxp1.z
+				||dwyp1.x||dwyp1.y||dwyp1.z
+				||dwzp1.x||dwzp1.y||dwzp1.z){
 					dwxcorrg[p1].x+=dwxp1.x; dwxcorrg[p1].y+=dwxp1.y; dwxcorrg[p1].z+=dwxp1.z; 
 					dwycorrg[p1].x+=dwyp1.x; dwycorrg[p1].y+=dwyp1.y; dwycorrg[p1].z+=dwyp1.z;
 					dwzcorrg[p1].x+=dwzp1.x; dwzcorrg[p1].y+=dwzp1.y; dwzcorrg[p1].z+=dwzp1.z;
@@ -977,9 +963,8 @@ template<TpFtMode ftmode> __device__ void KerInteractionForcesFluidPresGrad
 {
   for(int p2=pini;p2<pfin;p2++){
     double drx,dry,drz;
-		float pressp2;
+		float pressp2=velrhop[p2].w;
     KerGetParticlesDrDouble(p2,posxy,posz,posdp1,drx,dry,drz);
-    pressp2=velrhop[p2].w;
     double rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
       //-Wendland kernel.
@@ -1048,9 +1033,8 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesFluid
 	//-Obtains basic data of particle p1.
     double3 posdp1;
     float3 velp1;
-    float pressp1;
+    const float pressp1=velrhop[p1].w;
     KerGetParticleDataDouble(p1,posxy,posz,velrhop,velp1,posdp1);
-    pressp1=velrhop[p1].w;
     //-Obtiene limites de interaccion
 	//-Obtains interaction limits
     int cxini,cxfin,yini,yfin,zini,zfin;
@@ -1077,12 +1061,24 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesFluid
 	  }
     }
 
-    if(acep1.x||acep1.y||acep1.z){
+    if(acep1.x||acep1.y||acep1.z||divrp1
+			||dwxp1.x||dwxp1.y||dwxp1.z
+			||dwyp1.x||dwyp1.y||dwyp1.z
+			||dwzp1.x||dwzp1.y||dwzp1.z){
       float3 r=ace[p1]; 
-      if(tinter==1){ r.x+=acep1.x; r.y+=acep1.y; r.z+=acep1.z;} 
+      if(tinter==1){ 
+				r.x+=acep1.x; r.y+=acep1.y; r.z+=acep1.z;
+				
+				divr[p1]+=divrp1;
+				dwxcorrg[p1].x+=dwxp1.x; dwxcorrg[p1].y+=dwxp1.y; dwxcorrg[p1].z+=dwxp1.z; 
+				dwycorrg[p1].x+=dwyp1.x; dwycorrg[p1].y+=dwyp1.y; dwycorrg[p1].z+=dwyp1.z;
+				dwzcorrg[p1].x+=dwzp1.x; dwzcorrg[p1].y+=dwzp1.y; dwzcorrg[p1].z+=dwzp1.z;
+				divrp1=0;
+				dwxp1=make_double3(0,0,0); dwyp1=make_double3(0,0,0); dwzp1=make_double3(0,0,0);
+			} 
 	    if(tinter==2){ const float rho0=CTE.rhopzero; r.x+=(acep1.x/rho0); r.y+=(acep1.y/rho0); r.z+=(acep1.z/rho0);}
       ace[p1]=r;
-      acep1=make_float3(0,0,0);
+			acep1=make_float3(0,0,0);  
     }
 
     //-Interaccion con contorno.
@@ -1107,22 +1103,22 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesFluid
     }
     //-Almacena resultados.
 	//-Stores results.
-    if(acep1.x||acep1.y||acep1.z){
+    if(acep1.x||acep1.y||acep1.z||divrp1
+			||dwxp1.x||dwxp1.y||dwxp1.z
+			||dwyp1.x||dwyp1.y||dwyp1.z
+			||dwzp1.x||dwzp1.y||dwzp1.z){
       float3 r=ace[p1]; 
-      if(tinter==1){ r.x+=acep1.x; r.y+=acep1.y; r.z+=acep1.z;} 
+      if(tinter==1){ 
+				r.x+=acep1.x; r.y+=acep1.y; r.z+=acep1.z;
+				
+				divr[p1]+=divrp1;
+				dwxcorrg[p1].x+=dwxp1.x; dwxcorrg[p1].y+=dwxp1.y; dwxcorrg[p1].z+=dwxp1.z; 
+				dwycorrg[p1].x+=dwyp1.x; dwycorrg[p1].y+=dwyp1.y; dwycorrg[p1].z+=dwyp1.z;
+				dwzcorrg[p1].x+=dwzp1.x; dwzcorrg[p1].y+=dwzp1.y; dwzcorrg[p1].z+=dwzp1.z;
+			} 
 	    if(tinter==2){ const float rho0=CTE.rhopzero; r.x+=(acep1.x/rho0); r.y+=(acep1.y/rho0); r.z+=(acep1.z/rho0);}
       ace[p1]=r;
     }
-
-		if(divrp1) divr[p1]+=divrp1;
-			
-		if(dwxp1.x||dwxp1.y||dwxp1.z||
-			dwyp1.x||dwyp1.y||dwyp1.z||
-			dwzp1.x||dwzp1.y||dwzp1.z){
-			dwxcorrg[p1].x+=dwxp1.x; dwxcorrg[p1].y+=dwxp1.y; dwxcorrg[p1].z+=dwxp1.z; 
-			dwycorrg[p1].x+=dwyp1.x; dwycorrg[p1].y+=dwyp1.y; dwycorrg[p1].z+=dwyp1.z;
-			dwzcorrg[p1].x+=dwzp1.x; dwzcorrg[p1].y+=dwzp1.y; dwzcorrg[p1].z+=dwzp1.z;
-		}
   }
 }
 
@@ -1442,6 +1438,7 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 				else shiftpos[p1].z=-Maxz;
 			}
 		}
+		velrhop[p1].w=shiftpos[p1].x;
   }
 }
 
