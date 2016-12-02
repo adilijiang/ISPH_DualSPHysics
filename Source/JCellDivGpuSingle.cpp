@@ -187,8 +187,7 @@ void JCellDivGpuSingle::Divide(unsigned npb1,unsigned npf1,unsigned npb2,unsigne
   //-Ordena CellPart y SortPart en funcion de la celda.
   //-Sorts CellPart and SortPart as a function of the cell.
   TmgStart(timers,TMG_NlRadixSort);
-  if(DivideFull){cudiv::Sort(CellPart,SortPart,Nptot,Stable);
-  }
+  if(DivideFull)cudiv::Sort(CellPart,SortPart,Nptot,Stable);
   else cudiv::Sort(CellPart+Npb1,SortPart+Npb1,Nptot-Npb1,Stable);
   TmgStop(timers,TMG_NlRadixSort);
 
