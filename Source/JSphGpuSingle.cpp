@@ -714,7 +714,6 @@ void JSphGpuSingle::InitAdvection(double dt){
     cudaMemcpy(PosxyPreg,Posxyg,sizeof(double2)*np,cudaMemcpyDeviceToDevice);     //Es decir... PosxyPre[] <= Posxy[] //i.e. PosxyPre[] <= Posxy[]
     cudaMemcpy(PoszPreg,Poszg,sizeof(double)*np,cudaMemcpyDeviceToDevice);        //Es decir... PoszPre[] <= Posz[] //i.e. PoszPre[] <= Posz[]
     cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
-	  cudaMemset(Velrhopg,0,sizeof(float4)*npb);
     
     double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*np);
     double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*np);
@@ -761,35 +760,6 @@ void JSphGpuSingle::SolvePPE(double dt){
   cusph::FreeSurfaceMark(bsbound,bsfluid,np,npb,npbok,Divrg,a,b,rowInd,POrderg,Codeg,PI,FreeSurface);
   CheckCudaError(met,"Free Surface");
 
-	/*unsigned int *POrderCPU; POrderCPU=new unsigned int[np]; cudaMemcpy(POrderCPU,POrderg,sizeof(unsigned int)*np,cudaMemcpyDeviceToHost);
-  unsigned int *IdCPU; IdCPU=new unsigned int[np]; cudaMemcpy(IdCPU,Idpg,sizeof(unsigned int)*np,cudaMemcpyDeviceToHost);
-  double *bcpu; bcpu=new double[PPEDim]; cudaMemcpy(bcpu,b,sizeof(double)*PPEDim,cudaMemcpyDeviceToHost);
-  double *acpu; acpu=new double[Nnz]; cudaMemcpy(acpu,a,sizeof(double)*Nnz,cudaMemcpyDeviceToHost);
-  unsigned int *rowcpu; rowcpu=new unsigned int[PPEDim+1]; cudaMemcpy(rowcpu,rowInd,sizeof(unsigned int)*(PPEDim+1),cudaMemcpyDeviceToHost);
-  unsigned int *colcpu; colcpu=new unsigned int[Nnz]; cudaMemcpy(colcpu,colInd,sizeof(unsigned int)*(Nnz),cudaMemcpyDeviceToHost);
-  int count=1;
- ofstream FileOutput;
-    string TimeFile;
-    ostringstream TimeNum;
-    TimeNum << count;
-    ostringstream FileNum;
-    FileNum << count;
-    TimeFile =  "GPU Fluid Properties_" + FileNum.str() + ", T = " + TimeNum.str() + ".txt";
-    FileOutput.open(TimeFile.c_str());
-    FileOutput << fixed << setprecision(19) << Gravity.z << "\n";
-    FileOutput << fixed << setprecision(19) << GravityDbl.z << "\n";
-  for(int i=npb;i<np;i++){
-    if(POrderCPU[i]!=np)FileOutput << fixed << setprecision(20) << "particle "<< IdCPU[i] << "\t Order " << POrderCPU[i] << "\t b " << bcpu[POrderCPU[i]] << "\n";
-    if(POrderCPU[i]!=np)for(int j=rowcpu[POrderCPU[i]];j<rowcpu[POrderCPU[i]+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << acpu[j] << "\t" << colcpu[j] << "\n";
-  }
-  FileOutput.close();
-   
-	delete[] POrderCPU; POrderCPU=NULL;
-  delete[] IdCPU; IdCPU=NULL;
-  delete[] acpu; acpu=NULL;
-  delete[] bcpu; bcpu=NULL;
-  delete[] rowcpu; rowcpu=NULL;
-  delete[] colcpu; colcpu=NULL;*/
   cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,X,b,rowInd,colInd,Nnz,PPEDim); 
 
   cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Posxyg,Poszg,Velrhopg,X,POrderg,Idpg,Codeg,Irelationg,Divrg,FreeSurface,NegativePressureBound);

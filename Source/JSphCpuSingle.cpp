@@ -929,23 +929,7 @@ void JSphCpuSingle::SolvePPE(double dt){
   FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
   //allocate vectors
   x.resize(PPEDim,0);
-	 int count=1;
- /*ofstream FileOutput;
-    string TimeFile;
-    ostringstream TimeNum;
-    TimeNum << count;
-    ostringstream FileNum;
-    FileNum << count;
-    TimeFile =  "CPU Fluid Properties_" + FileNum.str() + ", T = " + TimeNum.str() + ".txt";
-    FileOutput.open(TimeFile.c_str());
-    FileOutput << fixed << setprecision(19) << Gravity.z << "\n";
-    FileOutput << fixed << setprecision(19) << GravityDbl.z << "\n";
 
-  for(int i=npb;i<np;i++){
-    if(POrder[i]!=np)FileOutput << fixed << setprecision(20) << "particle "<< Idpc[i] << "\t Order " << POrder[i] << "\t b " << b[POrder[i]] << "\n";
-    if(POrder[i]!=np)for(int j=rowInd[POrder[i]];j<rowInd[POrder[i]+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\n";
-  }
-  FileOutput.close();*/
   //solvers
 #ifndef _WITHGPU
   solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,b,x,rowInd,colInd,PPEDim,Nnz); 

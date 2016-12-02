@@ -221,8 +221,6 @@ protected:
 
   void solveMatrix();
   void MatrixOrder(unsigned n,unsigned pinit,unsigned *porder,const unsigned *idpc,const unsigned *irelation,word *code,unsigned &ppeDim);
-  void FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
-    const tdouble3 *pos,const tfloat3 *pspos,float *divr,const word *code)const;
   void MatrixASetup(const unsigned ppedim,unsigned &nnz,std::vector<int> &row)const;
   void RHSandLHSStorage(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
 	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,

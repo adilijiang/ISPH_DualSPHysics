@@ -788,7 +788,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 			}
 
 			if(divrp1) divr[p1]=divrp1;
-			if(Idpc[p1]==3130||Idpc[p1]==3337||Idpc[p1]==3544||Idpc[p1]==8467)divr[p1]=-1;
+			//if(Idpc[p1]==9408)divr[p1]=-1;
 			if(dwxp1.x||dwxp1.y||dwxp1.z
 				||dwyp1.x||dwyp1.y||dwyp1.z
 				||dwzp1.x||dwzp1.y||dwzp1.z){
@@ -1256,9 +1256,9 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
     //const float rhopnew=float(double(VelrhopPrec[p].w) * (2.-epsilon_rdot)/(2.+epsilon_rdot));
     if(!WithFloating || CODE_GetType(Codec[p])==CODE_TYPE_FLUID){//-Particulas: Fluid
       //-Update velocity & density / Actualiza velocidad y densidad.
-      Velrhopc[p].x-=float((Acec[p].x-Gravity.x)*dt); 
-      Velrhopc[p].y-=float((Acec[p].y-Gravity.y)*dt);  
-      Velrhopc[p].z-=float((Acec[p].z-Gravity.z)*dt);
+      //Velrhopc[p].x-=float((Acec[p].x-Gravity.x)*dt); 
+      //Velrhopc[p].y-=float((Acec[p].y-Gravity.y)*dt);  
+      //Velrhopc[p].z-=float((Acec[p].z-Gravity.z)*dt);
       //Velrhopc[p].w=rhopnew;
       //-Calculate displacement and update position / Calcula desplazamiento y actualiza posicion.
       double dx=(double(VelrhopPrec[p].x)+double(Velrhopc[p].x))*dt05; 
@@ -1384,7 +1384,6 @@ void JSphCpu::RunShifting(double dt){
 				else ShiftPosc[p].y=-Maxy;
 			}
 		}
-		Velrhopc[p].w=ShiftPosc[p].x;
   }
   TmcStop(Timers,TMC_SuShifting);
 }
@@ -1668,62 +1667,6 @@ void JSphCpu::MatrixOrder(unsigned np,unsigned pinit,unsigned *porder,const unsi
   }
 
   ppedim=index;
-}
-
-//===============================================================================
-///Find free surface
-//===============================================================================
-void JSphCpu::FreeSurfaceFind(bool psimple,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
-	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat3 *pspos,
-	float *divr,const word *code)const{
-
-  const int pfin=int(pinit+n);
-  const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
-
-  #ifdef _WITHOMP
-    #pragma omp parallel for schedule (guided)
-  #endif
-  for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(code[p1])!=1){
-    //-Obtain data of particle p1 / Obtiene datos de particula p1.
-	  const tfloat3 psposp1=(psimple? pspos[p1]: TFloat3(0));
-    const tdouble3 posp1=(psimple? TDouble3(0): pos[p1]);
-
-    //-Obtain interaction limits / Obtiene limites de interaccion
-    int cxini,cxfin,yini,yfin,zini,zfin;
-    GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
-
-    //-Search for neighbours in adjacent cells / Busqueda de vecinos en celdas adyacentes.
-    for(int z=zini;z<zfin;z++){
-      const int zmod=(nc.w)*z+cellinitial; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
-      for(int y=yini;y<yfin;y++){
-        int ymod=zmod+nc.x*y;
-        const unsigned pini=beginendcell[cxini+ymod];
-        const unsigned pfin=beginendcell[cxfin+ymod];
-        
-        //-Interactions
-        //------------------------------------------------
-        for(unsigned p2=pini;p2<pfin;p2++){
-          const float drx=(psimple? psposp1.x-pspos[p2].x: float(posp1.x-pos[p2].x));
-          const float dry=(psimple? psposp1.y-pspos[p2].y: float(posp1.y-pos[p2].y));
-          const float drz=(psimple? psposp1.z-pspos[p2].z: float(posp1.z-pos[p2].z));
-          const float rr2=drx*drx+dry*dry+drz*drz;
-          if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-			      //-Wendland kernel.
-            float frx,fry,frz;
-            GetKernel(rr2,drx,dry,drz,frx,fry,frz);
-            
-	          //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
-            float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
-			      const float volume=massp2/RhopZero; //Volume of particle j
-			
-			      //=====Divergence of velocity==========
-			      const float rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
-			      divr[p1]-=volume*rDivW;
-		      }
-		    }
-      }
-	  }
-  }
 }
 
 //===============================================================================
