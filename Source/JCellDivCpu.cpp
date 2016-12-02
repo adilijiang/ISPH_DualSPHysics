@@ -362,80 +362,73 @@ void JCellDivCpu::CalcCellDomainFluid(unsigned n,unsigned pini,unsigned n2,unsig
 /// Reorder values of all particles.
 //==============================================================================
 void JCellDivCpu::SortArray(word *vec){
-  if(DivideFull){
-    for(unsigned p=0;p<Nptot;p++)VSortWord[p]=vec[SortPart[p]];
-    memcpy(vec,VSortWord,sizeof(word)*Nptot);
-  }
-  else{
-    for(unsigned p=NpbFinal;p<Nptot;p++)VSortWord[p]=vec[SortPart[p]];
-    memcpy(vec+NpbFinal,VSortWord+NpbFinal,sizeof(word)*(Nptot-NpbFinal));
-  }
+  const int n=int(Nptot);
+  const int ini=(DivideFull? 0: int(NpbFinal));
+  #ifdef _WITHOMP
+    #pragma omp parallel for schedule (static) if(n>LIMIT_COMPUTELIGHT_OMP)
+  #endif
+  for(int p=ini;p<n;p++)VSortWord[p]=vec[SortPart[p]];
+  memcpy(vec+ini,VSortWord+ini,sizeof(word)*(n-ini));
 }
 //==============================================================================
 void JCellDivCpu::SortArray(unsigned *vec){
-  if(DivideFull){
-    for(unsigned p=0;p<Nptot;p++)VSortInt[p]=vec[SortPart[p]];
-    memcpy(vec,VSortInt,sizeof(unsigned)*Nptot);
-  }
-  else{
-    for(unsigned p=NpbFinal;p<Nptot;p++)VSortInt[p]=vec[SortPart[p]];
-    memcpy(vec+NpbFinal,VSortInt+NpbFinal,sizeof(unsigned)*(Nptot-NpbFinal));
-  }
+  const int n=int(Nptot);
+  const int ini=(DivideFull? 0: int(NpbFinal));
+  #ifdef _WITHOMP
+    #pragma omp parallel for schedule (static) if(n>LIMIT_COMPUTELIGHT_OMP)
+  #endif
+  for(int p=ini;p<n;p++)VSortInt[p]=vec[SortPart[p]];
+  memcpy(vec+ini,VSortInt+ini,sizeof(unsigned)*(n-ini));
 }
 //==============================================================================
 void JCellDivCpu::SortArray(float *vec){
-  if(DivideFull){
-    for(unsigned p=0;p<Nptot;p++)VSortFloat[p]=vec[SortPart[p]];
-    memcpy(vec,VSortFloat,sizeof(float)*Nptot);
-  }
-  else{
-    for(unsigned p=NpbFinal;p<Nptot;p++)VSortFloat[p]=vec[SortPart[p]];
-    memcpy(vec+NpbFinal,VSortFloat+NpbFinal,sizeof(float)*(Nptot-NpbFinal));
-  }
+  const int n=int(Nptot);
+  const int ini=(DivideFull? 0: int(NpbFinal));
+  #ifdef _WITHOMP
+    #pragma omp parallel for schedule (static) if(n>LIMIT_COMPUTELIGHT_OMP)
+  #endif
+  for(int p=ini;p<n;p++)VSortFloat[p]=vec[SortPart[p]];
+  memcpy(vec+ini,VSortFloat+ini,sizeof(float)*(n-ini));
 }
 //==============================================================================
 void JCellDivCpu::SortArray(tdouble3 *vec){
-  if(DivideFull){
-    for(unsigned p=0;p<Nptot;p++)VSortDouble3[p]=vec[SortPart[p]];
-    memcpy(vec,VSortDouble3,sizeof(tdouble3)*Nptot);
-  }
-  else{
-    for(unsigned p=NpbFinal;p<Nptot;p++)VSortDouble3[p]=vec[SortPart[p]];
-    memcpy(vec+NpbFinal,VSortDouble3+NpbFinal,sizeof(tdouble3)*(Nptot-NpbFinal));
-  }
+  const int n=int(Nptot);
+  const int ini=(DivideFull? 0: int(NpbFinal));
+  #ifdef _WITHOMP
+    #pragma omp parallel for schedule (static) if(n>LIMIT_COMPUTELIGHT_OMP)
+  #endif
+  for(int p=ini;p<n;p++)VSortDouble3[p]=vec[SortPart[p]];
+  memcpy(vec+ini,VSortDouble3+ini,sizeof(tdouble3)*(n-ini));
 }
 //==============================================================================
 void JCellDivCpu::SortArray(tfloat3 *vec){
-  if(DivideFull){
-    for(unsigned p=0;p<Nptot;p++)VSortFloat3[p]=vec[SortPart[p]];
-    memcpy(vec,VSortFloat3,sizeof(tfloat3)*Nptot);
-  }
-  else{
-    for(unsigned p=NpbFinal;p<Nptot;p++)VSortFloat3[p]=vec[SortPart[p]];
-    memcpy(vec+NpbFinal,VSortFloat3+NpbFinal,sizeof(tfloat3)*(Nptot-NpbFinal));
-  }
+  const int n=int(Nptot);
+  const int ini=(DivideFull? 0: int(NpbFinal));
+  #ifdef _WITHOMP
+    #pragma omp parallel for schedule (static) if(n>LIMIT_COMPUTELIGHT_OMP)
+  #endif
+  for(int p=ini;p<n;p++)VSortFloat3[p]=vec[SortPart[p]];
+  memcpy(vec+ini,VSortFloat3+ini,sizeof(tfloat3)*(n-ini));
 }
 //==============================================================================
 void JCellDivCpu::SortArray(tfloat4 *vec){
-  if(DivideFull){
-    for(unsigned p=0;p<Nptot;p++)VSortFloat4[p]=vec[SortPart[p]];
-    memcpy(vec,VSortFloat4,sizeof(tfloat4)*Nptot);
-  }
-  else{
-    for(unsigned p=NpbFinal;p<Nptot;p++)VSortFloat4[p]=vec[SortPart[p]];
-    memcpy(vec+NpbFinal,VSortFloat4+NpbFinal,sizeof(tfloat4)*(Nptot-NpbFinal));
-  }
+  const int n=int(Nptot);
+  const int ini=(DivideFull? 0: int(NpbFinal));
+  #ifdef _WITHOMP
+    #pragma omp parallel for schedule (static) if(n>LIMIT_COMPUTELIGHT_OMP)
+  #endif
+  for(int p=ini;p<n;p++)VSortFloat4[p]=vec[SortPart[p]];
+  memcpy(vec+ini,VSortFloat4+ini,sizeof(tfloat4)*(n-ini));
 }
 //==============================================================================
 void JCellDivCpu::SortArray(tsymatrix3f *vec){
-  if(DivideFull){
-    for(unsigned p=0;p<Nptot;p++)VSortSymmatrix3f[p]=vec[SortPart[p]];
-    memcpy(vec,VSortSymmatrix3f,sizeof(tsymatrix3f)*Nptot);
-  }
-  else{
-    for(unsigned p=NpbFinal;p<Nptot;p++)VSortSymmatrix3f[p]=vec[SortPart[p]];
-    memcpy(vec+NpbFinal,VSortSymmatrix3f+NpbFinal,sizeof(tsymatrix3f)*(Nptot-NpbFinal));
-  }
+  const int n=int(Nptot);
+  const int ini=(DivideFull? 0: int(NpbFinal));
+  #ifdef _WITHOMP
+    #pragma omp parallel for schedule (static) if(n>LIMIT_COMPUTELIGHT_OMP)
+  #endif
+  for(int p=ini;p<n;p++)VSortSymmatrix3f[p]=vec[SortPart[p]];
+  memcpy(vec+ini,VSortSymmatrix3f+ini,sizeof(tsymatrix3f)*(n-ini));
 }
 
 //==============================================================================

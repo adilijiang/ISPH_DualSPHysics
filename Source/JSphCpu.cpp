@@ -1256,9 +1256,9 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
     //const float rhopnew=float(double(VelrhopPrec[p].w) * (2.-epsilon_rdot)/(2.+epsilon_rdot));
     if(!WithFloating || CODE_GetType(Codec[p])==CODE_TYPE_FLUID){//-Particulas: Fluid
       //-Update velocity & density / Actualiza velocidad y densidad.
-      //Velrhopc[p].x-=float((Acec[p].x-Gravity.x)*dt); 
-      //Velrhopc[p].y-=float((Acec[p].y-Gravity.y)*dt);  
-      //Velrhopc[p].z-=float((Acec[p].z-Gravity.z)*dt);
+      Velrhopc[p].x-=float((Acec[p].x-Gravity.x)*dt); 
+      Velrhopc[p].y-=float((Acec[p].y-Gravity.y)*dt);  
+      Velrhopc[p].z-=float((Acec[p].z-Gravity.z)*dt);
       //Velrhopc[p].w=rhopnew;
       //-Calculate displacement and update position / Calcula desplazamiento y actualiza posicion.
       double dx=(double(VelrhopPrec[p].x)+double(Velrhopc[p].x))*dt05; 
