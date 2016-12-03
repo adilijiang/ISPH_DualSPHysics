@@ -474,8 +474,16 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
 	}
   //-Interaction of Fluid-Fluid/Bound & Bound-Fluid (forces and DEM) / Interaccion Fluid-Fluid/Bound & Bound-Fluid (forces and DEM).
   float viscdt=0;
-	JSphCpu::Interaction_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,dWxCorr,dWyCorr,dWzCorr,Codec,Acec,Divr);
+	JSphCpu::Interaction_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,dWxCorr,dWyCorr,dWzCorr,Codec,Acec,Divr,MirrorPosc,Irelationc);
+	if(TSlipCond){
+		 #ifdef _WITHOMP
+      #pragma omp parallel for schedule (static)
+    #endif
+    for(int i=0;i<int(Npb);i++){
+      Velrhopc[i]=VelrhopPrec[i]; //Put value of Velrhop[] in VelrhopPre[] / Es decir... VelrhopPre[] <= Velrhop[]
+    }
 
+	}
   //-For 2-D simulations zero the 2nd component / Para simulaciones 2D anula siempre la 2º componente
   if(Simulate2D)for(unsigned p=Npb;p<Np;p++)Acec[p].y=0;
 
@@ -535,11 +543,8 @@ double JSphCpuSingle::ComputeStep_Sym(){
   //-----------
   PreInteraction_Forces(INTER_Forces);
   RunCellDivide(true);
+	if(TSlipCond) JSphCpu::MirrorDCell(Npb,Codec,MirrorPosc,Irelationc,Idpc);
   Interaction_Forces(INTER_Forces,TSlipCond);      //-Interaction / Interaccion
-  if(TSlipCond){
-		if(!CaseNmoving)memset(Velrhopc,0,sizeof(tfloat4)*Npb);
-		//else ;
-	}
   //const double ddt_p=DtVariable(false);   //-Calculate dt of predictor step / Calcula dt del predictor
   //if(TShifting)RunShifting(dt*.5);        //-Shifting
   ComputeSymplecticPre(dt);               //-Apply Symplectic-Predictor to particles / Aplica Symplectic-Predictor a las particulas
@@ -780,7 +785,7 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
     //if(ViscoTime)Visco=ViscoTime->GetVisco(float(TimeStep));
 
 		if(CaseNmoving)RunMotion(DtPre);
-    double stepdt=DtPre;//ComputeStep_Sym();
+    double stepdt=ComputeStep_Sym();
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
     
     TimeStep+=stepdt;
