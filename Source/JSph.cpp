@@ -751,12 +751,12 @@ void JSph::ConfigConstants(bool simulate2d){
   Fourh2=float(h*h*4.0f); 
   Eta2=float((h*1.0e-5)*(h*1.0e-5));
   if(simulate2d){
-    Awen=7.0/(4.0*PI*h*h); 
-    Bwen=-35.0/(4.0*PI*h*h*h);
+    Awen=float(7.0/(4.0*PI*h*h)); 
+    Bwen=-float(35.0/(4.0*PI*h*h*h));
   }
   else{
-    Awen=0.41778/(h*h*h);
-    Bwen=-2.08891/(h*h*h*h);
+    Awen=float(0.41778/(h*h*h));
+    Bwen=-float(2.08891/(h*h*h*h));
   }
   VisuConfig();
 }

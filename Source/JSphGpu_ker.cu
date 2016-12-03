@@ -368,49 +368,10 @@ void PreInteractionSimple(unsigned np,const double2 *posxy,const double *posz
 //# Auxiliary kernels for the interaction.
 //##############################################################################
 //------------------------------------------------------------------------------
-/// Devuelve posicion, vel, rhop y press de particula. USADA
-/// Returns position, vel, rhop and press of a particle. USED
-//------------------------------------------------------------------------------
-template<bool psimple> __device__ void KerGetParticleData(unsigned p1
-  ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop
-  ,float3 &velp1,float &rhopp1,double3 &posdp1,float3 &posp1,float &pressp1)
-{
-  float4 r=velrhop[p1];
-  velp1=make_float3(r.x,r.y,r.z);
-  rhopp1=r.w;
-  if(psimple){
-    float4 pxy=pospress[p1];
-    posp1=make_float3(pxy.x,pxy.y,pxy.z);
-    pressp1=pxy.w;
-  }
-  else{
-    double2 pxy=posxy[p1];
-    posdp1=make_double3(pxy.x,pxy.y,posz[p1]);
-    pressp1=(CTE.cteb*(powf(rhopp1*CTE.ovrhopzero,CTE.gamma)-1.0f));
-  }
-}
-
-//------------------------------------------------------------------------------
 /// Devuelve posicion y vel de particula.
 /// Returns postion and vel of a particle.
 //------------------------------------------------------------------------------
-template<bool psimple> __device__ void KerGetParticleData(unsigned p1
-  ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop
-  ,float3 &velp1,double3 &posdp1,float3 &posp1)
-{
-  float4 r=velrhop[p1];
-  velp1=make_float3(r.x,r.y,r.z);
-  if(psimple){
-    float4 pxy=pospress[p1];
-    posp1=make_float3(pxy.x,pxy.y,pxy.z);
-  }
-  else{
-    double2 pxy=posxy[p1];
-    posdp1=make_double3(pxy.x,pxy.y,posz[p1]);
-  }
-}
-
-__device__ void KerGetParticleDataDouble(unsigned p1
+__device__ void KerGetParticleData(unsigned p1
   ,const double2 *posxy,const double *posz,const float4 *velrhop
   ,float3 &velp1,double3 &posdp1)
 {
@@ -422,91 +383,17 @@ __device__ void KerGetParticleDataDouble(unsigned p1
 }
 
 //------------------------------------------------------------------------------
-/// Devuelve posicion de particula. USADA
-/// Returns particle postion. USED
-//------------------------------------------------------------------------------
-template<bool psimple> __device__ void KerGetParticleData(unsigned p1
-  ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,double3 &posdp1,float3 &posp1)
-{
-  if(psimple){
-    float4 pxy=pospress[p1];
-    posp1=make_float3(pxy.x,pxy.y,pxy.z);
-  }
-  else{
-    double2 pxy=posxy[p1];
-    posdp1=make_double3(pxy.x,pxy.y,posz[p1]);
-  }
-}
-
-//------------------------------------------------------------------------------
-/// Devuelve drx, dry y drz entre dos particulas. USADA
-/// Returns drx, dry and drz between the particles. USED
-//------------------------------------------------------------------------------
-template<bool psimple> __device__ void KerGetParticlesDr(int p2
-  ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,const double3 &posdp1,const float3 &posp1
-  ,float &drx,float &dry,float &drz,float &pressp2)
-{
-  if(psimple){
-    float4 posp2=pospress[p2];
-    drx=posp1.x-posp2.x;
-    dry=posp1.y-posp2.y;
-    drz=posp1.z-posp2.z;
-    pressp2=posp2.w;
-  }
-  else{
-    double2 posp2=posxy[p2];
-    drx=float(posdp1.x-posp2.x);
-    dry=float(posdp1.y-posp2.y);
-    drz=float(posdp1.z-posz[p2]);
-    pressp2=0;
-  }
-}
-
-template<bool psimple> __device__ void KerGetParticlesDrDouble(int p2
-  ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,const double3 &posdp1,const float3 &posp1
-  ,double &drx,double &dry,double &drz,double &pressp2)
-{
-  double2 posp2=posxy[p2];
-  drx=posdp1.x-posp2.x;
-  dry=posdp1.y-posp2.y;
-  drz=posdp1.z-posz[p2];
-  pressp2=0;
-}
-
-//------------------------------------------------------------------------------
 /// Devuelve drx, dry y drz entre dos particulas.
 /// Returns drx, dry and drz between the particles.
 //------------------------------------------------------------------------------
-template<bool psimple> __device__ void KerGetParticlesDr(int p2
-  ,const double2 *posxy,const double *posz,const float4 *pospress
-  ,const double3 &posdp1,const float3 &posp1
+__device__ void KerGetParticlesDr(int p2
+  ,const double2 *posxy,const double *posz,const double3 &posdp1
   ,float &drx,float &dry,float &drz)
 {
-  if(psimple){
-    float4 posp2=pospress[p2];
-    drx=posp1.x-posp2.x;
-    dry=posp1.y-posp2.y;
-    drz=posp1.z-posp2.z;
-  }
-  else{
-    double2 posp2=posxy[p2];
-    drx=float(posdp1.x-posp2.x);
-    dry=float(posdp1.y-posp2.y);
-    drz=float(posdp1.z-posz[p2]);
-  }
-}
-
-__device__ void KerGetParticlesDrDouble(int p2
-  ,const double2 *posxy,const double *posz,const double3 &posdp1
-  ,double &drx,double &dry,double &drz)
-{
   double2 posp2=posxy[p2];
-  drx=posdp1.x-posp2.x;
-  dry=posdp1.y-posp2.y;
-  drz=posdp1.z-posz[p2];
+  drx=float(posdp1.x-posp2.x);
+  dry=float(posdp1.y-posp2.y);
+  drz=float(posdp1.z-posz[p2]);
 }
 
 //------------------------------------------------------------------------------
@@ -571,18 +458,6 @@ __device__ void KerGetKernel(float rr2,float drx,float dry,float drz
   frx=fac*drx; fry=fac*dry; frz=fac*drz;
 }
 
-__device__ void KerGetKernelDouble(double rr2,double drx,double dry,double drz
-  ,double &frx,double &fry,double &frz)
-{
-  const double rad=sqrt(rr2);
-  const double qq=rad/CTE.h;
-
-  //-Wendland kernel.
-  const double wqq1=1.0-0.5*qq;
-  const double fac=CTE.bwen*qq*wqq1*wqq1*wqq1/rad;
-  frx=fac*drx; fry=fac*dry; frz=fac*drz;
-}
-
 //------------------------------------------------------------------------------
 /// Devuelve valores de kernel: wab.
 /// returns kernel values: wab.
@@ -591,13 +466,6 @@ __device__ float KerGetKernelWab(float rr2)
 {
   const float rad=sqrt(rr2);
   const float qq=rad/CTE.h;
-
-  /*float wab;
-  if(qq<1.0f)wab=CTE.awen*(powf(3.0f-qq,5.0f)-6.0f*powf(2.0f-qq,5.0f)+15.0f*powf(1.0f-qq,5.0f));
-  else if(qq<2.0f)wab=CTE.awen*(powf(3.0f-qq,5.0f)-6.0f*powf(2.0f-qq,5.0f));
-  else if(qq<3.0f)wab=CTE.awen*(powf(3.0f-qq,5.0f));
-  else wab=0;
-  return(wab);*/
 
   //-Wendland kernel.
   const float wqq=2.f*qq+1.f;
@@ -728,9 +596,9 @@ template<TpFtMode ftmode> __device__ void KerInteractionForcesBoundBound
 {
 	const float volume=massb/CTE.rhopzero;
   for(int p2=pini;p2<pfin;p2++){
-    double drx,dry,drz;
-    KerGetParticlesDrDouble(p2,posxy,posz,posdp1,drx,dry,drz);
-    const double rr2=drx*drx+dry*dry+drz*drz;
+    float drx,dry,drz;
+    KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+    const float rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
 			if(CODE_GetTypeValue(code[p2])==2){
 				wallVelocity.x=velrhop[p2].x;
@@ -739,8 +607,8 @@ template<TpFtMode ftmode> __device__ void KerInteractionForcesBoundBound
 			}
 
       //-Wendland kernel
-      double frx,fry,frz;
-      KerGetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+      float frx,fry,frz;
+      KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
 
 			const float rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
 			divrp1-=volume*rDivW;
@@ -771,13 +639,13 @@ template<TpFtMode ftmode> __device__ void KerInteractionForcesBoundFluid
 {
 	const float volume=massf/CTE.rhopzero;
   for(int p2=pini;p2<pfin;p2++){
-    double drx,dry,drz;
-    KerGetParticlesDrDouble(p2,posxy,posz,posdp1,drx,dry,drz);
-    double rr2=drx*drx+dry*dry+drz*drz;
+    float drx,dry,drz;
+    KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+    float rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
       //-Wendland kernel
-      double frx,fry,frz;
-      KerGetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+      float frx,fry,frz;
+      KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
 
 			const float rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
 			divrp1-=volume*rDivW;
@@ -826,7 +694,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
 			//-Loads particle p1 data.
       double3 posdp1;
       float3 velp1;
-      KerGetParticleDataDouble(p1,posxy,posz,velrhop,velp1,posdp1);
+      KerGetParticleData(p1,posxy,posz,velrhop,velp1,posdp1);
 			
 			float3 Sum1=make_float3(0,0,0);
 			float Sum2=0.0;
@@ -888,7 +756,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
 			}
 
 			if(divrp1) divr[p1]=divrp1;
-			//if(idp[p1]==9408)divr[p1]=-1;
+			if(idp[p1]==9408)divr[p1]=-1;
 			if(dwxp1.x||dwxp1.y||dwxp1.z
 				||dwyp1.x||dwyp1.y||dwyp1.z
 				||dwzp1.x||dwzp1.y||dwzp1.z){
@@ -911,13 +779,13 @@ template<TpFtMode ftmode> __device__ void KerInteractionForcesFluidVisc
   ,double3 posdp1,float3 velp1,float pressp1,float3 &acep1,float &divrp1,double3 &dwxp1,double3 &dwyp1,double3 &dwzp1)
 {
   for(int p2=pini;p2<pfin;p2++){
-    double drx,dry,drz;
-    KerGetParticlesDrDouble(p2,posxy,posz,posdp1,drx,dry,drz);
-    double rr2=drx*drx+dry*dry+drz*drz;
+    float drx,dry,drz;
+    KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+    float rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
       //-Wendland kernel.
-      double frx,fry,frz;
-      KerGetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+      float frx,fry,frz;
+      KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
 	  
       //-Obtiene masa de particula p2 en caso de existir floatings.
 	  //-Obtains mass of particle p2 if any floating bodies exist.
@@ -962,14 +830,14 @@ template<TpFtMode ftmode> __device__ void KerInteractionForcesFluidPresGrad
   ,float3 &acep1)
 {
   for(int p2=pini;p2<pfin;p2++){
-    double drx,dry,drz;
+    float drx,dry,drz;
 		float pressp2=velrhop[p2].w;
-    KerGetParticlesDrDouble(p2,posxy,posz,posdp1,drx,dry,drz);
-    double rr2=drx*drx+dry*dry+drz*drz;
+    KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+    float rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
       //-Wendland kernel.
-      double frx,fry,frz;
-      KerGetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+      float frx,fry,frz;
+      KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
 
       //-Obtiene masa de particula p2 en caso de existir floatings.
 	  //-Obtains mass of particle p2 if any floating bodies exist.
@@ -1034,7 +902,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesFluid
     double3 posdp1;
     float3 velp1;
     const float pressp1=velrhop[p1].w;
-    KerGetParticleDataDouble(p1,posxy,posz,velrhop,velp1,posdp1);
+    KerGetParticleData(p1,posxy,posz,velrhop,velp1,posdp1);
     //-Obtiene limites de interaccion
 	//-Obtains interaction limits
     int cxini,cxfin,yini,yfin,zini,zfin;
@@ -1153,13 +1021,15 @@ template<TpFtMode ftmode> void Interaction_ForcesT
     KerInteractionForcesFluid<ftmode> <<<sgridf,bsfluid>>> (tinter,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ace,divr);
   }
 
-	if(simulate2d){
-		KerInverseKernelCor2D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwzcorrg,code);
-		KerInverseKernelCor2D <<<sgridb,bsbound>>> (npbok,0,dwxcorrg,dwzcorrg,code);
-	}
-	else{
-		KerInverseKernelCor3D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwycorrg,dwzcorrg,code);
-		KerInverseKernelCor3D <<<sgridb,bsbound>>> (npbok,0,dwxcorrg,dwycorrg,dwzcorrg,code);
+	if(tinter==1){
+		if(simulate2d){
+			KerInverseKernelCor2D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwzcorrg,code);
+			KerInverseKernelCor2D <<<sgridb,bsbound>>> (npbok,0,dwxcorrg,dwzcorrg,code);
+		}
+		else{
+			KerInverseKernelCor3D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwycorrg,dwzcorrg,code);
+			KerInverseKernelCor3D <<<sgridb,bsbound>>> (npbok,0,dwxcorrg,dwycorrg,dwzcorrg,code);
+		}
 	}
 }
 //==============================================================================
@@ -1175,7 +1045,7 @@ void Interaction_Forces(bool floating,bool usedem,TpSlipCond tslipcond,TpCellMod
   else            Interaction_ForcesT<FTMODE_Dem>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr);
 }
 
-//##############################################################################
+/*//##############################################################################
 //# Kernels para interaccion DEM.
 //# Kernels for DEM interaction
 //##########################################.####################################
@@ -1348,6 +1218,7 @@ void Interaction_ForcesDem(bool psimple,TpCellMode cellmode,unsigned bsize
   if(psimple)Interaction_ForcesDemT<true>  (cellmode,bsize,nfloat,ncells,begincell,cellmin,dcell,ftridp,demdata,dtforce,posxy,posz,pospress,velrhop,code,idp,viscdt,ace);
   else       Interaction_ForcesDemT<false> (cellmode,bsize,nfloat,ncells,begincell,cellmin,dcell,ftridp,demdata,dtforce,posxy,posz,pospress,velrhop,code,idp,viscdt,ace);
 }
+*/
 
 //##############################################################################
 //# Kernels para Shifting.
@@ -2705,13 +2576,13 @@ __device__ void KerRHSandLHSStorage
 	,const double3 dwxcorrgp1,const double3 dwycorrgp1,const double3 dwzcorrgp1,double &matrixbp1,const word *code,unsigned &numOfInteractions)
 {
   for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])!=1){
-    double drx,dry,drz;
-    KerGetParticlesDrDouble(p2,posxy,posz,posdp1,drx,dry,drz);
-    double rr2=drx*drx+dry*dry+drz*drz;
+    float drx,dry,drz;
+    KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+    float rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
       //-Wendland kernel.
-      double frx,fry,frz;
-      KerGetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+      float frx,fry,frz;
+      KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
 	  
       const float volumep2=massp2/CTE.rhopzero; //Volume of particle j 
 
@@ -2748,7 +2619,7 @@ __global__ void KerRHSandLHSStorage
         const double3 dwzcorrgp1=dwzcorrg[p1];
         double matrixbp1=0.0;
         
-        KerGetParticleDataDouble(p1,posxy,posz,velrhop,velp1,posdp1);
+        KerGetParticleData(p1,posxy,posz,velrhop,velp1,posdp1);
 
         //-Obtiene limites de interaccion
 	      //-Obtains interaction limits
@@ -2856,13 +2727,13 @@ __device__ void KerMatrixAFluid
   ,double3 posdp1,const float massp2,const float RhopZero,const word *code,unsigned &index,unsigned int *col,double *matrixInd,const int diag,const unsigned *porder)
 {
   for(int p2=pini;p2<pfin;p2++){
-    double drx,dry,drz;
-    KerGetParticlesDrDouble (p2,posxy,posz,posdp1,drx,dry,drz);
-    double rr2=drx*drx+dry*dry+drz*drz;
+    float drx,dry,drz;
+    KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+    float rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
       //-Wendland kernel.
-      double frx,fry,frz;
-      KerGetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+      float frx,fry,frz;
+      KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
 
       const unsigned oj=porder[p2];
 	    float volumep2=massp2/RhopZero; //Volume of particle j 
@@ -2883,13 +2754,13 @@ __device__ void KerMatrixABound
   ,double *matrixInd,double *matrixb,const int diag,const unsigned *porder,const unsigned oi,const unsigned ppedim,const unsigned npb,const unsigned *irelationg)
 {
   for(int p2=pini;p2<pfin;p2++){
-    double drx,dry,drz;
-    KerGetParticlesDrDouble (p2,posxy,posz,posdp1,drx,dry,drz);
-    double rr2=drx*drx+dry*dry+drz*drz;
+    float drx,dry,drz;
+    KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+    float rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
       //-Wendland kernel.
-      double frx,fry,frz;
-      KerGetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+      float frx,fry,frz;
+      KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
 
       const unsigned idp2=idp[p2];
       const unsigned mkp2=CODE_GetTypeValue(code[p2]);
@@ -2948,7 +2819,7 @@ __global__ void KerPopulateMatrixA
   	    //-Obtains basic data of particle p1.
         double3 posdp1;
         float3 velp1;
-        KerGetParticleDataDouble(p1,posxy,posz,velrhop,velp1,posdp1);
+        KerGetParticleData(p1,posxy,posz,velrhop,velp1,posdp1);
     
         //-Obtiene limites de interaccion
 	      //-Obtains interaction limits
@@ -3089,7 +2960,7 @@ __global__ void KerPressureAssignCode1
   	  //-Obtains basic data of particle p1.
       double3 posdp1;
       float3 velp1;
-      KerGetParticleDataDouble(p1,posxy,posz,velrhop,velp1,posdp1);
+      KerGetParticleData(p1,posxy,posz,velrhop,velp1,posdp1);
       
       const unsigned j=irelationg[idp[p1]];
       if(j!=npb){
@@ -3181,27 +3052,26 @@ void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int it
   viennacl::vector<ScalarType> vcl_result(matrixx, viennacl::CUDA_MEMORY, ppedim);
 
   viennacl::linalg::bicgstab_tag bicgstab(tolerance,iterations);
+	if(viennacl::linalg::norm_2(vcl_vec)){
+		if(tprecond==PRECOND_Jacobi){
+			std::cout<<"JACOBI PRECOND" <<std::endl;
+			viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_A_cuda,viennacl::linalg::jacobi_tag());
+			run_solver(vcl_A_cuda,vcl_vec,bicgstab,vcl_jacobi,vcl_result);
+		}
+		else if(tprecond==PRECOND_AMG){
+			std::cout<<"AMG PRECOND"<<std::endl;
 
-  if(tprecond==PRECOND_Jacobi){
-    std::cout<<"JACOBI PRECOND" <<std::endl;
-    viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_A_cuda,viennacl::linalg::jacobi_tag());
-    run_solver(vcl_A_cuda,vcl_vec,bicgstab,vcl_jacobi,vcl_result);
-  }
-  else if(tprecond==PRECOND_AMG){
-    std::cout<<"AMG PRECOND"<<std::endl;
-
-    viennacl::linalg::amg_tag amg_tag_agg_pmis;
-    amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_MIS2_AGGREGATION); std::cout<<"COARSENING: MIS2 AGGREGATION"<<std::endl;
-    if(tamginter==AMGINTER_AG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION); std::cout<<"INTERPOLATION: AGGREGATION "<<std::endl; }
-    else if(tamginter==AMGINTER_SAG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_SMOOTHED_AGGREGATION); std::cout<<"INTERPOLATION: SMOOTHED AGGREGATION"<<std::endl; }
+			viennacl::linalg::amg_tag amg_tag_agg_pmis;
+			amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_MIS2_AGGREGATION); std::cout<<"COARSENING: MIS2 AGGREGATION"<<std::endl;
+			if(tamginter==AMGINTER_AG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION); std::cout<<"INTERPOLATION: AGGREGATION "<<std::endl; }
+			else if(tamginter==AMGINTER_SAG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_SMOOTHED_AGGREGATION); std::cout<<"INTERPOLATION: SMOOTHED AGGREGATION"<<std::endl; }
     
-    amg_tag_agg_pmis.set_strong_connection_threshold(strongconnection);
-    amg_tag_agg_pmis.set_jacobi_weight(jacobiweight);
-    amg_tag_agg_pmis.set_presmooth_steps(presmooth);
-    amg_tag_agg_pmis.set_postsmooth_steps(postsmooth);
-    amg_tag_agg_pmis.set_coarsening_cutoff(coarsecutoff); 
-    viennacl::linalg::amg_precond<viennacl::compressed_matrix<double> > vcl_AMG(vcl_A_cuda, amg_tag_agg_pmis);
-		if(viennacl::linalg::norm_2(vcl_vec)){
+			amg_tag_agg_pmis.set_strong_connection_threshold(strongconnection);
+			amg_tag_agg_pmis.set_jacobi_weight(jacobiweight);
+			amg_tag_agg_pmis.set_presmooth_steps(presmooth);
+			amg_tag_agg_pmis.set_postsmooth_steps(postsmooth);
+			amg_tag_agg_pmis.set_coarsening_cutoff(coarsecutoff); 
+			viennacl::linalg::amg_precond<viennacl::compressed_matrix<double> > vcl_AMG(vcl_A_cuda, amg_tag_agg_pmis);
 			std::cout << " * Setup phase (ViennaCL types)..." << std::endl;
 			viennacl::tools::timer timer; 
 			timer.start();
@@ -3212,8 +3082,8 @@ void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int it
 			std::cout << "  > Setup time: " << timer.get() << std::endl;
 			run_solver(vcl_A_cuda,vcl_vec,bicgstab,vcl_AMG,vcl_result);
 		}
-		else std::cout << "norm(b)=0" << std::endl;
-  }
+	}
+	else std::cout << "norm(b)=0" << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -3227,13 +3097,13 @@ template<TpFtMode ftmode> __device__ void KerInteractionForcesShifting2
   ,TpShifting tshifting,float3 &shiftposp1,float Wab1,const float tensilen, const float tensiler,float &divrp1)
 {
   for(int p2=pini;p2<pfin;p2++){
-    double drx,dry,drz;
-    KerGetParticlesDrDouble (p2,posxy,posz,posdp1,drx,dry,drz);
-    double rr2=drx*drx+dry*dry+drz*drz;
+    float drx,dry,drz;
+    KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+    float rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
       //-Wendland kernel.
-      double frx,fry,frz;
-      KerGetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+      float frx,fry,frz;
+      KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
 	  
       //-Obtiene masa de particula p2 en caso de existir floatings.
 	  //-Obtains mass of particle p2 if any floating bodies exist.
@@ -3292,7 +3162,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesShifting1
 	//-Obtains basic data of particle p1.
     double3 posdp1;
     float3 velp1;
-    KerGetParticleDataDouble(p1,posxy,posz,velrhop,velp1,posdp1);
+    KerGetParticleData(p1,posxy,posz,velrhop,velp1,posdp1);
 
     //-Obtiene limites de interaccion
 	//-Obtains interaction limits

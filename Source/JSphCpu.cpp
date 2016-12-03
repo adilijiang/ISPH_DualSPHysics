@@ -707,10 +707,10 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 					//-Interactions
 					//------------------------------------------------
 					for(unsigned p2=pini;p2<pfin;p2++){
-						const double drx=posp1.x-pos[p2].x;
-						const double dry=posp1.y-pos[p2].y;
-						const double drz=posp1.z-pos[p2].z;
-						const double rr2=drx*drx+dry*dry+drz*drz;
+						const float drx=float(posp1.x-pos[p2].x);
+						const float dry=float(posp1.y-pos[p2].y);
+						const float drz=float(posp1.z-pos[p2].z);
+						const float rr2=drx*drx+dry*dry+drz*drz;
 						if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
 							if(CODE_GetTypeValue(Codec[p2])==2){
 								wallVelocity.x=velrhop[p2].x;
@@ -719,8 +719,8 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 							}
 
 							//-Wendland kernel.
-							double frx,fry,frz;
-							GetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+							float frx,fry,frz;
+							GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 							const float rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
 							divrp1-=volume*rDivW;
 						
@@ -747,14 +747,14 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 					//-Interactions
 					//------------------------------------------------
 					for(unsigned p2=pini;p2<pfin;p2++){
-						const double drx=posp1.x-pos[p2].x;
-						const double dry=posp1.y-pos[p2].y;
-						const double drz=posp1.z-pos[p2].z;
-						const double rr2=drx*drx+dry*dry+drz*drz;
+						const float drx=float(posp1.x-pos[p2].x);
+						const float dry=float(posp1.y-pos[p2].y);
+						const float drz=float(posp1.z-pos[p2].z);
+						const float rr2=drx*drx+dry*dry+drz*drz;
 						if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
 							//-Wendland kernel.
-							double frx,fry,frz;
-							GetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+							float frx,fry,frz;
+							GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 							const float rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
 							divrp1-=volume*rDivW;
 
@@ -788,7 +788,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 			}
 
 			if(divrp1) divr[p1]=divrp1;
-			//if(Idpc[p1]==9408)divr[p1]=-1;
+			if(Idpc[p1]==9408)divr[p1]=-1;
 			if(dwxp1.x||dwxp1.y||dwxp1.z
 				||dwyp1.x||dwyp1.y||dwyp1.z
 				||dwzp1.x||dwzp1.y||dwzp1.z){
@@ -856,14 +856,14 @@ template<TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
         //-Interaction of Fluid with type Fluid or Bound / Interaccion de Fluid con varias Fluid o Bound.
         //------------------------------------------------
         for(unsigned p2=pini;p2<pfin;p2++){
-          const double drx=posp1.x-pos[p2].x;
-          const double dry=posp1.y-pos[p2].y;
-          const double drz=posp1.z-pos[p2].z;
-          const double rr2=drx*drx+dry*dry+drz*drz;
+          const float drx=float(posp1.x-pos[p2].x);
+					const float dry=float(posp1.y-pos[p2].y);
+					const float drz=float(posp1.z-pos[p2].z);
+					const float rr2=drx*drx+dry*dry+drz*drz;
           if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
             //-Wendland kernel.
-            double frx,fry,frz;
-            GetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+            float frx,fry,frz;
+            GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 			
             //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
             float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
@@ -1060,14 +1060,15 @@ template<TpFtMode ftmode> void JSphCpu::Interaction_ForcesT
 
     //-Interaction of DEM Floating-Bound & Floating-Floating / Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
     //if(USE_DEM)InteractionForcesDEM<psimple> (CaseNfloat,nc,hdiv,cellfluid,begincell,cellzero,dcell,FtRidp,DemObjs,pos,pspos,velrhop,code,idp,viscdt,ace);
-  
-		if(Simulate2D){
-			JSphCpu::InverseCorrection(npf,npb,dWxCorr,dWzCorr);
-			JSphCpu::InverseCorrection(npbok,0,dWxCorr,dWzCorr);
-		}
-		else{
-			JSphCpu::InverseCorrection3D(npf,npb,dWxCorr,dWyCorr,dWzCorr);
-			JSphCpu::InverseCorrection3D(npbok,0,dWxCorr,dWyCorr,dWzCorr);
+		if(tinter==1){
+			if(Simulate2D){
+				JSphCpu::InverseCorrection(npf,npb,dWxCorr,dWzCorr);
+				JSphCpu::InverseCorrection(npbok,0,dWxCorr,dWzCorr);
+			}
+			else{
+				JSphCpu::InverseCorrection3D(npf,npb,dWxCorr,dWyCorr,dWzCorr);
+				JSphCpu::InverseCorrection3D(npbok,0,dWxCorr,dWyCorr,dWzCorr);
+			}
 		}
 	}
  /* if(npbok){
@@ -1707,15 +1708,14 @@ void JSphCpu::RHSandLHSStorage(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsig
           //-Interactions
           //------------------------------------------------
           for(unsigned p2=pini;p2<pfin;p2++) if(CODE_GetTypeValue(Codec[p2])!=1){
-          const double drx=posp1.x-pos[p2].x;
-          const double dry=posp1.y-pos[p2].y;
-          const double drz=posp1.z-pos[p2].z;
-            const double rr2=drx*drx+dry*dry+drz*drz;
-
+						const float drx=float(posp1.x-pos[p2].x);
+						const float dry=float(posp1.y-pos[p2].y);
+						const float drz=float(posp1.z-pos[p2].z);
+						const float rr2=drx*drx+dry*dry+drz*drz;
             if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
 			        //-Wendland kernel.
-              double frx,fry,frz;
-              GetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+              float frx,fry,frz;
+              GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 			
 			        //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
               float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
@@ -1790,16 +1790,16 @@ void JSphCpu::PopulateMatrixAFluid(unsigned n,unsigned pinit,tint4 nc,int hdiv,u
           //-Interactions
           //------------------------------------------------
           for(unsigned p2=pini;p2<pfin;p2++){
-            const double drx=posp1.x-pos[p2].x;
-            const double dry=posp1.y-pos[p2].y;
-            const double drz=posp1.z-pos[p2].z;
-            const double rr2=drx*drx+dry*dry+drz*drz;
+            const float drx=float(posp1.x-pos[p2].x);
+						const float dry=float(posp1.y-pos[p2].y);
+						const float drz=float(posp1.z-pos[p2].z);
+						const float rr2=drx*drx+dry*dry+drz*drz;
             if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
   	          unsigned oj = porder[p2];
 
 		          //-Wendland kernel.
-              double frx,fry,frz;
-              GetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+              float frx,fry,frz;
+              GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 
 			        //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
               float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
@@ -1829,18 +1829,18 @@ void JSphCpu::PopulateMatrixAFluid(unsigned n,unsigned pinit,tint4 nc,int hdiv,u
           //-Interactions
           //------------------------------------------------
           for(unsigned p2=pini;p2<pfin;p2++){
-            const double drx=posp1.x-pos[p2].x;
-            const double dry=posp1.y-pos[p2].y;
-            const double drz=posp1.z-pos[p2].z;
-            const double rr2=drx*drx+dry*dry+drz*drz;
+            const float drx=float(posp1.x-pos[p2].x);
+						const float dry=float(posp1.y-pos[p2].y);
+						const float drz=float(posp1.z-pos[p2].z);
+						const float rr2=drx*drx+dry*dry+drz*drz;
             if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
               const unsigned idp2=idpc[p2];
               const unsigned mkp2 = CODE_GetTypeValue(code[p2]);
   	          unsigned oj=porder[p2];
 
 		          //-Wendland kernel.
-              double frx,fry,frz;
-              GetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+              float frx,fry,frz;
+              GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 
 			        //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
               float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
@@ -1909,16 +1909,16 @@ void JSphCpu::PopulateMatrixABoundary(unsigned n,unsigned pinit,tint4 nc,int hdi
           //-Interactions
           //------------------------------------------------
           for(unsigned p2=pini;p2<pfin;p2++){
-            const double drx=posp1.x-pos[p2].x;
-            const double dry=posp1.y-pos[p2].y;
-            const double drz=posp1.z-pos[p2].z;
-            const double rr2=drx*drx+dry*dry+drz*drz;
+            const float drx=float(posp1.x-pos[p2].x);
+						const float dry=float(posp1.y-pos[p2].y);
+						const float drz=float(posp1.z-pos[p2].z);
+						const float rr2=drx*drx+dry*dry+drz*drz;
             if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
   	          unsigned oj = porder[p2];
 
 		          //-Wendland kernel.
-              double frx,fry,frz;
-              GetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+              float frx,fry,frz;
+              GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 
 			        //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
               float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
@@ -1948,18 +1948,18 @@ void JSphCpu::PopulateMatrixABoundary(unsigned n,unsigned pinit,tint4 nc,int hdi
           //-Interactions
           //------------------------------------------------
           for(unsigned p2=pini;p2<pfin;p2++){
-            const double drx=posp1.x-pos[p2].x;
-            const double dry=posp1.y-pos[p2].y;
-            const double drz=posp1.z-pos[p2].z;
-            const double rr2=drx*drx+dry*dry+drz*drz;
+            const float drx=float(posp1.x-pos[p2].x);
+						const float dry=float(posp1.y-pos[p2].y);
+						const float drz=float(posp1.z-pos[p2].z);
+						const float rr2=drx*drx+dry*dry+drz*drz;
             if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
               const unsigned idp2=idpc[p2];
               const unsigned mkp2 = CODE_GetTypeValue(code[p2]);
   	          unsigned oj=porder[p2];
 
 		          //-Wendland kernel.
-              double frx,fry,frz;
-              GetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+              float frx,fry,frz;
+              GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 
 			        //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
               float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
@@ -2093,39 +2093,41 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
 		copy(matrixx,vcl_result);
 
     viennacl::linalg::bicgstab_tag bicgstab(tolerance,iterations);
+		if(viennacl::linalg::norm_2(vcl_vec)){
+			if(tprecond==PRECOND_Jacobi){
+				Log->Printf("JACOBI PRECOND");
+				viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_compressed_matrix,viennacl::linalg::jacobi_tag());
+				run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_jacobi,matrixx,ppedim);
+			}
+			else if(tprecond==PRECOND_AMG){
+					Log->Printf("AMG PRECOND");
+					viennacl::context host_ctx(viennacl::MAIN_MEMORY);
+					viennacl::context target_ctx = viennacl::traits::context(vcl_compressed_matrix);
 
-    if(tprecond==PRECOND_Jacobi){
-      Log->Printf("JACOBI PRECOND");
-      viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_compressed_matrix,viennacl::linalg::jacobi_tag());
-      run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_jacobi,matrixx,ppedim);
-    }
-    else if(tprecond==PRECOND_AMG){
-        Log->Printf("AMG PRECOND");
-        viennacl::context host_ctx(viennacl::MAIN_MEMORY);
-        viennacl::context target_ctx = viennacl::traits::context(vcl_compressed_matrix);
-
-        viennacl::linalg::amg_tag amg_tag_agg_pmis;
-        amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_AGGREGATION);
-        if(tamginter==AMGINTER_AG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION); Log->Printf("INTERPOLATION: AGGREGATION ");}
-        else if(tamginter==AMGINTER_SAG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_SMOOTHED_AGGREGATION); Log->Printf("INTERPOLATION: SMOOTHED AGGREGATION");}
-        amg_tag_agg_pmis.set_strong_connection_threshold(strongconnection);
-        amg_tag_agg_pmis.set_jacobi_weight(jacobiweight);
-        amg_tag_agg_pmis.set_presmooth_steps(presmooth);
-        amg_tag_agg_pmis.set_postsmooth_steps(postsmooth); 
-        amg_tag_agg_pmis.set_coarsening_cutoff(coarsecutoff); 
-        amg_tag_agg_pmis.set_setup_context(host_ctx);
-        amg_tag_agg_pmis.set_target_context(target_ctx); 
-        viennacl::linalg::amg_precond<viennacl::compressed_matrix<double> > vcl_AMG(vcl_compressed_matrix,amg_tag_agg_pmis);
-        Log->Printf(" * Setup phase (ViennaCL types)...");
-        viennacl::tools::timer timer;
-        timer.start();
-        vcl_AMG.setup(); 
-        std::cout << "levels = " << vcl_AMG.levels() << "\n";
-        for(int i =0; i< vcl_AMG.levels();i++) std::cout << "level " << i << "\t" << "size = " << vcl_AMG.size(i) << "\n";
-        viennacl::backend::finish(); 
-        Log->Printf("  > Setup time: %f",timer.get());
-        run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_AMG,matrixx,ppedim);
-    }
+					viennacl::linalg::amg_tag amg_tag_agg_pmis;
+					amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_AGGREGATION);
+					if(tamginter==AMGINTER_AG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION); Log->Printf("INTERPOLATION: AGGREGATION ");}
+					else if(tamginter==AMGINTER_SAG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_SMOOTHED_AGGREGATION); Log->Printf("INTERPOLATION: SMOOTHED AGGREGATION");}
+					amg_tag_agg_pmis.set_strong_connection_threshold(strongconnection);
+					amg_tag_agg_pmis.set_jacobi_weight(jacobiweight);
+					amg_tag_agg_pmis.set_presmooth_steps(presmooth);
+					amg_tag_agg_pmis.set_postsmooth_steps(postsmooth); 
+					amg_tag_agg_pmis.set_coarsening_cutoff(coarsecutoff); 
+					amg_tag_agg_pmis.set_setup_context(host_ctx);
+					amg_tag_agg_pmis.set_target_context(target_ctx); 
+					viennacl::linalg::amg_precond<viennacl::compressed_matrix<double> > vcl_AMG(vcl_compressed_matrix,amg_tag_agg_pmis);
+					Log->Printf(" * Setup phase (ViennaCL types)...");
+					viennacl::tools::timer timer;
+					timer.start();
+					vcl_AMG.setup(); 
+					std::cout << "levels = " << vcl_AMG.levels() << "\n";
+					for(int i =0; i< vcl_AMG.levels();i++) std::cout << "level " << i << "\t" << "size = " << vcl_AMG.size(i) << "\n";
+					viennacl::backend::finish(); 
+					Log->Printf("  > Setup time: %f",timer.get());
+					run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_AMG,matrixx,ppedim);
+			}
+		}
+		else Log->Printf("norm(b)=0");
 }    
 #endif
 
@@ -2183,16 +2185,14 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
         //-Interaction of Fluid with type Fluid or Bound / Interaccion de Fluid con varias Fluid o Bound.
         //------------------------------------------------
         for(unsigned p2=pini;p2<pfin;p2++){
-
-          const double drx=posp1.x-pos[p2].x;
-          const double dry=posp1.y-pos[p2].y;
-          const double drz=posp1.z-pos[p2].z;
-          const double rr2=drx*drx+dry*dry+drz*drz;
-
+          const float drx=float(posp1.x-pos[p2].x);
+					const float dry=float(posp1.y-pos[p2].y);
+					const float drz=float(posp1.z-pos[p2].z);
+					const float rr2=drx*drx+dry*dry+drz*drz;
           if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
             //-Wendland kernel.
-            double frx,fry,frz;
-            GetKernelDouble(rr2,drx,dry,drz,frx,fry,frz);
+            float frx,fry,frz;
+            GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 			
             //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
             float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
