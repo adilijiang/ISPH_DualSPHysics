@@ -96,6 +96,7 @@ void JSphCpu::InitVars(){
   FtRidp=NULL;
   FtoForces=NULL;
   Irelationc=NULL;
+	MirrorPosc=NULL;
   a.clear();
   b.clear();
   x.clear();
@@ -115,6 +116,7 @@ void JSphCpu::FreeCpuMemoryFixed(){
   delete[] FtRidp;    FtRidp=NULL;
   delete[] FtoForces; FtoForces=NULL;
   delete[] Irelationc; Irelationc=NULL; 
+	delete[] MirrorPosc; MirrorPosc=NULL;
 }
 
 //==============================================================================
@@ -125,6 +127,7 @@ void JSphCpu::AllocCpuMemoryFixed(){
 
   try{
     Irelationc=new unsigned[Npb]; MemCpuFixed+=(sizeof(unsigned)*Npb);
+		MirrorPosc=new tdouble3[Npb]; MemCpuFixed+=(sizeof(tdouble3)*Npb);
     //-Allocates memory for moving objects.
     if(CaseNmoving){
       RidpMove=new unsigned[CaseNmoving];  MemCpuFixed+=(sizeof(unsigned)*CaseNmoving);
@@ -1566,32 +1569,128 @@ void JSphCpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
 //===============================================================================
 ///Find the closest fluid particle to each boundary particle
 //===============================================================================
-void JSphCpu::FindIrelation(unsigned n,unsigned pinit,const tdouble3 *pos,const unsigned *idpc,unsigned *irelation,const word *code)const{
-  const int pfin=int(pinit+n);
+void JSphCpu::FindIrelation(unsigned np,unsigned npb,unsigned pinit,const tdouble3 *pos,const unsigned *idpc,unsigned *irelation,tdouble3 *mirror,const word *code)const{
+  const int pfin=int(pinit+npb);
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==1){
-    //-Load data of particle p1 / Carga datos de particula p1.
-    const tdouble3 posp1=pos[p1];
-    const unsigned idp1=idpc[p1];
-    irelation[idp1]=n;
-    float closestR=10*Fourh2;
-    //-Interaction of boundary with type Fluid/Float / Interaccion de Bound con varias Fluid/Float.
-    //----------------------------------------------
-    for(int p2=int(pinit);p2<pfin;p2++){
-      if(CODE_GetTypeValue(code[p2])==0){
-        const float drx=float(posp1.x-pos[p2].x);
-        const float dry=float(posp1.y-pos[p2].y);
-        const float drz=float(posp1.z-pos[p2].z);
-        const float rr2=drx*drx+dry*dry+drz*drz;
-        if(rr2<=closestR){
-          closestR=rr2;
-          irelation[idp1]=idpc[p2];
-        }
-      }
-    }
-  }
+  for(int p1=int(pinit);p1<pfin;p1++){
+		unsigned codep1=CODE_GetTypeValue(code[p1]);
+		const unsigned idp1=idpc[p1];
+		irelation[idp1]=np;
+		//-Load data of particle p1 / Carga datos de particula p1.
+		const tdouble3 posp1=pos[p1];	
+		float closestR=1.5*Fourh2;
+		if(codep1==1){
+			for(int p2=int(pinit);p2<pfin;p2++) if(CODE_GetTypeValue(code[p2])==0){
+				const float drx=float(posp1.x-pos[p2].x);
+				const float dry=float(posp1.y-pos[p2].y);
+				const float drz=float(posp1.z-pos[p2].z);
+				const float rr2=drx*drx+dry*dry+drz*drz;
+				if(rr2<=closestR){
+					closestR=rr2;
+					irelation[idp1]=idpc[p2];
+				}
+			}
+		}
+		else if(codep1==2){
+			for(int p2=int(pinit);p2<pfin;p2++) if(CODE_GetTypeValue(code[p2])==2&&p1!=p2){
+				const float drx=float(posp1.x-pos[p2].x);
+				const float dry=float(posp1.y-pos[p2].y);
+				const float drz=float(posp1.z-pos[p2].z);
+				const float rr2=drx*drx+dry*dry+drz*drz;
+				if(rr2<=closestR){
+					closestR=rr2;
+					irelation[idp1]=p2;
+				}
+			}
+		}
+	}
+
+	#ifdef _WITHOMP
+    #pragma omp parallel for schedule (guided)
+  #endif
+  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==0){
+		const unsigned idp1=idpc[p1];
+		irelation[idp1]=np;
+		//-Load data of particle p1 / Carga datos de particula p1.
+		const tdouble3 posp1=pos[p1];	
+		float closestR=1.5*Fourh2;
+
+		bool secondPoint=false;
+		unsigned secondIrelation=np;
+		for(int p2=int(pinit);p2<pfin;p2++) if(CODE_GetTypeValue(code[p2])==2){
+			const float drx=float(posp1.x-pos[p2].x);
+			const float dry=float(posp1.y-pos[p2].y);
+			const float drz=float(posp1.z-pos[p2].z);
+			const float rr2=drx*drx+dry*dry+drz*drz;
+			if(rr2==closestR){
+				secondPoint=true;
+				secondIrelation=p2;
+			}
+			else if(rr2<closestR){
+				closestR=rr2;
+				irelation[idp1]=p2;
+				if(secondPoint){
+					secondPoint=false;
+					secondIrelation=np;
+				}
+			}
+		}
+		if(irelation[idp1]!=np){
+			//Calculate mirrored point
+			if(secondPoint){
+				//Firstpoint
+				unsigned mirrorpoint1=irelation[idp1];
+				unsigned secondmirror1=irelation[idpc[mirrorpoint1]];
+				float drx=float(pos[secondmirror1].x-pos[mirrorpoint1].x);
+				float dry=float(pos[secondmirror1].y-pos[mirrorpoint1].y);
+				float drz=float(pos[secondmirror1].z-pos[mirrorpoint1].z);
+				float rr2=drx*drx+dry*dry+drz*drz;
+			
+				float drxpoint=float(pos[mirrorpoint1].x-posp1.x);
+				float drypoint=float(pos[mirrorpoint1].y-posp1.y);
+				float drzpoint=float(pos[mirrorpoint1].z-posp1.z);
+				float magnitude=sqrtf(drxpoint*drxpoint+drypoint*drypoint+drzpoint*drzpoint);
+				float directionx=0;
+				float directionz=0;
+				if(drxpoint)directionx=drxpoint/fabs(drxpoint);
+				if(drzpoint)directionz=drzpoint/fabs(drzpoint);
+				mirror[idp1].x=magnitude*(drz/sqrtf(rr2))*directionx;
+				mirror[idp1].z=magnitude*(drx/sqrtf(rr2))*directionz;
+				//Secondpoint
+				unsigned mirrorpoint2=secondIrelation;
+				unsigned secondmirror2=irelation[idpc[mirrorpoint2]];
+				drx=float(pos[secondmirror2].x-pos[mirrorpoint2].x);
+				dry=float(pos[secondmirror2].y-pos[mirrorpoint2].y);
+				drz=float(pos[secondmirror2].z-pos[mirrorpoint2].z);
+				rr2=drx*drx+dry*dry+drz*drz;
+			
+				drxpoint=float(pos[mirrorpoint2].x-posp1.x);
+				drypoint=float(pos[mirrorpoint2].y-posp1.y);
+				drzpoint=float(pos[mirrorpoint2].z-posp1.z);
+				magnitude=sqrtf(drxpoint*drxpoint+drypoint*drypoint+drzpoint*drzpoint);
+				directionx=0;
+				directionz=0;
+				if(drxpoint)directionx=drxpoint/fabs(drxpoint);
+				if(drzpoint)directionz=drzpoint/fabs(drzpoint);
+				mirror[idp1].x+=+magnitude*(drz/sqrtf(rr2))*directionx;
+				mirror[idp1].z+=magnitude*(drx/sqrtf(rr2))*directionz;
+
+				mirror[idp1].x=posp1.x+2*mirror[idp1].x;
+				mirror[idp1].z=posp1.z+2*mirror[idp1].z;
+			}
+			else{
+				unsigned mirrorpoint=irelation[idp1];
+				const float drx=float(posp1.x-pos[mirrorpoint].x);
+				const float dry=float(posp1.y-pos[mirrorpoint].y);
+				const float drz=float(posp1.z-pos[mirrorpoint].z);
+				mirror[idp1].x=pos[mirrorpoint].x-drx;
+				mirror[idp1].y=pos[mirrorpoint].y-dry;
+				mirror[idp1].z=pos[mirrorpoint].z-drz;
+			}
+		}
+	}
 }
 
 //===============================================================================
@@ -2053,7 +2152,7 @@ void JSphCpu::PressureAssign(unsigned np,unsigned pinit,const tdouble3 *pos,tflo
       }
 
       const double drz=pos[p2k].z-pos[p1].z;
-      if(divr[p2k]>0.0)velrhop[p1].w=float(x[porder[p1]]+double(RhopZero)*abs(Gravity.z)*drz);
+      if(divr[p2k]>0.0)velrhop[p1].w=float(velrhop[p2k].w+double(RhopZero)*abs(Gravity.z)*drz);
       else velrhop[p1].w=float(double(RhopZero)*abs(Gravity.z)*drz);
     }
   }

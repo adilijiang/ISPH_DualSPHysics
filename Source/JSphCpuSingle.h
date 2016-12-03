@@ -64,7 +64,6 @@ protected:
 
   void PreparePosSimple();
   void SolvePPE(double dt);
-  void FindIrelation();
   void RunShifting(double dt);
 
 public:

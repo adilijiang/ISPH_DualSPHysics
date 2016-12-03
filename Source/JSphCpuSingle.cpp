@@ -774,15 +774,13 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   PrintHeadPart();
 
   //-finding dummy particle relations to wall particles
-  count=1;
-
-  FindIrelation(); 
+	JSphCpu::FindIrelation(Np,Npb,0,Posc,Idpc,Irelationc,MirrorPosc,Codec);  
   while(TimeStep<TimeMax){
     clock_t start = clock(); 
     //if(ViscoTime)Visco=ViscoTime->GetVisco(float(TimeStep));
 
 		if(CaseNmoving)RunMotion(DtPre);
-    double stepdt=ComputeStep_Sym();
+    double stepdt=DtPre;//ComputeStep_Sym();
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
     
     TimeStep+=stepdt;
@@ -879,17 +877,6 @@ void JSphCpuSingle::FinishRun(bool stop){
   }
   Log->Print(" ");
   if(SvRes)SaveRes(tsim,ttot,hinfo,dinfo);
-}
-
-void JSphCpuSingle::FindIrelation(){
-  tuint3 cellmin=CellDivSingle->GetCellDomainMin();
-  tuint3 ncells=CellDivSingle->GetNcells();
-  const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
-  const unsigned cellfluid=nc.w*nc.z+1;
-  const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
-  const int hdiv=(CellMode==CELLMODE_H? 2: 1);
-  const unsigned *begincell = CellDivSingle->GetBeginCell();
-  JSphCpu::FindIrelation(Npb,0,Posc,Idpc,Irelationc,Codec); 
 }
 
 //==============================================================================

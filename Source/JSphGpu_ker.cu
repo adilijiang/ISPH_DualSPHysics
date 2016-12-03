@@ -1309,7 +1309,6 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 				else shiftpos[p1].z=-Maxz;
 			}
 		}
-		velrhop[p1].w=shiftpos[p1].x;
   }
 }
 
@@ -2971,7 +2970,7 @@ __global__ void KerPressureAssignCode1
         }
 
         const double drz=posz[p2k]-posdp1.z;
-        if(divr[p2k])velrhop[p1].w=float(press[porder[p1]]+double(CTE.rhopzero)*abs(gravity.z)*drz);
+        if(divr[p2k])velrhop[p1].w=float(velrhop[p2k].w+double(CTE.rhopzero)*abs(gravity.z)*drz);
         else velrhop[p1].w=float(double(CTE.rhopzero)*abs(gravity.z)*drz);
       }
     }

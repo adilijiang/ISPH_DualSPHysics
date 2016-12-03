@@ -628,7 +628,6 @@ void JSph::LoadMkInfo(const JSpaceParts *parts){
   //-Allocates memory.
   MkList=new StMkInfo[MkListSize];
   //-Gets info for each block of particles.
-	std::cout<<"HEELELELEOEOEOELELEO    " << MkListSize<<"\n";
   for(unsigned c=0;c<MkListSize;c++){
     const JSpacePartBlock &block=parts->GetBlock(c);
     MkList[c].begin=block.GetBegin();

@@ -194,7 +194,8 @@ protected:
   ///////////////////////////////////////////////
   //PPE Functions, variables, Kernel Correction//
   ///////////////////////////////////////////////
-  unsigned *Irelationc; //The closest fluid particle, j, for a boundary particle, i
+  unsigned *Irelationc; //Neumann particles: The closest fluid particle, j, for a boundary particle, Solid particles: MirrorPosc place
+	tdouble3 *MirrorPosc;
   tdouble3 *dWxCorr; //Kernel correction in the x direction
   tdouble3 *dWyCorr; //Kernel correction in the y direction
   tdouble3 *dWzCorr; //Kernel correction in the z direction
@@ -217,7 +218,7 @@ protected:
  
   void InverseCorrection(unsigned n, unsigned pinit,tdouble3 *dwxcorr,tdouble3 *dwzcorr)const;
   void InverseCorrection3D(unsigned n, unsigned pinit,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr)const;
-  void FindIrelation(unsigned n,unsigned pinit,const tdouble3 *pos,const unsigned *idpc,unsigned *irelation,const word *code)const;
+  void FindIrelation(unsigned np,unsigned npb,unsigned pinit,const tdouble3 *pos,const unsigned *idpc,unsigned *irelation,tdouble3 *mirror,const word *code)const;
 
   void solveMatrix();
   void MatrixOrder(unsigned n,unsigned pinit,unsigned *porder,const unsigned *idpc,const unsigned *irelation,word *code,unsigned &ppeDim);
