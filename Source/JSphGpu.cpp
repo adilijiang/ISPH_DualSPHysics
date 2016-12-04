@@ -120,7 +120,8 @@ void JSphGpu::CheckCudaError(const std::string &method,const std::string &msg){
 void JSphGpu::FreeGpuMemoryFixed(){
   MemGpuFixed=0;
   if(Irelationg)cudaFree(Irelationg); Irelationg=NULL;
-  if(a)cudaFree(a);                   a=NULL;
+  if(MirrorPosg)cudaFree(MirrorPosg); MirrorPosg=NULL;
+	if(a)cudaFree(a);                   a=NULL;
   if(colInd)cudaFree(colInd);         colInd=NULL;
   if(counterGPU)cudaFree(counterGPU); counterGPU=NULL;
   if(RidpMoveg)cudaFree(RidpMoveg);   RidpMoveg=NULL;
@@ -155,9 +156,11 @@ void JSphGpu::AllocGpuMemoryFixed(){
     else matrixMemory=493;
   }
   std::cout<<H<<"\t"<<matrixMemory<<"\n";
-  size_t m=sizeof(unsigned)*Npb;
+  size_t m=sizeof(int)*Npb;
   cudaMalloc((void**)&Irelationg,m);    MemGpuFixed+=m;
-  m=sizeof(double)*Np*matrixMemory;
+  m=sizeof(double3)*Npb;
+	cudaMalloc((void**)&MirrorPosg,m);    MemGpuFixed+=m;
+	m=sizeof(double)*Np*matrixMemory;
   cudaMalloc((void**)&a,m);    MemGpuFixed+=m;
   m=sizeof(unsigned)*Np*matrixMemory;
   cudaMalloc((void**)&colInd,m);    MemGpuFixed+=m;
@@ -1120,18 +1123,6 @@ void JSphGpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
     hinfo=hinfo+";"+TimerGetName(c);
     dinfo=dinfo+";"+fun::FloatStr(TimerGetValue(c)/1000.f);
   }
-}
-//===============================================================================
-///Matrix Order
-//===============================================================================
-void JSphGpu::MatrixOrder(unsigned np,unsigned pinit,unsigned npb,unsigned npbok,unsigned bsbound,unsigned bsfluid,unsigned *porder,tuint3 ncells,const int2 *begincell,tuint3 cellmin,
-  const unsigned *dcell,const unsigned *idpg,const unsigned *irelationg,const word *code, unsigned &ppedim){
-	const char met[]="MatrixOrder";
-
-
-
-  
-  CheckCudaError(met,"MatrixOrder");
 }
 
 //===============================================================================

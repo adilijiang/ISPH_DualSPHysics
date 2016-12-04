@@ -81,7 +81,7 @@ void Interaction_Forces(bool floating,bool usedem,TpSlipCond tslipcond,TpCellMod
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg
-  ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,unsigned *irelationg,float *divr);
+  ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,int *irelationg,float *divr);
 
 //# Kernels para calculo de fuerzas DEM
 //# for the calculation of the DEM forces
@@ -149,9 +149,9 @@ void AddVarAcc(unsigned n,unsigned pini,word codesel
 void ComputeRStar(bool floating,unsigned np,unsigned npb,const float4 *velrhoppre,double dtm,word *code,double2 *movxy,double *movz);
 
 //# Kernels for finding a dummy particles corresponding wall particle
-void FindIrelation(const unsigned bsbound,unsigned npbok
+void FindIrelation(TpSlipCond tslip,const unsigned bsbound,unsigned npbok
   ,const double2 *posxy,const double *posz
-  ,const word *code,const unsigned *idp,unsigned *irelationg);
+  ,const word *code,const unsigned *idp,int *irelationg,double3 *mirror);
 
 //# Kernels for particle matrix order
 void POrderBound(const unsigned np,const unsigned npb,const unsigned npbok,const word *code,unsigned *porder,unsigned *index);
@@ -175,12 +175,12 @@ void PopulateMatrixA(TpCellMode cellmode
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell,tfloat3 gravity,const double2 *posxy
   ,const double *posz,const float4 *velrhop,double *matrixInd,double *matrixb
   ,unsigned int *row,unsigned int *col,const unsigned *porder,const unsigned *idp,const unsigned ppedim
-  ,const float *divr,const word *code,const unsigned *irelationg,const float freesurface);
+  ,const float *divr,const word *code,const int *irelationg,const float freesurface);
 
 //# Kernels for Assigning Pressure
 void PressureAssign(const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
   ,const tfloat3 gravity,const double2 *posxy,const double *posz
-	,float4 *velrhop,double *press,const unsigned *porder,const unsigned *idp,const word *code,const unsigned *irelationg,const float *divr,const float freesurface,bool negpresbound);
+	,float4 *velrhop,double *press,const unsigned *porder,const unsigned *idp,const word *code,const int *irelationg,const float *divr,const float freesurface,bool negpresbound);
 
 //# Kernels for ArrayInitialisation
 void InitArrayPOrder(unsigned n,unsigned *v,unsigned value);

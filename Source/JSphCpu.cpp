@@ -126,7 +126,7 @@ void JSphCpu::AllocCpuMemoryFixed(){
   MemCpuFixed=0;
 
   try{
-    Irelationc=new unsigned[Npb]; MemCpuFixed+=(sizeof(unsigned)*Npb);
+    Irelationc=new int[Npb]; MemCpuFixed+=(sizeof(int)*Npb);
 		MirrorPosc=new tdouble3[Npb]; MemCpuFixed+=(sizeof(tdouble3)*Npb);
     //-Allocates memory for moving objects.
     if(CaseNmoving){
@@ -651,14 +651,14 @@ void JSphCpu::GetInteractionCells(unsigned rcell
   zfin=cz+min(nc.z-cz-1,hdiv)+1;
 }
 
-void JSphCpu::MirrorDCell(unsigned npb,const word *code,const tdouble3 *mirror,unsigned *irelation,unsigned *idpc){
+void JSphCpu::MirrorDCell(unsigned npb,const word *code,const tdouble3 *mirror,int *irelation,unsigned *idpc){
 	#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
   for(int p1=0;p1<int(npb);p1++)if(CODE_GetTypeValue(Codec[p1])==0){
 		unsigned idp1=idpc[p1];
-		const tdouble3 ps=mirror[idp1];
 		if(irelation[idp1]!=-1){
+			const tdouble3 ps=mirror[idp1];
 			if(ps>=DomRealPosMin && ps<DomRealPosMax){//-Particle in
 				const double dx=ps.x-DomPosMin.x;
 				const double dy=ps.y-DomPosMin.y;
@@ -674,7 +674,7 @@ void JSphCpu::MirrorDCell(unsigned npb,const word *code,const tdouble3 *mirror,u
 /// Slip Conditions and Boundary interactions
 //=============================================================================
 void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
-  const tdouble3 *pos,tfloat4 *velrhop,const word *code,float *divr,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,tdouble3 *mirror,const unsigned *idp,const unsigned *irelation)const{
+  const tdouble3 *pos,tfloat4 *velrhop,const word *code,float *divr,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,tdouble3 *mirror,const unsigned *idp,const int *irelation)const{
 
   const int pfin=int(pinit+n);
 
@@ -1072,7 +1072,7 @@ template<TpFtMode ftmode> void JSphCpu::Interaction_ForcesT
   (TpInter tinter, unsigned np,unsigned npb,unsigned npbok
   ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
   ,const tdouble3 *pos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,const word *code,const unsigned *idp
-  ,tfloat3 *ace,float *divr,tdouble3 *mirror,const unsigned *irelation)const
+  ,tfloat3 *ace,float *divr,tdouble3 *mirror,const int *irelation)const
 {
   const unsigned npf=np-npb;
   const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
@@ -1114,7 +1114,7 @@ template<TpFtMode ftmode> void JSphCpu::Interaction_ForcesT
 void JSphCpu::Interaction_Forces(TpInter tinter,unsigned np,unsigned npb,unsigned npbok
   ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
   ,const tdouble3 *pos,const tfloat4 *velrhop,const unsigned *idp,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,const word *code
-  ,tfloat3 *ace,float *divr,tdouble3 *mirror,const unsigned *irelation)const
+  ,tfloat3 *ace,float *divr,tdouble3 *mirror,const int *irelation)const
 {
   if(!WithFloating) Interaction_ForcesT<FTMODE_None> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace,divr,mirror,irelation);
   else if(!UseDEM)  Interaction_ForcesT<FTMODE_Sph> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace,divr,mirror,irelation);
@@ -1457,7 +1457,7 @@ void JSphCpu::CalcRidp(bool periactive,unsigned np,unsigned pini,unsigned idini,
 /// Apply a linear movement to a group of particles.
 //==============================================================================
 void JSphCpu::MoveLinBound(unsigned np,unsigned ini,const tdouble3 &mvpos,const tfloat3 &mvvel
-  ,const unsigned *ridp,tdouble3 *pos,unsigned *dcell,tfloat4 *velrhop,word *code,const unsigned *idpc,tdouble3 *mirror,const unsigned *irelation)const
+  ,const unsigned *ridp,tdouble3 *pos,unsigned *dcell,tfloat4 *velrhop,word *code,const unsigned *idpc,tdouble3 *mirror,const int *irelation)const
 {
   const unsigned fin=ini+np;
   for(unsigned id=ini;id<fin;id++){
@@ -1604,7 +1604,7 @@ void JSphCpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
 //===============================================================================
 ///Find the closest fluid particle to each boundary particle
 //===============================================================================
-void JSphCpu::FindIrelation(unsigned np,unsigned npb,unsigned pinit,const tdouble3 *pos,const unsigned *idpc,unsigned *irelation,tdouble3 *mirror,const word *code)const{
+void JSphCpu::FindIrelation(TpSlipCond tslip,unsigned np,unsigned npb,unsigned pinit,const tdouble3 *pos,const unsigned *idpc,int *irelation,tdouble3 *mirror,const word *code)const{
   const int pfin=int(pinit+npb);
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
@@ -1613,7 +1613,6 @@ void JSphCpu::FindIrelation(unsigned np,unsigned npb,unsigned pinit,const tdoubl
 		unsigned codep1=CODE_GetTypeValue(code[p1]);
 		const unsigned idp1=idpc[p1];
 		irelation[idp1]=-1;
-		//-Load data of particle p1 / Carga datos de particula p1.
 		const tdouble3 posp1=pos[p1];	
 		float closestR=Fourh2;
 		if(codep1==1){
@@ -1628,7 +1627,7 @@ void JSphCpu::FindIrelation(unsigned np,unsigned npb,unsigned pinit,const tdoubl
 				}
 			}
 		}
-		else if(codep1==2){
+		else if(codep1==2&&tslip){
 			for(int p2=int(pinit);p2<pfin;p2++) if(CODE_GetTypeValue(code[p2])==2&&p1!=p2){
 				const float drx=float(posp1.x-pos[p2].x);
 				const float dry=float(posp1.y-pos[p2].y);
@@ -1642,89 +1641,89 @@ void JSphCpu::FindIrelation(unsigned np,unsigned npb,unsigned pinit,const tdoubl
 		}
 	}
 
-	#ifdef _WITHOMP
-    #pragma omp parallel for schedule (guided)
-  #endif
-  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==0){
-		const unsigned idp1=idpc[p1];
-		irelation[idp1]=-1;
-		//-Load data of particle p1 / Carga datos de particula p1.
-		const tdouble3 posp1=pos[p1];	
-		float closestR=1.5*Fourh2;
+	if(tslip){
+		#ifdef _WITHOMP
+			#pragma omp parallel for schedule (guided)
+		#endif
+		for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==0){
+			const unsigned idp1=idpc[p1];
+			irelation[idp1]=-1;
+			const tdouble3 posp1=pos[p1];	
+			float closestR=Fourh2;
 
-		bool secondPoint=false;
-		unsigned secondIrelation=np;
-		for(int p2=int(pinit);p2<pfin;p2++) if(CODE_GetTypeValue(code[p2])==2){
-			const float drx=float(posp1.x-pos[p2].x);
-			const float dry=float(posp1.y-pos[p2].y);
-			const float drz=float(posp1.z-pos[p2].z);
-			const float rr2=drx*drx+dry*dry+drz*drz;
-			if(rr2==closestR){
-				secondPoint=true;
-				secondIrelation=p2;
-			}
-			else if(rr2<closestR){
-				closestR=rr2;
-				irelation[idp1]=p2;
-				if(secondPoint){
-					secondPoint=false;
-					secondIrelation=np;
+			bool secondPoint=false;
+			int secondIrelation=-1;
+			for(int p2=int(pinit);p2<pfin;p2++) if(CODE_GetTypeValue(code[p2])==2){
+				const float drx=float(posp1.x-pos[p2].x);
+				const float dry=float(posp1.y-pos[p2].y);
+				const float drz=float(posp1.z-pos[p2].z);
+				const float rr2=drx*drx+dry*dry+drz*drz;
+				if(rr2==closestR){
+					secondPoint=true;
+					secondIrelation=p2;
+				}
+				else if(rr2<closestR){
+					closestR=rr2;
+					irelation[idp1]=p2;
+					if(secondPoint){
+						secondPoint=false;
+						secondIrelation=-1;
+					}
 				}
 			}
-		}
 
-		if(irelation[idp1]!=-1){
-			//Calculate mirrored point
-			if(secondPoint){
-				//Firstpoint
-				unsigned mirrorpoint1=irelation[idp1];
-				unsigned secondmirror1=irelation[idpc[mirrorpoint1]];
-				float drx=float(pos[secondmirror1].x-pos[mirrorpoint1].x);
-				float dry=float(pos[secondmirror1].y-pos[mirrorpoint1].y);
-				float drz=float(pos[secondmirror1].z-pos[mirrorpoint1].z);
-				float rr2=drx*drx+dry*dry+drz*drz;
+			if(irelation[idp1]!=-1){
+				if(secondPoint){
+					//Firstpoint
+					unsigned mirrorpoint1=irelation[idp1];
+					unsigned secondmirror1=irelation[idpc[mirrorpoint1]];
+					float drx=float(pos[secondmirror1].x-pos[mirrorpoint1].x);
+					float dry=float(pos[secondmirror1].y-pos[mirrorpoint1].y);
+					float drz=float(pos[secondmirror1].z-pos[mirrorpoint1].z);
+					float rr2=drx*drx+dry*dry+drz*drz;
 			
-				float drxpoint=float(pos[mirrorpoint1].x-posp1.x);
-				float drypoint=float(pos[mirrorpoint1].y-posp1.y);
-				float drzpoint=float(pos[mirrorpoint1].z-posp1.z);
-				float magnitude=sqrtf(drxpoint*drxpoint+drypoint*drypoint+drzpoint*drzpoint);
-				float directionx=0;
-				float directionz=0;
-				if(drxpoint)directionx=drxpoint/fabs(drxpoint);
-				if(drzpoint)directionz=drzpoint/fabs(drzpoint);
-				mirror[idp1].x=magnitude*(drz/sqrtf(rr2))*directionx;
-				mirror[idp1].z=magnitude*(drx/sqrtf(rr2))*directionz;
+					float drxpoint=float(pos[mirrorpoint1].x-posp1.x);
+					float drypoint=float(pos[mirrorpoint1].y-posp1.y);
+					float drzpoint=float(pos[mirrorpoint1].z-posp1.z);
+					float magnitude=sqrtf(drxpoint*drxpoint+drypoint*drypoint+drzpoint*drzpoint);
+					float directionx=0;
+					float directionz=0;
+					if(drxpoint)directionx=drxpoint/fabs(drxpoint);
+					if(drzpoint)directionz=drzpoint/fabs(drzpoint);
+					mirror[idp1].x=magnitude*(drz/sqrtf(rr2))*directionx;
+					mirror[idp1].z=magnitude*(drx/sqrtf(rr2))*directionz;
 				
-				//Secondpoint
-				unsigned mirrorpoint2=secondIrelation;
-				unsigned secondmirror2=irelation[idpc[mirrorpoint2]];
-				drx=float(pos[secondmirror2].x-pos[mirrorpoint2].x);
-				dry=float(pos[secondmirror2].y-pos[mirrorpoint2].y);
-				drz=float(pos[secondmirror2].z-pos[mirrorpoint2].z);
-				rr2=drx*drx+dry*dry+drz*drz;
+					//Secondpoint
+					unsigned mirrorpoint2=secondIrelation;
+					unsigned secondmirror2=irelation[idpc[mirrorpoint2]];
+					drx=float(pos[secondmirror2].x-pos[mirrorpoint2].x);
+					dry=float(pos[secondmirror2].y-pos[mirrorpoint2].y);
+					drz=float(pos[secondmirror2].z-pos[mirrorpoint2].z);
+					rr2=drx*drx+dry*dry+drz*drz;
 			
-				drxpoint=float(pos[mirrorpoint2].x-posp1.x);
-				drypoint=float(pos[mirrorpoint2].y-posp1.y);
-				drzpoint=float(pos[mirrorpoint2].z-posp1.z);
-				magnitude=sqrtf(drxpoint*drxpoint+drypoint*drypoint+drzpoint*drzpoint);
-				directionx=0;
-				directionz=0;
-				if(drxpoint)directionx=drxpoint/fabs(drxpoint);
-				if(drzpoint)directionz=drzpoint/fabs(drzpoint);
-				mirror[idp1].x+=+magnitude*(drz/sqrtf(rr2))*directionx;
-				mirror[idp1].z+=magnitude*(drx/sqrtf(rr2))*directionz;
+					drxpoint=float(pos[mirrorpoint2].x-posp1.x);
+					drypoint=float(pos[mirrorpoint2].y-posp1.y);
+					drzpoint=float(pos[mirrorpoint2].z-posp1.z);
+					magnitude=sqrtf(drxpoint*drxpoint+drypoint*drypoint+drzpoint*drzpoint);
+					directionx=0;
+					directionz=0;
+					if(drxpoint)directionx=drxpoint/fabs(drxpoint);
+					if(drzpoint)directionz=drzpoint/fabs(drzpoint);
+					mirror[idp1].x+=+magnitude*(drz/sqrtf(rr2))*directionx;
+					mirror[idp1].z+=magnitude*(drx/sqrtf(rr2))*directionz;
 
-				mirror[idp1].x=posp1.x+2*mirror[idp1].x;
-				mirror[idp1].z=posp1.z+2*mirror[idp1].z;
-			}
-			else{
-				unsigned mirrorpoint=irelation[idp1];
-				const float drx=float(posp1.x-pos[mirrorpoint].x);
-				const float dry=float(posp1.y-pos[mirrorpoint].y);
-				const float drz=float(posp1.z-pos[mirrorpoint].z);
-				mirror[idp1].x=pos[mirrorpoint].x-drx;
-				mirror[idp1].y=pos[mirrorpoint].y-dry;
-				mirror[idp1].z=pos[mirrorpoint].z-drz;
+					mirror[idp1].x=posp1.x+2*mirror[idp1].x;
+					mirror[idp1].z=posp1.z+2*mirror[idp1].z;
+				}
+				else{
+					unsigned mirrorpoint=irelation[idp1];
+					const float drx=float(posp1.x-pos[mirrorpoint].x);
+					const float dry=float(posp1.y-pos[mirrorpoint].y);
+					const float drz=float(posp1.z-pos[mirrorpoint].z);
+					mirror[idp1].x=pos[mirrorpoint].x-drx;
+					mirror[idp1].y=pos[mirrorpoint].y-dry;
+					mirror[idp1].z=pos[mirrorpoint].z-drz;
+				}
 			}
 		}
 	}
@@ -1782,7 +1781,7 @@ void JSphCpu::InverseCorrection3D(unsigned n, unsigned pinit,tdouble3 *dwxcorr,t
 //===============================================================================
 ///Matrix order for PPE
 //===============================================================================
-void JSphCpu::MatrixOrder(unsigned np,unsigned pinit,unsigned *porder,const unsigned *idpc,const unsigned *irelation,word *code, unsigned &ppedim){
+void JSphCpu::MatrixOrder(unsigned np,unsigned pinit,unsigned *porder,const unsigned *idpc,const int *irelation,word *code, unsigned &ppedim){
 	const int pfin=int(pinit+np);
 
   unsigned index=0;
@@ -1891,7 +1890,7 @@ void JSphCpu::MatrixASetup(const unsigned ppedim,unsigned &nnz,std::vector<int> 
 //===============================================================================
 void JSphCpu::PopulateMatrixAFluid(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
-  const unsigned *porder,const unsigned *irelation,std::vector<double> &matrixb,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface,tfloat3 gravity,const double rhoZero)const{
+  const unsigned *porder,const int *irelation,std::vector<double> &matrixb,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface,tfloat3 gravity,const double rhoZero)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -2010,7 +2009,7 @@ void JSphCpu::PopulateMatrixAFluid(unsigned n,unsigned pinit,tint4 nc,int hdiv,u
 
 void JSphCpu::PopulateMatrixABoundary(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
-  const unsigned *porder,const unsigned *irelation,std::vector<double> &matrixb,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface,tfloat3 gravity,const double rhoZero)const{
+  const unsigned *porder,const int *irelation,std::vector<double> &matrixb,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface,tfloat3 gravity,const double rhoZero)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -2165,7 +2164,7 @@ void JSphCpu::FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,std::vector<
 ///Reorder pressure for particles
 //===============================================================================
 void JSphCpu::PressureAssign(unsigned np,unsigned pinit,const tdouble3 *pos,tfloat4 *velrhop,
-  const unsigned *idpc,const unsigned *irelation,const unsigned *porder,std::vector<double> &x,const word *code,const unsigned npb,float *divr,tfloat3 gravity)const{
+  const unsigned *idpc,const int *irelation,const unsigned *porder,std::vector<double> &x,const word *code,const unsigned npb,float *divr,tfloat3 gravity)const{
 
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)

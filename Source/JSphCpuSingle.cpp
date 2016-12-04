@@ -779,7 +779,7 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   PrintHeadPart();
 
   //-finding dummy particle relations to wall particles
-	JSphCpu::FindIrelation(Np,Npb,0,Posc,Idpc,Irelationc,MirrorPosc,Codec);  
+	JSphCpu::FindIrelation(TSlipCond,Np,Npb,0,Posc,Idpc,Irelationc,MirrorPosc,Codec);  
   while(TimeStep<TimeMax){
     clock_t start = clock(); 
     //if(ViscoTime)Visco=ViscoTime->GetVisco(float(TimeStep));

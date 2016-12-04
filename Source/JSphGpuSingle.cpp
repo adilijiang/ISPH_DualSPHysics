@@ -442,7 +442,7 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
 	}
 	
   cusph::Interaction_Forces(WithFloating,UseDEM,TSlipCond,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,POrderg,counterGPU,Irelationg,Divrg);
-  if(tinter==1)cudaMemset(Velrhopg,0,sizeof(float4)*Npb);
+	if(TSlipCond)cudaMemcpy(Velrhopg,VelrhopPreg,sizeof(float4)*Npb,cudaMemcpyDeviceToDevice);
   //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
   //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
   //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,FtRidpg,DemDatag,float(DemDtForce),Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,ViscDtg,Aceg);
@@ -491,6 +491,7 @@ double JSphGpuSingle::ComputeStep_Sym(){
   //----------- 
   InitAdvection(dt);
 	RunCellDivide(true);
+	if(TSlipCond)CellDivSingle->MirrorDCellSingle(BlockSizes.forcesbound,Npb,Codeg,Irelationg,Idpg,MirrorPosg,DomRealPosMin,DomRealPosMax,DomPosMin,Scell,DomCellCode);
   Interaction_Forces(INTER_Forces,dt);        //-Interaction
 	ComputeSymplecticPre(dt);                   //-Applies Symplectic-Predictor to the particles
 	//if(CaseNfloat)RunFloating(dt*.5,true);    //-Management of the floating bodies
@@ -695,7 +696,7 @@ void JSphGpuSingle::FinishRun(bool stop){
 //==============================================================================
 void JSphGpuSingle::FindIrelation(){
   const unsigned bsbound=BlockSizes.forcesbound;
-  cusph::FindIrelation(bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,Irelationg);
+  cusph::FindIrelation(TSlipCond,bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,Irelationg,MirrorPosg);
 }
 
 //==============================================================================

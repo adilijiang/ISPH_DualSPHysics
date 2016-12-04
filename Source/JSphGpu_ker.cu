@@ -491,14 +491,14 @@ __global__ void KerMatrixOrderFluid
 }
 
 __device__ void KerMatrixOrderDummyCalc
-  (unsigned p1,const unsigned &pini,const unsigned &pfin,const word *code,const unsigned *idp,unsigned idpg1,unsigned irelationg1,unsigned *porder)
+  (unsigned p1,const unsigned &pini,const unsigned &pfin,const word *code,const unsigned *idp,unsigned idpg1,int irelationg1,unsigned *porder)
 {
   for(int p2=pini;p2<pfin;p2++)if(irelationg1==idp[p2])porder[p1]=porder[p2];
 }
 
 __global__ void KerMatrixOrderDummy
   (unsigned np,unsigned n,int hdiv,uint4 nc,const int2 *begincell,int3 cellzero,const unsigned *dcell
-  ,const word *code,const unsigned *idp,const unsigned *irelationg,unsigned *porder)
+  ,const word *code,const unsigned *idp,const int *irelationg,unsigned *porder)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<n){
@@ -999,7 +999,7 @@ template<TpFtMode ftmode> void Interaction_ForcesT
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg
-  ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,unsigned *irelationg,float *divr)
+  ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,int *irelationg,float *divr)
 {
   const unsigned npf=np-npb;
   const int hdiv=(cellmode==CELLMODE_H? 2: 1);
@@ -1038,7 +1038,7 @@ void Interaction_Forces(bool floating,bool usedem,TpSlipCond tslipcond,TpCellMod
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg
-  ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,unsigned *irelationg,float *divr)
+  ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,int *irelationg,float *divr)
 {
   if(!floating)   Interaction_ForcesT<FTMODE_None> (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr);
   else if(!usedem)Interaction_ForcesT<FTMODE_Sph>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr);
@@ -2476,73 +2476,149 @@ void ComputeRStar(bool floating,unsigned npf,unsigned npb,const float4 *velrhopp
 //==============================================================================
 ///Find Irelation
 //==============================================================================
-//------------------------------------------------------------------------------
-/// Devuelve drx, dry y drz entre dos particulas.
-/// Returns drx, dry and drz between the particles.
-//------------------------------------------------------------------------------
-__device__ void KerGetParticlesIrelationDr(int p2
-  ,const double2 *posxy,const double *posz,const double3 &posdp1
-  ,float &drx,float &dry,float &drz)
-{
-  double2 posp2=posxy[p2];
-  drx=float(posdp1.x-posp2.x);
-  dry=float(posdp1.y-posp2.y);
-  drz=float(posdp1.z-posz[p2]);
-}
-//------------------------------------------------------------------------------
-/// Returns postion and vel of a particle.
-//------------------------------------------------------------------------------
-__device__ void KerGetParticleDataIrelation(unsigned p1
-  ,const double2 *posxy,const double *posz,double3 &posdp1)
-{
-  double2 pxy=posxy[p1];
-  posdp1=make_double3(pxy.x,pxy.y,posz[p1]);
-}
-
-//==============================================================================
-///Irelation
-//==============================================================================
-
-__device__ void KerFindIrelationCalc
+__device__ void KerFindMirrorPoints
   (unsigned p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
-  ,const word *code,const unsigned *idp,float massp2,double3 posdp1,unsigned idpg1,unsigned *irelationg,float &closestr)
+  ,const word *code,const unsigned *idp,double3 posdp1,const unsigned idpg1
+	,int *irelationg,float &closestr,bool &secondPoint,int &secondIrelation,double3 *mirror)
 {
-  for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==0){
-    float drx,dry,drz;
-    KerGetParticlesIrelationDr(p2,posxy,posz,posdp1,drx,dry,drz);
-    float rr2=drx*drx+dry*dry+drz*drz;
-    if(rr2<=closestr){
-	    closestr=rr2;
-      irelationg[idpg1]=idp[p2];
-    }
-  }
+	for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==2){
+		float drx,dry,drz;
+		KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+		float rr2=drx*drx+dry*dry+drz*drz;
+		if(rr2==closestr){
+			secondPoint=true;
+			secondIrelation=p2;
+		}
+		else if(rr2<closestr){
+			closestr=rr2;
+			irelationg[idpg1]=p2;
+			if(secondPoint){
+				secondPoint=false;
+				secondIrelation=-1;
+			}
+		}
+
+		if(irelationg[idpg1]!=-1){
+			if(secondPoint){
+				unsigned mirrorpoint1=irelationg[idpg1];
+				unsigned secondmirror1=irelationg[idp[mirrorpoint1]];
+				float drx=float(posxy[secondmirror1].x-posxy[mirrorpoint1].x);
+				float dry=float(posxy[secondmirror1].y-posxy[mirrorpoint1].y);
+				float drz=float(posz[secondmirror1]-posz[mirrorpoint1]);
+				float rr2=drx*drx+dry*dry+drz*drz;
+			
+				float drxpoint=float(posxy[mirrorpoint1].x-posdp1.x);
+				float drypoint=float(posxy[mirrorpoint1].y-posdp1.y);
+				float drzpoint=float(posz[mirrorpoint1]-posdp1.z);
+				float magnitude=sqrtf(drxpoint*drxpoint+drypoint*drypoint+drzpoint*drzpoint);
+				float directionx=0;
+				float directionz=0;
+				if(drxpoint)directionx=drxpoint/fabs(drxpoint);
+				if(drzpoint)directionz=drzpoint/fabs(drzpoint);
+				mirror[idpg1].x=magnitude*(drz/sqrtf(rr2))*directionx;
+				mirror[idpg1].z=magnitude*(drx/sqrtf(rr2))*directionz;
+				
+				//Secondpoint
+				unsigned mirrorpoint2=secondIrelation;
+				unsigned secondmirror2=irelationg[idp[mirrorpoint2]];
+				drx=float(posxy[secondmirror2].x-posxy[mirrorpoint2].x);
+				dry=float(posxy[secondmirror2].y-posxy[mirrorpoint2].y);
+				drz=float(posz[secondmirror2]-posz[mirrorpoint2]);
+				rr2=drx*drx+dry*dry+drz*drz;
+			
+				drxpoint=float(posxy[mirrorpoint2].x-posdp1.x);
+				drypoint=float(posxy[mirrorpoint2].y-posdp1.y);
+				drzpoint=float(posz[mirrorpoint2]-posdp1.z);
+				magnitude=sqrtf(drxpoint*drxpoint+drypoint*drypoint+drzpoint*drzpoint);
+				directionx=0;
+				directionz=0;
+				if(drxpoint)directionx=drxpoint/fabs(drxpoint);
+				if(drzpoint)directionz=drzpoint/fabs(drzpoint);
+				mirror[idpg1].x+=+magnitude*(drz/sqrtf(rr2))*directionx;
+				mirror[idpg1].z+=magnitude*(drx/sqrtf(rr2))*directionz;
+
+				mirror[idpg1].x=posdp1.x+2*mirror[idpg1].x;
+				mirror[idpg1].z=posdp1.z+2*mirror[idpg1].z;
+			}
+			else{
+				unsigned mirrorpoint=irelationg[idpg1];
+				KerGetParticlesDr(mirrorpoint,posxy,posz,posdp1,drx,dry,drz);
+				mirror[idpg1].x=posxy[mirrorpoint].x-drx;
+				mirror[idpg1].y=posxy[mirrorpoint].y-dry;
+				mirror[idpg1].z =posz[mirrorpoint]-drz;
+			}
+		}
+	}
 }
 
-__global__ void KerFindIrelation
-  (unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,unsigned *irelationg)
+__global__ void KerFindMirror
+  (unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,int *irelationg,double3 *mirror)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
-    if(CODE_GetTypeValue(code[p1])==1){
-      //-Carga datos de particula p1.
-	    //-Loads particle p1 data.
-      double3 posdp1;
-      KerGetParticleDataIrelation(p1,posxy,posz,posdp1);
-      unsigned idpg1=idp[p1];
-      irelationg[idpg1]=npb;
-      float closestr=10*CTE.fourh2;
+		if(CODE_GetTypeValue(code[p1])==0);
+    unsigned idpg1=idp[p1];
+		irelationg[idpg1]=-1;
+		const double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
+    float closestr=CTE.fourh2;
 
-      KerFindIrelationCalc(p1,0,npb,posxy,posz,code,idp,CTE.massf,posdp1,idpg1,irelationg,closestr);
-    }
-  }
+		bool secondPoint=false;
+		int secondIrelation=-1;
+		
+		KerFindMirrorPoints(p1,0,npb,posxy,posz,code,idp,posdp1,idpg1,irelationg,closestr,secondPoint,secondIrelation,mirror);
+	}
 }
 
-void FindIrelation(const unsigned bsbound,unsigned npb,const double2 *posxy
-  ,const double *posz,const word *code,const unsigned *idp,unsigned *irelationg){
+__device__ void KerFindIrelationCalc
+  (TpSlipCond tslip,unsigned p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
+  ,const word *code,const word codep1,const unsigned *idp,double3 posdp1,unsigned idpg1,int *irelationg,float &closestr)
+{
+	if(codep1==1){
+		for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==0){
+			float drx,dry,drz;
+			KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+			float rr2=drx*drx+dry*dry+drz*drz;
+			if(rr2<=closestr){
+				closestr=rr2;
+				irelationg[idpg1]=idp[p2];
+			}
+		}
+	}
+	else if(codep1==2&&tslip){
+		for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==2&&p1!=p2){
+			float drx,dry,drz;
+			KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+			float rr2=drx*drx+dry*dry+drz*drz;
+			if(rr2<=closestr){
+				closestr=rr2;
+				irelationg[idpg1]=p2;
+			}
+		}
+	}
+}
+
+__global__ void KerFindIrelation
+  (TpSlipCond tslip,unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,int *irelationg)
+{
+  unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
+  if(p1<npb){
+		unsigned codep1=CODE_GetTypeValue(code[p1]);
+    unsigned idpg1=idp[p1];
+		irelationg[idpg1]=-1;
+		const double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
+    float closestr=CTE.fourh2;
+		
+		KerFindIrelationCalc(tslip,p1,0,npb,posxy,posz,code,codep1,idp,posdp1,idpg1,irelationg,closestr);
+	}
+}
+
+void FindIrelation(TpSlipCond tslip,const unsigned bsbound,unsigned npb,const double2 *posxy
+  ,const double *posz,const word *code,const unsigned *idp,int *irelationg,double3 *mirror){
   if(npb){
     dim3 sgridb=GetGridSize(npb,bsbound);
-    KerFindIrelation <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,irelationg);
-  }
+    KerFindIrelation <<<sgridb,bsbound>>> (tslip,npb,posxy,posz,code,idp,irelationg);
+		if(tslip) KerFindMirror <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,irelationg,mirror);
+	}
 }
 
 //==============================================================================
@@ -2750,7 +2826,7 @@ __device__ void KerMatrixAFluid
 __device__ void KerMatrixABound
   (unsigned p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
   ,double3 posdp1,const unsigned *idp,const float massp2,const float RhopZero,tfloat3 gravity,const word *code,unsigned int *col,unsigned int *row
-  ,double *matrixInd,double *matrixb,const int diag,const unsigned *porder,const unsigned oi,const unsigned ppedim,const unsigned npb,const unsigned *irelationg)
+  ,double *matrixInd,double *matrixb,const int diag,const unsigned *porder,const unsigned oi,const unsigned ppedim,const unsigned npb,const int *irelationg)
 {
   for(int p2=pini;p2<pfin;p2++){
     float drx,dry,drz;
@@ -2803,7 +2879,7 @@ __device__ void KerMatrixABound
 __global__ void KerPopulateMatrixA
   (unsigned np,unsigned n,unsigned pinit,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero,const unsigned *dcell,tfloat3 gravity
   ,const double2 *posxy,const double *posz,const float4 *velrhop,const float *divr,const word *code
-  ,const unsigned *idp,const unsigned *porder,unsigned int *row,unsigned int *col,double *matrixInd,double *matrixb,const unsigned ppedim,const unsigned npb,const unsigned *irelationg,const float freesurface)
+  ,const unsigned *idp,const unsigned *porder,unsigned int *row,unsigned int *col,double *matrixInd,double *matrixb,const unsigned ppedim,const unsigned npb,const int *irelationg,const float freesurface)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
@@ -2875,7 +2951,7 @@ void PopulateMatrixA(TpCellMode cellmode
   ,tuint3 ncells,const int2 *begincell,tuint3 cellmin,const unsigned *dcell,tfloat3 gravity,const double2 *posxy
   ,const double *posz,const float4 *velrhop,double *matrixInd,double *matrixb
   ,unsigned int *row,unsigned int *col,const unsigned *porder,const unsigned *idp,const unsigned ppedim
-  ,const float *divr,const word *code,const unsigned *irelationg,const float freesurface){
+  ,const float *divr,const word *code,const int *irelationg,const float freesurface){
   const unsigned npf=np-npb;
   const int hdiv=(cellmode==CELLMODE_H? 2: 1);
   const uint4 nc=make_uint4(ncells.x,ncells.y,ncells.z,ncells.x*ncells.y);
@@ -2949,7 +3025,7 @@ __global__ void KerPressureAssignCode0
 
 __global__ void KerPressureAssignCode1
   (unsigned np,unsigned npb,unsigned npbok,unsigned pinit,const tfloat3 gravity,const double2 *posxy,const double *posz
-  ,float4 *velrhop,double *press,const unsigned *porder,const unsigned *idp,const word *code,const unsigned *irelationg,const float *divr,const float freesurface)
+  ,float4 *velrhop,double *press,const unsigned *porder,const unsigned *idp,const word *code,const int *irelationg,const float *divr,const float freesurface)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<npbok){
@@ -2979,7 +3055,7 @@ __global__ void KerPressureAssignCode1
 
 void PressureAssign(const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
   ,const tfloat3 gravity,const double2 *posxy,const double *posz
-  ,float4 *velrhop,double *press,const unsigned *porder,const unsigned *idp,const word *code,const unsigned *irelationg,const float *divr,const float freesurface,bool negpresbound){
+  ,float4 *velrhop,double *press,const unsigned *porder,const unsigned *idp,const word *code,const int *irelationg,const float *divr,const float freesurface,bool negpresbound){
   const unsigned npf=np-npb;
 
   if(np){
