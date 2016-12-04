@@ -322,47 +322,6 @@ void ComputeVelMod(unsigned n,const float4 *vel,float *velmod){
   }
 }
 
-
-//##############################################################################
-//# Kernels para preparar calculo de fuerzas con Pos-Simple.
-//# Kernels for preparing force computation with Pos-Simple.
-//##############################################################################
-//------------------------------------------------------------------------------
-/// Prepara variables para interaccion pos-simple.
-/// Prepare variables for pos-simple interaction.
-//------------------------------------------------------------------------------
-__global__ void KerPreInteractionSimple(unsigned n,const double2 *posxy,const double *posz
-  ,const float4 *velrhop,float4 *pospress,float cteb,float gamma)
-{
-  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula
-  if(p<n){
-    //Calcular press en simple o doble precision no parece tener ningun efecto positivo significativo,
-    //y como para PosDouble si se calcula antes y se lee en la interaccion supondria una perdida de 
-    //rendimiento del 6% o 15% (gtx480 o k20c) mejor se calcula en simple siempre.
-	//Computes press in single or double precision,although the latter does not have any significant positive effect,
-    //and like PosDouble if it is previously calculated and read the interaction can incur losses of
-    //performance of 6% or 15% (GTX480 or k20c) so it is best calculated as always simple.
-    const float rrhop=velrhop[p].w;
-    float press=cteb*(powf(rrhop*CTE.ovrhopzero,gamma)-1.0f);
-    double2 rpos=posxy[p];
-    pospress[p]=make_float4(float(rpos.x),float(rpos.y),float(posz[p]),press);
-  }
-}
-
-//==============================================================================
-/// Prepara variables para interaccion pos-simple.
-/// Prepare variables for pos-simple interaction.
-//==============================================================================
-void PreInteractionSimple(unsigned np,const double2 *posxy,const double *posz
-  ,const float4 *velrhop,float4 *pospress,float cteb,float ctegamma)
-{
-  if(np){
-    dim3 sgrid=GetGridSize(np,SPHBSIZE);
-    KerPreInteractionSimple <<<sgrid,SPHBSIZE>>> (np,posxy,posz,velrhop,pospress,cteb,ctegamma);
-  }
-}
-
-
 //##############################################################################
 //# Kernels auxiliares para interaccion.
 //# Auxiliary kernels for the interaction.
@@ -755,7 +714,6 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
 			if(tslipcond&&codep1==0&&irelationg[idp1]!=-1){
 				float3 Sum1=make_float3(0,0,0);
 				float Sum2=0.0;
-
 				KerGetInteractionCells(irelationg[idp1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
 
 				for(int z=zini;z<zfin;z++){
@@ -1373,11 +1331,11 @@ template<bool floating> __global__ void KerComputeStepSymplecticPre
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
   if(p<n){
     if(p<npb){//-Particulas: Fixed & Moving //-Particles: Fixed & Moving
-      float4 rvelrhop=velrhoppre[p];
-       rvelrhop.w=velrhop[p].w;
+      //float4 rvelrhop=velrhoppre[p];
+       //rvelrhop.w=velrhop[p].w;
       /*rvelrhop.w=float(double(rvelrhop.w)+dtm*ar[p]);
       rvelrhop.w=(rvelrhop.w<CTE.rhopzero? CTE.rhopzero: rvelrhop.w);*/ //-Evita q las boundary absorvan a las fluidas.  //-To prevent absorption of fluid particles by boundaries.
-      velrhop[p]=rvelrhop;
+      //velrhop[p]=rvelrhop;
     }
     else{ //-Particulas: Floating & Fluid //-Particles: Floating & Fluid
       //-Actualiza densidad.
@@ -2530,56 +2488,56 @@ __device__ void KerFindMirrorPoints
 				secondIrelation=-1;
 			}
 		}
-
-		if(irelationg[idpg1]!=-1){
-			if(secondPoint){
-				unsigned mirrorpoint1=irelationg[idpg1];
-				unsigned secondmirror1=irelationg[idp[mirrorpoint1]];
-				float drx=float(posxy[secondmirror1].x-posxy[mirrorpoint1].x);
-				float dry=float(posxy[secondmirror1].y-posxy[mirrorpoint1].y);
-				float drz=float(posz[secondmirror1]-posz[mirrorpoint1]);
-				float rr2=drx*drx+dry*dry+drz*drz;
+	}
+		
+	if(irelationg[idpg1]!=-1){
+		if(secondPoint){
+			unsigned mirrorpoint1=irelationg[idpg1];
+			unsigned secondmirror1=irelationg[idp[mirrorpoint1]];
+			float drx=float(posxy[secondmirror1].x-posxy[mirrorpoint1].x);
+			float dry=float(posxy[secondmirror1].y-posxy[mirrorpoint1].y);
+			float drz=float(posz[secondmirror1]-posz[mirrorpoint1]);
+			float rr2=drx*drx+dry*dry+drz*drz;
+		
+			float drxpoint=float(posxy[mirrorpoint1].x-posdp1.x);
+			float drypoint=float(posxy[mirrorpoint1].y-posdp1.y);
+			float drzpoint=float(posz[mirrorpoint1]-posdp1.z);
+			float magnitude=sqrtf(drxpoint*drxpoint+drypoint*drypoint+drzpoint*drzpoint);
+			float directionx=0;
+			float directionz=0;
+			if(drxpoint)directionx=drxpoint/fabs(drxpoint);
+			if(drzpoint)directionz=drzpoint/fabs(drzpoint);
+			mirror[idpg1].x=magnitude*(drz/sqrtf(rr2))*directionx;
+			mirror[idpg1].z=magnitude*(drx/sqrtf(rr2))*directionz;
 			
-				float drxpoint=float(posxy[mirrorpoint1].x-posdp1.x);
-				float drypoint=float(posxy[mirrorpoint1].y-posdp1.y);
-				float drzpoint=float(posz[mirrorpoint1]-posdp1.z);
-				float magnitude=sqrtf(drxpoint*drxpoint+drypoint*drypoint+drzpoint*drzpoint);
-				float directionx=0;
-				float directionz=0;
-				if(drxpoint)directionx=drxpoint/fabs(drxpoint);
-				if(drzpoint)directionz=drzpoint/fabs(drzpoint);
-				mirror[idpg1].x=magnitude*(drz/sqrtf(rr2))*directionx;
-				mirror[idpg1].z=magnitude*(drx/sqrtf(rr2))*directionz;
-				
-				//Secondpoint
-				unsigned mirrorpoint2=secondIrelation;
-				unsigned secondmirror2=irelationg[idp[mirrorpoint2]];
-				drx=float(posxy[secondmirror2].x-posxy[mirrorpoint2].x);
-				dry=float(posxy[secondmirror2].y-posxy[mirrorpoint2].y);
-				drz=float(posz[secondmirror2]-posz[mirrorpoint2]);
-				rr2=drx*drx+dry*dry+drz*drz;
-			
-				drxpoint=float(posxy[mirrorpoint2].x-posdp1.x);
-				drypoint=float(posxy[mirrorpoint2].y-posdp1.y);
-				drzpoint=float(posz[mirrorpoint2]-posdp1.z);
-				magnitude=sqrtf(drxpoint*drxpoint+drypoint*drypoint+drzpoint*drzpoint);
-				directionx=0;
-				directionz=0;
-				if(drxpoint)directionx=drxpoint/fabs(drxpoint);
-				if(drzpoint)directionz=drzpoint/fabs(drzpoint);
-				mirror[idpg1].x+=+magnitude*(drz/sqrtf(rr2))*directionx;
-				mirror[idpg1].z+=magnitude*(drx/sqrtf(rr2))*directionz;
-
-				mirror[idpg1].x=posdp1.x+2*mirror[idpg1].x;
-				mirror[idpg1].z=posdp1.z+2*mirror[idpg1].z;
-			}
-			else{
-				unsigned mirrorpoint=irelationg[idpg1];
-				KerGetParticlesDr(mirrorpoint,posxy,posz,posdp1,drx,dry,drz);
-				mirror[idpg1].x=posxy[mirrorpoint].x-drx;
-				mirror[idpg1].y=posxy[mirrorpoint].y-dry;
-				mirror[idpg1].z =posz[mirrorpoint]-drz;
-			}
+			//Secondpoint
+			unsigned mirrorpoint2=secondIrelation;
+			unsigned secondmirror2=irelationg[idp[mirrorpoint2]];
+			drx=float(posxy[secondmirror2].x-posxy[mirrorpoint2].x);
+			dry=float(posxy[secondmirror2].y-posxy[mirrorpoint2].y);
+			drz=float(posz[secondmirror2]-posz[mirrorpoint2]);
+			rr2=drx*drx+dry*dry+drz*drz;
+		
+			drxpoint=float(posxy[mirrorpoint2].x-posdp1.x);
+			drypoint=float(posxy[mirrorpoint2].y-posdp1.y);
+			drzpoint=float(posz[mirrorpoint2]-posdp1.z);
+			magnitude=sqrtf(drxpoint*drxpoint+drypoint*drypoint+drzpoint*drzpoint);
+			directionx=0;
+			directionz=0;
+			if(drxpoint)directionx=drxpoint/fabs(drxpoint);
+			if(drzpoint)directionz=drzpoint/fabs(drzpoint);
+			mirror[idpg1].x+=+magnitude*(drz/sqrtf(rr2))*directionx;
+			mirror[idpg1].z+=magnitude*(drx/sqrtf(rr2))*directionz;
+			mirror[idpg1].x=posdp1.x+2*mirror[idpg1].x;
+			mirror[idpg1].z=posdp1.z+2*mirror[idpg1].z;
+		}
+		else{
+			unsigned mirrorpoint=irelationg[idpg1];
+			float drx,dry,drz;
+			KerGetParticlesDr(mirrorpoint,posxy,posz,posdp1,drx,dry,drz);
+			mirror[idpg1].x=posxy[mirrorpoint].x-drx;
+			mirror[idpg1].y=posxy[mirrorpoint].y-dry;
+			mirror[idpg1].z =posz[mirrorpoint]-drz;
 		}
 	}
 }
@@ -2589,16 +2547,17 @@ __global__ void KerFindMirror
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
-		if(CODE_GetTypeValue(code[p1])==0);
-    unsigned idpg1=idp[p1];
-		irelationg[idpg1]=-1;
-		const double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
-    float closestr=CTE.fourh2;
+		if(CODE_GetTypeValue(code[p1])==0){
+			unsigned idpg1=idp[p1];
+			irelationg[idpg1]=-1;
+			const double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
+			float closestr=CTE.fourh2;
 
-		bool secondPoint=false;
-		int secondIrelation=-1;
+			bool secondPoint=false;
+			int secondIrelation=-1;
 		
-		KerFindMirrorPoints(p1,0,npb,posxy,posz,code,idp,posdp1,idpg1,irelationg,closestr,secondPoint,secondIrelation,mirror);
+			KerFindMirrorPoints(p1,0,npb,posxy,posz,code,idp,posdp1,idpg1,irelationg,closestr,secondPoint,secondIrelation,mirror);
+		}
 	}
 }
 
@@ -2618,13 +2577,15 @@ __device__ void KerFindIrelationCalc
 		}
 	}
 	else if(codep1==2&&tslip){
-		for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==2&&p1!=p2){
-			float drx,dry,drz;
-			KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
-			float rr2=drx*drx+dry*dry+drz*drz;
-			if(rr2<=closestr){
-				closestr=rr2;
-				irelationg[idpg1]=p2;
+		for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==2){
+			if(p1!=p2){
+				float drx,dry,drz;
+				KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+				float rr2=drx*drx+dry*dry+drz*drz;
+				if(rr2<=closestr){
+					closestr=rr2;
+					irelationg[idpg1]=p2;
+				}
 			}
 		}
 	}

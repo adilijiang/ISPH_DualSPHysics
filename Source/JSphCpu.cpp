@@ -659,13 +659,11 @@ void JSphCpu::MirrorDCell(unsigned npb,const word *code,const tdouble3 *mirror,i
 		unsigned idp1=idpc[p1];
 		if(irelation[idp1]!=-1){
 			const tdouble3 ps=mirror[idp1];
-			if(ps>=DomRealPosMin && ps<DomRealPosMax){//-Particle in
-				const double dx=ps.x-DomPosMin.x;
-				const double dy=ps.y-DomPosMin.y;
-				const double dz=ps.z-DomPosMin.z;
-				unsigned cx=unsigned(dx/Scell),cy=unsigned(dy/Scell),cz=unsigned(dz/Scell);
-				irelation[idp1]=PC__Cell(DomCellCode,cx,cy,cz);
-			}
+			const double dx=ps.x-DomPosMin.x;
+			const double dy=ps.y-DomPosMin.y;
+			const double dz=ps.z-DomPosMin.z;
+			unsigned cx=unsigned(dx/Scell),cy=unsigned(dy/Scell),cz=unsigned(dz/Scell);
+			irelation[idp1]=PC__Cell(DomCellCode,cx,cy,cz);
 		}
 	}
 }

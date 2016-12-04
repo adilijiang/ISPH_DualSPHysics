@@ -120,14 +120,11 @@ void PreSortFluid(unsigned npf,unsigned pini,unsigned cellcode,const unsigned *d
 }
 
 __device__ void KerMirrorDCellSort(const double3 ps,int *irelation,const unsigned idpg1,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode){
-	if(ps.x>=domrealposmin.x && ps.y>=domrealposmin.y && ps.z>=domrealposmin.z &&
-		 ps.x<domrealposmax.x && ps.y<domrealposmax.y && ps.z<domrealposmax.z){//-Particle in
-		const double dx=ps.x-domposmin.x;
-		const double dy=ps.y-domposmin.y;
-		const double dz=ps.z-domposmin.z;
-		unsigned cx=unsigned(dx/scell),cy=unsigned(dy/scell),cz=unsigned(dz/scell);
-		irelation[idpg1]=PC__Cell(domcellcode,cx,cy,cz);
-	}
+	const double dx=ps.x-domposmin.x;
+	const double dy=ps.y-domposmin.y;
+	const double dz=ps.z-domposmin.z;
+	unsigned cx=unsigned(dx/scell),cy=unsigned(dy/scell),cz=unsigned(dz/scell);
+	irelation[idpg1]=PC__Cell(domcellcode,cx,cy,cz);
 }
 
 __global__ void KerMirrorDCell(unsigned npb,const word *code,unsigned *idpg,const double3 *mirror,int *irelation

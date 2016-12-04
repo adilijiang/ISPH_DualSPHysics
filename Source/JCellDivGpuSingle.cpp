@@ -48,9 +48,6 @@ void JCellDivGpuSingle::CalcCellDomain(const unsigned *dcellg,const word* codeg)
   //-Calcula dominio ajustando al contorno y al fluido (con halo de 2h). 
   //-Computes the domain adjusting to the boundary and the fluid ( with 2h halo)
   MergeMapCellBoundFluid(celbmin,celbmax,celfmin,celfmax,CellDomainMin,CellDomainMax);
-  celfmin=CellDomainMin;
-  celfmax=CellDomainMax;
-  MergeMapCellBoundFluid(celbmin,celbmax,celfmin,celfmax,CellDomainMin,CellDomainMax);
 }
 
 //==============================================================================
@@ -68,8 +65,9 @@ void JCellDivGpuSingle::CalcCellDomain(const unsigned *dcellg,const word* codeg)
 /// If the domain is null CellDomainMin=CellDomainMax=(0,0,0).
 //==============================================================================
 void JCellDivGpuSingle::MergeMapCellBoundFluid(const tuint3 &celbmin,const tuint3 &celbmax,const tuint3 &celfmin,const tuint3 &celfmax,tuint3 &celmin,tuint3 &celmax)const{
-  celmin=TUint3(max(min(celbmin.x,celfmin.x),(celfmin.x>=Hdiv? celfmin.x-Hdiv: 0)),max(min(celbmin.y,celfmin.y),(celfmin.y>=Hdiv? celfmin.y-Hdiv: 0)),max(min(celbmin.z,celfmin.z),(celfmin.z>=Hdiv? celfmin.z-Hdiv: 0)));
-  celmax=TUint3(min(max(celbmax.x,celfmax.x),celfmax.x+Hdiv),min(max(celbmax.y,celfmax.y),celfmax.y+Hdiv),min(max(celbmax.z,celfmax.z),celfmax.z+Hdiv));
+  const unsigned hdiv=Hdiv*2;
+	celmin=TUint3(max(min(celbmin.x,celfmin.x),(celfmin.x>=hdiv? celfmin.x-hdiv: 0)),max(min(celbmin.y,celfmin.y),(celfmin.y>=hdiv? celfmin.y-hdiv: 0)),max(min(celbmin.z,celfmin.z),(celfmin.z>=hdiv? celfmin.z-hdiv: 0)));
+  celmax=TUint3(min(max(celbmax.x,celfmax.x),celfmax.x+hdiv),min(max(celbmax.y,celfmax.y),celfmax.y+hdiv),min(max(celbmax.z,celfmax.z),celfmax.z+hdiv));
   if(celmax.x>=DomCells.x)celmax.x=DomCells.x-1;
   if(celmax.y>=DomCells.y)celmax.y=DomCells.y-1;
   if(celmax.z>=DomCells.z)celmax.z=DomCells.z-1;
