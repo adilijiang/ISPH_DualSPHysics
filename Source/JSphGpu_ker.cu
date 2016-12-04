@@ -590,7 +590,7 @@ __global__ void KerInverseKernelCor3D(unsigned n,unsigned pinit,double3 *dwxcorr
 /// Interaction of a particle with a set of particles (Bound-Fluid).
 //------------------------------------------------------------------------------
 template<TpFtMode ftmode> __device__ void KerInteractionForcesBoundBound
-  (TpSlipCond tslipcond,unsigned p1,const unsigned &pini,const unsigned &pfin
+  (const unsigned &pini,const unsigned &pfin
   ,const float *ftomassp,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned* idp
   ,float massb,double3 posdp1,float3 velp1,double3 &dwxp1,double3 &dwyp1,double3 &dwzp1,float &divrp1,const unsigned codep1,float3 &wallVelocity)
 {
@@ -633,9 +633,9 @@ template<TpFtMode ftmode> __device__ void KerInteractionForcesBoundBound
 }
 
 template<TpFtMode ftmode> __device__ void KerInteractionForcesBoundFluid
-  (TpSlipCond tslipcond,unsigned p1,const unsigned &pini,const unsigned &pfin
+  (const unsigned &pini,const unsigned &pfin
   ,const float *ftomassp,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned* idp
-  ,float massf,double3 posdp1,float3 velp1,double3 &dwxp1,double3 &dwyp1,double3 &dwzp1,float &divrp1,const unsigned codep1,float3 &Sum1, float &Sum2)
+  ,float massf,double3 posdp1,float3 velp1,double3 &dwxp1,double3 &dwyp1,double3 &dwzp1,float &divrp1,const unsigned codep1)
 {
 	const float volume=massf/CTE.rhopzero;
   for(int p2=pini;p2<pfin;p2++){
@@ -654,14 +654,6 @@ template<TpFtMode ftmode> __device__ void KerInteractionForcesBoundFluid
 			dwyp1.x-=volume*frx*dry; dwyp1.y-=volume*fry*dry; dwyp1.z-=volume*frz*dry;
 			dwzp1.x-=volume*frx*drz; dwzp1.y-=volume*fry*drz; dwzp1.z-=volume*frz*drz;
 
-			if(codep1==0&&tslipcond){
-				const float4 velrhop2=velrhop[p2];
-				const float W=KerGetKernelWab(rr2);
-				Sum1.x+=W*velrhop2.x;
-				Sum1.y+=W*velrhop2.y;
-				Sum1.z+=W*velrhop2.z;
-				Sum2+=W;
-			}
       //-Obtiene masa de particula p2 en caso de existir floatings.
 	  //-Obtains particle mass p2 if there are floating bodies.
      // float ftmassp2;    //-Contiene masa de particula floating o massf si es fluid. //-Contains mass of floating body or massf if fluid.
@@ -677,6 +669,25 @@ template<TpFtMode ftmode> __device__ void KerInteractionForcesBoundFluid
   }
 }
 
+__device__ void KerCalculateMirrorVel
+  (const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
+	,float4 *velrhop,double3 mirror,float3 &Sum1, float &Sum2)
+{
+	for(int p2=pini;p2<pfin;p2++){
+    float drx,dry,drz;
+    KerGetParticlesDr(p2,posxy,posz,mirror,drx,dry,drz);
+    float rr2=drx*drx+dry*dry+drz*drz;
+    if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
+			const float4 velrhop2=velrhop[p2];
+			const float W=KerGetKernelWab(rr2);
+			Sum1.x+=W*velrhop2.x;
+			Sum1.y+=W*velrhop2.y;
+			Sum1.z+=W*velrhop2.z;
+			Sum2+=W;
+		}
+	}
+}
+
 //------------------------------------------------------------------------------
 /// Realiza interaccion entre particulas. Bound-Fluid/Float
 /// Particle interaction. Bound-Fluid/Float
@@ -684,7 +695,7 @@ template<TpFtMode ftmode> __device__ void KerInteractionForcesBoundFluid
 template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
   (TpSlipCond tslipcond,unsigned n,int hdiv,uint4 nc,const int2 *begincell,int3 cellzero,const unsigned *dcell
   ,const float *ftomassp
-  ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg,float *divr)
+  ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg,float *divr,const double3 *mirror,const int *irelationg)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<n){
@@ -696,8 +707,6 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
       float3 velp1;
       KerGetParticleData(p1,posxy,posz,velrhop,velp1,posdp1);
 			
-			float3 Sum1=make_float3(0,0,0);
-			float Sum2=0.0;
 			float3 wallVelocity=make_float3(0,0,0);
 			float divrp1=0.0;
 			double3 dwxp1=make_double3(0,0,0); double3 dwyp1=make_double3(0,0,0); double3 dwzp1=make_double3(0,0,0);
@@ -720,7 +729,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
               pfin=cbeg.y;
             }
           }
-          if(pfin)KerInteractionForcesBoundBound<ftmode> (tslipcond,p1,pini,pfin,ftomassp,posxy,posz,velrhop,code,idp,CTE.massb,posdp1,velp1,dwxp1,dwyp1,dwzp1,divrp1,codep1,wallVelocity);
+          if(pfin)KerInteractionForcesBoundBound<ftmode> (pini,pfin,ftomassp,posxy,posz,velrhop,code,idp,CTE.massb,posdp1,velp1,dwxp1,dwyp1,dwzp1,divrp1,codep1,wallVelocity);
         }
       }
 			
@@ -738,20 +747,44 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
               pfin=cbeg.y;
             }
           }
-          if(pfin)KerInteractionForcesBoundFluid<ftmode> (tslipcond,p1,pini,pfin,ftomassp,posxy,posz,velrhop,code,idp,CTE.massf,posdp1,velp1,dwxp1,dwyp1,dwzp1,divrp1,codep1,Sum1,Sum2);
+          if(pfin)KerInteractionForcesBoundFluid<ftmode> (pini,pfin,ftomassp,posxy,posz,velrhop,code,idp,CTE.massf,posdp1,velp1,dwxp1,dwyp1,dwzp1,divrp1,codep1);
         }
       }
 
-			if(Sum2){
-				if(tslipcond==SLIPCOND_Slip){
-					velrhop[p1].x=(wallVelocity.x-(Sum1.x/Sum2))/2.0f;
-					velrhop[p1].y=(wallVelocity.y-(Sum1.y/Sum2))/2.0f;
-					velrhop[p1].z=(wallVelocity.z-(Sum1.z/Sum2))/2.0f;
+			unsigned idp1=idp[p1];
+			if(tslipcond&&codep1==0&&irelationg[idp1]!=-1){
+				float3 Sum1=make_float3(0,0,0);
+				float Sum2=0.0;
+
+				KerGetInteractionCells(irelationg[idp1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+
+				for(int z=zini;z<zfin;z++){
+					int zmod=(nc.w)*z+(nc.w*nc.z+1);//-Le suma Nct+1 que es la primera celda de fluido. //-Adds Nct + 1 which is the first cell fluid.
+					for(int y=yini;y<yfin;y++){
+						int ymod=zmod+nc.x*y;
+						unsigned pini,pfin=0;
+						for(int x=cxini;x<cxfin;x++){
+							int2 cbeg=begincell[x+ymod];
+							if(cbeg.y){
+								if(!pfin)pini=cbeg.x;
+								pfin=cbeg.y;
+							}
+						}
+						if(pfin) KerCalculateMirrorVel (pini,pfin,posxy,posz,velrhop,mirror[idp1],Sum1,Sum2);
+					}
 				}
-				else if(tslipcond==SLIPCOND_NoSlip){
-					velrhop[p1].x=(wallVelocity.x+(Sum1.x/Sum2))/2.0f;
-					velrhop[p1].y=(wallVelocity.y+(Sum1.y/Sum2))/2.0f;
-					velrhop[p1].z=(wallVelocity.z+(Sum1.z/Sum2))/2.0f;
+
+				if(Sum2){
+					if(tslipcond==SLIPCOND_Slip){
+						velrhop[p1].x=(wallVelocity.x-(Sum1.x/Sum2))/2.0f;
+						velrhop[p1].y=(wallVelocity.y-(Sum1.y/Sum2))/2.0f;
+						velrhop[p1].z=(wallVelocity.z-(Sum1.z/Sum2))/2.0f;
+					}
+					else if(tslipcond==SLIPCOND_NoSlip){
+						velrhop[p1].x=(wallVelocity.x+(Sum1.x/Sum2))/2.0f;
+						velrhop[p1].y=(wallVelocity.y+(Sum1.y/Sum2))/2.0f;
+						velrhop[p1].z=(wallVelocity.z+(Sum1.z/Sum2))/2.0f;
+					}
 				}
 			}
 
@@ -999,7 +1032,7 @@ template<TpFtMode ftmode> void Interaction_ForcesT
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg
-  ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,int *irelationg,float *divr)
+  ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,int *irelationg,float *divr,const double3 *mirror)
 {
   const unsigned npf=np-npb;
   const int hdiv=(cellmode==CELLMODE_H? 2: 1);
@@ -1012,7 +1045,7 @@ template<TpFtMode ftmode> void Interaction_ForcesT
 
 	if(tinter==1){ 
 		KerMatrixOrderDummy <<<sgridb,bsbound>>> (np,npb,hdiv,nc,begincell,cellzero,dcell,code,idp,irelationg,porder);
-    KerInteractionForcesBound<ftmode> <<<sgridb,bsbound>>> (tslipcond,npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,divr);
+    KerInteractionForcesBound<ftmode> <<<sgridb,bsbound>>> (tslipcond,npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,divr,mirror,irelationg);
   }
   //-Interaccion Fluid-Fluid & Fluid-Bound
   //-Interaction Fluid-Fluid & Fluid-Bound
@@ -1038,11 +1071,11 @@ void Interaction_Forces(bool floating,bool usedem,TpSlipCond tslipcond,TpCellMod
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg
-  ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,int *irelationg,float *divr)
+  ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,int *irelationg,float *divr,const double3 *mirror)
 {
-  if(!floating)   Interaction_ForcesT<FTMODE_None> (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr);
-  else if(!usedem)Interaction_ForcesT<FTMODE_Sph>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr);
-  else            Interaction_ForcesT<FTMODE_Dem>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr);
+  if(!floating)   Interaction_ForcesT<FTMODE_None> (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr,mirror);
+  else if(!usedem)Interaction_ForcesT<FTMODE_Sph>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr,mirror);
+  else            Interaction_ForcesT<FTMODE_Dem>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr,mirror);
 }
 
 /*//##############################################################################

@@ -365,7 +365,9 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
   //if(updateperiodic && PeriActive)RunPeriodic();
   //-Inicia Divide.
   //-Initiates Divide.
+	std::cout<<"hi"<<"\n";
   CellDivSingle->Divide(Npb,Np-Npb-NpbPer-NpfPer,NpbPer,NpfPer,BoundChanged,Dcellg,Codeg,Timers,Posxyg,Poszg,Idpg);
+	std::cout<<"hi"<<"\n";
   //-Ordena datos de particulas
   //-Sorts particle data
   TmgStart(Timers,TMG_NlSortData);
@@ -440,8 +442,12 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
 		cudaMemcpy(counterCPU,counterGPU,sizeof(unsigned),cudaMemcpyDeviceToHost);
 		PPEDim = counterCPU[0];
 	}
+	double3 *mirrorCPU=new double3[Npb]; cudaMemcpy(mirrorCPU,MirrorPosg,sizeof(double3)*Npb,cudaMemcpyDeviceToHost);
+	int *irelationCPU=new int[Npb]; cudaMemcpy(irelationCPU,Irelationg,sizeof(int)*Npb,cudaMemcpyDeviceToHost);
+	std::cout<<irelationCPU[8606] << "\t" << mirrorCPU[8606].x << "\t" << mirrorCPU[8606].z << "\n";
+	system("PAUSE");
+  cusph::Interaction_Forces(WithFloating,UseDEM,TSlipCond,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,POrderg,counterGPU,Irelationg,Divrg,MirrorPosg);	
 	
-  cusph::Interaction_Forces(WithFloating,UseDEM,TSlipCond,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,POrderg,counterGPU,Irelationg,Divrg);
 	if(TSlipCond)cudaMemcpy(Velrhopg,VelrhopPreg,sizeof(float4)*Npb,cudaMemcpyDeviceToDevice);
   //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
   //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
@@ -491,7 +497,7 @@ double JSphGpuSingle::ComputeStep_Sym(){
   //----------- 
   InitAdvection(dt);
 	RunCellDivide(true);
-	if(TSlipCond)CellDivSingle->MirrorDCellSingle(BlockSizes.forcesbound,Npb,Codeg,Irelationg,Idpg,MirrorPosg,DomRealPosMin,DomRealPosMax,DomPosMin,Scell,DomCellCode);
+	//if(TSlipCond)CellDivSingle->MirrorDCellSingle(BlockSizes.forcesbound,Npb,Codeg,Irelationg,Idpg,MirrorPosg,DomRealPosMin,DomRealPosMax,DomPosMin,Scell,DomCellCode);
   Interaction_Forces(INTER_Forces,dt);        //-Interaction
 	ComputeSymplecticPre(dt);                   //-Applies Symplectic-Predictor to the particles
 	//if(CaseNfloat)RunFloating(dt*.5,true);    //-Management of the floating bodies

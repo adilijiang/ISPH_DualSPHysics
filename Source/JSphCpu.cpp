@@ -770,20 +770,15 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 				tfloat3 Sum1=TFloat3(0);
 				float Sum2=0.0;
 				//-Obtain interaction limits / Obtiene limites de interaccion
-				int cxini,cxfin,yini,yfin,zini,zfin;
 				GetInteractionCells(irelation[idp1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
 
 				for(int z=zini;z<zfin;z++){
-					const int zmod=(nc.w)*z; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
+					const int zmod=(nc.w)*z+cellinitial; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
 					for(int y=yini;y<yfin;y++){
 						int ymod=zmod+nc.x*y;
 						const unsigned pini=beginendcell[cxini+ymod];
 						const unsigned pfin=beginendcell[cxfin+ymod];
 
-						//===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
-						float massp2=MassFluid; //-Contiene masa de particula segun sea bound o fluid.
-						const float volume=massp2/RhopZero; //Volume of particle j
-		
 						//-Interactions
 						//------------------------------------------------
 						for(unsigned p2=pini;p2<pfin;p2++){
