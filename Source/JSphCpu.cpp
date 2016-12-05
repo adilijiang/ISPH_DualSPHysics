@@ -681,7 +681,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
   #endif
   for(int p1=int(pinit);p1<pfin;p1++){
 		unsigned codep1=CODE_GetTypeValue(Codec[p1]);
-		if(codep1!=1){
+		if(codep1!=2){
 			//-Obtain data of particle p1 / Obtiene datos de particula p1.
 			const tdouble3 posp1=pos[p1];
 			float divrp1=0.0;
@@ -1608,7 +1608,7 @@ void JSphCpu::FindIrelation(TpSlipCond tslip,unsigned np,unsigned npb,unsigned p
 		irelation[idp1]=-1;
 		const tdouble3 posp1=pos[p1];	
 		float closestR=Fourh2;
-		if(codep1==1){
+		if(codep1==2){
 			for(int p2=int(pinit);p2<pfin;p2++) if(CODE_GetTypeValue(code[p2])==0){
 				const float drx=float(posp1.x-pos[p2].x);
 				const float dry=float(posp1.y-pos[p2].y);
@@ -1620,8 +1620,8 @@ void JSphCpu::FindIrelation(TpSlipCond tslip,unsigned np,unsigned npb,unsigned p
 				}
 			}
 		}
-		else if(codep1==2&&tslip){
-			for(int p2=int(pinit);p2<pfin;p2++) if(CODE_GetTypeValue(code[p2])==2&&p1!=p2){
+		else if(codep1==1&&tslip){
+			for(int p2=int(pinit);p2<pfin;p2++) if(CODE_GetTypeValue(code[p2])==1&&p1!=p2){
 				const float drx=float(posp1.x-pos[p2].x);
 				const float dry=float(posp1.y-pos[p2].y);
 				const float drz=float(posp1.z-pos[p2].z);
@@ -1646,7 +1646,7 @@ void JSphCpu::FindIrelation(TpSlipCond tslip,unsigned np,unsigned npb,unsigned p
 
 			bool secondPoint=false;
 			int secondIrelation=-1;
-			for(int p2=int(pinit);p2<pfin;p2++) if(CODE_GetTypeValue(code[p2])==2){
+			for(int p2=int(pinit);p2<pfin;p2++) if(CODE_GetTypeValue(code[p2])==1){
 				const float drx=float(posp1.x-pos[p2].x);
 				const float dry=float(posp1.y-pos[p2].y);
 				const float drz=float(posp1.z-pos[p2].z);
@@ -1732,7 +1732,7 @@ void JSphCpu::InverseCorrection(unsigned n, unsigned pinit, tdouble3 *dwxcorr,td
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-	for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])!=1){
+	for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])!=2){
 	  const double det=1.0/(dwxcorr[p1].x*dwzcorr[p1].z-dwxcorr[p1].z*dwzcorr[p1].x);
 	
       if(det){
@@ -1752,7 +1752,7 @@ void JSphCpu::InverseCorrection3D(unsigned n, unsigned pinit,tdouble3 *dwxcorr,t
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-	for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])!=1){
+	for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])!=2){
     tdouble3 dwx=dwxcorr[p1]; //  dwx.x   dwx.y   dwx.z
     tdouble3 dwy=dwycorr[p1]; //  dwy.x   dwy.y   dwy.z
     tdouble3 dwz=dwzcorr[p1]; //  dwz.x   dwz.y   dwz.z
@@ -1778,7 +1778,7 @@ void JSphCpu::MatrixOrder(unsigned np,unsigned pinit,unsigned *porder,const unsi
 	const int pfin=int(pinit+np);
 
   unsigned index=0;
-	for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])!=1){
+	for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])!=2){
     if(p1<int(Npb)&&p1>=int(NpbOk)) porder[p1]=np;
     else{
       porder[p1]=index; 
@@ -1789,7 +1789,7 @@ void JSphCpu::MatrixOrder(unsigned np,unsigned pinit,unsigned *porder,const unsi
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==1){
+  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==2){
     porder[p1]=np;
     unsigned idp1=idpc[p1];//POSSIBLE BUG
     for(int p2=0;p2<int(Npb);p2++)if(irelation[idp1]==idpc[p2])porder[p1]=porder[p2];
@@ -1812,7 +1812,7 @@ void JSphCpu::RHSandLHSStorage(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsig
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])!=1){
+  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])!=2){
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
     const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
     const tdouble3 posp1=pos[p1];
@@ -1835,7 +1835,7 @@ void JSphCpu::RHSandLHSStorage(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsig
 
           //-Interactions
           //------------------------------------------------
-          for(unsigned p2=pini;p2<pfin;p2++) if(CODE_GetTypeValue(Codec[p2])!=1){
+          for(unsigned p2=pini;p2<pfin;p2++) if(CODE_GetTypeValue(Codec[p2])!=2){
 						const float drx=float(posp1.x-pos[p2].x);
 						const float dry=float(posp1.y-pos[p2].y);
 						const float drz=float(posp1.z-pos[p2].z);
@@ -1891,7 +1891,7 @@ void JSphCpu::PopulateMatrixAFluid(unsigned n,unsigned pinit,tint4 nc,int hdiv,u
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<pfin;p1++)if((CODE_GetTypeValue(code[p1])!=1)&&porder[p1]!=int(Np)){
+  for(int p1=int(pinit);p1<pfin;p1++)if((CODE_GetTypeValue(code[p1])!=2)&&porder[p1]!=int(Np)){
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
     const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
     const tdouble3 posp1=pos[p1];
@@ -2010,11 +2010,11 @@ void JSphCpu::PopulateMatrixABoundary(unsigned n,unsigned pinit,tint4 nc,int hdi
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<pfin;p1++)if((CODE_GetTypeValue(code[p1])!=1)&&porder[p1]!=int(Np)){
+  for(int p1=int(pinit);p1<pfin;p1++)if((CODE_GetTypeValue(code[p1])!=2)&&porder[p1]!=int(Np)){
     //-Obtain data of particle p1 / Obtiene datos de particula p1.
     const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
     const tdouble3 posp1=pos[p1];
-    
+ 
 		//-Particle order in Matrix
 		unsigned oi = porder[p1];
 		const unsigned diag=row[oi];
@@ -2112,7 +2112,7 @@ void JSphCpu::PopulateMatrixABoundary(unsigned n,unsigned pinit,tint4 nc,int hdi
                   }
                 }
               }
-              if(mkp2==1){
+              if(mkp2==2){
                 unsigned p2k;
                 for(unsigned k=0;k<Npb;k++) if(idpc[k]==irelation[idp2]){
                   p2k=k;
@@ -2139,7 +2139,7 @@ void JSphCpu::FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,std::vector<
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(code[p1])!=1){   
+  for(int p1=int(pinit);p1<pfin;p1++) if(CODE_GetTypeValue(code[p1])!=2){   
 	  //-Particle order in Matrix
 	  unsigned oi = porder[p1];
     const int Mark=row[oi]+1;
@@ -2162,7 +2162,7 @@ void JSphCpu::PressureAssign(unsigned np,unsigned pinit,const tdouble3 *pos,tflo
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<int(np);p1++) if((CODE_GetTypeValue(code[p1])!=1)&&porder[p1]!=np){
+  for(int p1=int(pinit);p1<int(np);p1++) if((CODE_GetTypeValue(code[p1])!=2)&&porder[p1]!=np){
     velrhop[p1].w=float(x[porder[p1]]);
 
     if(!NegativePressureBound)if(p1<int(npb)&&velrhop[p1].w<0)velrhop[p1].w=0.0;
@@ -2171,7 +2171,7 @@ void JSphCpu::PressureAssign(unsigned np,unsigned pinit,const tdouble3 *pos,tflo
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<int(np);p1++)if(CODE_GetTypeValue(code[p1])==1&&porder[p1]!=np){
+  for(int p1=int(pinit);p1<int(np);p1++)if(CODE_GetTypeValue(code[p1])==2&&porder[p1]!=np){
     const unsigned j=irelation[idpc[p1]];
     if(j!=npb){
       unsigned p2k;

@@ -461,7 +461,7 @@ __global__ void KerMatrixOrderDummy
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<n){
-    if(CODE_GetTypeValue(code[p1])==1){
+    if(CODE_GetTypeValue(code[p1])==2){
       porder[p1]=np;
       //-Carga datos de particula p1.
 	    //-Loads particle p1 data.
@@ -501,7 +501,7 @@ __global__ void KerInverseKernelCor2D(unsigned n,unsigned pinit,double3 *dwxcorr
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if(CODE_GetTypeValue(code[p1])!=1){
+    if(CODE_GetTypeValue(code[p1])!=2){
       const double det=1.0/(dwxcorrg[p1].x*dwzcorrg[p1].z-dwxcorrg[p1].z*dwzcorrg[p1].x);
 
       if(det){
@@ -520,7 +520,7 @@ __global__ void KerInverseKernelCor3D(unsigned n,unsigned pinit,double3 *dwxcorr
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if(CODE_GetTypeValue(code[p1])!=1){
+    if(CODE_GetTypeValue(code[p1])!=2){
       double3 dwx=dwxcorrg[p1]; //  dwx.x   dwx.y   dwx.z
 			double3 dwy=dwycorrg[p1]; //  dwy.x   dwy.y   dwy.z
 			double3 dwz=dwzcorrg[p1]; //  dwz.x   dwz.y   dwz.z
@@ -659,7 +659,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<n){
 		unsigned codep1=CODE_GetTypeValue(code[p1]);
-    if(codep1!=1){
+    if(codep1!=2){
       //-Carga datos de particula p1.
 			//-Loads particle p1 data.
       double3 posdp1;
@@ -2472,7 +2472,7 @@ __device__ void KerFindMirrorPoints
   ,const word *code,const unsigned *idp,double3 posdp1,const unsigned idpg1
 	,int *irelationg,float &closestr,bool &secondPoint,int &secondIrelation,double3 *mirror)
 {
-	for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==2){
+	for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==1){
 		float drx,dry,drz;
 		KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
 		float rr2=drx*drx+dry*dry+drz*drz;
@@ -2565,7 +2565,7 @@ __device__ void KerFindIrelationCalc
   (TpSlipCond tslip,unsigned p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
   ,const word *code,const word codep1,const unsigned *idp,double3 posdp1,unsigned idpg1,int *irelationg,float &closestr)
 {
-	if(codep1==1){
+	if(codep1==2){
 		for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==0){
 			float drx,dry,drz;
 			KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
@@ -2576,8 +2576,8 @@ __device__ void KerFindIrelationCalc
 			}
 		}
 	}
-	else if(codep1==2&&tslip){
-		for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==2){
+	else if(codep1==1&&tslip){
+		for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==1){
 			if(p1!=p2){
 				float drx,dry,drz;
 				KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
@@ -2622,7 +2622,7 @@ __global__ void kerPOrder(const unsigned np,const unsigned npb,const unsigned np
    unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
    if(p1==0){
      unsigned count=0;
-	   for(int i=0;i<int(npbok);i++) if(CODE_GetTypeValue(code[i])!=1){
+	   for(int i=0;i<int(npbok);i++) if(CODE_GetTypeValue(code[i])!=2){
        porder[i]=count;
        count++;  
      }
@@ -2644,7 +2644,7 @@ __device__ void KerRHSandLHSStorage
   ,const float4 *velrhop,const float3 velp1,const float massp2,const double3 posdp1
 	,const double3 dwxcorrgp1,const double3 dwycorrgp1,const double3 dwzcorrgp1,double &matrixbp1,const word *code,unsigned &numOfInteractions)
 {
-  for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])!=1){
+  for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])!=2){
     float drx,dry,drz;
     KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
     float rr2=drx*drx+dry*dry+drz*drz;
@@ -2675,7 +2675,7 @@ __global__ void KerRHSandLHSStorage
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if(CODE_GetTypeValue(code[p1])!=1){
+    if(CODE_GetTypeValue(code[p1])!=2){
 			unsigned numOfInteractions=0;
 			const unsigned oi=porder[p1];
       if(divr[p1]>freesurface){
@@ -2855,7 +2855,7 @@ __device__ void KerMatrixABound
         }
       }
 
-      if(mkp2==1){
+      if(mkp2==2){
         unsigned p2k;
         for(unsigned k=0;k<npb;k++) if(idp[k]==irelationg[idp2]){
           p2k=k;
@@ -2878,7 +2878,7 @@ __global__ void KerPopulateMatrixA
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if((CODE_GetTypeValue(code[p1])!=1)&&porder[p1]!=int(np)){
+    if((CODE_GetTypeValue(code[p1])!=2)&&porder[p1]!=int(np)){
       unsigned oi=porder[p1];
       const unsigned diag=row[oi];
       col[diag]=oi;
@@ -2971,7 +2971,7 @@ __global__ void KerFreeSurfaceMark
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
       unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-      if(CODE_GetTypeValue(code[p1])!=1){
+      if(CODE_GetTypeValue(code[p1])!=2){
         unsigned oi=porder[p1];
         const int Mark=row[oi]+1;
         if(divr[p1]>=freesurface && divr[p1]<=freesurface+0.2f){
@@ -3004,27 +3004,27 @@ void FreeSurfaceMark(const unsigned bsbound,const unsigned bsfluid,unsigned np,u
 //------------------------------------------------------------------------------
 ///Pressure Assign 
 //------------------------------------------------------------------------------
-__global__ void KerPressureAssignCode0
+__global__ void KerPressureAssignCode01
   (unsigned np,unsigned n,unsigned pinit,unsigned npb,float4 *velrhop,const word *code,const unsigned *porder,double *press,bool negpresbound)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if((CODE_GetTypeValue(code[p1])!=1)&&porder[p1]!=np){
+    if((CODE_GetTypeValue(code[p1])!=2)&&porder[p1]!=np){
       velrhop[p1].w=float(press[porder[p1]]);
       if(!negpresbound)if(p1<npb&&velrhop[p1].w<0)velrhop[p1].w=0.0;
     }
   }
 }
 
-__global__ void KerPressureAssignCode1
+__global__ void KerPressureAssignCode2
   (unsigned np,unsigned npb,unsigned npbok,unsigned pinit,const tfloat3 gravity,const double2 *posxy,const double *posz
   ,float4 *velrhop,double *press,const unsigned *porder,const unsigned *idp,const word *code,const int *irelationg,const float *divr,const float freesurface)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<npbok){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if(CODE_GetTypeValue(code[p1])==1&&porder[p1]!=np){
+    if(CODE_GetTypeValue(code[p1])==2&&porder[p1]!=np){
       //-Obtiene datos basicos de particula p1.
   	  //-Obtains basic data of particle p1.
       double3 posdp1;
@@ -3056,9 +3056,9 @@ void PressureAssign(const unsigned bsbound,const unsigned bsfluid,unsigned np,un
     dim3 sgridf=GetGridSize(npf,bsfluid);
     dim3 sgridb=GetGridSize(npb,bsbound);
 
-      KerPressureAssignCode0 <<<sgridf,bsfluid>>> (np,npf,npb,npb,velrhop,code,porder,press,negpresbound);
-      KerPressureAssignCode0 <<<sgridb,bsbound>>> (np,npbok,0,npb,velrhop,code,porder,press,negpresbound);
-      KerPressureAssignCode1 <<<sgridb,bsbound>>> (np,npb,npbok,0,gravity,posxy,posz,velrhop,press,porder,idp,code,irelationg,divr,freesurface); 
+      KerPressureAssignCode01 <<<sgridf,bsfluid>>> (np,npf,npb,npb,velrhop,code,porder,press,negpresbound);
+      KerPressureAssignCode01 <<<sgridb,bsbound>>> (np,npbok,0,npb,velrhop,code,porder,press,negpresbound);
+      KerPressureAssignCode2 <<<sgridb,bsbound>>> (np,npb,npbok,0,gravity,posxy,posz,velrhop,press,porder,idp,code,irelationg,divr,freesurface); 
   }
 }
 
