@@ -1748,13 +1748,21 @@ void CalcRidp(bool periactive,unsigned np,unsigned pini,unsigned idini,unsigned 
 /// Aplica un movimiento lineal a un conjunto de particulas.
 /// Applies a linear movement to a set of particles.
 //------------------------------------------------------------------------------
-template<bool periactive> __global__ void KerMoveLinBound(unsigned n,unsigned ini,double3 mvpos,float3 mvvel
-  ,const unsigned *ridpmv,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code)
+template<bool periactive> __global__ void KerMoveLinBound(TpSlipCond tslip,unsigned n,unsigned ini,double3 mvpos,float3 mvvel
+  ,const unsigned *ridpmv,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code,const unsigned *idpg,double3 *mirror,const int *irelation)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     int pid=ridpmv[p+ini];
     if(pid>=0){
+			if(tslip&&CODE_GetTypeValue(code[pid])==0){
+				unsigned idp1=idpg[pid];
+				if(irelation[idp1]!=-1){
+					mirror[idp1].x+=mvpos.x;
+					mirror[idp1].y+=mvpos.y;
+					mirror[idp1].z+=mvpos.z;
+				}
+			}
       //-Calcula desplazamiento y actualiza posicion.
 	  //-Computes displacement and updates position.
       KerUpdatePos<periactive>(posxy[pid],posz[pid],mvpos.x,mvpos.y,mvpos.z,false,pid,posxy,posz,dcell,code);
@@ -1769,12 +1777,12 @@ template<bool periactive> __global__ void KerMoveLinBound(unsigned n,unsigned in
 /// Aplica un movimiento lineal a un conjunto de particulas.
 /// Applies a linear movement to a set of particles.
 //==============================================================================
-void MoveLinBound(byte periactive,unsigned np,unsigned ini,tdouble3 mvpos,tfloat3 mvvel
-  ,const unsigned *ridp,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code)
+void MoveLinBound(byte periactive,TpSlipCond tslip,unsigned np,unsigned ini,tdouble3 mvpos,tfloat3 mvvel
+  ,const unsigned *ridp,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code,const unsigned *idpg,double3 *mirror,const int *irelation)
 {
   dim3 sgrid=GetGridSize(np,SPHBSIZE);
-  if(periactive)KerMoveLinBound<true>  <<<sgrid,SPHBSIZE>>> (np,ini,Double3(mvpos),Float3(mvvel),ridp,posxy,posz,dcell,velrhop,code);
-  else          KerMoveLinBound<false> <<<sgrid,SPHBSIZE>>> (np,ini,Double3(mvpos),Float3(mvvel),ridp,posxy,posz,dcell,velrhop,code);
+  if(periactive)KerMoveLinBound<true>  <<<sgrid,SPHBSIZE>>> (tslip,np,ini,Double3(mvpos),Float3(mvvel),ridp,posxy,posz,dcell,velrhop,code,idpg,mirror,irelation);
+  else          KerMoveLinBound<false> <<<sgrid,SPHBSIZE>>> (tslip,np,ini,Double3(mvpos),Float3(mvvel),ridp,posxy,posz,dcell,velrhop,code,idpg,mirror,irelation);
 }
 
 

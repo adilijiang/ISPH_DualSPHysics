@@ -1066,7 +1066,7 @@ void JSphGpu::RunMotion(double stepdt){
           mvsimple=OrderCode(mvsimple);
           if(Simulate2D)mvsimple.y=0;
           const tfloat3 mvvel=ToTFloat3(mvsimple/TDouble3(stepdt));
-          cusph::MoveLinBound(PeriActive,np,pini,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
+          cusph::MoveLinBound(PeriActive,TSlipCond,np,pini,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg,Idpg,MirrorPosg,Irelationg);
         }
         else{//-Movimiento con matriz //-Movement using a matrix
           const unsigned pini=MotionObjBegin[ref]-CaseNfixed,np=MotionObjBegin[ref+1]-MotionObjBegin[ref];
@@ -1093,7 +1093,7 @@ void JSphGpu::RunMotion(double stepdt){
         mvsimple=OrderCode(mvsimple);
         if(Simulate2D)mvsimple.y=0;
         const tfloat3 mvvel=ToTFloat3(mvsimple/TDouble3(stepdt));
-        cusph::MoveLinBound(PeriActive,nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
+        //cusph::MoveLinBound(PeriActive,nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
       }
       else{
         mvmatrix=OrderCode(mvmatrix);
