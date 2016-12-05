@@ -409,11 +409,11 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
   //-Manages excluded particles (boundary and fluid).
   TmgStart(Timers,TMG_NlOutCheck);
   unsigned npout=CellDivSingle->GetNpOut();
-  /*if(npout){
+  if(npout){
     ParticlesDataDown(npout,Np,true,true,false);
     CellDivSingle->CheckParticlesOut(npout,Idp,AuxPos,AuxRhop,Code);
     AddParticlesOut(npout,Idp,AuxPos,AuxVel,AuxRhop,CellDivSingle->GetNpfOutRhop(),CellDivSingle->GetNpfOutMove());
-  }*/
+  }
   TmgStop(Timers,TMG_NlOutCheck);
   BoundChanged=false;
 }
@@ -442,7 +442,7 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
 	}
 
   cusph::Interaction_Forces(WithFloating,UseDEM,TSlipCond,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,POrderg,counterGPU,Irelationg,Divrg,MirrorPosg);	
-	if(TSlipCond)cudaMemcpy(Velrhopg,VelrhopPreg,sizeof(float4)*Npb,cudaMemcpyDeviceToDevice);
+	if(TSlipCond&&tinter==1)cudaMemcpy(Velrhopg,VelrhopPreg,sizeof(float4)*Npb,cudaMemcpyDeviceToDevice);
   //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
   //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
   //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,FtRidpg,DemDatag,float(DemDtForce),Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,ViscDtg,Aceg);

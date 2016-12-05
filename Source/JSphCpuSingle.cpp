@@ -475,7 +475,7 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
   //-Interaction of Fluid-Fluid/Bound & Bound-Fluid (forces and DEM) / Interaccion Fluid-Fluid/Bound & Bound-Fluid (forces and DEM).
   float viscdt=0;
 	JSphCpu::Interaction_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,dWxCorr,dWyCorr,dWzCorr,Codec,Acec,Divr,MirrorPosc,Irelationc);
-	if(TSlipCond){
+	if(TSlipCond&&tinter==1){
 		 #ifdef _WITHOMP
       #pragma omp parallel for schedule (static)
     #endif
@@ -928,7 +928,7 @@ void JSphCpuSingle::SolvePPE(double dt){
 #endif
   
   PressureAssign(np,0,Posc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb,Divr,Gravity);
-
+	
   b.clear();
   a.clear();
   x.clear();

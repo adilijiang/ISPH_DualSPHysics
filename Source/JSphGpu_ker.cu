@@ -747,7 +747,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
 			}
 
 			if(divrp1) divr[p1]=divrp1;
-			if(idp[p1]==9408)divr[p1]=-1;
+			//if(idp[p1]==9408)divr[p1]=-1;
 			if(dwxp1.x||dwxp1.y||dwxp1.z
 				||dwyp1.x||dwyp1.y||dwyp1.z
 				||dwzp1.x||dwzp1.y||dwzp1.z){
