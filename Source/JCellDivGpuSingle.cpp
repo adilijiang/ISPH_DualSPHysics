@@ -175,25 +175,21 @@ void JCellDivGpuSingle::Divide(unsigned npb1,unsigned npf1,unsigned npb2,unsigne
     BoundDivideOk=true; BoundDivideCellMin=CellDomainMin; BoundDivideCellMax=CellDomainMax;
   }
   else DivideFull=false;
-
   //-Calcula CellPart[] y asigna valores consecutivos a SortPart[].
   //-Computes CellPart[] and assigns consecutive values to SortPart[].
   TmgStart(timers,TMG_NlPreSort);
   PreSort(dcellg,codeg);
   TmgStop(timers,TMG_NlPreSort);
-
   //-Ordena CellPart y SortPart en funcion de la celda.
   //-Sorts CellPart and SortPart as a function of the cell.
   TmgStart(timers,TMG_NlRadixSort);
   if(DivideFull)cudiv::Sort(CellPart,SortPart,Nptot,Stable);
   else cudiv::Sort(CellPart+Npb1,SortPart+Npb1,Nptot-Npb1,Stable);
   TmgStop(timers,TMG_NlRadixSort);
-
   //-Calcula particula inicial y final de cada celda (BeginEndCell).
   //-Computes the initial and the last paeticle of each cell (BeginEndCell).
   TmgStart(timers,TMG_NlCellBegin);
   cudiv::CalcBeginEndCell(DivideFull,Nptot,Npb1,unsigned(SizeBeginEndCell(Nct)),BoxFluid,CellPart,BeginEndCell);
-
   //-Calcula numeros de particulas.
   //-Computes number of particles.
   NpbIgnore=CellSize(BoxIgnore);

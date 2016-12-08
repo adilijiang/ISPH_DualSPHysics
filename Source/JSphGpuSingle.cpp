@@ -207,7 +207,6 @@ void JSphGpuSingle::ConfigDomain(){
   //-Aplica configuracion de CellOrder.
   //-Applies configuration of CellOrder.
   ConfigCellOrder(CellOrder,Np,AuxPos,Velrhop);
-
   //-Configura division celdas.
   //-Configure cell division.
   ConfigCellDivision();
@@ -446,7 +445,12 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
   //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
   //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,FtRidpg,DemDatag,float(DemDtForce),Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,ViscDtg,Aceg);
-
+  /*if(tinter==1&&Part>=1260){
+    system("PAUSE");
+    float3 *ace=new float3[Np]; cudaMemcpy(ace,Aceg,sizeof(float3)*Np,cudaMemcpyDeviceToHost);
+    for(unsigned p1=Npb;p1<Np;p1++)Log->Printf("%f\t%f",ace[p1].x,ace[p1].z);
+    delete[] ace; ace=NULL;
+  }*/
   //-Para simulaciones 2D anula siempre la 2º componente
   //-For 2D simulations always overrides the 2nd component (Y axis)
   if(Simulate2D)cusph::Resety(Np-Npb,Npb,Aceg);
@@ -486,6 +490,7 @@ double JSphGpuSingle::ComputeAceMax(float *auxmem){
 /// the computed forces using the Symplectic time stepping scheme
 //==============================================================================
 double JSphGpuSingle::ComputeStep_Sym(){
+  //SaveVtkData("InitSymplectic.vtk",Nstep,Np,Posxyg,Poszg,Idpg,Velrhopg);
   const double dt=DtPre;
   //-Predictor
   //----------- 
@@ -619,6 +624,52 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 /// Genera los ficheros de salida de datos
 /// Generates output files for particle data
 //==============================================================================
+#include "JFormatFiles2.h"
+void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const unsigned *idp,const float4 *velrhop)const{
+  //-Allocate memory.
+  tdouble2 *pxy=new tdouble2[np];
+  double *pz=new double[np];
+  tfloat4 *vrhop=new tfloat4[np];
+  tfloat3 *pos=new tfloat3[np];
+  unsigned *idph=new unsigned[np];
+  tfloat3 *vel=new tfloat3[np];
+  float *rhop=new float[np];
+
+  //-Copies memory to CPU.
+  cudaMemcpy(pxy,posxy,sizeof(double2)*np,cudaMemcpyDeviceToHost);
+  cudaMemcpy(pz,posz,sizeof(double)*np,cudaMemcpyDeviceToHost);
+  cudaMemcpy(idph,idp,sizeof(unsigned)*np,cudaMemcpyDeviceToHost);
+  cudaMemcpy(vrhop,velrhop,sizeof(float4)*np,cudaMemcpyDeviceToHost);
+  for(unsigned p=0;p<np;p++){
+    pos[p]=ToTFloat3(TDouble3(pxy[p].x,pxy[p].y,pz[p]));
+    vel[p]=TFloat3(vrhop[p].x,vrhop[p].y,vrhop[p].z);
+    rhop[p]=vrhop[p].w;
+  }
+
+  //-Creates VTK file.
+  JFormatFiles2::StScalarData fields[20];
+  unsigned nfields=0;
+  if(idph){  fields[nfields]=JFormatFiles2::DefineField("Id"  ,JFormatFiles2::UInt32 ,1,idph); nfields++; }
+  if(vel){   fields[nfields]=JFormatFiles2::DefineField("Vel" ,JFormatFiles2::Float32,3,vel);  nfields++; }
+  if(rhop){  fields[nfields]=JFormatFiles2::DefineField("Rhop",JFormatFiles2::Float32,1,rhop); nfields++; }
+  string file=Log->GetDirOut()+fun::FileNameSec(fname,fnum);
+  JFormatFiles2::SaveVtk(file,np,pos,nfields,fields);
+
+  //-Frees memory.
+  delete[] pxy;
+  delete[] pz;
+  delete[] vrhop;
+  delete[] pos;
+  delete[] idph;
+  delete[] vel;
+  delete[] rhop;
+}
+
+
+//==============================================================================
+/// Genera los ficheros de salida de datos
+/// Generates output files for particle data
+//==============================================================================
 void JSphGpuSingle::SaveData(){
   const bool save=(SvData!=SDAT_None&&SvData!=SDAT_Info);
   const unsigned npsave=Np-NpbPer-NpfPer; //-Resta las periodicas si las hubiera. //-Subtracts periodic particles if any.
@@ -720,7 +771,7 @@ void JSphGpuSingle::InitAdvection(double dt){
     double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*np);
     
     cusph::ComputeRStar(WithFloating,npf,npb,VelrhopPreg,dt,Codeg,movxyg,movzg);
-	  cusph::ComputeStepPos2(PeriActive,WithFloating,npf,npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
+	  cusph::ComputeStepPos2(PeriActive,WithFloating,np,npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
 
     ArraysGpu->Free(movxyg);   movxyg=NULL;
     ArraysGpu->Free(movzg);    movzg=NULL; 
@@ -734,6 +785,7 @@ void JSphGpuSingle::InitAdvection(double dt){
 #include <iomanip>
 void JSphGpuSingle::SolvePPE(double dt){ 
   const char met[]="SolvePPE";
+  TmgStart(Timers,TMG_SolvePPE);
   tuint3 ncells=CellDivSingle->GetNcells();
   const int2 *begincell=CellDivSingle->GetBeginCell();
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
@@ -771,6 +823,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   ArraysGpu->Free(b);             b=NULL;
   ArraysGpu->Free(X);             X=NULL;
   CheckCudaError(met,"free");
+  TmgStop(Timers,TMG_SolvePPE);
 }
 
 //==============================================================================
