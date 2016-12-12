@@ -423,8 +423,8 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
 //==============================================================================
 void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   const char met[]="Interaction_Forces";
-  PreInteraction_Forces(tinter,dt);
   TmgStart(Timers,TMG_CfForces);
+  PreInteraction_Forces(tinter,dt);
 
   const unsigned bsfluid=BlockSizes.forcesfluid;
   const unsigned bsbound=BlockSizes.forcesbound;
@@ -445,15 +445,10 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
   //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
   //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,FtRidpg,DemDatag,float(DemDtForce),Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,ViscDtg,Aceg);
-  /*if(tinter==1&&Part>=1260){
-    system("PAUSE");
-    float3 *ace=new float3[Np]; cudaMemcpy(ace,Aceg,sizeof(float3)*Np,cudaMemcpyDeviceToHost);
-    for(unsigned p1=Npb;p1<Np;p1++)Log->Printf("%f\t%f",ace[p1].x,ace[p1].z);
-    delete[] ace; ace=NULL;
-  }*/
   //-Para simulaciones 2D anula siempre la 2º componente
   //-For 2D simulations always overrides the 2nd component (Y axis)
   if(Simulate2D)cusph::Resety(Np-Npb,Npb,Aceg);
+  TmgStop(Timers,TMG_CfForces);
 
   //if(Deltag)cusph::AddDelta(Np-Npb,Deltag+Npb,Arg+Npb);//-Añade correccion de Delta-SPH a Arg[]. //-Adds the Delta-SPH correction for the density
   CheckCudaError(met,"Failed while executing kernels of interaction.");
@@ -462,8 +457,10 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   //if(Np)ViscDtMax=cusph::ReduMaxFloat(Np,0,ViscDtg,CellDivSingle->GetAuxMem(cusph::ReduMaxFloatSize(Np)));
   //-Calculates maximum value of Ace.
   //AceMax=ComputeAceMax(ViscDtg); 
-
-  TmgStop(Timers,TMG_CfForces);
+  TmgStart(Timers,TMG_KCorrInverse);
+  if(tinter==1)cusph::InverseKernelCorrection(bsbound,bsfluid,Np,Npb,NpbOk,Posxyg,Poszg,Codeg,dWxCorrg,dWyCorrg,dWzCorrg,Simulate2D);
+  TmgStop(Timers,TMG_KCorrInverse);
+  CheckCudaError(met,"Failed in kernel correction inverse");
   CheckCudaError(met,"Failed in reduction of viscdt.");
 }
 
@@ -754,6 +751,8 @@ void JSphGpuSingle::FindIrelation(){
 /// Initial advection
 //==============================================================================
 void JSphGpuSingle::InitAdvection(double dt){
+    const char met[]="SolvePPE";
+    TmgStart(Timers,TMG_InitAdvection);
     PosxyPreg=ArraysGpu->ReserveDouble2();
     PoszPreg=ArraysGpu->ReserveDouble();
     VelrhopPreg=ArraysGpu->ReserveFloat4();
@@ -775,6 +774,8 @@ void JSphGpuSingle::InitAdvection(double dt){
 
     ArraysGpu->Free(movxyg);   movxyg=NULL;
     ArraysGpu->Free(movzg);    movzg=NULL; 
+    TmgStop(Timers,TMG_InitAdvection);
+    CheckCudaError(met,"Initial Advection");
 }
 
 //==============================================================================
@@ -785,7 +786,7 @@ void JSphGpuSingle::InitAdvection(double dt){
 #include <iomanip>
 void JSphGpuSingle::SolvePPE(double dt){ 
   const char met[]="SolvePPE";
-  TmgStart(Timers,TMG_SolvePPE);
+  TmgStart(Timers,TMG_SetupPPE);
   tuint3 ncells=CellDivSingle->GetNcells();
   const int2 *begincell=CellDivSingle->GetBeginCell();
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
@@ -802,34 +803,39 @@ void JSphGpuSingle::SolvePPE(double dt){
   b=ArraysGpu->ReserveDouble(); cudaMemset(b,0,sizeof(double)*np);
   X=ArraysGpu->ReserveDouble(); cudaMemset(X,0,sizeof(double)*np);
   rowInd=ArraysGpu->ReserveUint(); cudaMemset(rowInd,0,sizeof(unsigned int)*(PPEDim+1));
-  CheckCudaError(met,"Memory Assignment b");
   cusph::RHSandLHSStorage(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,b,POrderg,Idpg,dt,PPEDim,Divrg,Codeg,FreeSurface,rowInd);
-  CheckCudaError(met,"MatrixStorage");
+  TmgStart(Timers,TMG_Nnz);
   unsigned Nnz=MatrixASetup(PPEDim,rowInd);
+  TmgStop(Timers,TMG_Nnz);
   cudaMemset(a,0,sizeof(double)*Nnz);
   cusph::InitArrayCol(Nnz,colInd,int(PPEDim));
-  CheckCudaError(met,"Memory Assignment a");
   cusph::PopulateMatrixA(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velrhopg,a,b,rowInd,colInd,POrderg,Idpg,PPEDim,Divrg,Codeg,Irelationg,FreeSurface);
   cusph::FreeSurfaceMark(bsbound,bsfluid,np,npb,npbok,Divrg,a,b,rowInd,POrderg,Codeg,PI,FreeSurface);
-  CheckCudaError(met,"Free Surface");
+  CheckCudaError(met,"Matrix Setup");
+  TmgStop(Timers,TMG_SetupPPE);
 
-  cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,X,b,rowInd,colInd,Nnz,PPEDim); 
+  TmgStart(Timers,TMG_SolvePPE);
+  cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,a,X,b,rowInd,colInd,Nnz,PPEDim); 
+  CheckCudaError(met,"Matrix Solve");
+  TmgStop(Timers,TMG_SolvePPE);
 
+  TmgStart(Timers,TMG_PressureAssign);
   cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Posxyg,Poszg,Velrhopg,X,POrderg,Idpg,Codeg,Irelationg,Divrg,FreeSurface,NegativePressureBound);
-  CheckCudaError(met,"pressure assign");
+  TmgStop(Timers,TMG_PressureAssign);
+
+  CheckCudaError(met,"Pressure assign");
   ArraysGpu->Free(POrderg);       POrderg=NULL;
   ArraysGpu->Free(Divrg);		      Divrg=NULL;
 	ArraysGpu->Free(rowInd);				rowInd=NULL;
   ArraysGpu->Free(b);             b=NULL;
   ArraysGpu->Free(X);             X=NULL;
-  CheckCudaError(met,"free");
-  TmgStop(Timers,TMG_SolvePPE);
 }
 
 //==============================================================================
 /// Shifting
 //==============================================================================
 void JSphGpuSingle::RunShifting(double dt){ 
+  const char met[]="Shifting";
   const unsigned np=Np;
   const unsigned npb=Npb;
   const unsigned npbok=NpbOk;
@@ -852,6 +858,7 @@ void JSphGpuSingle::RunShifting(double dt){
 
   RunCellDivide(true);
 
+  TmgStart(Timers,TMG_SuShifting);
   tuint3 ncells=CellDivSingle->GetNcells();
   const int2 *begincell=CellDivSingle->GetBeginCell();
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
@@ -862,7 +869,11 @@ void JSphGpuSingle::RunShifting(double dt){
 
   cusph::Interaction_Shifting(WithFloating,UseDEM,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,FtoMasspg,TShifting,ShiftPosg,Divrg,TensileN,TensileR);
 
+  CheckCudaError(met,"Failed in calculating concentration");
+
   JSphGpu::RunShifting(dt);
+  TmgStop(Timers,TMG_SuShifting);
+  CheckCudaError(met,"Failed in calculating shifting distance");
 
   Shift(dt,bsfluid);
   

@@ -781,7 +781,6 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   //-finding dummy particle relations to wall particles
 	JSphCpu::FindIrelation(TSlipCond,Np,Npb,0,Posc,Idpc,Irelationc,MirrorPosc,Codec);  
   while(TimeStep<TimeMax){
-    clock_t start = clock(); 
     //if(ViscoTime)Visco=ViscoTime->GetVisco(float(TimeStep));
 
 		if(CaseNmoving)RunMotion(DtPre);
@@ -805,9 +804,6 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
     Nstep++;
     if(TimersStep&&TimersStep->Check(float(TimeStep)))SaveTimersStep(Np,Npb,NpbOk,CellDivSingle->GetNct());
     //if(Nstep>=3)break;
-    clock_t stop = clock();   
-    double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
-    cout<<"Timestep Time = " << dif << "ms\n";
   }
   TimerSim.Stop(); TimerTot.Stop();
 

@@ -1352,21 +1352,27 @@ void JSphCpu::RunShifting(double dt){
 
 	  //-unit normal vector
 	  float temp=norm.x*norm.x+norm.y*norm.y+norm.z*norm.z;
-	  temp=sqrt(temp);
-	  norm.x=norm.x/temp; norm.y=norm.y/temp; norm.z=norm.z/temp;
-	  if(!temp){norm.x=0.f; norm.y=0.f; norm.z=0.f;}
+	  if(temp){
+      temp=sqrt(temp);
+	    norm.x=norm.x/temp; norm.y=norm.y/temp; norm.z=norm.z/temp;
+    }
+    else {norm.x=0.f; norm.y=0.f; norm.z=0.f;}
 
 	  //-unit tangent vector
 	  temp=tang.x*tang.x+tang.y*tang.y+tang.z*tang.z;
-	  temp=sqrt(temp);
-	  tang.x=tang.x/temp; tang.y=tang.y/temp; tang.z=tang.z/temp;
-	  if(!temp){tang.x=0.f; tang.y=0.f; tang.z=0.f;}
+	  if(temp){
+      temp=sqrt(temp);
+	    tang.x=tang.x/temp; tang.y=tang.y/temp; tang.z=tang.z/temp;
+    }
+    else{tang.x=0.f; tang.y=0.f; tang.z=0.f;}
 
 	  //-unit bitangent vector
 	  temp=bitang.x*bitang.x+bitang.y*bitang.y+bitang.z*bitang.z;
-	  temp=sqrt(temp);
-	  bitang.x=bitang.x/temp; bitang.y=bitang.y/temp; bitang.z=bitang.z/temp;
-	  if(!temp){bitang.x=0.f; bitang.y=0.f; bitang.z=0.f;}
+	 if(temp){
+     temp=sqrt(temp);
+	   bitang.x=bitang.x/temp; bitang.y=bitang.y/temp; bitang.z=bitang.z/temp;
+   }
+   else{bitang.x=0.f; bitang.y=0.f; bitang.z=0.f;}
 
 	  //-gradient calculation
 	  float dcds=tang.x*rshiftpos.x+tang.z*rshiftpos.z+tang.y*rshiftpos.y;
@@ -1388,26 +1394,16 @@ void JSphCpu::RunShifting(double dt){
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
     rshiftpos.y=float(double(rshiftpos.y)*umagn);
     rshiftpos.z=float(double(rshiftpos.z)*umagn);
-    ShiftPosc[p]=rshiftpos; //particles in fluid bulk, normal shifting
-
+  
     //Max Shifting
 		if(TShifting==SHIFT_Max){
-			double Maxx=abs(Velrhopc[p].x*dt);
-			double Maxy=abs(Velrhopc[p].y*dt);
-			double Maxz=abs(Velrhopc[p].z*dt);
-			if(abs(ShiftPosc[p].x)>Maxx){
-				if(ShiftPosc[p].x>0) ShiftPosc[p].x=Maxx;
-				else ShiftPosc[p].x=-Maxx;
-			}
-			if(abs(ShiftPosc[p].z)>Maxz){
-				if(ShiftPosc[p].z>0) ShiftPosc[p].z=Maxz;
-				else ShiftPosc[p].z=-Maxz;
-			}
-			if(abs(ShiftPosc[p].y)>Maxy){
-				if(ShiftPosc[p].y>0) ShiftPosc[p].y=Maxy;
-				else ShiftPosc[p].y=-Maxy;
-			}
-		}
+      float absShift=sqrt(rshiftpos.x*rshiftpos.x+rshiftpos.y*rshiftpos.y+rshiftpos.z*rshiftpos.z);
+      if(abs(rshiftpos.x>0.1*Dp)) rshiftpos.x=0.1*Dp*rshiftpos.x/absShift;
+      if(abs(rshiftpos.y>0.1*Dp)) rshiftpos.y=0.1*Dp*rshiftpos.y/absShift;
+      if(abs(rshiftpos.z>0.1*Dp)) rshiftpos.z=0.1*Dp*rshiftpos.z/absShift;
+    }
+
+    ShiftPosc[p]=rshiftpos; //particles in fluid bulk, normal shifting
   }
   TmcStop(Timers,TMC_SuShifting);
 }

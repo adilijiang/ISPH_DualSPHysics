@@ -747,7 +747,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
 			}
 
 			if(divrp1) divr[p1]=divrp1;
-			//if(idp[p1]==9408)divr[p1]=-1;
+			//if(idp[p1]==53568)divr[p1]=-1;
 			if(dwxp1.x||dwxp1.y||dwxp1.z
 				||dwyp1.x||dwyp1.y||dwyp1.z
 				||dwzp1.x||dwzp1.y||dwzp1.z){
@@ -1036,6 +1036,25 @@ void Interaction_Forces(bool floating,bool usedem,TpSlipCond tslipcond,TpCellMod
   else            Interaction_ForcesT<FTMODE_Dem>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr,mirror);
 }
 
+void InverseKernelCorrection(unsigned bsbound,unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
+  ,const double2 *posxy,const double *posz,const word *code,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg
+  ,bool simulate2d)
+{
+  const unsigned npf=np-npb;
+
+	dim3 sgridb=GetGridSize(npbok,bsbound);
+	dim3 sgridf=GetGridSize(npf,bsfluid);
+
+	if(simulate2d){
+		KerInverseKernelCor2D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwzcorrg,code);
+		KerInverseKernelCor2D <<<sgridb,bsbound>>> (npbok,0,dwxcorrg,dwzcorrg,code);
+	}
+	else{
+		KerInverseKernelCor3D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwycorrg,dwzcorrg,code);
+		KerInverseKernelCor3D <<<sgridb,bsbound>>> (npbok,0,dwxcorrg,dwycorrg,dwzcorrg,code);
+	}
+}
+
 /*//##############################################################################
 //# Kernels para interaccion DEM.
 //# Kernels for DEM interaction
@@ -1229,6 +1248,7 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
     float3 rshiftpos=shiftpos[p1];
     float divrp1=divr[p1];
     double umagn=-double(shiftcoef)*double(CTE.h)*double(CTE.h);
+    float dp=CTE.dp;
 
  	  float3 norm=make_float3(-rshiftpos.x,-rshiftpos.y,-rshiftpos.z);
 	  float3 tang=make_float3(0,0,0);
@@ -1244,21 +1264,27 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 
 	  //-unit normal vector
 	  float temp=norm.x*norm.x+norm.y*norm.y+norm.z*norm.z;
-	  temp=sqrt(temp);
-	  norm.x=norm.x/temp; norm.y=norm.y/temp; norm.z=norm.z/temp;
-	  if(!temp){norm.x=0.f; norm.y=0.f; norm.z=0.f;}
+	  if(temp){
+      temp=sqrt(temp);
+	    norm.x=norm.x/temp; norm.y=norm.y/temp; norm.z=norm.z/temp;
+    }
+    else {norm.x=0.f; norm.y=0.f; norm.z=0.f;}
 
 	  //-unit tangent vector
 	  temp=tang.x*tang.x+tang.y*tang.y+tang.z*tang.z;
-	  temp=sqrt(temp);
-	  tang.x=tang.x/temp; tang.y=tang.y/temp; tang.z=tang.z/temp;
-	  if(!temp){tang.x=0.f; tang.y=0.f; tang.z=0.f;}
+	  if(temp){
+      temp=sqrt(temp);
+	    tang.x=tang.x/temp; tang.y=tang.y/temp; tang.z=tang.z/temp;
+    }
+    else {tang.x=0.f; tang.y=0.f; tang.z=0.f;}
 
 	  //-unit bitangent vector
 	  temp=bitang.x*bitang.x+bitang.y*bitang.y+bitang.z*bitang.z;
-	  temp=sqrt(temp);
-	  bitang.x=bitang.x/temp; bitang.y=bitang.y/temp; bitang.z=bitang.z/temp;
-	  if(!temp){bitang.x=0.f; bitang.y=0.f; bitang.z=0.f;}
+	  if(temp){
+      temp=sqrt(temp);
+	    bitang.x=bitang.x/temp; bitang.y=bitang.y/temp; bitang.z=bitang.z/temp;
+    }
+    else {bitang.x=0.f; bitang.y=0.f; bitang.z=0.f;}
 
 	  //-gradient calculation
 	  float dcds=tang.x*rshiftpos.x+tang.z*rshiftpos.z+tang.y*rshiftpos.y;
@@ -1280,26 +1306,16 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
     rshiftpos.y=float(double(rshiftpos.y)*umagn);
     rshiftpos.z=float(double(rshiftpos.z)*umagn);
-    shiftpos[p1]=rshiftpos; //particles in fluid bulk, normal shifting
 
     //Max Shifting
 		if(maxShift){
-			double Maxx=abs(velrhop[p1].x*dt);
-			double Maxy=abs(velrhop[p1].y*dt);
-			double Maxz=abs(velrhop[p1].z*dt);
-			if(abs(shiftpos[p1].x)>Maxx){
-				if(shiftpos[p1].x>0) shiftpos[p1].x=Maxx;
-				else shiftpos[p1].x=-Maxx;
-			}
-			if(abs(shiftpos[p1].y)>Maxy){
-				if(shiftpos[p1].y>0) shiftpos[p1].y=Maxy;
-				else shiftpos[p1].y=-Maxy;
-			}
-			if(abs(shiftpos[p1].z)>Maxz){
-				if(shiftpos[p1].z>0) shiftpos[p1].z=Maxz;
-				else shiftpos[p1].z=-Maxz;
-			}
+      float absShift=sqrt(rshiftpos.x*rshiftpos.x+rshiftpos.y*rshiftpos.y+rshiftpos.z*rshiftpos.z);
+      if(abs(rshiftpos.x>0.1*dp)) rshiftpos.x=0.1*dp*rshiftpos.x/absShift;
+      if(abs(rshiftpos.y>0.1*dp)) rshiftpos.y=0.1*dp*rshiftpos.y/absShift;
+      if(abs(rshiftpos.z>0.1*dp)) rshiftpos.z=0.1*dp*rshiftpos.z/absShift;
 		}
+
+    shiftpos[p1]=rshiftpos;
   }
 }
 
@@ -3119,7 +3135,7 @@ void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag cons
   viennacl::copy(result,vcl_result);
 }
 
-void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned nnz,const unsigned ppedim){
+void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,int coarselevels,double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned nnz,const unsigned ppedim){
   viennacl::context CudaCtx(viennacl::CUDA_MEMORY);
   typedef double       ScalarType;
 
@@ -3148,6 +3164,7 @@ void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int it
 			amg_tag_agg_pmis.set_presmooth_steps(presmooth);
 			amg_tag_agg_pmis.set_postsmooth_steps(postsmooth);
 			amg_tag_agg_pmis.set_coarsening_cutoff(coarsecutoff); 
+      amg_tag_agg_pmis.set_coarse_levels(coarselevels); 
 			viennacl::linalg::amg_precond<viennacl::compressed_matrix<double> > vcl_AMG(vcl_A_cuda, amg_tag_agg_pmis);
 			std::cout << " * Setup phase (ViennaCL types)..." << std::endl;
 			viennacl::tools::timer timer; 

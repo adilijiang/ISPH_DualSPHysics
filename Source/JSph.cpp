@@ -429,6 +429,7 @@ void JSph::LoadCaseConfig(){
     Presmooth=eparms.GetValueInt("Presmooth Steps",true,1);
     Postsmooth=eparms.GetValueInt("Postsmooth Steps",true,1);
     CoarseCutoff=eparms.GetValueInt("Coarsening Cutoff",true,2500);
+    CoarseLevels=eparms.GetValueInt("Coarse Levels",true,3);
   }
 
 	switch(eparms.GetValueInt("NegativePressureBound",true,1)){

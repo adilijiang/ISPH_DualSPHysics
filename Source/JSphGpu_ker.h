@@ -187,8 +187,7 @@ void InitArrayPOrder(unsigned n,unsigned *v,unsigned value);
 void InitArrayCol(unsigned n,unsigned int *v,int value);
 
 //# Kernels for solving with ViennaCL
-void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned nnz,const unsigned ppedim);
-void solveViennaCPU(double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned ppedim,const unsigned nnz);
+void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,int coarselevels,double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned nnz,const unsigned ppedim);
 
 //Kernels for shifting
 void Interaction_Shifting(bool floating,bool usedem,TpCellMode cellmode
@@ -198,6 +197,10 @@ void Interaction_Shifting(bool floating,bool usedem,TpCellMode cellmode
   ,const double2 *posxy,const double *posz
   ,float4 *velrhop,const word *code,const float *ftomassp
   ,TpShifting tshifting,float3 *shiftpos,float *divr,const float tensilen,const float tensiler);
+
+void InverseKernelCorrection(unsigned bsbound,unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
+  ,const double2 *posxy,const double *posz,const word *code,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg
+  ,bool simulate2d);
 
 void ComputeShift(bool floating,const unsigned bsfluid,unsigned np,unsigned npb
   ,const float3 *shiftpos,word *code,double2 *movxy,double *movz);

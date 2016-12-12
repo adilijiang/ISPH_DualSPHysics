@@ -176,6 +176,7 @@ protected:
   int Presmooth;
   int Postsmooth;
   int CoarseCutoff;
+  int CoarseLevels;
 	bool NegativePressureBound; //Allow negative pressure in the boundary
 
   float Visco;  
