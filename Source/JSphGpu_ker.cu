@@ -747,7 +747,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
 			}
 
 			if(divrp1) divr[p1]=divrp1;
-			//if(idp[p1]==53568)divr[p1]=-1;
+			if(idp[p1]==79728)divr[p1]=-1;
 			if(dwxp1.x||dwxp1.y||dwxp1.z
 				||dwyp1.x||dwyp1.y||dwyp1.z
 				||dwzp1.x||dwzp1.y||dwzp1.z){
@@ -1011,17 +1011,6 @@ template<TpFtMode ftmode> void Interaction_ForcesT
 		if(tinter==1) KerMatrixOrderFluid <<<sgridf,bsfluid>>> (npf,npb,porder,counter);
     KerInteractionForcesFluid<ftmode> <<<sgridf,bsfluid>>> (tinter,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ace,divr);
   }
-
-	if(tinter==1){
-		if(simulate2d){
-			KerInverseKernelCor2D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwzcorrg,code);
-			KerInverseKernelCor2D <<<sgridb,bsbound>>> (npbok,0,dwxcorrg,dwzcorrg,code);
-		}
-		else{
-			KerInverseKernelCor3D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwycorrg,dwzcorrg,code);
-			KerInverseKernelCor3D <<<sgridb,bsbound>>> (npbok,0,dwxcorrg,dwycorrg,dwzcorrg,code);
-		}
-	}
 }
 //==============================================================================
 void Interaction_Forces(bool floating,bool usedem,TpSlipCond tslipcond,TpCellMode cellmode
@@ -1292,9 +1281,9 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 	  float dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
 
     if(divrp1<freesurface){
-      rshiftpos.x=dcds*tang.x+dcdb*bitang.x;
-      rshiftpos.y=dcds*tang.y+dcdb*bitang.y;
-      rshiftpos.z=dcds*tang.z+dcdb*bitang.z;
+      rshiftpos.x=dcds*tang.x;//+dcdb*bitang.x;
+      rshiftpos.y=dcds*tang.y;//+dcdb*bitang.y;
+      rshiftpos.z=dcds*tang.z;//+dcdb*bitang.z;
     }
     else if(divrp1>=freesurface && divrp1<=freesurface+ShiftOffset){ 
       double FactorShift=0.5*(1-cos(PI*double(divrp1-freesurface)/0.2));

@@ -403,6 +403,7 @@ void JSph::LoadCaseConfig(){
 
   if(TShifting!=SHIFT_None){
     ShiftCoef=eparms.GetValueFloat("ShiftCoef",true,0.1f);
+    ShiftOffset=eparms.GetValueFloat("ShiftOffset",true,0.2f);
     TensileN=eparms.GetValueFloat("TensileN",true,0.1f);
     TensileR=eparms.GetValueFloat("TensileR",true,3.0f);
   }
@@ -429,7 +430,7 @@ void JSph::LoadCaseConfig(){
     Presmooth=eparms.GetValueInt("Presmooth Steps",true,1);
     Postsmooth=eparms.GetValueInt("Postsmooth Steps",true,1);
     CoarseCutoff=eparms.GetValueInt("Coarsening Cutoff",true,2500);
-    CoarseLevels=eparms.GetValueInt("Coarse Levels",true,3);
+    CoarseLevels=eparms.GetValueInt("Coarse Levels",true,0);
   }
 
 	switch(eparms.GetValueInt("NegativePressureBound",true,1)){

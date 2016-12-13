@@ -161,6 +161,7 @@ protected:
 
   TpShifting TShifting; //-Tipo de Shifting: None, NoBound, NoFixed, Full.										//-Shifting type: None, NoBound, NoFixed, Full.	
   float ShiftCoef;      //-Coefficient for shifting computation.
+  float ShiftOffset;    //-Coefficient for shifting near-free-surface and marking pressure near free-surface
   float FreeSurface;    //-Threshold to detect free surface.
   float TensileN;       //-Tensile Instability Coefficient
   float TensileR;       //-Tensile Instability Coefficient

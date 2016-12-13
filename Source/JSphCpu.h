@@ -127,7 +127,7 @@ protected:
   void InitFloating();
   void InitRun();
 
-  void AddVarAcc();
+ //void AddVarAcc();
 
   void PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb);
   void PreInteraction_Forces(TpInter tinter);
@@ -233,7 +233,7 @@ protected:
     const unsigned *porder,const int *irelation,std::vector<double> &matrixb,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface,tfloat3 gravity,const double rhoZero)const;
 	void PressureAssign(unsigned n,unsigned pinit,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,const int *irelation,const unsigned *porder,
     std::vector<double> &matrixx,const word *code,const unsigned npb,float *divr,tfloat3 gravity)const;
-  void FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,std::vector<double> &matrixInd,std::vector<double> &matrixb,std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim)const;
+  void FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,std::vector<double> &matrixInd,std::vector<double> &matrixb,std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim,const float shiftoffset)const;
 
   
   void Interaction_Shifting(unsigned np,unsigned npb,unsigned npbok

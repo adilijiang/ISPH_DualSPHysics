@@ -39,10 +39,9 @@
 #include "JWaveGen.h"
 #include "JXml.h"
 #include "JSaveDt.h"
-#include "JSphVarAcc.h"
+//#include "JSphVarAcc.h"
 
-#pragma warning(disable : 4267)
-#pragma warning(disable : 4244)
+#include <climits>
 
 #ifdef _WITHOMP
   #include <omp.h>  //Activate tb in Properties config -> C/C++ -> Language -> OpenMp
@@ -450,7 +449,7 @@ void JSphCpu::InitRun(){
 //==============================================================================
 /// Adds variable acceleration from input files.
 //==============================================================================
-void JSphCpu::AddVarAcc(){
+/*void JSphCpu::AddVarAcc(){
   for(unsigned c=0;c<VarAcc->GetCount();c++){
     unsigned mkfluid;
     tdouble3 acclin,accang,centre,velang,vellin;
@@ -498,7 +497,7 @@ void JSphCpu::AddVarAcc(){
       }
     }
   }
-}
+}*/
 
 //==============================================================================
 /// Prepara variables para interaccion "INTER_Forces" o "INTER_ForcesCorr".
@@ -507,12 +506,12 @@ void JSphCpu::AddVarAcc(){
 void JSphCpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb){
   //-Initialize Arrays / Inicializa arrays.
   const unsigned npf=np-npb;
-  if(Deltac)memset(Deltac,0,sizeof(float)*np);                       //Deltac[]=0
+  //if(Deltac)memset(Deltac,0,sizeof(float)*np);                       //Deltac[]=0
  
   memset(Acec,0,sizeof(tfloat3)*np);
 
   //-Apply the extra forces to the correct particle sets.
-  if(VarAcc)AddVarAcc();
+  //if(VarAcc)AddVarAcc();
 
   //-Prepare values of rhop for interaction / Prepara datos derivados de rhop para interaccion.
   /*const int n=int(np);
@@ -1094,10 +1093,6 @@ template<TpFtMode ftmode> void JSphCpu::Interaction_ForcesT
 			}
 		}
 	}
- /* if(npbok){
-    //-Interaction of type Bound-Fluid / Interaccion Bound-Fluid
-    InteractionForcesBound      <psimple,ftmode> (npbok,0,nc,hdiv,cellfluid,begincell,cellzero,dcell,pos,pspos,velrhop,code,idp,viscdt,ar);
-  }*/
 }
 
 //==============================================================================
@@ -1328,7 +1323,6 @@ double JSphCpu::DtVariable(bool final){
 void JSphCpu::RunShifting(double dt){
   TmcStart(Timers,TMC_SuShifting);
   const double coeftfs=(Simulate2D? 2.0: 3.0)-FreeSurface;
-  const double ShiftOffset=0.2;
   const int pini=int(Npb),pfin=int(Np),npf=int(Np-Npb);
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (static) if(npf>LIMIT_COMPUTELIGHT_OMP)
@@ -1380,15 +1374,15 @@ void JSphCpu::RunShifting(double dt){
 	  float dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
 
     if(divrp1<FreeSurface){
-      rshiftpos.x=dcds*tang.x+dcdb*bitang.x;
-      rshiftpos.y=dcds*tang.y+dcdb*bitang.y;
-      rshiftpos.z=dcds*tang.z+dcdb*bitang.z;
+      rshiftpos.x=dcds*tang.x;//+dcdb*bitang.x;
+      rshiftpos.y=dcds*tang.y;//+dcdb*bitang.y;
+      rshiftpos.z=dcds*tang.z;//+dcdb*bitang.z;
     }
     else if(divrp1>=FreeSurface && divrp1<=FreeSurface+ShiftOffset){ 
       double FactorShift=0.5*(1-cos(PI*double(divrp1-FreeSurface)/0.2));
-      rshiftpos.x=dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*FactorShift;
-      rshiftpos.y=dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*FactorShift;
-      rshiftpos.z=dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*FactorShift;
+      rshiftpos.x=dcds*tang.x/*+dcdb*bitang.x*/+dcdn*norm.x*FactorShift;
+      rshiftpos.y=dcds*tang.y/*+dcdb*bitang.y*/+dcdn*norm.y*FactorShift;
+      rshiftpos.z=dcds*tang.z/*+dcdb*bitang.z*/+dcdn*norm.z*FactorShift;
     }
 
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
@@ -2129,7 +2123,7 @@ void JSphCpu::PopulateMatrixABoundary(unsigned n,unsigned pinit,tint4 nc,int hdi
 }
 
 void JSphCpu::FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,std::vector<double> &matrixInd,std::vector<double> &matrixb,
-  std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim)const{
+  std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim,const float shiftoffset)const{
   const int pfin=int(pinit+n);
   
   #ifdef _WITHOMP
@@ -2139,8 +2133,8 @@ void JSphCpu::FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,std::vector<
 	  //-Particle order in Matrix
 	  unsigned oi = porder[p1];
     const int Mark=row[oi]+1;
-    if(divr[p1]>=FreeSurface && divr[p1]<=FreeSurface+0.2f){
-      double alpha=0.5*(1.0-cos(PI*double(divr[p1]-FreeSurface)/0.2));
+    if(divr[p1]>=FreeSurface && divr[p1]<=FreeSurface+shiftoffset){
+      double alpha=0.5*(1.0-cos(PI*double(divr[p1]-FreeSurface)/shiftoffset));
 
       matrixb[oi]=matrixb[oi]*alpha;
 
