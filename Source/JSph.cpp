@@ -29,9 +29,10 @@
 #include "JFormatFiles2.h"
 #include "JSphDtFixed.h"
 #include "JSaveDt.h"
+#include "JTimeOut.h"
 #include "JSphVisco.h"
 #include "JWaveGen.h"
-#include "JSphVarAcc.h"
+#include "JSphAccInput.h"
 #include "JPartDataBi4.h"
 #include "JPartOutBi4Save.h"
 #include "JPartFloatBi4.h"
@@ -56,12 +57,12 @@ JSph::JSph(bool cpu,bool withmpi):Cpu(cpu),WithMpi(withmpi){
   ViscoTime=NULL;
   DtFixed=NULL;
   SaveDt=NULL;
+  TimeOut=NULL;
   MkList=NULL;
   Motion=NULL;
   FtObjs=NULL;
   WaveGen=NULL;
-  VarAcc=NULL;
-  TimersStep=NULL;
+  AccInput=NULL;
   InitVars();
 }
 
@@ -76,12 +77,12 @@ JSph::~JSph(){
   delete ViscoTime;
   delete DtFixed;
   delete SaveDt;
+  delete TimeOut;
   ResetMkInfo();
   delete Motion;
   AllocMemoryFloating(0);
   delete WaveGen;
-  delete VarAcc;
-  delete TimersStep;
+  delete AccInput;
 }
 
 //==============================================================================
@@ -154,6 +155,7 @@ void JSph::InitVars(){
 
   FtCount=0;
   FtPause=0;
+
   AllocMemoryFloating(0);
 
   CellOrder=ORDER_None;
@@ -186,6 +188,7 @@ void JSph::InitVars(){
 
   TimeStepIni=0;
   TimeStep=TimeStepM1=0;
+  TimePartNext=0;
 }
 
 //==============================================================================
@@ -263,10 +266,9 @@ llong JSph::GetAllocMemoryCpu()const{
   if(FtObjs)s+=sizeof(StFloatingData)*FtCount;
   //-Allocated in other objects.
   if(PartsOut)s+=PartsOut->GetAllocMemory();
-  if(TimersStep)s+=TimersStep->GetAllocMemory();
   if(ViscoTime)s+=ViscoTime->GetAllocMemory();
   if(DtFixed)s+=DtFixed->GetAllocMemory();
-  if(VarAcc)s+=VarAcc->GetAllocMemory();
+  if(AccInput)s+=AccInput->GetAllocMemory();
   return(s);
 }
 
@@ -277,7 +279,7 @@ void JSph::LoadConfig(const JCfgRun *cfg){
   const char* met="LoadConfig";
   TimerTot.Start();
   Stable=cfg->Stable;
-  SvDouble=cfg->SvDouble;
+  SvDouble=false;
   DirOut=fun::GetDirWithSlash(cfg->DirOut);
   CaseName=cfg->CaseName; 
   DirCase=fun::GetDirWithSlash(fun::GetDirParent(CaseName));
@@ -521,14 +523,9 @@ void JSph::LoadCaseConfig(){
     WaveGen=new JWaveGen(Log,DirCase,&xml,"case.execution.special.wavepaddles");
   }
 
-  //-Reads the values for the base file path and file count for the variable acceleration input file(s)
-  string accinput=eparms.GetValueStr("VarAccInput",true,"");
-  int accinputcount=eparms.GetValueInt("VarAccInputCount",true,0);
-  if(!accinput.empty() && accinputcount>0){
-    VarAcc=new JSphVarAcc();
-    if(int(accinput.find("/"))<0 && int(accinput.find("\\"))<0)accinput=DirCase+accinput; //-Only name of the file.
-    VarAcc->Config(accinput,unsigned(accinputcount),TimeMax);
-    Log->Print("Variable acceleration data successfully loaded.");
+  //-Configuration of AccInput.
+  if(xml.GetNode("case.execution.special.accinputs",false)){
+    AccInput=new JSphAccInput(Log,DirCase,&xml,"case.execution.special.accinputs");
   }
 
   //-Loads and configures MOTION.
@@ -600,6 +597,7 @@ void JSph::LoadCaseConfig(){
         DemObjs[tav].tau=(DemObjs[tav].young? (1-DemObjs[tav].poisson*DemObjs[tav].poisson)/DemObjs[tav].young: 0);
         DemObjs[tav].kfric=block.GetSubValueFloat("Kfric","value",true,0);
         DemObjs[tav].restitu=block.GetSubValueFloat("Restitution_Coefficient","value",true,0);
+        if(block.ExistsValue("Restitution_Coefficient_User"))DemObjs[tav].restitu=block.GetValueFloat("Restitution_Coefficient_User");
       }
     }
   }
@@ -609,13 +607,34 @@ void JSph::LoadCaseConfig(){
 }
 
 //==============================================================================
+// Shows coefficients used for DEM objects.
+//==============================================================================
+void JSph::VisuDemCoefficients()const{
+  //-Gets info for each block of particles.
+  Log->Printf("Coefficients for DEM:");
+  for(unsigned c=0;c<MkListSize;c++){
+    const word code=MkList[c].code;
+    const word type=CODE_GetType(code);
+    const unsigned tav=CODE_GetTypeAndValue(MkList[c].code);
+    if(type==CODE_TYPE_FIXED || type==CODE_TYPE_MOVING || type==CODE_TYPE_FLOATING){
+      Log->Printf("  Object %s  mkbound:%u  mk:%u",(type==CODE_TYPE_FIXED? "Fixed": (type==CODE_TYPE_MOVING? "Moving": "Floating")),MkList[c].mktype,MkList[c].mk);
+      //Log->Printf("    type: %u",type);
+      Log->Printf("    Young_Modulus: %g",DemObjs[tav].young);
+      Log->Printf("    PoissonRatio.: %g",DemObjs[tav].poisson);
+      Log->Printf("    Kfric........: %g",DemObjs[tav].kfric);
+      Log->Printf("    Restitution..: %g",DemObjs[tav].restitu);
+    }
+  }
+}
+
+//==============================================================================
 /// Initialisation of MK information.
 //==============================================================================
 void JSph::ResetMkInfo(){
   delete[] MkList; MkList=NULL;
   MkListSize=MkListFixed=MkListMoving=MkListFloat=MkListBound=MkListFluid=0;
 }
-#include <iostream>
+
 //==============================================================================
 /// Load MK information of particles.
 //==============================================================================
@@ -772,7 +791,6 @@ void JSph::VisuConfig()const{
   Log->Print(fun::VarStr("RunName",RunName));
   Log->Print(fun::VarStr("SvDouble",SvDouble));
   Log->Print(fun::VarStr("SvTimers",SvTimers));
-  Log->Print(fun::VarStr("SvTimersStep",(TimersStep!=NULL? TimersStep->GetTimeInterval(): 0)));
   Log->Print(fun::VarStr("StepAlgorithm",GetStepName(TStep)));
   if(TStep==STEP_None)RunException(met,"StepAlgorithm value is invalid.");
   Log->Print(fun::VarStr("Kernel",GetKernelName(TKernel)));
@@ -831,7 +849,6 @@ void JSph::VisuConfig()const{
     Log->Print(fun::VarStr("RhopOutMin",RhopOutMin));
     Log->Print(fun::VarStr("RhopOutMax",RhopOutMax));
   }
-  if(VarAcc)Log->Print(fun::VarStr("VarAcc",VarAcc->GetBaseFile()+":"+fun::UintStr(VarAcc->GetCount())));
 }
 
 //==============================================================================
@@ -1149,7 +1166,7 @@ void JSph::ConfigSaveData(unsigned piece,unsigned pieces,std::string div){
   //-Configura objeto para grabacion de particulas e informacion.
   if(SvData&SDAT_Info || SvData&SDAT_Binx){
     DataBi4=new JPartDataBi4();
-    DataBi4->ConfigBasic(piece,pieces,RunCode,AppName,Simulate2D,DirOut);
+    DataBi4->ConfigBasic(piece,pieces,RunCode,AppName,CaseName,Simulate2D,DirOut);
     DataBi4->ConfigParticles(CaseNp,CaseNfixed,CaseNmoving,CaseNfloat,CaseNfluid,CasePosMin,CasePosMax,NpDynamic,ReuseIds);
     DataBi4->ConfigCtes(Dp,H,CteB,RhopZero,Gamma,MassBound,MassFluid);
     DataBi4->ConfigSimMap(OrderDecode(MapRealPosMin),OrderDecode(MapRealPosMax));
@@ -1350,16 +1367,6 @@ void JSph::SaveDomainVtk(unsigned ndom,const tdouble3 *vdom)const{
 //==============================================================================
 void JSph::SaveMapCellsVtk(float scell)const{
   JFormatFiles2::SaveVtkCells(DirOut+"MapCells.vtk",ToTFloat3(OrderDecode(MapRealPosMin)),OrderDecode(Map_Cells),scell);
-}
-
-//==============================================================================
-// Almacena informacion de timers en TimersStep.
-//==============================================================================
-void JSph::SaveTimersStep(unsigned np,unsigned npb,unsigned npbok,unsigned nct){
-  if(TimersStep&&TimersStep->Check(float(TimeStep))){
-    TimerSim.Stop();
-    TimersStep->AddStep(float(TimeStep),TimerSim.GetElapsedTimeD()/1000,Nstep,np,npb,npbok,nct);
-  }  
 }
 
 //==============================================================================

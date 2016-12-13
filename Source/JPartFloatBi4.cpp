@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -15,7 +15,7 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
-/// \file JPartFloatBi4.cpp \brief Implements the class \ref JPartFloatBi4
+/// \file JPartFloatBi4.cpp \brief Implements the classes JPartFloatBi4Save and class JPartFloatBi4Load.
 
 #include "JPartFloatBi4.h"
 //#include "JBinaryData.h"
@@ -359,6 +359,7 @@ void JPartFloatBi4Load::LoadFile(const std::string &dir){
   if(!head)RunException(met,"The head item is missing.");
   FtCount=head->GetvUint("FtCount",true,0);
   PartCount=Data->GetItemsCount()-1;
+  FirstPart=(Data->GetItemsCount()>1? Data->GetItem(1)->GetvUint("Cpart",true,0): 0);
   //-Carga datos constantes de floatings (head). Load constant data of floatings (head).
   ResizeFtData(FtCount);
   {//-Loads array mkbound.

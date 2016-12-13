@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -15,10 +15,14 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
+/// \file JRadixSort.cpp \brief Implements the class \ref JRadixSort.
+
 #include "JRadixSort.h"
 #include <string>
 #include <cstring>
 #include <climits>
+#include <algorithm>
+
 using namespace std;
 
 #ifdef _WITHOMP
@@ -101,6 +105,7 @@ template<class T> unsigned JRadixSort::TCalcNbits(unsigned size,const T *data)co
   const char met[]="CalcNbits";
   const int threads=omp_get_max_threads();
   T mxdata=0;
+
   if(!UseOmp || threads<2){//-Secuencial. //-Sequential
     T vmax=0;
     for(unsigned c=0;c<size;c++)vmax=max(vmax,data[c]);
@@ -108,12 +113,12 @@ template<class T> unsigned JRadixSort::TCalcNbits(unsigned size,const T *data)co
   }
   else{//-Con OpenMP. //-With OpenMP.
     //-Calcula bloques de ejecucion.
-	//-Computes execution blocks.
+    //-Computes execution blocks.
     const int nk=int(size/OMPSIZE)+1;
     if(nk<0)RunException(met,"Number of values is invalid.");
     const int rk=int(size%OMPSIZE);
     //-Calcula maximo de nk bloques con varios hilos.
-	//-Calculate maximum of nk blocks with several threads.
+    //-Calculate maximum of nk blocks with several threads.
     T *vmax=new T[threads*OMPSTRIDE];
     memset(vmax,0,sizeof(T)*threads*OMPSTRIDE);
     #ifdef _WITHOMP
@@ -128,7 +133,7 @@ template<class T> unsigned JRadixSort::TCalcNbits(unsigned size,const T *data)co
       vmax[OMPSTRIDE*th]=mx;
     }
     //-Calcula reduce maximo de todos los hilos.
-	//-Computes maximum for all threads.
+    //-Computes maximum for all threads.
     T mx=0;
     for(int t=0;t<threads;t++)mx=max(mx,vmax[OMPSTRIDE*t]);
     delete[] vmax; vmax=NULL;
@@ -191,7 +196,7 @@ template<class T> void JRadixSort::LoadBeginKeys(const T* data){
       } 
     }
     //-Carga valores en BeginKeys.
-	//-Loads values in BeginKeys.
+    //-Loads values in BeginKeys.
     for(unsigned ck=0;ck<Nkeys;ck++){
       BeginKeys[ck*KEYSRANGE]=0;
       for(unsigned c=1;c<KEYSRANGE;c++){
@@ -202,17 +207,17 @@ template<class T> void JRadixSort::LoadBeginKeys(const T* data){
   }
   else{//-con OpenMP. //-with OpenMP.
     //-Calcula bloques de ejecucion.
-	//-Computes execution blocks.
+    //-Computes execution blocks.
     const int nk=int(Size/OMPSIZE)+1;
     if(nk<0)RunException(met,"Number of values is invalid.");
     const int rk=int(Size%OMPSIZE);
     //-Reserva memoria auxiliar para conteo.
-	//-Allocates auxiliary memory for counting.
+    //-Allocates auxiliary memory for counting.
     const unsigned skeys=Nkeys*KEYSRANGE+100;
     unsigned *nkeys=new unsigned[skeys*threads];
     memset(nkeys,0,sizeof(unsigned)*skeys*threads);
     //-Realiza conteo con varios hilos.
-	//-Performs count with several threads.
+    //-Performs count with several threads.
     #ifdef _WITHOMP
       #pragma omp parallel for schedule (static)
     #endif
@@ -221,6 +226,7 @@ template<class T> void JRadixSort::LoadBeginKeys(const T* data){
       unsigned *n=nkeys+(skeys*th);
       const unsigned c2ini=OMPSIZE*c;
       const unsigned c2fin=c2ini+(c+1<nk? OMPSIZE: rk);
+      //printf(">> c2ini:%d  c2fin:%d\n",c2ini,c2fin);
       for(unsigned c2=c2ini;c2<c2fin;c2++){
         T v=data[c2];
         for(unsigned ck=0;ck<Nkeys;ck++){ 
@@ -230,10 +236,10 @@ template<class T> void JRadixSort::LoadBeginKeys(const T* data){
       }
     }
     //-Reduce conteo de todos los hilos.
-	//-Reduced count for all threads.
+    //-Reduced count for all threads.
     for(int t=1;t<threads;t++)for(unsigned ck=0;ck<Nkeys;ck++)for(unsigned c=0;c<KEYSRANGE;c++)nkeys[ck*KEYSRANGE+c]+=nkeys[t*skeys+ck*KEYSRANGE+c];
     //-Carga valores en BeginKeys.
-	//-Loads values in BeginKeys.
+    //-Loads values in BeginKeys.
     for(unsigned ck=0;ck<Nkeys;ck++){
       BeginKeys[ck*KEYSRANGE]=0;
       for(unsigned c=1;c<KEYSRANGE;c++){
@@ -241,7 +247,7 @@ template<class T> void JRadixSort::LoadBeginKeys(const T* data){
       }
     }
     //-Libera memoria auxiliar.
-	//-Frees auxiliary memory.
+    //-Frees auxiliary memory.
     delete[] nkeys;
   }
 }
@@ -307,7 +313,7 @@ void JRadixSort::IndexCreate(){
     if(nk<0)RunException(met,"Number of values is invalid.");
     const int rk=int(Size%OMPSIZE);
     //-Realiza proceso con varios hilos.
-	//-Performs process with several threads.
+    //-Performs process with several threads.
     #ifdef _WITHOMP
       #pragma omp parallel for schedule (static)
     #endif
@@ -452,7 +458,19 @@ void JRadixSort::SortData(unsigned size,const byte *data,byte *result){ TSortDat
 /// Ordena vector de datos en funcion del Index[] calculado previamente.
 /// Reorders data arrays as a function of the previously calculated Index[].
 //==============================================================================
+void JRadixSort::SortData(unsigned size,const word *data,word *result){ TSortData<word>(size,data,result); }
+
+//==============================================================================
+/// Ordena vector de datos en funcion del Index[] calculado previamente.
+/// Reorders data arrays as a function of the previously calculated Index[].
+//==============================================================================
 void JRadixSort::SortData(unsigned size,const unsigned *data,unsigned *result){ TSortData<unsigned>(size,data,result); }
+
+//==============================================================================
+/// Ordena vector de datos en funcion del Index[] calculado previamente.
+/// Reorders data arrays as a function of the previously calculated Index[].
+//==============================================================================
+void JRadixSort::SortData(unsigned size,const int *data,int *result){ TSortData<int>(size,data,result); }
 
 //==============================================================================
 /// Ordena vector de datos en funcion del Index[] calculado previamente.
@@ -465,6 +483,12 @@ void JRadixSort::SortData(unsigned size,const float *data,float *result){ TSortD
 /// Reorders data arrays as a function of the previously calculated Index[].
 //==============================================================================
 void JRadixSort::SortData(unsigned size,const double *data,double *result){ TSortData<double>(size,data,result); }
+
+//==============================================================================
+/// Ordena vector de datos en funcion del Index[] calculado previamente.
+/// Reorders data arrays as a function of the previously calculated Index[].
+//==============================================================================
+void JRadixSort::SortData(unsigned size,const tfloat2 *data,tfloat2 *result){ TSortData<tfloat2>(size,data,result); }
 
 //==============================================================================
 /// Ordena vector de datos en funcion del Index[] calculado previamente.
@@ -497,7 +521,7 @@ void JRadixSort::SortData(unsigned size,const tdouble2 *data,tdouble2 *result){ 
 void JRadixSort::DgCheckResult32()const{
   unsigned p=1;
   for(;p<Size&&InitData32[p-1]<=InitData32[p];p++);
-  if(p!=Size)RunException("DgCheckResult32","El orden no es correcto");
+  if(p!=Size)RunException("DgCheckResult32","The order is not correct");
 }
 //==============================================================================
 /// Comprueba ordenacion de datos.
@@ -506,6 +530,8 @@ void JRadixSort::DgCheckResult32()const{
 void JRadixSort::DgCheckResult64()const{
   unsigned p=1;
   for(;p<Size&&InitData64[p-1]<=InitData64[p];p++);
-  if(p!=Size)RunException("DgCheckResult64","El orden no es correcto");
+  if(p!=Size)RunException("DgCheckResult64","The order is not correct");
 }
+
+
 

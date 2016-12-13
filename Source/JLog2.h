@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -15,24 +15,6 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
-//#############################################################################
-//# ES:
-//# Cambios:
-//# =========
-//# - Soporte para MPI. (28/10/2011)
-//# - Nuevo metodo PrintDbg() que por defecto hace un fflush(stdout). (11/01/2012)
-//# - Traduccion de comentarios al ingles. (10/02/2012)
-//# - Nuevo metodo Printf() y PrintfDbg() usando argumentos variables. (10/03/2014)
-//# - Nuevo metodo GetDirOut() para obtener el directiorio de salida.. (07/05/2014)
-//# - EN:
-//# Changes:
-//# =========
-//# - Support for MPI. (28/10/2011)
-//# - New method PrintDbg() which by default makes fflush(stdout). (11/01/2012)
-//# - Comment on English translation. (10/02/2012)
-//# - New method Printf() and PrintfDbg() using variable arguments. (03.10.2014)
-//# - New method GetDirOut() to get the output directory.. (07.05.2014)
-//#############################################################################
 
 /// \file JLog2.h \brief Declares the class \ref JLog2.
 
@@ -49,25 +31,26 @@
 //##############################################################################
 //# JLog2
 //##############################################################################
-/// \brief Manages the output of information in the file Run.out and on screen.
+/// \brief Manages the output of information in the file Run.out and on screen
 
 class JLog2 : protected JObject
 {
 public:
-  typedef enum{ Out_ScrFile=3,Out_File=2,Out_Screen=1,Out_None=0 }TpMode_Out;
+  typedef enum{ Out_Default=4,Out_ScrFile=3,Out_File=2,Out_Screen=1,Out_None=0 }TpMode_Out;
 protected:
   std::string FileName;
   std::ofstream *Pf;
   bool Ok;
   bool MpiRun;
   int MpiRank,MpiLaunch;
+  TpMode_Out ModeOutDef; 
 public:
-  JLog2();
+  JLog2(TpMode_Out modeoutdef=Out_ScrFile);
   ~JLog2();
   void Reset();
   void Init(std::string fname,bool mpirun=false,int mpirank=0,int mpilaunch=0);
-  void Print(const std::string &tx,TpMode_Out mode=Out_ScrFile,bool flush=false);
-  void PrintDbg(const std::string &tx,TpMode_Out mode=Out_ScrFile,bool flush=true){ Print(tx,mode,flush); }
+  void Print(const std::string &tx,TpMode_Out mode=Out_Default,bool flush=false);
+  void PrintDbg(const std::string &tx,TpMode_Out mode=Out_Default,bool flush=true){ Print(tx,mode,flush); }
   bool IsOk()const{ return(Ok); }
   int GetMpiRank()const{ return(MpiRun? MpiRank: -1); }
   std::string GetDirOut()const;

@@ -39,7 +39,8 @@
 #include "JWaveGen.h"
 #include "JXml.h"
 #include "JSaveDt.h"
-//#include "JSphVarAcc.h"
+#include "JTimeOut.h"
+#include "JSphAccInput.h"
 
 #include <climits>
 
@@ -51,6 +52,10 @@
   #define omp_get_max_threads() 1
 #endif
 
+#ifndef WIN32
+  #include <unistd.h>
+#endif
+  
 using namespace std;
 
 
@@ -426,13 +431,21 @@ void JSphCpu::InitRun(){
 
   //-Prepares WaveGen configuration.
   if(WaveGen){
-    Log->Printf("\nWave paddles configuration:");
+    Log->Print("\nWave paddles configuration:");
     WaveGen->Init(TimeMax,Gravity,Simulate2D,CellOrder,MassFluid,Dp,Dosh,Scell,Hdiv,DomPosMin,DomRealPosMin,DomRealPosMax);
     WaveGen->VisuConfig(""," ");
   }
 
+  //-Prepares AccInput configuration.
+  if(AccInput){
+     Log->Print("\nAccInput configuration:");
+     AccInput->Init(TimeMax);
+     AccInput->VisuConfig(""," ");
+  }
+
   //-Process Special configurations in XML.
   JXml xml; xml.LoadFile(FileXml);
+
   //-Configuration of SaveDt.
   if(xml.GetNode("case.execution.special.savedt",false)){
     SaveDt=new JSaveDt(Log);
@@ -440,21 +453,24 @@ void JSphCpu::InitRun(){
     SaveDt->VisuConfig("\nSaveDt configuration:"," ");
   }
 
+  //-Shows configuration of JTimeOut.
+  if(TimeOut->UseSpecialConfig())TimeOut->VisuConfig(Log,"\nTimeOut configuration:"," ");
+
   Part=PartIni; Nstep=0; PartNstep=0; PartOut=0;
   TimeStep=TimeStepIni; TimeStepM1=TimeStep;
   if(DtFixed)DtIni=DtFixed->GetDt(TimeStep,DtIni);
-  if(TimersStep)TimersStep->SetInitialTime(float(TimeStep));
+  TimePartNext=TimeOut->GetNextTime(TimeStep);
 }
 
 //==============================================================================
 /// Adds variable acceleration from input files.
 //==============================================================================
-/*void JSphCpu::AddVarAcc(){
-  for(unsigned c=0;c<VarAcc->GetCount();c++){
+void JSphCpu::AddAccInput(){
+  for(unsigned c=0;c<AccInput->GetCount();c++){
     unsigned mkfluid;
     tdouble3 acclin,accang,centre,velang,vellin;
     bool setgravity;
-    VarAcc->GetAccValues(c,TimeStep,mkfluid,acclin,accang,centre,velang,vellin,setgravity);
+    AccInput->GetAccValues(c,TimeStep,mkfluid,acclin,accang,centre,velang,vellin,setgravity);
     const bool withaccang=(accang.x!=0||accang.y!=0||accang.z!=0);
     const word codesel=word(mkfluid);
     const int npb=int(Npb),np=int(Np);
@@ -469,7 +485,7 @@ void JSphCpu::InitRun(){
         if(!setgravity)acc=acc-ToTDouble3(Gravity); //-Subtract global gravity from the acceleration if it is set in the input file
         if(withaccang){                             //-Adds angular acceleration.
           const tdouble3 dc=Posc[p]-centre;
-          const tdouble3 vel=TDouble3(Velrhopc[p].x-vellin.x,Velrhopc[p].y-vellin.y,Velrhopc[p].z-vellin.z);//-Get the current particle's velocity
+          const tdouble3 vel=TDouble3(Velrhopc[p].x,Velrhopc[p].y,Velrhopc[p].z);//-Get the current particle's velocity
 
           //-Calculate angular acceleration ((Dw/Dt) x (r_i - r)) + (w x (w x (r_i - r))) + (2w x (v_i - v))
           //(Dw/Dt) x (r_i - r) (term1)
@@ -488,16 +504,16 @@ void JSphCpu::InitRun(){
           acc.z+=(velang.x*innery)-(velang.y*innerx);
 
           //Coriolis acceleration 2w x (v_i - v) (term3)
-          acc.x+=((2.0*velang.y)*vel.z)-((2.0*velang.z)*vel.y);
-          acc.y+=((2.0*velang.z)*vel.x)-((2.0*velang.x)*vel.z);
-          acc.z+=((2.0*velang.x)*vel.y)-((2.0*velang.y)*vel.x);
+          acc.x+=((2.0*velang.y)*vel.z)-((2.0*velang.z)*(vel.y-vellin.y));
+          acc.y+=((2.0*velang.z)*vel.x)-((2.0*velang.x)*(vel.z-vellin.z));
+          acc.z+=((2.0*velang.x)*vel.y)-((2.0*velang.y)*(vel.x-vellin.x));
         }
         //-Stores the new acceleration value.
         Acec[p]=ToTFloat3(acc);
       }
     }
   }
-}*/
+}
 
 //==============================================================================
 /// Prepara variables para interaccion "INTER_Forces" o "INTER_ForcesCorr".
@@ -511,7 +527,7 @@ void JSphCpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
   memset(Acec,0,sizeof(tfloat3)*np);
 
   //-Apply the extra forces to the correct particle sets.
-  //if(VarAcc)AddVarAcc();
+  if(AccInput)AddAccInput();
 
   //-Prepare values of rhop for interaction / Prepara datos derivados de rhop para interaccion.
   /*const int n=int(np);

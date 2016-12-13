@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -18,10 +18,12 @@
 /// \file Functions.cpp \brief Implements basic/general functions for the entire application.
 
 #include "Functions.h"
+#include <limits>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <stdarg.h>
+#include <algorithm>
 
 #pragma warning(disable : 4996) //Cancels sprintf() deprecated.
 
@@ -202,6 +204,42 @@ std::string Double4Str(const tdouble4 &v,const char* fmt){
 }
 
 //==============================================================================
+/// Converts string to int value.
+//==============================================================================
+int StrToInt(const std::string &v){
+  return(atoi(v.c_str()));
+}
+
+//==============================================================================
+/// Converts string to tint3 value.
+//==============================================================================
+tint3 StrToInt3(std::string v){
+  tint3 res=TInt3(0);
+  if(!v.empty())res.x=atoi(fun::StrSplit(",",v).c_str());
+  if(!v.empty())res.y=atoi(fun::StrSplit(",",v).c_str());
+  if(!v.empty())res.z=atoi(fun::StrSplit(",",v).c_str());
+  return(res);
+}
+
+//==============================================================================
+/// Converts string to double value.
+//==============================================================================
+double StrToDouble(const std::string &v){
+  return(atof(v.c_str()));
+}
+
+//==============================================================================
+/// Converts string to tdouble3 value.
+//==============================================================================
+tdouble3 StrToDouble3(std::string v){
+  tdouble3 res=TDouble3(0);
+  if(!v.empty())res.x=atof(fun::StrSplit(",",v).c_str());
+  if(!v.empty())res.y=atof(fun::StrSplit(",",v).c_str());
+  if(!v.empty())res.z=atof(fun::StrSplit(",",v).c_str());
+  return(res);
+}
+
+//==============================================================================
 /// Gets string in uppercase.
 //==============================================================================
 std::string StrUpper(const std::string &cad){
@@ -266,7 +304,22 @@ std::string StrRepeat(const std::string &cad,unsigned count){
 }
 
 //==============================================================================
-/// Returns the text till the indicated mark and saves the rest in text format.
+/// Inidicates if the string cad only contains characters in the string chars.
+//==============================================================================
+bool StrOnlyChars(const std::string &cad,const std::string &chars){
+  bool ok=true;
+  const unsigned nc=unsigned(chars.length());
+  for(int c=0;c<int(cad.length()) && ok;c++){
+    const char let=cad[c];
+    unsigned c2=0;
+    for(;c2<nc && chars[c2]!=let;c2++);
+    if(c2>=nc)ok=false;
+  }
+  return(ok);
+}
+
+//==============================================================================
+/// Returns the text untill the indicated mark and saves the rest in text format.
 //==============================================================================
 std::string StrSplit(const std::string mark,std::string &text){
   const unsigned smark=unsigned(mark.size());
@@ -651,9 +704,6 @@ void ReverseByteOrder(short *data,int count,short *result){
 }
 
 
-//##############################################################################
-//##############################################################################
-//##############################################################################
 //==============================================================================
 /// Resizes the allocated memory, keeping the data.
 //==============================================================================
@@ -689,10 +739,34 @@ tuint3* ResizeAlloc(tuint3 *data,unsigned ndata,unsigned newsize){
   return(data2);
 }
 //==============================================================================
+int* ResizeAlloc(int *data,unsigned ndata,unsigned newsize){
+  int* data2=new int[newsize];
+  ndata=std::min(ndata,newsize);
+  if(ndata)memcpy(data2,data,sizeof(unsigned)*ndata);
+  delete[] data;
+  return(data2);
+}
+//==============================================================================
+tint3* ResizeAlloc(tint3 *data,unsigned ndata,unsigned newsize){
+  tint3* data2=new tint3[newsize];
+  ndata=std::min(ndata,newsize);
+  if(ndata)memcpy(data2,data,sizeof(tuint3)*ndata);
+  delete[] data;
+  return(data2);
+}
+//==============================================================================
 float* ResizeAlloc(float *data,unsigned ndata,unsigned newsize){
   float* data2=new float[newsize];
   ndata=std::min(ndata,newsize);
   if(ndata)memcpy(data2,data,sizeof(float)*ndata);
+  delete[] data;
+  return(data2);
+}
+//==============================================================================
+tfloat2* ResizeAlloc(tfloat2 *data,unsigned ndata,unsigned newsize){
+  tfloat2* data2=new tfloat2[newsize];
+  ndata=std::min(ndata,newsize);
+  if(ndata)memcpy(data2,data,sizeof(tfloat2)*ndata);
   delete[] data;
   return(data2);
 }
@@ -738,8 +812,39 @@ tdouble3* ResizeAlloc(tdouble3 *data,unsigned ndata,unsigned newsize){
 }
 
 
+//==============================================================================
+/// Returns if float value is + or - infinity.
+//==============================================================================
+bool IsInfinity(float v){
+ return(std::numeric_limits<float>::has_infinity && (v==std::numeric_limits<float>::infinity() || v==-std::numeric_limits<float>::infinity()));
+ //return(v > FLT_MAX || v < -FLT_MAX); //-Otra opcion mas sencilla.
+}
+
+//==============================================================================
+/// Returns if double value is + or - infinity.
+//==============================================================================
+bool IsInfinity(double v){
+ return(std::numeric_limits<float>::has_infinity && (v==std::numeric_limits<float>::infinity() || v==-std::numeric_limits<float>::infinity()));
+ //return(v > DBL_MAX || v < -DBL_MAX); //-Otra opcion mas sencilla.
+}
+
+//==============================================================================
+/// Returns if float value is + or - infinity.
+//==============================================================================
+bool IsNAN(float v){
+ return(v!=v);
+}
+
+//==============================================================================
+/// Returns if double value is + or - infinity.
+//==============================================================================
+bool IsNAN(double v){
+ return(v!=v);
+}
 
 }
+
+
 
 
 

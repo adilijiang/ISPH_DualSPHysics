@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -15,59 +15,6 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
-//#############################################################################
-//# ES:
-//# Descripcion:
-//# =============
-//# Clase para la gestion de ficheros en formato BI4.
-//# Algunas de sus funcionalidades son:
-//# - Permite la lectura y escritura de particulas en formato BI4.
-//# - Solo almacena las particulas validas. Las excluidas se gestionan mediante
-//#   otra clase.
-//# - Permite gestionar los datos en un unico fichero o en multiples piezas.
-//# - Puede almacenar la posicion como tfloat3 o tdouble3.
-//# - Puede almacenar el id como unsigned de 32 o 64 bits.
-//# - Esta clase esta basada en el uso de JBinaryData por lo que se puede
-//#   almacenar cualquier valor o array extra.
-//#
-//# Cambios:
-//# =========
-//# - Implementacion. (12/11/2013 <-> 13/11/2013)
-//# - Nuevo metodo GetFileData() para detectar si los datos usan una o varias 
-//#   piezas y de paso obtener el nombre del fichero. (02/12/2013)
-//# - Nuevas vars NpDynamic, ReuseIds, NpTotal y IdMax para permitir numero de
-//#   particulas dinamico. (26/12/2013)
-//# - Ahora el metodo SaveFileInfo() graba los datos generales al principio
-//#   del fichero. (12/01/2014)
-//# - Grabacion de datos propios de Splitting. (26/01/2014)
-//#
-//# EN:
-//# Description: 
-//# ============= 
-//# Class for the management of files in format BI4. 
-//# Some of the features are: 
-//# - Allows both reading and writing of particles in BI4 format. 
-//# - Only stores the valid particles. The excluded are managed using 
-//#   another class. 
-//# - Allows you to manage the data in a single file or in multiple parts. 
-//# - You can store the position as tfloat3 or tdouble3. 
-//# - You can store the id as an unsigned 32-bit or 64-bit. 
-//# - This class is based on the use of JBinaryData by so that 
-//#  you can store any extra value or array.
-//# 
-//# Changes: 
-//# ========= 
-//# - Implementation. (12/11/2013 &lt; -&gt; 13/11/ 2013) 
-//# - New GetFileData() method to detect if data using one or several parts 
-//#   and step to obtain the name of the file. (12/02/2013)
-//# - New vars NpDynamic, ReuseIds, NpTotal and IdMax to allow number of 
-//#   particles dynamicaly (26/12/ 2013) 
-//# - Now the method SaveFileInfo() writes the general data at 
-//#   the beginning of the file (12/01/ 2014) 
-//# - Recording own data splitting. (26/01/ 2014)
-//#
-
-//#############################################################################
 
 /// \file JPartDataBi4.h \brief Declares the class \ref JPartDataBi4.
 
@@ -81,11 +28,12 @@
 #include <vector>
 #include <fstream>
 
-//class JBinaryData;
 
 //##############################################################################
 //# JPartDataBi4
 //##############################################################################
+/// \brief Allows reading/writing files with data of particles in format bi4.
+
 class JPartDataBi4 : protected JObject
 {
  public:
@@ -107,6 +55,8 @@ class JPartDataBi4 : protected JObject
 
   static std::string GetNamePart(unsigned cpart);
   void AddPartData(unsigned npok,const unsigned *idp,const ullong *idpd,const tfloat3 *pos,const tdouble3 *posd,const tfloat3 *vel,const float *rhop);
+  void AddPartDataVar(const std::string &name,JBinaryDataDef::TpData type,unsigned npok,const void *v);
+
   void SaveFileData(std::string fname);
   unsigned GetPiecesFile(std::string file)const;
   void LoadFileData(std::string file,unsigned cpart,unsigned piece,unsigned npiece);
@@ -128,7 +78,7 @@ class JPartDataBi4 : protected JObject
   //Recording of data
   //====================
   //-Configuracion de objeto. Object Configuration
-  void ConfigBasic(unsigned piece,unsigned npiece,std::string runcode,std::string appname,bool data2d,const std::string &dir);
+  void ConfigBasic(unsigned piece,unsigned npiece,std::string runcode,std::string appname,std::string casename,bool data2d,const std::string &dir);
   void ConfigParticles(ullong casenp,ullong casenfixed,ullong casenmoving,ullong casenfloat,ullong casenfluid,tdouble3 caseposmin,tdouble3 caseposmax,bool npdynamic=false,bool reuseids=false);
   void ConfigCtes(double dp,double h,double b,double rhop0,double gamma,double massbound,double massfluid);
   void ConfigSimMap(tdouble3 mapposmin,tdouble3 mapposmax);
@@ -142,7 +92,24 @@ class JPartDataBi4 : protected JObject
   void AddPartData(unsigned npok,const unsigned *idp,const tdouble3 *posd,const tfloat3 *vel,const float *rhop){ AddPartData(npok,idp,NULL,NULL,posd,vel,rhop);  }
   void AddPartData(unsigned npok,const ullong *idpd,const tfloat3 *pos,const tfloat3 *vel,const float *rhop){    AddPartData(npok,NULL,idpd,pos,NULL,vel,rhop);  }
   void AddPartData(unsigned npok,const ullong *idpd,const tdouble3 *posd,const tfloat3 *vel,const float *rhop){  AddPartData(npok,NULL,idpd,NULL,posd,vel,rhop); }
-  void AddPartDataSplitting(unsigned npok,const float *splitmass,const float *splithvar);
+  void AddPartDataSplitting(unsigned npok,const float *mass,const float *hvar);
+
+  void AddPartData(const std::string &name,unsigned npok,const float    *v){  AddPartDataVar(name,JBinaryDataDef::DatFloat  ,npok,(const void *)v);  }
+  void AddPartData(const std::string &name,unsigned npok,const double   *v){  AddPartDataVar(name,JBinaryDataDef::DatDouble ,npok,(const void *)v);  }
+  void AddPartData(const std::string &name,unsigned npok,const int      *v){  AddPartDataVar(name,JBinaryDataDef::DatInt    ,npok,(const void *)v);  }
+  void AddPartData(const std::string &name,unsigned npok,const unsigned *v){  AddPartDataVar(name,JBinaryDataDef::DatUint   ,npok,(const void *)v);  }
+
+  void AddPartData(const std::string &name,unsigned npok,const tfloat3  *v){  AddPartDataVar(name,JBinaryDataDef::DatFloat3 ,npok,(const void *)v);  }
+  void AddPartData(const std::string &name,unsigned npok,const tdouble3 *v){  AddPartDataVar(name,JBinaryDataDef::DatDouble3,npok,(const void *)v);  }
+  void AddPartData(const std::string &name,unsigned npok,const tint3    *v){  AddPartDataVar(name,JBinaryDataDef::DatInt3   ,npok,(const void *)v);  }
+  void AddPartData(const std::string &name,unsigned npok,const tuint3   *v){  AddPartDataVar(name,JBinaryDataDef::DatUint3  ,npok,(const void *)v);  }
+
+  void AddPartData(const std::string &name,unsigned npok,const llong    *v){  AddPartDataVar(name,JBinaryDataDef::DatLlong  ,npok,(const void *)v);  }
+  void AddPartData(const std::string &name,unsigned npok,const ullong   *v){  AddPartDataVar(name,JBinaryDataDef::DatUllong ,npok,(const void *)v);  }
+  void AddPartData(const std::string &name,unsigned npok,const short    *v){  AddPartDataVar(name,JBinaryDataDef::DatShort  ,npok,(const void *)v);  }
+  void AddPartData(const std::string &name,unsigned npok,const word     *v){  AddPartDataVar(name,JBinaryDataDef::DatUshort ,npok,(const void *)v);  }
+  void AddPartData(const std::string &name,unsigned npok,const char     *v){  AddPartDataVar(name,JBinaryDataDef::DatChar   ,npok,(const void *)v);  }
+  void AddPartData(const std::string &name,unsigned npok,const byte     *v){  AddPartDataVar(name,JBinaryDataDef::DatUchar  ,npok,(const void *)v);  }
 
   //-Grabacion de fichero. File recording.
   void SaveFileCase(std::string casename);
@@ -167,6 +134,7 @@ class JPartDataBi4 : protected JObject
   std::string Get_RunCode()const{ return(GetData()->GetvText("RunCode")); } 
   std::string Get_Date()const{    return(GetData()->GetvText("Date"));    } 
   std::string Get_AppName()const{ return(GetData()->GetvText("AppName")); } 
+  std::string Get_CaseName()const{return(GetData()->GetvText("CaseName",true,"")); } 
   bool Get_Data2d()const{         return(GetData()->GetvBool("Data2d"));  } 
   bool Get_Splitting()const{      return(GetData()->GetvBool("Splitting",true,false));  } 
 
@@ -215,19 +183,23 @@ class JPartDataBi4 : protected JObject
   //Obtencion de arrays del PART:
   //Obtaining the arrays of PART:
   //==============================
-  JBinaryDataArray* GetArray(std::string name)const;
+  unsigned ArraysCount()const;
+  std::string ArrayName(unsigned num)const;
+  bool ArrayTriple(unsigned num)const;
   bool ArrayExists(std::string name)const;
+  JBinaryDataArray* GetArray(std::string name)const;
+  JBinaryDataArray* GetArray(std::string name,JBinaryDataDef::TpData type)const;
   unsigned Get_ArrayCount(std::string name)const{ return(GetArray(name)->GetCount()); }
   bool Get_IdpSimple()const{ return(ArrayExists("Idp")); }
   bool Get_PosSimple()const{ return(ArrayExists("Pos")); }
-  unsigned Get_Idp(unsigned size,unsigned *data)const{    return(GetArray("Idp")->GetDataCopy(size,data));  }
-  unsigned Get_Idpd(unsigned size,ullong *data)const{     return(GetArray("Idpd")->GetDataCopy(size,data)); }
-  unsigned Get_Pos(unsigned size,tfloat3 *data)const{     return(GetArray("Pos")->GetDataCopy(size,data));  }
-  unsigned Get_Posd(unsigned size,tdouble3 *data)const{   return(GetArray("Posd")->GetDataCopy(size,data)); }
-  unsigned Get_Vel(unsigned size,tfloat3 *data)const{     return(GetArray("Vel")->GetDataCopy(size,data));  }
-  unsigned Get_Rhop(unsigned size,float *data)const{      return(GetArray("Rhop")->GetDataCopy(size,data)); }
-  unsigned Get_SplitMass(unsigned size,float *data)const{ return(GetArray("SplitMass")->GetDataCopy(size,data)); }
-  unsigned Get_SplitHvar(unsigned size,float *data)const{ return(GetArray("SplitHvar")->GetDataCopy(size,data)); }
+  unsigned Get_Idp  (unsigned size,unsigned *data)const{ return(GetArray("Idp" ,JBinaryDataDef::DatUint   )->GetDataCopy(size,data)); }
+  unsigned Get_Idpd (unsigned size,ullong   *data)const{ return(GetArray("Idpd",JBinaryDataDef::DatUllong )->GetDataCopy(size,data)); }
+  unsigned Get_Pos  (unsigned size,tfloat3  *data)const{ return(GetArray("Pos" ,JBinaryDataDef::DatFloat3 )->GetDataCopy(size,data)); }
+  unsigned Get_Posd (unsigned size,tdouble3 *data)const{ return(GetArray("Posd",JBinaryDataDef::DatDouble3)->GetDataCopy(size,data)); }
+  unsigned Get_Vel  (unsigned size,tfloat3  *data)const{ return(GetArray("Vel" ,JBinaryDataDef::DatFloat3 )->GetDataCopy(size,data)); }
+  unsigned Get_Rhop (unsigned size,float    *data)const{ return(GetArray("Rhop",JBinaryDataDef::DatFloat  )->GetDataCopy(size,data)); }
+  unsigned Get_Mass (unsigned size,float    *data)const{ return(GetArray("Mass",JBinaryDataDef::DatFloat  )->GetDataCopy(size,data)); }
+  unsigned Get_Hvar (unsigned size,float    *data)const{ return(GetArray("Hvar",JBinaryDataDef::DatFloat  )->GetDataCopy(size,data)); }
 };
 
 

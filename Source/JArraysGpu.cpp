@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -15,9 +15,12 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
+/// \file JArraysGpu.cpp \brief Implements the class \ref JArraysGpu.
+
 #include "JArraysGpu.h"
 #include "Functions.h"
 #include <cstdio>
+#include <algorithm>
 
 using namespace std;
 
@@ -43,7 +46,7 @@ JArraysGpuSize::~JArraysGpuSize(){
 }
  
 //==============================================================================
-/// Initialization of variables.
+/// Initialisation of variables.
 //==============================================================================
 void JArraysGpuSize::Reset(){
   FreeMemory();
@@ -60,19 +63,17 @@ void JArraysGpuSize::FreeMemory(){
 }
 
 //==============================================================================
-/// ES:
 /// Cambia el numero de arrays almacenados. Asignando nuevos arrays o liberando
 /// los de los actuales sin uso. 
 /// Si count es inferior al numero de los que estan en uso lanza una excepcion.
-/// - EN:
 /// Changes the number of arrays stored. Assigns or releases new arrays if
 /// the current are unused.
 /// If the count is less than the number of those in use raises an exception.
 //==============================================================================
 void JArraysGpuSize::SetArrayCount(unsigned count){
   const char met[]="SetArrayCount";
-  if(count>MAXPOINTERS)RunException(met,"El numero de arrays solicitados supera el maximo.");
-  if(count<CountUsed)RunException(met,"No se pude liberar arrays en uso.");
+  if(count>MAXPOINTERS)RunException(met,"Number of requested arrays exceeds the maximum.");
+  if(count<CountUsed)RunException(met,"Unable to free arrays in use.");
   if(ArraySize){
     if(Count<count){//-Genera nuevos arrays. //-Generates new arrays
       for(unsigned c=Count;c<count;c++)cudaMalloc((void**)(Pointers+c),ElementSize*ArraySize);
@@ -87,15 +88,13 @@ void JArraysGpuSize::SetArrayCount(unsigned count){
 }
 
 //==============================================================================
-/// ES:
 /// Cambia el numero de elementos de los arrays.
 /// Si hay algun array en uso lanza una excepcion.
-/// - EN:
 /// Changes the number of elements in the arrays.
 /// If there is any array in use raises an exception.
 //==============================================================================
 void JArraysGpuSize::SetArraySize(unsigned size){
-  if(CountUsed)RunException("SetArraySize","No se puede cambiar la dimension de los arrays porque hay alguno en uso.");
+  if(CountUsed)RunException("SetArraySize","Unable to change the dimension of the arrays because some are in use.");
   if(ArraySize!=size){
     ArraySize=size;
     unsigned count=Count;
@@ -109,7 +108,7 @@ void JArraysGpuSize::SetArraySize(unsigned size){
 /// Requests allocating an array.
 //==============================================================================
 void* JArraysGpuSize::Reserve(){
-  if(CountUsed==Count||!ArraySize)RunException("Reserve",fun::PrintStr("No hay arrays disponibles de %u bytes.",ElementSize));
+  if(CountUsed==Count||!ArraySize)RunException("Reserve",fun::PrintStr("There are no arrays available with %u bytes.",ElementSize));
   CountUsed++;
   CountUsedMax=max(CountUsedMax,CountUsed);
   return(Pointers[CountUsed-1]);
@@ -132,7 +131,7 @@ unsigned JArraysGpuSize::FindPointerUsed(void *pointer)const{
 void JArraysGpuSize::Free(void *pointer){
   if(pointer){
     unsigned pos=FindPointerUsed(pointer);
-    if(pos==MAXPOINTERS)RunException("Free","El puntero indicado no estaba reservado.");
+    if(pos==MAXPOINTERS)RunException("Free","The pointer indicated was not reserved.");
     if(pos+1<CountUsed){
       void *aux=Pointers[CountUsed-1]; Pointers[CountUsed-1]=Pointers[pos]; Pointers[pos]=aux;
     }
@@ -174,7 +173,7 @@ JArraysGpu::~JArraysGpu(){
 }
  
 //==============================================================================
-/// Initialization of variables.
+/// Initialisation of variables.
 //==============================================================================
 void JArraysGpu::Reset(){
   Arrays1b->Reset(); 
@@ -204,10 +203,8 @@ llong JArraysGpu::GetAllocMemoryGpu()const{
 }
 
 //==============================================================================
-/// ES:
 /// Cambia el numero de elementos de los arrays.
 /// Si hay algun array en uso lanza una excepcion.
-/// - EN:
 /// Changes the number of elements in the arrays.
 /// If there is any array in use raises an exception.
 //==============================================================================

@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -58,10 +58,8 @@ tfloat4 Plane3Pt(const tfloat3 &p1,const tfloat3 &p2,const tfloat3 &p3){
 
 
 //==============================================================================
-/// ES:
 /// Devuelve los tres planos normales que limitan un triangulo formado por 3 puntos.
 /// Con openingdist puedes abrir o cerrar los planos normales.
-/// - EN:
 /// Returns the three normal planes which bound a triangle formed by 3 points.
 /// With openingdist you can open or close normal planes.
 //==============================================================================
@@ -95,10 +93,8 @@ void NormalPlanes3Pt(const tdouble3 &p1,const tdouble3 &p2,const tdouble3 &p3,do
 }
 
 //==============================================================================
-/// ES:
 /// Devuelve los tres planos normales que limitan un triangulo formado por 3 puntos.
 /// Con openingdist puedes abrir o cerrar los planos normales.
-/// - EN:
 /// Returns the three normal planes which bound a triangle formed by 3 points.
 /// With openingdist you can open or close normal planes.
 //==============================================================================
@@ -133,10 +129,8 @@ void NormalPlanes3Pt(const tfloat3 &p1,const tfloat3 &p2,const tfloat3 &p3,float
 
 
 //==============================================================================
-/// ES:
 /// Devuelve punto de interseccion entre 3 planos no paralelos entre si usando
 /// la Regla de Cramer (para sistemas compatibles determinados).
-/// - EN:
 /// Returns point of intersection of three non-parallel planes using
 /// Cramer's rule (for determinants of compatible systems).
 //==============================================================================
@@ -153,10 +147,8 @@ tdouble3 Intersec3Planes(const tdouble4 &pla1,const tdouble4 &pla2,const tdouble
 }
 
 //==============================================================================
-/// ES:
 /// Devuelve punto de interseccion entre 3 planos no paralelos entre si usando
 /// la Regla de Cramer (para sistemas compatibles determinados).
-/// - EN:
 /// Returns point of intersection of three non-parallel planes using
 /// Cramer's rule (for determinants of compatible systems).
 //==============================================================================
@@ -174,10 +166,8 @@ tfloat3 Intersec3Planes(const tfloat4 &pla1,const tfloat4 &pla2,const tfloat4 &p
 
 
 //==============================================================================
-/// ES:
 /// A partir de un triangulo formado por 3 puntos devuelve los puntos que forman
 /// un triangulo mas o menos abierto segun openingdist.
-/// - EN:
 /// Starting from a triangle formed by 3 points returns the points that form
 /// a triangle more or less open according to openingdist.
 //==============================================================================
@@ -199,10 +189,8 @@ void OpenTriangle3Pt(const tdouble3 &p1,const tdouble3 &p2,const tdouble3 &p3,do
 }
 
 //==============================================================================
-/// ES:
 /// A partir de un triangulo formado por 3 puntos devuelve los puntos que forman
 /// un triangulo mas o menos abierto segun openingdist.
-/// - EN:
 /// Starting from a triangle formed by 3 points returns the points that form
 /// a triangle more or less open according to openingdist.
 //==============================================================================

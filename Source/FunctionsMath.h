@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -15,31 +15,6 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
-//#############################################################################
-//# ES:
-//# Descripcion:
-//# =============
-//# Conjunto de funciones tipicas de geometria y demas.
-//#
-//# Cambios:
-//# =========
-//# - Implementacion. (19/03/2013)
-//# - Metodos para calcular area de un triangulo. (01/04/2013)
-//# - Nuevos metodos para interpolacion lineal y bilineal. (08/05/2013)
-//# - Nuevas funciones trigonometricas. (20/08/2015)
-//# - EN:
-//# Description:
-//# =============
-//# Typical function set for geometry and others.
-//#
-//# Changes:
-//# ========
-//# - Implementation. (19.03.2013)
-//# - Methods for calculating area of a triangle. (01/04/2013)
-//# - New methods for linear and bilinear interpolation. (08.05.2013)
-//# - New trigonometric functions. (20.08.2015)
-//#############################################################################
-
 
 /// \file FunctionsMath.h \brief Declares basic/general math functions.
 
@@ -49,6 +24,7 @@
 #include "TypesDef.h"
 #include <cstdlib>
 #include <cmath>
+#include <cfloat>
 
 /// Implements a set of basic/general math functions.
 namespace fmath{
@@ -112,6 +88,23 @@ inline tfloat3 ProductVec(const tfloat3 &v1,const tfloat3 &v2){
   r.y=v1.z*v2.x - v1.x*v2.z;
   r.z=v1.x*v2.y - v1.y*v2.x;
   return(r);
+}
+
+
+//==============================================================================
+/// Resuelve punto en el plano.
+/// Solves point in the plane.
+//==============================================================================
+inline double PointPlane(const tdouble4 &pla,const tdouble3 &pt){ 
+  return(pla.x*pt.x+pla.y*pt.y+pla.z*pt.z+pla.w);
+}
+
+//==============================================================================
+/// Resuelve punto en el plano.
+/// Solves point in the plane.
+//==============================================================================
+inline float PointPlane(const tfloat4 &pla,const tfloat3 &pt){ 
+  return(pla.x*pt.x+pla.y*pt.y+pla.z*pt.z+pla.w);
 }
 
 
@@ -184,7 +177,6 @@ inline tfloat3 VecUnitary(const tfloat3 &p1){
   return(p1/TFloat3(DistPoint(p1)));
 }
 
-
 //==============================================================================
 /// Devuelve la normal de un triangulo.
 /// Returns the normal of a triangle.
@@ -220,6 +212,25 @@ inline float Determinant3x3(const tmatrix3f &d){
 
 
 //==============================================================================
+/// Devuelve proyeccion ortogonal del punto en el plano.
+/// Returns orthogonal projection of the point in the plane.
+//==============================================================================
+inline tdouble3 PtOrthogonal(const tdouble3 &pt,const tdouble4 &pla){
+  const double t=-(pla.x*pt.x+pla.y*pt.y+pla.z*pt.z+pla.w)/(pla.x*pla.x+pla.y*pla.y+pla.z*pla.z);
+  return(TDouble3(pt.x+pla.x*t,pt.y+pla.y*t,pt.z+pla.z*t));
+}
+
+//==============================================================================
+/// Devuelve proyeccion ortogonal del punto en el plano.
+/// Returns orthogonal projection of the point in the plane.
+//==============================================================================
+inline tfloat3 PtOrthogonal(const tfloat3 &pt,const tfloat4 &pla){
+  const float t=-(pla.x*pt.x+pla.y*pt.y+pla.z*pt.z+pla.w)/(pla.x*pla.x+pla.y*pla.y+pla.z*pla.z);
+  return(TFloat3(pt.x+pla.x*t,pt.y+pla.y*t,pt.z+pla.z*t));
+}
+
+
+//==============================================================================
 /// Devuelve el plano formado por 3 puntos.
 /// Returns the plane defined by 3 points.
 //==============================================================================
@@ -233,21 +244,36 @@ tfloat4 Plane3Pt(const tfloat3 &p1,const tfloat3 &p2,const tfloat3 &p3);
 
 
 //==============================================================================
-/// ES:
+/// Devuelve el plano formado por un punto y un vector.
+/// Returns the plane defined by a point and a vector.
+//==============================================================================
+inline tdouble4 PlanePtVec(const tdouble3 &pt,const tdouble3 &vec){
+  const tdouble3 v=VecUnitary(vec);//-No es necesario pero asi el modulo del vector no afecta al resultado de PointPlane().
+  return(TDouble4(v.x,v.y,v.z,-v.x*pt.x-v.y*pt.y-v.z*pt.z));
+}
+
+//==============================================================================
+/// Devuelve el plano formado por un punto y un vector.
+/// Returns the plane defined by a point and a vector.
+//==============================================================================
+inline tfloat4 PlanePtVec(const tfloat3 &pt,const tfloat3 &vec){
+  const tfloat3 v=VecUnitary(vec);//-No es necesario pero asi el modulo del vector no afecta al resultado de PointPlane().
+  return(TFloat4(v.x,v.y,v.z,-v.x*pt.x-v.y*pt.y-v.z*pt.z));
+}
+
+
+//==============================================================================
 /// Devuelve los tres planos normales que limitan un triangulo formado por 3 puntos.
 /// Con openingdist puedes abrir o cerrar los planos normales.
-/// - EN:
 /// Returns the three normal planes which bound a triangle formed by 3 points.
 /// With openingdist you can open or close normal planes.
 //==============================================================================
 void NormalPlanes3Pt(const tdouble3 &p1,const tdouble3 &p2,const tdouble3 &p3,double openingdist,tdouble4 &pla1,tdouble4 &pla2,tdouble4 &pla3);
 
 //==============================================================================
-/// ES:
 /// Devuelve los tres planos normales que limitan un triangulo formado por 3 puntos.
 /// Con openingdist puedes abrir o cerrar los planos normales.
 /// Los calculos internos se hacen con double precision.
-/// - EN:
 /// Returns the three normal planes which bound a triangle formed by 3 points.
 /// With openingdist you can open or close normal levels.
 /// The internal computation is performed with double precision.
@@ -259,10 +285,8 @@ inline void NormalPlanes3Pt_dbl(const tfloat3 &p1,const tfloat3 &p2,const tfloat
 }
 
 //==============================================================================
-/// ES:
 /// Devuelve los tres planos normales que limitan un triangulo formado por 3 puntos.
 /// Con openingdist puedes abrir o cerrar los planos normales.
-/// - EN:
 /// Returns the three normal planes which bound a triangle formed by 3 points.
 /// With openingdist you can open or close normal planes.
 //==============================================================================
@@ -283,10 +307,8 @@ tfloat3 Intersec3Planes(const tfloat4 &pla1,const tfloat4 &pla2,const tfloat4 &p
 
 
 //==============================================================================
-/// ES:
 /// A partir de un triangulo formado por 3 puntos devuelve los puntos que forman
 /// un triangulo mas o menos abierto segun openingdist.
-/// - EN:
 /// Starting from a triangle formed by 3 points returns the points that form
 /// a triangle more or less open according to openingdist.
 //==============================================================================
@@ -295,7 +317,6 @@ void OpenTriangle3Pt(const tdouble3 &p1,const tdouble3 &p2,const tdouble3 &p3,do
 //==============================================================================
 /// A partir de un triangulo formado por 3 puntos devuelve los puntos que forman
 /// un triangulo mas o menos abierto segun openingdist.
-/// - EN:
 /// Starting from a triangle formed by 3 points returns the points that form
 /// a triangle more or less open according to openingdist.
 //==============================================================================
@@ -312,6 +333,85 @@ double AreaTriangle(const tdouble3 &p1,const tdouble3 &p2,const tdouble3 &p3);
 /// Returns the area of a triangle formed by 3 points.
 //==============================================================================
 float AreaTriangle(const tfloat3 &p1,const tfloat3 &p2,const tfloat3 &p3);
+
+
+//==============================================================================
+/// Devuelve la distancia entre un punto y una recta entre dos puntos.
+/// Returns the distance between a point and a line between two points.
+//==============================================================================
+inline double DistLine(const tdouble3 &pt,const tdouble3 &pr1,const tdouble3 &pr2){
+  double ar=AreaTriangle(pt,pr1,pr2);
+  double dis=DistPoints(pr1,pr2);
+  return((ar*2)/dis);
+}
+
+//==============================================================================
+/// Devuelve la distancia entre un punto y una recta entre dos puntos.
+/// Returns the distance between a point and a line between two points.
+//==============================================================================
+inline float DistLine(const tfloat3 &pt,const tfloat3 &pr1,const tfloat3 &pr2){
+  float ar=AreaTriangle(pt,pr1,pr2);
+  float dis=DistPoints(pr1,pr2);
+  return((ar*2)/dis);
+}
+
+
+//==============================================================================
+/// Devuelve el angulo en grados que forman dos vectores.
+/// Returns angle in degrees between two vectors.
+//==============================================================================
+inline double AngleVector(const tdouble3 &v1,const tdouble3 &v2){
+  return(acos(ProductScalar(v1,v2)/(DistPoint(v1)*DistPoint(v2)))*TODEG);
+}
+
+//==============================================================================
+/// Devuelve el angulo en grados que forman dos vectores.
+/// Returns angle in degrees between two vectors.
+//==============================================================================
+inline float AngleVector(const tfloat3 &v1,const tfloat3 &v2){
+  return(float(acos(ProductScalar(v1,v2)/(DistPoint(v1)*DistPoint(v2)))*TODEG));
+}
+
+
+//==============================================================================
+/// Devuelve el angulo en grados que forman dos planos.
+/// Returns angle in degrees between two planes.
+//==============================================================================
+inline double AnglePlanes(tdouble4 v1,tdouble4 v2){
+  return(AngleVector(TDouble3(v1.x,v1.y,v1.z),TDouble3(v2.x,v2.y,v2.z)));
+}
+
+//==============================================================================
+/// Devuelve el angulo en grados que forman dos planos.
+/// Returns angle in degrees between two planes.
+//==============================================================================
+inline float AnglePlanes(tfloat4 v1,tfloat4 v2){
+  return(AngleVector(TFloat3(v1.x,v1.y,v1.z),TFloat3(v2.x,v2.y,v2.z)));
+}
+
+
+//==============================================================================
+/// Devuelve normal eliminando error de precision en double.
+/// Returns normal removing the error of precision in double.
+//==============================================================================
+inline tdouble3 CorrectNormal(tdouble3 n){
+  if(abs(n.x)<DBL_EPSILON*10)n.x=0;
+  if(abs(n.y)<DBL_EPSILON*10)n.y=0;
+  if(abs(n.z)<DBL_EPSILON*10)n.z=0;
+  return(VecUnitary(n));
+}
+
+//==============================================================================
+/// Devuelve normal eliminando error de precision en float.
+/// Returns normal removing the error of precision in float.
+//==============================================================================
+inline tfloat3 CorrectNormal(tfloat3 n){
+  if(abs(n.x)<FLT_EPSILON*10)n.x=0;
+  if(abs(n.y)<FLT_EPSILON*10)n.y=0;
+  if(abs(n.z)<FLT_EPSILON*10)n.z=0;
+  return(VecUnitary(n));
+}
+
 
 //==============================================================================
 /// Returns cotangent of angle in radians.

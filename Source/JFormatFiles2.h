@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -15,93 +15,6 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
-//#############################################################################
-//# ES:
-//# Cambios:
-//# =========
-//# - Clase creada para sustituir a JFormatFiles. (15/12/2010)
-//# - Nuevas funciones para generar ficheros con datos de puntos en formato
-//#   CSV y ASCII:  SaveCsvPointsVar(), SaveCsvPointsVar3(), SaveAscPointsVar(), 
-//#   SaveAscPointsVar3() (22/12/2010)
-//# - Nueva variable ACE en formatos VTK, CSV y ASCII. (16/06/2011)
-//# - Nueva variable Vorticity en formatos VTK, CSV y ASCII. (13/07/2011)
-//# - Se separa la variable ACE en parte positiva y negativa en formatos CSV y 
-//#   ASCII (ParticlesToCsv2() y ParticlesToAscii()). (28/09/2011)
-//# - En los VTK de puntos, cada punto se guarda como una celda. Esto permite
-//#   el uso de algunas operaciones como Threshold en Paraview. Sin embargo,
-//#   aumenta el tamaño en 3 bytes por partícula (entorno al 11%). (03/12/2011)
-//# - Nueva funcion SaveVtkCells() para generar ficheros VTK con una malla de 
-//#   celdas segun los parametros especificados. (13/12/2011)
-//# - Nueva funcion PointsToVtk() para generar ficheros VTK de puntos a partir 
-//#   de datos codificados en un JBuffer. (30/12/2011)
-//# - Nueva funcion CellsToVtk() para generar ficheros VTK de celdas sin datos
-//#   a partir de datos codificados en un JBuffer. (09/01/2012)
-//# - Nueva funcion SaveVtkDomain() para generar ficheros VTK con una serie
-//#   de dominios. (09/01/2012)
-//# - En PointsToVtk() si el numero de puntos es cero, se crea uno para evitar
-//#   un error al generar el fichero VTK. (18/01/2012)
-//# - Traduccion de comentarios al ingles. (10/02/2012)
-//# - Nuevas funciones (SaveVtk,SaveCsv) para crear ficheros VTK mas 
-//#   generales. (17/05/2012)
-//# - Nueva funcion SaveVtkBasic como ejemplo de uso de SaveVtk. (06/06/2012)
-//# - Funcion SaveVtkBox() para generar ficheros VTK con una serie de 
-//#   cajas. (06/06/2012)
-//# - Los metodos PointsToVtk() y CellsToVtk() se eleminaron de esta clase y
-//#   pasaron a la clase JBufferToVtk. (06/06/2012)
-//# - Error corregido en SaveVtkBasic() cuando se usaban arrays nulos. (06/10/2012)
-//# - Se elimino un posible problema de precision en el calculo de los vertices
-//#   de una caja. (15-05-2013)
-//# - Permite añadir una cabecera de fichero usando SaveCsv(...,head). (20-11-2013)
-//# - Nuevos metodos SaveCsvPointsVar(), SaveCsvPointsVar3(), SaveAscPointsVar()
-//#   y SaveAscPointsVar3() para grabar la posicion como tdouble3. (30-12-2013)
-//# - Nuevo metodo SaveAscii() mediente StScalarData* fields. (16-01-2014)
-//# - Nuevos metodos XXXStats() que permiten calcular y grabar ficheros CSV
-//#   con valores de minimo, maximo y media. (16-01-2014)
-//# - Error corregido en funcion DefineStatsField(). (18-02-2015)
-//# - Funciones SaveCsv() y SaveCsv() para POS en doble precision. (24-03-2015)
-//# - EN:
-//# Changes:
-//# ========
-//# - Class created to replace JFormatFiles. (15/12/2010)
-//# - New features to generate files with point data in 
-//#   CSV and ASCII format: SaveCsvPointsVar(), SaveCsvPointsVar3(), SaveAscPointsVar(),
-//#   SaveAscPointsVar3() (22/12/2010)
-//# - New variable ACE in VTK, CSV and ASCII formats. (16/06/2011)
-//# - New variable Vorticity in VTK, CSV and ASCII formats. (13/07/2011)
-//# - ACE variable is separated into positive and negative parts in CSV and
-//#   ASCII formats(ParticlesToCsv2() and ParticlesToAscii()). (28/09/2011)
-//# - In the VTK of the points, each point is stored as a cell. This allows
-//#   using some operations such as Threshold in Paraview. Nevertheless,
-//#   the size increases in 3 bytes per particle (around 11%). (03/12/2011)
-//# - New function SaveVtkCells() to generate VTK files with a cell mesh 
-//#   according to specified settings. (13/12/2011)
-//# - New function PointsToVtk() to generate VTK files from data points
-//#   encoded in a JBuffer. (30/12/2011)
-//# - New function CellsToVtk() to generate VTK files with cells without data
-//#   using data encoded in a JBuffer. (09/01/2012)
-//# - New function SaveVtkDomain() to generate VTK files for a
-//#   number of domains. (09/01/2012)
-//# - In PointsToVtk() if the number of points is zero, one is created to avoid
-//#   generating an error VTK file. (18/01/2012)
-//# - Comment on English translation. (10/02/2012)
-//# - New Features (SaveVtk, SaveCsv) to create more general VTK files (17/05/2012)
-//# - New function SaveVtkBasic shows an example of SaveVtk use. (06/06/2012)
-//# - Function SaveVtkBox()  to generate VTK files for a series of
-//#   boxes. (06/06/2012)
-//# - The PointsToVtk () and CellsToVtk () are removed from this class and
-//#   sent to class JBufferToVtk. (06/06/2012)
-//# - Error fixed in SaveVtkBasic() when null arrays were used. (06/10/2012)
-//# - A potential precisionproblem in calculating the vertices
-//#   of a box was eliminated. (15-05-2013)
-//# - Adds a header file using SaveCsv(..., head). (20-11-2013)
-//# - New functions SaveCsvPointsVar(), SaveCsvPointsVar3(), SaveAscPointsVar()
-//#   and SaveAscPointsVar3() to store the position as tdouble3. (30-12-2013)
-//# - New function SaveAscii() using StScalarData* fields. (16-01-2014)
-//# - New methods XXXStats() that calculate and store 
-//#   minimum, maximum and average values for CSV files. (16-01-2014)
-//# - Corrected error in DefineStatsField(). (18-02-2015)
-//# - Functions SaveCsv() and SaveCsv() to store POS in double precision. (24-03-2015)
-//#############################################################################
 
 /// \file JFormatFiles2.h \brief Declares the class \ref JFormatFiles2.
 
@@ -223,8 +136,8 @@ public:
   static void SaveVtkBasic(std::string fname,unsigned np,const tfloat3* pos,const unsigned* idp,const tfloat3* vel,const float* rhop){
     StScalarData fields[3];
     unsigned nfields=0;
-    if(idp){  fields[nfields]=DefineField("Id",UInt32,1,idp);     nfields++; }
-    if(vel){  fields[nfields]=DefineField("Vel",Float32,3,vel);   nfields++; }
+    if(idp){  fields[nfields]=DefineField("Idp" ,UInt32 ,1,idp);  nfields++; }
+    if(vel){  fields[nfields]=DefineField("Vel" ,Float32,3,vel);  nfields++; }
     if(rhop){ fields[nfields]=DefineField("Rhop",Float32,1,rhop); nfields++; }
     SaveVtk(fname,np,pos,nfields,fields);
   }
@@ -272,32 +185,32 @@ public:
   //==============================================================================
   /// Stores information of points in CSV file for variables of type float.
   //==============================================================================
-  static void SaveCsvPointsVar(const std::string &fname,int part,double timestep,unsigned np,const tfloat3* pos,const float* data,bool first=false);
+  static void SaveCsvPointsVar(const std::string &fname,const std::string &dataname,int part,double timestep,unsigned np,const tfloat3* pos,const float* data,bool first=false);
 
   //==============================================================================
   /// Stores information of points in CSV file for variables of type float3.
   //==============================================================================
-  static void SaveCsvPointsVar3(const std::string &fname,int part,double timestep,unsigned np,const tfloat3* pos,const tfloat3* data,bool first=false);
+  static void SaveCsvPointsVar3(const std::string &fname,const std::string &dataname,int part,double timestep,unsigned np,const tfloat3* pos,const tfloat3* data,bool first=false);
 
   //==============================================================================
   /// Stores information of points in CSV file for variables of type float.
   //==============================================================================
-  static void SaveCsvPointsVar(const std::string &fname,int part,double timestep,unsigned np,const tdouble3* pos,const float* data,bool first=false);
+  static void SaveCsvPointsVar(const std::string &fname,const std::string &dataname,int part,double timestep,unsigned np,const tdouble3* pos,const float* data,bool first=false);
 
   //==============================================================================
   /// Stores information of points in CSV file for variables of type double.
   //==============================================================================
-  static void SaveCsvPointsVar(const std::string &fname,int part,double timestep,unsigned np,const tdouble3* pos,const double* data,bool first=false);
+  static void SaveCsvPointsVar(const std::string &fname,const std::string &dataname,int part,double timestep,unsigned np,const tdouble3* pos,const double* data,bool first=false);
 
   //==============================================================================
   /// Stores information of points in CSV file for variables of type float3.
   //==============================================================================
-  static void SaveCsvPointsVar3(const std::string &fname,int part,double timestep,unsigned np,const tdouble3* pos,const tfloat3* data,bool first=false);
+  static void SaveCsvPointsVar3(const std::string &fname,const std::string &dataname,int part,double timestep,unsigned np,const tdouble3* pos,const tfloat3* data,bool first=false);
 
   //==============================================================================
   /// Stores information of points in CSV file for variables of type double3.
   //==============================================================================
-  static void SaveCsvPointsVar3(const std::string &fname,int part,double timestep,unsigned np,const tdouble3* pos,const tdouble3* data,bool first=false);
+  static void SaveCsvPointsVar3(const std::string &fname,const std::string &dataname,int part,double timestep,unsigned np,const tdouble3* pos,const tdouble3* data,bool first=false);
 
   //==============================================================================
   /// Stores information of points in ASCII file for variables of type float.

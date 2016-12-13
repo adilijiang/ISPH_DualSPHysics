@@ -1,19 +1,21 @@
 /*
-<DUALSPHYSICS>  Copyright (C) 2015 by Dr Jose M. Dominguez, Dr Alejandro Crespo, Prof. M. Gomez Gesteira, Dr Anxo Barreiro, Orlando G. Feal, Dr Ricardo Canelas, Dr Corrado Altomare
-                                      Dr Benedict Rogers, Dr Georgios Fourtakas, Dr Athanasios Mokos, Dr Stephen Longshaw, Dr Renato Vacondio
+ <DUALSPHYSICS>  Copyright (c) 2016, 
+ Dr Jose M. Dominguez, Dr Alejandro Crespo,Prof. Moncho Gomez Gesteira, Dr Anxo Barreiro,
+ Dr Benedict Rogers, Dr Georgios Fourtakas, Dr Athanasios Mokos,
+ Dr Renato Vacondio, Dr Ricardo Canelas, Dr Stephen Longshaw, Dr Corrado Altomare.
 
-EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
-School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
+ EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
+ School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
 
-This file is part of DualSPHysics. 
+ This file is part of DualSPHysics. 
 
-DualSPHysics is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or (at your option) any later version. 
+ DualSPHysics is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or (at your option) any later version. 
 
-DualSPHysics is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details. 
+ DualSPHysics is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details. 
 
-You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
+ You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
 /** \mainpage DualSPHysics Documentation
@@ -28,11 +30,11 @@ School of Mechanical, Aerospace and Civil Engineering, University of Manchester,
 Please download source files and documentation from <a href="http://dual.sphysics.org">DualSPHysics website.</a> \n
 \author <a href="http://dual.sphysics.org/index.php/developers">DualSPHysics Developers.</a> 
 \version 4.00
-\date 29-09-2015
+\date 18-05-2016
 \copyright GNU Public License <a href="http://www.gnu.org/licenses/">GNU licenses.</a>
 */
 
-/// \file main.cpp \brief Main file of the project that executes the code on CPU or GPU
+/// \file main.cpp \brief Main file of the project that executes the code on CPU or GPU.
 
 #include <string>
 #include <cstring>
@@ -56,22 +58,24 @@ using namespace std;
 //==============================================================================
 std::string getlicense_gpl(const std::string &name){
   std::string tx="";
-  tx=tx+"\n\n<"+fun::StrUpper(name)+"> Copyright (C) 2015 by Dr Jose M. Dominguez, Dr Alejandro Crespo,";
-  tx=tx+"\nProf. M. Gomez Gesteira, Dr Anxo Barreiro, Dr Ricardo Canelas, Dr C. Altomare";
-  tx=tx+"\nDr Benedict Rogers, Dr Georgios Fourtakas, Dr Athanasios Mokos,";
-  tx=tx+"\nDr Stephen Longshaw, Dr Renato Vacondio\n";
-  tx=tx+"\nEPHYSLAB Environmental Physics Laboratory, Universidade de Vigo";
-  tx=tx+"\nSchool of Mechanical, Aerospace and Civil Engineering, University of Manchester\n";
-  tx=tx+"\nDualSPHysics is free software: you can redistribute it and/or"; 
-  tx=tx+"\nmodify it under the terms of the GNU General Public License as";
-  tx=tx+"\npublished by the Free Software Foundation, either version 3 of"; 
-  tx=tx+"\nthe License, or (at your option) any later version.\n"; 
-  tx=tx+"\nDualSPHysics is distributed in the hope that it will be useful,"; 
-  tx=tx+"\nbut WITHOUT ANY WARRANTY; without even the implied warranty of"; 
-  tx=tx+"\nMERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the"; 
-  tx=tx+"\nGNU General Public License for more details.\n";
-  tx=tx+"\nYou should have received a copy of the GNU General Public License,"; 
-  tx=tx+"\nalong with DualSPHysics. If not, see <http://www.gnu.org/licenses/>.\n\n";
+  tx=tx+"\n\n <"+fun::StrUpper(name)+"> Copyright (C) 2016 by"; 
+  tx=tx+"\n Dr Jose M. Dominguez, Dr Alejandro Crespo,";
+  tx=tx+"\n Prof. Moncho Gomez Gesteira, Dr Anxo Barreiro,";
+  tx=tx+"\n Dr Benedict Rogers, Dr Georgios Fourtakas, Dr Athanasios Mokos,";
+  tx=tx+"\n Dr Renato Vacondio, Dr Ricardo Canelas,";
+  tx=tx+"\n Dr Stephen Longshaw, Dr Corrado Altomare.\n";
+  tx=tx+"\n EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo";
+  tx=tx+"\n School of Mechanical, Aerospace and Civil Engineering, University of Manchester\n";
+  tx=tx+"\n DualSPHysics is free software: you can redistribute it and/or"; 
+  tx=tx+"\n modify it under the terms of the GNU General Public License as";
+  tx=tx+"\n published by the Free Software Foundation, either version 3 of"; 
+  tx=tx+"\n the License, or (at your option) any later version.\n"; 
+  tx=tx+"\n DualSPHysics is distributed in the hope that it will be useful,"; 
+  tx=tx+"\n but WITHOUT ANY WARRANTY; without even the implied warranty of"; 
+  tx=tx+"\n MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the"; 
+  tx=tx+"\n GNU General Public License for more details.\n";
+  tx=tx+"\n You should have received a copy of the GNU General Public License,"; 
+  tx=tx+"\n along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>.\n\n";
   return(tx);
 }
 
@@ -79,12 +83,12 @@ std::string getlicense_gpl(const std::string &name){
 //==============================================================================
 int main(int argc, char** argv){
   int errcode=1;
-  std::string progname="DualSPHysics";
+  std::string progname="DualSPHysics4";
   std::string proginfo;
   std::string license=getlicense_gpl(progname);
   printf("%s",license.c_str());
   char appname[256],appnamesub[256];
-  sprintf(appname,"%s Re v4.0.015 (03-10-2015)%s",progname.c_str(),proginfo.c_str());
+  sprintf(appname,"%s v4.0.056 (18-05-2016)%s",progname.c_str(),proginfo.c_str());
   for(unsigned c=0;c<=strlen(appname);c++)appnamesub[c]='='; appnamesub[strlen(appname)+1]='\0';
   printf("\n%s\n%s\n",appname,appnamesub);
 

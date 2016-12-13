@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -86,7 +86,7 @@ int JSpacePropValue::GetIndexSubName(std::string subname)const{
 /// Retunrs value inline.
 //==============================================================================
 std::string JSpacePropValue::GetValue()const{
-  if(!Simple)RunException("GetValue","Value has one ore more several subvalues.");
+  if(!Simple)RunException("GetValue","Value has one or more several subvalues.");
   return(Value);
 }
 
@@ -190,7 +190,7 @@ int JSpacePropProperty::GetIndexValue(std::string name)const{
 /// Adds value.
 //==============================================================================
 void JSpacePropProperty::AddValue(std::string name,std::string v){
-  if(fun::StrLower(name)=="name")RunException("AddValue","The name of value can not be \'name\'.");
+  if(fun::StrLower(name)=="name")RunException("AddValue","The name of value cannot be \'name\'.");
   if(ExistsNameValue(name))RunException("AddValue","Value already exists.");
   JSpacePropValue *va=new JSpacePropValue(name);
   Values.push_back(va);

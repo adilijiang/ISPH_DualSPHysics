@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -15,36 +15,6 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
-//#############################################################################
-//# ES:
-//# Descripcion:
-//# =============
-//# Clase base para gestionar la definicion y asignacion de propiedades segun.
-//# el mk de las particulas. Algunas de sus funcionalidades son:
-//# - Agrupa un conjunto de valores bajo un nombre.
-//# - Se pueden establecer relaciones de uno o varios mk con una o varias
-//#   propiedades.
-//# 
-//# Cambios:
-//# =========
-//# - Creacion. (12/12/2013)
-//# - Se utiliza JRangeFilter para unsigned en lugar de int. (27/12/2013)
-//# - Pequeños cambios para evitar warnings al usar 32 bits. (13/01/2014)
-//# - EN:
-//# Description:
-//# ============
-//# Basic class for managing the definition and allocation of properties according to
-//# mk of the particles. Some of its features are:
-//# - Groups a set of values under a name.
-//# - You can set one or more relationships with one or more mk
-//#   properties.
-//#
-//# Changes:
-//# =========
-// # - Creation. (12.12.2013)
-// # - Uses JRangeFilter with unsigned instead of int. (12.27.2013)
-// # - Little changes to avoid warnings when using 32 bits. (13.01.2014)
-//#############################################################################
 
 /// \file JSpaceProperties.h \brief Declares the classes \ref JSpaceProperties.
 
@@ -63,6 +33,7 @@ class TiXmlElement;
 //# JSpacePropValue
 //##############################################################################
 /// \brief Manages the info of each value of properties.
+
 class JSpacePropValue : public JObject
 {
 private:
@@ -99,6 +70,7 @@ public:
 //# JSpacePropProperty
 //##############################################################################
 /// \brief Manages the info of each property.
+
 class JSpacePropProperty : public JObject
 {
 private:
@@ -136,6 +108,7 @@ public:
 //# JSpacePropLink
 //##############################################################################
 /// \brief Manages the info of each link.
+
 class JSpacePropLink
 {
 public:
@@ -157,6 +130,7 @@ public:
 //# JSpacePropLinks
 //##############################################################################
 /// \brief Manages the links defined in properties.
+
 class JSpacePropLinks : public JObject
 {
 private:
@@ -186,6 +160,7 @@ public:
 //# JSpaceProperties
 //##############################################################################
 /// \brief Manages the properties assigned to the particles in the XML file.
+
 class JSpaceProperties  : protected JObject
 {
 private:

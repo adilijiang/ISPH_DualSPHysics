@@ -24,6 +24,7 @@
 #include "JPartsLoad4.h"
 #include "JSphVisco.h"
 #include "JWaveGen.h"
+#include "JTimeOut.h"
 
 #include <climits>
 #include <time.h> 
@@ -747,10 +748,6 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   //-------------------
   TmcCreation(Timers,cfg->SvTimers);
   TmcStart(Timers,TMC_Init);
-  if(cfg->SvTimersStep>0){
-    TimersStep=new JTimersStep(cfg->DirOut,cfg->SvTimersStep,0,0);
-    for(unsigned ct=0;ct<TimerGetCount();ct++)if(TimerIsActive(ct))TimersStep->AddTimer(TimerGetName(ct),TimerGetPtrValue(ct));
-  }
 
   //-Load parameters and values of input / Carga de parametros y datos de entrada
   //-----------------------------------------
@@ -789,7 +786,7 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
     
     TimeStep+=stepdt;
     partoutstop=(Np<NpMinimum || !Np);
-    if((TimeStep-TimeStepIni)-TimePart*((Part-PartIni)-1)>=TimePart || partoutstop){
+    if(TimeStep>=TimePartNext || partoutstop){
       if(partoutstop){
         Log->Print("\n**** Particles OUT limit reached...\n");
         TimeMax=TimeStep;
@@ -798,11 +795,11 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
       Part++;
       PartNstep=Nstep;
       TimeStepM1=TimeStep;
+      TimePartNext=TimeOut->GetNextTime(TimeStep);
       TimerPart.Start();
     }
     UpdateMaxValues();
     Nstep++;
-    if(TimersStep&&TimersStep->Check(float(TimeStep)))SaveTimersStep(Np,Npb,NpbOk,CellDivSingle->GetNct());
     //if(Nstep>=3)break;
   }
   TimerSim.Stop(); TimerTot.Stop();
@@ -858,8 +855,7 @@ void JSphCpuSingle::SaveData(){
   ArraysCpu->Free(pos);
   ArraysCpu->Free(vel);
   ArraysCpu->Free(rhop);
-  //-Record execution information / Graba informacion de ejecucion.
-  if(TimersStep)TimersStep->SaveData();
+
   TmcStop(Timers,TMC_SuSavePart);
 }
 
@@ -869,7 +865,6 @@ void JSphCpuSingle::SaveData(){
 //==============================================================================
 void JSphCpuSingle::FinishRun(bool stop){
   float tsim=TimerSim.GetElapsedTimeF()/1000.f,ttot=TimerTot.GetElapsedTimeF()/1000.f;
-  if(TimersStep)TimersStep->SaveData();
   JSph::ShowResume(stop,tsim,ttot,true,"");
   string hinfo=";RunMode",dinfo=string(";")+RunMode;
   if(SvTimers){

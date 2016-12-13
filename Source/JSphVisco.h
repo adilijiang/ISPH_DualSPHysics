@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -15,22 +15,10 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
+/// \file JSphVisco.h \brief Declares the class \ref JSphVisco.
+
 #ifndef _JSphVisco_
 #define _JSphVisco_
-
-//#############################################################################
-//# ES:
-//# Cambios:
-//# =========
-//# - Gestiona el uso de un valor de viscosidad variable a partir de los valores 
-//#   para determinados instantes en segundos, interpolando los valores 
-//#   intermedios. (12/04/2013)
-//# - EN:
-//# Changes:
-//# =========
-//# - Manages the use of a variable viscosity value from values
-// # in certain moments in seconds, by interpolating intermediate values. (12/04/2013)
-//#############################################################################
 
 #include "JObject.h"
 #include "Types.h"
@@ -41,14 +29,15 @@
 #include <fstream>
 #include <cstdlib>
 
-//==============================================================================
 //##############################################################################
-//==============================================================================
+//# JSphVisco
+//##############################################################################
+/// \brief Manages the use of viscosity values from an input file.
+
 class JSphVisco : protected JObject
 {
 protected:
-  static const unsigned SIZEMAX=100000;
-  static const unsigned SIZEINITIAL=500;
+  static const unsigned FILESIZEMAX=104857600; ///<Maximum file size (100mb).
 
   std::string File;
   unsigned Size;

@@ -1,40 +1,23 @@
 /*
- <DualSPHysics4 codes>  Copyright (c) 2015 by Dr. Jose M. Dominguez, Dr. Alejandro Crespo, Prof. M. Gomez Gesteira, Dr. Anxo Barreiro, Dr. Benedict Rogers
- All rights reserved.
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
- DualSPHysics is an international collaboration between:
- - EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
- - School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
+ EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
+ School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
 
- Redistribution and use in source and binary forms, with or without modification, are permitted provided that 
- the following conditions are met:
- * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
- * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer
-   in the documentation and/or other materials provided with the distribution.
- * Neither the name of the DualSPHysics nor the names of its contributors may be used to endorse or promote products derived 
-   from this software without specific prior written permission.
- 
- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, 
- BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT 
- SHALL THE COPYRIGHT OWNER BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
- (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
- ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ This file is part of DualSPHysics. 
+
+ DualSPHysics is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or (at your option) any later version. 
+
+ DualSPHysics is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details. 
+
+ You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
-//#############################################################################
-//# Cambios:
-//# =========
-//# - Error corregido: En el metodo rotate() de la clase JMatrix4 se cambio 
-//#   MulPre(MatrixRot(...)) por Mul(MatrixRot(...)) para que funcionase bien 
-//#   la combinación de movimiento con rotación.  (19-10-2010)
-//# - Traduccion de comentarios al ingles. (10/02/2012)
-//# - Metodo GetMotion() para obtener angulos con respecto a ejes y traslacion
-//#   a partir de la matriz de transformacion. (04/07/2014)
-//#############################################################################
 
 /// \file JMatrix4.h \brief Declares the template \ref JMatrix4
-/// and the classes \ref JMatrix4f and \ref JMatrix4d
+/// and the classes \ref JMatrix4f and \ref JMatrix4d.
 
 #ifndef _JMatrix4_
 #define _JMatrix4_
@@ -151,7 +134,18 @@ public:
   }
 
 //==============================================================================
-/// Returns the product of the matrix by the vector \a p.
+/// Returns the product of the matrix by the normal \a n.
+//==============================================================================
+  T3 MulNormal(const T3 &n)const{
+    T3 r;
+    r.x= a11*n.x + a12*n.y + a13*n.z;
+    r.y= a21*n.x + a22*n.y + a23*n.z;
+    r.z= a31*n.x + a32*n.y + a33*n.z;
+    return(r);
+  }
+
+//==============================================================================
+/// Returns the product of the matrix by the point \a p.
 //==============================================================================
   T3 MulPoint(const T3 &p)const{
     T3 r;
@@ -287,7 +281,7 @@ public:
     T3 pr[3]; MulArray(3,pt,pr);
     mov=pr[0];
     T3 imov={-mov.x,-mov.y,-mov.z};
-    JMatrix4::MatrixMov(imov).MulArray(3,pr);
+    JMatrix4<double,tdouble3,tmatrix4d>::MatrixMov(imov).MulArray(3,pr);
 
     double ppy=fabs(pr[1].y/sqrt(pr[1].x*pr[1].x+pr[1].y*pr[1].y));
     ppy=(ppy>1? 1.: ppy);
@@ -295,7 +289,7 @@ public:
     if(pr[1].x<0)angz1=(pr[1].y>=0? angz1: -angz1)-180;
     else if(pr[1].y>=0)angz1=-angz1;
     //printf("\n ppy:%f  angz1:%f \n",ppy,angz1); // fflush(stdout);
-    JMatrix4::MatrixRot(angz1,pt[3],pt[0]).MulArray(3,pr);
+    JMatrix4<double,tdouble3,tmatrix4d>::MatrixRot(angz1,pt[3],pt[0]).MulArray(3,pr);
 
     double ppz=fabs(pr[1].z/sqrt(pr[1].x*pr[1].x+pr[1].z*pr[1].z));
     ppz=(ppz>1? 1.: ppz);
@@ -303,7 +297,7 @@ public:
     if(pr[1].x<0)angy1=(pr[1].z>=0? -angy1: angy1)-180;
     else if(pr[1].z<0)angy1=-angy1;
     //printf("\n ppz:%f  angy1:%f \n",ppz,angy1); // fflush(stdout);
-    JMatrix4::MatrixRot(angy1,pt[2],pt[0]).MulArray(3,pr);
+    JMatrix4<double,tdouble3,tmatrix4d>::MatrixRot(angy1,pt[2],pt[0]).MulArray(3,pr);
 
     double ppz2=fabs(pr[2].z/sqrt(pr[2].y*pr[2].y+pr[2].z*pr[2].z));
     ppz2=(ppz2>1? 1.: ppz2);

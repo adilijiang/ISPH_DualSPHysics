@@ -85,9 +85,6 @@
     <ClInclude Include="Source\Types.h">
       <Filter>Source</Filter>
     </ClInclude>
-    <ClInclude Include="Source\JPtxasInfo.h">
-      <Filter>Common</Filter>
-    </ClInclude>
     <ClInclude Include="Source\JObjectGpu.h">
       <Filter>Common</Filter>
     </ClInclude>
@@ -115,9 +112,6 @@
     <ClInclude Include="Source\JLog2.h">
       <Filter>Common</Filter>
     </ClInclude>
-    <ClInclude Include="Source\JTimersStep.h">
-      <Filter>Source</Filter>
-    </ClInclude>
     <ClInclude Include="Source\JSphDtFixed.h">
       <Filter>Source</Filter>
     </ClInclude>
@@ -140,9 +134,6 @@
       <Filter>Common</Filter>
     </ClInclude>
     <ClInclude Include="Source\JSpaceProperties.h">
-      <Filter>Common</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\JLinearValue.h">
       <Filter>Common</Filter>
     </ClInclude>
     <ClInclude Include="Source\JRadixSort.h">
@@ -169,8 +160,23 @@
     <ClInclude Include="Source\JWaveGen.h">
       <Filter>Libs</Filter>
     </ClInclude>
-    <ClInclude Include="Source\JSphVarAcc.h">
+    <ClInclude Include="Source\JSphAccInput.h">
       <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\JTimeOut.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\JBlockSizeAuto.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\JMeanValues.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\JMatrix4.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\JReadDatafile.h">
+      <Filter>Common</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -210,9 +216,6 @@
     <ClCompile Include="Source\JException.cpp">
       <Filter>Common</Filter>
     </ClCompile>
-    <ClCompile Include="Source\JPtxasInfo.cpp">
-      <Filter>Common</Filter>
-    </ClCompile>
     <ClCompile Include="Source\JObjectGpu.cpp">
       <Filter>Common</Filter>
     </ClCompile>
@@ -236,9 +239,6 @@
     </ClCompile>
     <ClCompile Include="Source\JLog2.cpp">
       <Filter>Common</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\JTimersStep.cpp">
-      <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="Source\JSphDtFixed.cpp">
       <Filter>Source</Filter>
@@ -264,9 +264,6 @@
     <ClCompile Include="Source\JSpaceProperties.cpp">
       <Filter>Common</Filter>
     </ClCompile>
-    <ClCompile Include="Source\JLinearValue.cpp">
-      <Filter>Common</Filter>
-    </ClCompile>
     <ClCompile Include="Source\JRadixSort.cpp">
       <Filter>Common</Filter>
     </ClCompile>
@@ -288,8 +285,20 @@
     <ClCompile Include="Source\JSaveDt.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="Source\JSphVarAcc.cpp">
+    <ClCompile Include="Source\JSphAccInput.cpp">
       <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\JTimeOut.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\JBlockSizeAuto.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\JMeanValues.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\JReadDatafile.cpp">
+      <Filter>Common</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

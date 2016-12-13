@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -15,20 +15,6 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
-//#############################################################################
-//# ES:
-//# Cambios:
-//# =========
-//# - Clase para generar fichero CSV con info del dt. (08/01/2015)
-//# - Permite grabar mas valores (csoundmax,acemax...). (14/01/2015)
-//# - Se elimina el valor csound. (22/01/2015)
-//# - EN:
-//# Changes:
-//# =========
-//# - Class to generate CSV file with info for dt. (01.08.2015)
-//# - Allows you to record more values (csoundmax, acemax ...). (14.01.2015)
-//# - The csound value is deleted. (22.01.2015)
-//#############################################################################
 
 /// \file JSaveDt.h \brief Declares the class \ref JSaveDt.
 

@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -19,10 +19,8 @@
 
 #include "JSphDtFixed.h"
 #include "Functions.h"
+#include "JReadDatafile.h"
 #include <cstring>
-#include <sstream>
-#include <iostream>
-#include <fstream>
 #include <cfloat>
 
 using namespace std;
@@ -59,8 +57,6 @@ void JSphDtFixed::Reset(){
 /// Resizes memory space for values.
 //==============================================================================
 void JSphDtFixed::Resize(unsigned size){
-  if(size>SIZEMAX)size=SIZEMAX;
-  if(size==Size)RunException("Resize","It has reached the maximum size allowed.");
   Times=fun::ResizeAlloc(Times,Count,size);
   Values=fun::ResizeAlloc(Values,Count,size);
   Size=size;
@@ -82,31 +78,16 @@ unsigned JSphDtFixed::GetAllocMemory()const{
 void JSphDtFixed::LoadFile(std::string file){
   const char met[]="LoadFile";
   Reset();
-  ifstream pf;
-  pf.open(file.c_str());
-  if(pf){
-    pf.seekg(0,ios::end);
-    unsigned len=(unsigned)pf.tellg();
-    pf.seekg(0,ios::beg);
-    Resize(SIZEINITIAL);
-    Count=0;
-    while(!pf.eof()){
-      double time,value;
-      pf >> time;
-      pf >> value;
-      if(!pf.fail()){
-        if(Count>=Size){
-          unsigned newsize=unsigned(double(len)/double(pf.tellg())*1.05*(Count+1))+100;
-          Resize(newsize);
-        } 
-        Times[Count]=time; Values[Count]=value;
-        Count++;
-      }
-    }
-    //if(pf.fail())RunException(met,"Error leyendo datos de fichero.",fname);
-    pf.close();
+  JReadDatafile rdat;
+  rdat.LoadFile(file,FILESIZEMAX);
+  const unsigned rows=rdat.Lines()-rdat.RemLines();
+  Resize(rows);
+  for(unsigned r=0;r<rows;r++){
+    Times[r]=rdat.ReadNextDouble(false);
+    Values[r]=rdat.ReadNextDouble(true);
+    //printf("FileData[%u]>  t:%f  ang:%f\n",r,Times[r],Values[r]);
   }
-  else RunException(met,"Cannot open the file.",file);
+  Count=rows;
   if(Count<2)RunException(met,"Cannot be less than two values.",file);
   File=file;
 }

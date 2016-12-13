@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -15,27 +15,20 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
+/// \file JPartsLoad4.h \brief Declares the class \ref JPartsLoad4.
+
 #ifndef _JPartsLoad4_
 #define _JPartsLoad4_
 
-//#############################################################################
-//# Descripcion:
-//# =============
-//# Clase para cargar ficheros en formato BI4.
-//#
-//# Cambios:
-//# =========
-//# - Carga datos iniciales de particulas. (27/07/2012)
-//# - Carga datos iniciales de particulas. (27/07/2012)
-//# - Carga particulas excluidas de BI2 y BI3. (05/03/2013)
-//# - Arranque de simulaciones iniciadas a partir de BI2 y BI3. (05/03/2013)
-//# - Las funcion GetAllocMemory() devuelve long long. (05/04/2013)
-//# - Remplaza long long por llong. (01-10-2015)
-//#############################################################################
 
 #include "TypesDef.h"
 #include "JObject.h"
 #include <cstring>
+
+//##############################################################################
+//# JPartsLoad4
+//##############################################################################
+/// \brief Manages the initial load of particle data.
 
 class JPartsLoad4 : protected JObject
 {

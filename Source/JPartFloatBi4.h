@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -15,38 +15,8 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
-//#############################################################################
-//# ES:
-//# Descripcion:
-//# =============
-//# Clase JPartFloatBi4Save para grabar la informacion de los floatings.
-//# Clase JPartFloatBi4Load para recuperar la informacion de los floatings.
-//# Algunas de sus funcionalidades son:
-//# - Graba datos de cabecera y de estado de floatings por PART.
-//# - Comprueba cabecera y recupera datos de estado de floatings por PART.
-//#
-//# Cambios:
-//# =========
-//# - Implementacion. (04-12-2014)
-//# - Implementacion independiente de StFloatingData en Types.h. (11-05-2015)
-//#
-//# EN:
-//# Description: 
-//# ============= 
-//# Class JPartFloatBi4Save to record the floating information. 
-//# Class JPartFloatBi4Load to retrieve the floating information. 
-//# Some of its features are: 
-//# - Record header data and state of floatings by PART. 
-//# - Verifies header and retrieves data from state of floatings by PART. 
-//# 
-//# Changes: 
-//# ========= 
-//# - Implementation. (04-12 -2014) 
-//# - Independent implementation of StFloatingData in Types.h. (11-05 -2015)
 
-//#############################################################################
-
-/// \file JPartFloatBi4.h \brief Declares the class \ref JPartFloatBi4Save and class \ref JPartFloatBi4Load.
+/// \file JPartFloatBi4.h \brief Declares the classes \ref JPartFloatBi4Save and class \ref JPartFloatBi4Load.
 
 #ifndef _JPartFloatBi4_
 #define _JPartFloatBi4_
@@ -62,6 +32,8 @@
 //##############################################################################
 //# JPartFloatBi4Save
 //##############################################################################
+/// \brief Allows writing information of floating objects during simulation.
+
 class JPartFloatBi4Save : protected JObject
 {
  private:
@@ -127,6 +99,8 @@ class JPartFloatBi4Save : protected JObject
 //##############################################################################
 //# JPartFloatBi4Load
 //##############################################################################
+/// \brief Allows reading information of floating objects saved during simulation.
+
 class JPartFloatBi4Load : protected JObject
 {
  private:
@@ -134,6 +108,7 @@ class JPartFloatBi4Load : protected JObject
   unsigned FtCount;       ///<Numero de floatings. Floating number
   unsigned PartCount;     ///<Numero de PARTs. PARTs number
   JBinaryData *Part;      ///<Pertenece a Data y almacena informacion de un part (incluyendo datos de floatings). Belongs to data and stores information of a part (including data of floatings).
+  unsigned FirstPart;     ///<Primer PART almacenado. First number of stored PART.
 
   //-Datos constantes de floatings (head). Constant data of floatings (head).
   word *HeadMkbound;
@@ -167,6 +142,7 @@ class JPartFloatBi4Load : protected JObject
 
   unsigned GetFtCount()const{ return(FtCount); }
   unsigned GetCount()const{ return(PartCount); }
+  unsigned GetFirstPart()const{ return(FirstPart); }
 
   word     GetHeadMkbound(unsigned cf)const{ CheckFloating(cf); return(HeadMkbound[cf]); }
   unsigned GetHeadBegin  (unsigned cf)const{ CheckFloating(cf); return(HeadBegin[cf]);   }

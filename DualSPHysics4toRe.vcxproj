@@ -713,6 +713,9 @@ rem ***Sentencia de compilacion con salida _ptxasinfo
     <ClInclude Include="Source\FunctionsMath.h" />
     <ClInclude Include="Source\JArraysCpu.h" />
     <ClInclude Include="Source\JBinaryData.h" />
+    <ClInclude Include="Source\JBlockSizeAuto.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="Source\JCellDivCpu.h" />
     <ClInclude Include="Source\JCellDivCpuSingle.h" />
     <ClInclude Include="Source\JCellDivGpu.h">
@@ -736,7 +739,10 @@ rem ***Sentencia de compilacion con salida _ptxasinfo
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|Win32'">true</ExcludedFromBuild>
     </ClInclude>
-    <ClInclude Include="Source\JLinearValue.h" />
+    <ClInclude Include="Source\JMatrix4.h" />
+    <ClInclude Include="Source\JMeanValues.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="Source\JPartDataBi4.h" />
     <ClInclude Include="Source\JPartFloatBi4.h" />
     <ClInclude Include="Source\JPartOutBi4Save.h" />
@@ -745,10 +751,12 @@ rem ***Sentencia de compilacion con salida _ptxasinfo
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|Win32'">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="Source\JPartsLoad4.h" />
+    <ClInclude Include="Source\JReadDatafile.h" />
     <ClInclude Include="Source\JSaveDt.h" />
     <ClInclude Include="Source\JRadixSort.h" />
     <ClInclude Include="Source\JRangeFilter.h" />
     <ClInclude Include="Source\JSpaceProperties.h" />
+    <ClInclude Include="Source\JSphAccInput.h" />
     <ClInclude Include="Source\JSphDtFixed.h" />
     <ClInclude Include="Source\JSphGpuSingle.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
@@ -759,11 +767,10 @@ rem ***Sentencia de compilacion con salida _ptxasinfo
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|Win32'">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="Source\JSphMotion.h" />
-    <ClInclude Include="Source\JSphVarAcc.h" />
     <ClInclude Include="Source\JSphVisco.h" />
     <ClInclude Include="Source\JPartsOut.h" />
     <ClInclude Include="Source\JSphCpuSingle.h" />
-    <ClInclude Include="Source\JTimersStep.h" />
+    <ClInclude Include="Source\JTimeOut.h" />
     <ClInclude Include="Source\JWaveGen.h" />
     <ClInclude Include="Source\randomc.h" />
     <ClInclude Include="Source\Types.h" />
@@ -791,10 +798,6 @@ rem ***Sentencia de compilacion con salida _ptxasinfo
     <ClInclude Include="Source\JLog2.h" />
     <ClInclude Include="Source\JObject.h" />
     <ClInclude Include="Source\JSpaceParts.h" />
-    <ClInclude Include="Source\JPtxasInfo.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|Win32'">true</ExcludedFromBuild>
-    </ClInclude>
     <ClInclude Include="Source\JSpaceCtes.h" />
     <ClInclude Include="Source\JSpaceEParms.h" />
     <ClInclude Include="Source\JSph.h" />
@@ -817,6 +820,9 @@ rem ***Sentencia de compilacion con salida _ptxasinfo
     <ClCompile Include="Source\FunctionsMath.cpp" />
     <ClCompile Include="Source\JArraysCpu.cpp" />
     <ClCompile Include="Source\JBinaryData.cpp" />
+    <ClCompile Include="Source\JBlockSizeAuto.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="Source\JCellDivCpu.cpp" />
     <ClCompile Include="Source\JCellDivCpuSingle.cpp" />
     <ClCompile Include="Source\JCellDivGpu.cpp">
@@ -831,7 +837,9 @@ rem ***Sentencia de compilacion con salida _ptxasinfo
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|Win32'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="Source\JLinearValue.cpp" />
+    <ClCompile Include="Source\JMeanValues.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="Source\JPartDataBi4.cpp" />
     <ClCompile Include="Source\JPartFloatBi4.cpp" />
     <ClCompile Include="Source\JPartOutBi4Save.cpp" />
@@ -840,30 +848,27 @@ rem ***Sentencia de compilacion con salida _ptxasinfo
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="Source\JPartsLoad4.cpp" />
+    <ClCompile Include="Source\JReadDatafile.cpp" />
     <ClCompile Include="Source\JSaveDt.cpp" />
     <ClCompile Include="Source\JRadixSort.cpp" />
     <ClCompile Include="Source\JRangeFilter.cpp" />
     <ClCompile Include="Source\JSpaceProperties.cpp" />
+    <ClCompile Include="Source\JSphAccInput.cpp" />
     <ClCompile Include="Source\JSphDtFixed.cpp" />
     <ClCompile Include="Source\JSphGpuSingle.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|Win32'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="Source\JSphVarAcc.cpp" />
     <ClCompile Include="Source\JSphVisco.cpp" />
     <ClCompile Include="Source\JPartsOut.cpp" />
     <ClCompile Include="Source\JSphCpuSingle.cpp" />
-    <ClCompile Include="Source\JTimersStep.cpp" />
+    <ClCompile Include="Source\JTimeOut.cpp" />
     <ClCompile Include="Source\Functions.cpp" />
     <ClCompile Include="Source\JCfgRun.cpp" />
     <ClCompile Include="Source\JException.cpp" />
     <ClCompile Include="Source\JLog2.cpp" />
     <ClCompile Include="Source\JObject.cpp" />
     <ClCompile Include="Source\JSpaceParts.cpp" />
-    <ClCompile Include="Source\JPtxasInfo.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="Source\JSpaceCtes.cpp" />
     <ClCompile Include="Source\JSpaceEParms.cpp" />
     <ClCompile Include="Source\JSph.cpp" />

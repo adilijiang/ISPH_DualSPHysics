@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -14,39 +14,6 @@
 
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
-
-//#############################################################################
-//# ES:
-//# Cambios:
-//# =========
-//# - Nuevo metodo ReadElementStr() para leer un atributo string de un elemento
-//#   directamente. (14/10/2010)
-//# - En metodos con datos int3, float3 y double3 se añadio la opcion de 
-//#   indicar el nombre de los atributos (por defecto son x,y,z). (02/05/2011)
-//# - Nuevo metodo ReadElementInt3(). (26/10/2011)
-//# - Traduccion de comentarios al ingles. (10/02/2012)
-//# - Nuevo metodo AddElement(). (13/12/2013)
-//# - Nuevo metodo ExistsElement(). (20/12/2013)
-//# - Uso de valores por defecto en ReadElementStr, ReadElementUnsigned, 
-//#   ReadElementInt, ReadElementFloat y ReadElementDouble. (20/12/2013)
-//# - Nuevo metodo ReadElementBool() y correccion en ReadElementInt(). (02/01/2014)
-//# - Nuevo metodo CheckElementNames() para comprobar elementos validos. (21/05/2014)
-//# - EN:
-//# Changes:
-//# ========
-//# - New function ReadElementStr() to read a string attribute of an element
-//#   directly. (14/10/2010)
-//# - In functions with data int3, float3 and double3 added the option to
-//#   indicate the name of the attribute (the default is x, y, z). (02/05/2011)
-//# - New function ReadElementInt3(). (26/10/2011)
-//# - Comment on English translation. (10/02/2012)
-//# - New function addElement(). (12.13.2013)
-//# - New function ExistsElement(). (12.20.2013)
-//# - Using defaults in ReadElementStr, ReadElementUnsigned,
-//#   ReadElementInt, ReadElementFloat and ReadElementDouble. (12.20.2013)
-//# - New function ReadElementBool() and correction in ReadElementInt(). (01.02.2014)
-//# - New function CheckElementNames() to check valid elements. (05.21.2014)
-//#############################################################################
 
 /// \file JXml.h \brief Declares the class \ref JXml.
 
@@ -96,7 +63,7 @@ public:
   /// returns \a NULL instead of throwing an exception.
   /// \throw JException The requested element does not exist...
   //==============================================================================
-  TiXmlElement* GetFirstElement(TiXmlNode* node,const std::string &name,bool optional=false)const;
+  TiXmlElement* GetFirstElement(const TiXmlNode* node,const std::string &name,bool optional=false)const;
 
   //==============================================================================
   /// Returns the next requested element of a node TiXmlNode.
@@ -113,7 +80,7 @@ public:
   /// \param node Xml node where the reach is performed.
   /// \param name Name of filtered elements (no filter using "").
   //==============================================================================
-  unsigned CountElements(TiXmlNode* node,const std::string &name)const;
+  unsigned CountElements(const TiXmlNode* node,const std::string &name)const;
 
   //==============================================================================
   /// Removes the requested node.
@@ -124,7 +91,7 @@ public:
   //==============================================================================
   /// Returns the filename of the current xml with row of the requested node.
   //==============================================================================
-  std::string ErrGetFileRow(TiXmlNode* node)const;
+  std::string ErrGetFileRow(const TiXmlNode* node)const;
 
   //==============================================================================
   /// Throws an exception with the xml node and the name of the element.
@@ -133,7 +100,7 @@ public:
   /// \param missing Error because it does not exist.
   /// \throw JException Error in element...
   //==============================================================================
-  void ErrReadElement(TiXmlNode* node,const std::string &element,bool missing)const;
+  void ErrReadElement(const TiXmlNode* node,const std::string &element,bool missing)const;
 
   //==============================================================================
   /// Throws an exception with the xml element and the name of the attribute.
@@ -142,7 +109,7 @@ public:
   /// \param missing Error because it does not exist.
   /// \throw JException Error in element...
   //==============================================================================
-  void ErrReadAtrib(TiXmlElement* ele,const std::string &atrib,bool missing)const;
+  void ErrReadAtrib(const TiXmlElement* ele,const std::string &atrib,bool missing)const;
 
 
   //-Checking child element of the element.
@@ -152,7 +119,7 @@ public:
   /// \param ele Xml element of the error.
   /// \param name Name of the requested element.
   //==============================================================================
-  bool ExistsElement(TiXmlElement* ele,const std::string &name)const{ return(ele->FirstChildElement(name.c_str())!=NULL); }
+  bool ExistsElement(const TiXmlElement* ele,const std::string &name)const{ return(ele->FirstChildElement(name.c_str())!=NULL); }
 
   //==============================================================================
   /// Throws an exception if there are unknown or repeated elements.
@@ -170,7 +137,7 @@ public:
   /// \param ele Xml element of the error.
   /// \param name Name of the requested attribute.
   //==============================================================================
-  bool ExistsAttribute(TiXmlElement* ele,const std::string &name)const;
+  bool ExistsAttribute(const TiXmlElement* ele,const std::string &name)const;
 
 
   //-Reading attributes of the element.
@@ -184,7 +151,7 @@ public:
   /// \param valdef Value by default if it does not exist and \a optional was activated. 
   /// \throw JException The requested attribute does not exist...
   //==============================================================================
-  std::string GetAttributeStr(TiXmlElement* ele,const std::string &name,bool optional=false,const std::string &valdef="")const;
+  std::string GetAttributeStr(const TiXmlElement* ele,const std::string &name,bool optional=false,const std::string &valdef="")const;
 
   //==============================================================================
   /// Checks and returns a value of type bool of an xml element, 
@@ -195,7 +162,7 @@ public:
   /// \param valdef Value by default if it does not exist and \a optional was activated. 
   /// \throw JException The requested attribute does not exist...
   //==============================================================================
-  bool GetAttributeBool(TiXmlElement* ele,const std::string &name,bool optional=false,bool valdef=false)const;
+  bool GetAttributeBool(const TiXmlElement* ele,const std::string &name,bool optional=false,bool valdef=false)const;
 
   //==============================================================================
   /// Checks and returns a value of type byte of an xml element that must be (0-225).
@@ -677,7 +644,7 @@ public:
 
   //==============================================================================
   /// Stores the xml document in a file, including in the main node 
-  /// attributes with the name of the application that generates it and when.
+  /// atributtes with the name of the application that generates it and when.
   /// \param fname Filename.
   /// \param app Name of the application that generates it
   /// \param date Stores date and time of creation.
@@ -691,6 +658,14 @@ public:
   /// \throw JException Problems with file access...
   //==============================================================================
   void LoadFile(const std::string &fname);
+
+  //==============================================================================
+  /// Correct symbols in file.
+  /// \param fname Filename.
+  /// \throw JException Problems with file access...
+  //==============================================================================
+  void CorrectFile(const std::string &fname);
+
 };
 
 #endif

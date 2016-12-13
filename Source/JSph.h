@@ -36,7 +36,6 @@
 #include "JCfgRun.h"
 #include "JLog2.h"
 #include "JTimer.h"
-#include "JTimersStep.h"
 #include <float.h>
 #include <string>
 #include <cmath>
@@ -52,13 +51,14 @@ class JSphDtFixed;
 class JSaveDt;
 class JSphVisco;
 class JWaveGen;
-class JSphVarAcc;
+class JSphAccInput;
 class JSpaceParts;
 class JPartDataBi4;
 class JPartOutBi4Save;
 class JPartFloatBi4Save;
 class JPartsOut;
 class JXml;
+class JTimeOut;
 
 class JSph : protected JObject
 {
@@ -189,6 +189,7 @@ protected:
 
   double TimeMax;
   double TimePart;
+  JTimeOut *TimeOut;
 
   double DtIni;       //-Dt inicial																				//-Initial Dt
   double DtMin;       //-Dt minimo permitido (si el calculado es menor se sustituye por DtMin).					//-Minimum allowed Dt (if the calculated is lower is replaced by DTmin).
@@ -276,7 +277,7 @@ protected:
 
   JWaveGen *WaveGen;      //-Objecto para generacion de oleaje.													//-Object for wave generation
 
-  JSphVarAcc *VarAcc;     ///<Object for variable acceleration functionality.
+  JSphAccInput *AccInput;     ///<Object for variable acceleration functionality.
 
   TpCellOrder CellOrder;  //-Orden de ejes en ordenacion de particulas en celdas.								//-Defines axes' ordination of particles in cells.
 
@@ -330,18 +331,19 @@ protected:
   double TimeStepIni; ///<Instante inicial de la simulación.								//-Initial instant of the simulation
   double TimeStep;    ///<Instante actual de la simulación.									//-Current instant of the simulation
   double TimeStepM1;  ///<Instante de la simulación en que se grabo el último PART.			//-Instant of the simulation when the last PART was stored.
+  double TimePartNext; ///<Instante para grabar siguiente fichero PART.                      ///<Instant to store next PART file.
 
   //-Control de tiempos de ejecucion.
   //-Control of the execution times.
   JTimer TimerTot,TimerSim,TimerPart;
-  JTimersStep* TimersStep;
-
 
   void AllocMemoryFloating(unsigned ftcount);
   llong GetAllocMemoryCpu()const;
 
   void LoadConfig(const JCfgRun *cfg);
   void LoadCaseConfig();
+
+  void VisuDemCoefficients()const;
 
   void ResetMkInfo();
   void LoadMkInfo(const JSpaceParts *parts);
@@ -388,7 +390,6 @@ protected:
   void SaveData(unsigned npok,const unsigned *idp,const tdouble3 *pos,const tfloat3 *vel,const float *rhop,unsigned ndom,const tdouble3 *vdom,const StInfoPartPlus *infoplus);
   void SaveDomainVtk(unsigned ndom,const tdouble3 *vdom)const;
   void SaveMapCellsVtk(float scell)const;
-  void SaveTimersStep(unsigned np,unsigned npb,unsigned npbok,unsigned nct);
 
   void GetResInfo(float tsim,float ttot,const std::string &headplus,const std::string &detplus,std::string &hinfo,std::string &dinfo);
   void SaveRes(float tsim,float ttot,const std::string &headplus="",const std::string &detplus="");
@@ -397,11 +398,12 @@ protected:
   unsigned GetOutPosCount()const{ return(OutPosCount); }
   unsigned GetOutRhopCount()const{ return(OutRhopCount); }
   unsigned GetOutMoveCount()const{ return(OutMoveCount); }
-  void solveVienna();
+
 public:
   JSph(bool cpu,bool withmpi);
   ~JSph();
 
+  static std::string GetPosDoubleName(bool psimple,bool svdouble);
   static std::string GetStepName(TpStep tstep);
   static std::string GetKernelName(TpKernel tkernel);
   static std::string GetViscoName(TpVisco tvisco);
