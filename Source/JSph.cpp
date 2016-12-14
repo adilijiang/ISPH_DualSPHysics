@@ -194,7 +194,7 @@ void JSph::InitVars(){
 //==============================================================================
 /// Generates a random code to identify the file of the results of the execution.
 //==============================================================================
-std::string JSph::CalcRunCode()const{ 
+std::string JSph::CalcRunCode()const{
   srand((unsigned)time(NULL));
   const unsigned len=8;
   char code[len+1];
@@ -314,6 +314,9 @@ void JSph::LoadConfig(const JCfgRun *cfg){
   LoadCaseConfig();
 
   //-Aplies configuration using command line.
+  if(cfg->PosDouble==0){      SvDouble=false; }
+  else if(cfg->PosDouble==1){ SvDouble=false; }
+  else if(cfg->PosDouble==2){ SvDouble=true;  }
   if(cfg->TStep)TStep=cfg->TStep;
   if(cfg->TVisco){ TVisco=cfg->TVisco; Visco=cfg->Visco; }
   if(cfg->ViscoBoundFactor>=0)ViscoBoundFactor=cfg->ViscoBoundFactor;
@@ -337,7 +340,13 @@ void JSph::LoadConfig(const JCfgRun *cfg){
 
   if(cfg->FtPause>=0)FtPause=cfg->FtPause;
   if(cfg->TimeMax>0)TimeMax=cfg->TimeMax;
-  if(cfg->TimePart>=0)TimePart=cfg->TimePart;
+  //-Configuration of JTimeOut with TimePart.
+  TimeOut=new JTimeOut();
+  if(cfg->TimePart>=0){
+    TimePart=cfg->TimePart;
+    TimeOut->Config(TimePart);
+  }
+  else TimeOut->Config(FileXml,"case.execution.special.timeout",TimePart);
 
   CellOrder=cfg->CellOrder;
   CellMode=cfg->CellMode;
@@ -351,7 +360,6 @@ void JSph::LoadConfig(const JCfgRun *cfg){
   }
   RhopOut=(RhopOutMin<RhopOutMax);
   if(!RhopOut){ RhopOutMin=-FLT_MAX; RhopOutMax=FLT_MAX; }
-  //MapMove=cfg->MapMove;
 }
 
 //==============================================================================
@@ -367,6 +375,12 @@ void JSph::LoadCaseConfig(){
   JSpaceParts parts;   parts.LoadXml(&xml,"case.execution.particles");
 
   //-Execution parameters.
+  switch(eparms.GetValueInt("PosDouble",true,0)){
+    case 0:  SvDouble=false;  break;
+    case 1:  SvDouble=false;  break;
+    case 2:  SvDouble=true;   break;
+    default: RunException(met,"PosDouble value is not valid.");
+  }
   switch(eparms.GetValueInt("RigidAlgorithm",true,1)){ //(DEM)
     case 1:  UseDEM=false;  break;
     case 2:  UseDEM=true;   break;
@@ -839,6 +853,7 @@ void JSph::VisuConfig()const{
   if(TKernel==KERNEL_Wendland){
     Log->Print(fun::VarStr("Bwen (wendland)",Bwen));
   }
+  if(UseDEM)VisuDemCoefficients();
   if(CaseNfloat)Log->Print(fun::VarStr("FtPause",FtPause));
   Log->Print(fun::VarStr("TimeMax",TimeMax));
   Log->Print(fun::VarStr("TimePart",TimePart));
@@ -1153,7 +1168,7 @@ void JSph::PrintSizeNp(unsigned np,llong size)const{
 // Visualiza cabeceras de PARTs
 //==============================================================================
 void JSph::PrintHeadPart(){
-  Log->Print("PART       PartTime      TotalSteps    Steps    Time/Seg   Finish time        ");
+  Log->Print("PART       PartTime      TotalSteps    Steps    Time/Sec   Finish time        ");
   Log->Print("=========  ============  ============  =======  =========  ===================");
   fflush(stdout);
 }
@@ -1231,25 +1246,25 @@ void JSph::SavePartData(unsigned npok,unsigned nout,const unsigned *idp,const td
   if(DataBi4){
     tfloat3* posf3=NULL;
     TimerPart.Stop();
-    JBinaryData* bdat=DataBi4->AddPartInfo(Part,TimeStep,npok,nout,Nstep,TimerPart.GetElapsedTimeD()/1000.,vdom[0],vdom[1],TotalNp);
+    JBinaryData* bdpart=DataBi4->AddPartInfo(Part,TimeStep,npok,nout,Nstep,TimerPart.GetElapsedTimeD()/1000.,vdom[0],vdom[1],TotalNp);
     if(infoplus && SvData&SDAT_Info){
-      bdat->SetvDouble("dtmean",(!Nstep? 0: (TimeStep-TimeStepM1)/(Nstep-PartNstep)));
-      bdat->SetvDouble("dtmin",(!Nstep? 0: PartDtMin));
-      bdat->SetvDouble("dtmax",(!Nstep? 0: PartDtMax));
-      if(DtFixed)bdat->SetvDouble("dterror",DtFixed->GetDtError(true));
-      bdat->SetvDouble("timesim",infoplus->timesim);
-      bdat->SetvUint("nct",infoplus->nct);
-      bdat->SetvUint("npbin",infoplus->npbin);
-      bdat->SetvUint("npbout",infoplus->npbout);
-      bdat->SetvUint("npf",infoplus->npf);
-      bdat->SetvUint("npbper",infoplus->npbper);
-      bdat->SetvUint("npfper",infoplus->npfper);
-      bdat->SetvLlong("cpualloc",infoplus->memorycpualloc);
+      bdpart->SetvDouble("dtmean",(!Nstep? 0: (TimeStep-TimeStepM1)/(Nstep-PartNstep)));
+      bdpart->SetvDouble("dtmin",(!Nstep? 0: PartDtMin));
+      bdpart->SetvDouble("dtmax",(!Nstep? 0: PartDtMax));
+      if(DtFixed)bdpart->SetvDouble("dterror",DtFixed->GetDtError(true));
+      bdpart->SetvDouble("timesim",infoplus->timesim);
+      bdpart->SetvUint("nct",infoplus->nct);
+      bdpart->SetvUint("npbin",infoplus->npbin);
+      bdpart->SetvUint("npbout",infoplus->npbout);
+      bdpart->SetvUint("npf",infoplus->npf);
+      bdpart->SetvUint("npbper",infoplus->npbper);
+      bdpart->SetvUint("npfper",infoplus->npfper);
+      bdpart->SetvLlong("cpualloc",infoplus->memorycpualloc);
       if(infoplus->gpudata){
-        bdat->SetvLlong("nctalloc",infoplus->memorynctalloc);
-        bdat->SetvLlong("nctused",infoplus->memorynctused);
-        bdat->SetvLlong("npalloc",infoplus->memorynpalloc);
-        bdat->SetvLlong("npused",infoplus->memorynpused);
+        bdpart->SetvLlong("nctalloc",infoplus->memorynctalloc);
+        bdpart->SetvLlong("nctused",infoplus->memorynctused);
+        bdpart->SetvLlong("npalloc",infoplus->memorynpalloc);
+        bdpart->SetvLlong("npused",infoplus->memorynpused);
       }
     }
     if(SvData&SDAT_Binx){
@@ -1258,7 +1273,14 @@ void JSph::SavePartData(unsigned npok,unsigned nout,const unsigned *idp,const td
         posf3=GetPointerDataFloat3(npok,pos);
         DataBi4->AddPartData(npok,idp,posf3,vel,rhop);
       }
+      /*float *press=NULL;
+      if(0){//-Example saving a new array (Pressure) in files BI4.
+        press=new float[npok];
+        for(unsigned p=0;p<npok;p++)press[p]=(idp[p]>=CaseNbound? CteB*(pow(rhop[p]/RhopZero,Gamma)-1.0f): 0.f);
+        DataBi4->AddPartData("Pressure",npok,press);
+      }*/
       DataBi4->SaveFilePart();
+      //delete[] press; press=NULL;//-Memory must to be deallocated after saving file because DataBi4 uses this memory space.
     }
     if(SvData&SDAT_Info)DataBi4->SaveFileInfo();
     delete[] posf3;
@@ -1276,13 +1298,14 @@ void JSph::SavePartData(unsigned npok,unsigned nout,const unsigned *idp,const td
     //-Define campos a grabar.
     JFormatFiles2::StScalarData fields[8];
     unsigned nfields=0;
-    if(idp){   fields[nfields]=JFormatFiles2::DefineField("Id",JFormatFiles2::UInt32,1,idp);      nfields++; }
+    if(idp){   fields[nfields]=JFormatFiles2::DefineField("Idp",JFormatFiles2::UInt32,1,idp);      nfields++; }
     if(vel){   fields[nfields]=JFormatFiles2::DefineField("Vel",JFormatFiles2::Float32,3,vel);    nfields++; }
     if(rhop){  fields[nfields]=JFormatFiles2::DefineField("Rhop",JFormatFiles2::Float32,1,rhop);  nfields++; }
     if(type){  fields[nfields]=JFormatFiles2::DefineField("Type",JFormatFiles2::UChar8,1,type);   nfields++; }
     if(SvData&SDAT_Vtk)JFormatFiles2::SaveVtk(DirOut+fun::FileNameSec("PartVtk.vtk",Part),npok,posf3,nfields,fields);
     if(SvData&SDAT_Csv)JFormatFiles2::SaveCsv(DirOut+fun::FileNameSec("PartCsv.csv",Part),npok,posf3,nfields,fields);
     //-libera memoria.
+    //-release of memory.
     delete[] posf3;
     delete[] type; 
   }
@@ -1301,7 +1324,7 @@ void JSph::SavePartData(unsigned npok,unsigned nout,const unsigned *idp,const td
   if(DataFloatBi4){
     if(CellOrder==ORDER_XYZ)for(unsigned cf=0;cf<FtCount;cf++)DataFloatBi4->AddPartData(cf,FtObjs[cf].center,FtObjs[cf].fvel,FtObjs[cf].fomega);
     else                    for(unsigned cf=0;cf<FtCount;cf++)DataFloatBi4->AddPartData(cf,OrderDecodeValue(CellOrder,FtObjs[cf].center),OrderDecodeValue(CellOrder,FtObjs[cf].fvel),OrderDecodeValue(CellOrder,FtObjs[cf].fomega));
-    DataFloatBi4->SavePartFloat(Part,TimeStep,DemDtForce);
+    DataFloatBi4->SavePartFloat(Part,TimeStep,(UseDEM? DemDtForce: 0));
   }
 
   //-Vacia almacen de particulas excluidas.

@@ -27,7 +27,6 @@
 #include "JTimeOut.h"
 
 #include <climits>
-#include <time.h> 
 
 #include <vector>
  
@@ -152,7 +151,7 @@ void JSphCpuSingle::ConfigDomain(){
   memcpy(Velrhopc,PartsLoaded->GetVelRhop(),sizeof(tfloat4)*Np);
 
   //-Calculate floating radius / Calcula radio de floatings.
-  if(CaseNfloat && PeriActive!=0)CalcFloatingRadius(Np,Posc,Idpc);
+  if(CaseNfloat && PeriActive!=0 && !PartBegin)CalcFloatingRadius(Np,Posc,Idpc);
 
   //-Load particle data / Carga code de particulas.
   LoadCodeParticles(Np,Idpc,Codec);
@@ -500,7 +499,7 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
   //-Calculates maximum value of ViscDt.
   ViscDtMax=viscdt;
   //-Calculates maximum value of Ace.
-  AceMax=ComputeAceMax();	
+  AceMax=ComputeAceMaxOmp(PeriActive!=0,Np-Npb,Acec+Npb,Codec+Npb);
   TmcStop(Timers,TMC_CfForces);
 }
 
@@ -511,22 +510,55 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
 /// Return max value of (ace.x^2 + ace.y^2 + ace.z^2) starting from Acec[].
 /// The use of OpenMP here is not efficient.
 //==============================================================================
-double JSphCpuSingle::ComputeAceMax(){
+double JSphCpuSingle::ComputeAceMaxSeq(const bool checkcodenormal,unsigned np,const tfloat3* ace,const word* code)const{
   float acemax=0;
-  const int ini=int(Npb),fin=int(Np),npf=int(Np-Npb);
-  if(!PeriActive){//-Without periodic conditions / Sin condiciones periodicas.
-    for(int p=ini;p<fin;p++){
-      const float ace=Acec[p].x*Acec[p].x+Acec[p].y*Acec[p].y+Acec[p].z*Acec[p].z;
-      acemax=max(acemax,ace);
-    }
-  }
-  else{//-With periodic conditions ignore periodic particles / Con condiciones periodicas ignora las particulas periodicas.
-    for(int p=ini;p<fin;p++)if(CODE_GetSpecialValue(Codec[p])==CODE_NORMAL){
-      const float ace=Acec[p].x*Acec[p].x+Acec[p].y*Acec[p].y+Acec[p].z*Acec[p].z;
-      acemax=max(acemax,ace);
-    }
+  const int n=int(np);
+  //-With periodic conditions ignore periodic particles / Con condiciones periodicas ignora las particulas periodicas.
+  for(int p=0;p<n;p++)if(!checkcodenormal || CODE_GetSpecialValue(code[p])==CODE_NORMAL){
+    const tfloat3 a=ace[p];
+    const float a2=a.x*a.x+a.y*a.y+a.z*a.z;
+    acemax=max(acemax,a2);
   }
   return(sqrt(double(acemax)));
+}
+
+//==============================================================================
+/// Devuelve el valor maximo de ace (modulo) using OpenMP.
+/// Returns maximum value of ace (modulus) using OpenMP.
+//==============================================================================
+double JSphCpuSingle::ComputeAceMaxOmp(const bool checkcodenormal,unsigned np,const tfloat3* ace,const word* code)const{
+  const char met[]="ComputeAceMaxOmp";
+  double acemax=0;
+  #ifdef _WITHOMP
+    if(np>LIMIT_COMPUTELIGHT_OMP){
+      const int n=int(np);
+      if(n<0)RunException(met,"Number of values is too big.");
+      float amax=0;
+      #pragma omp parallel 
+      {
+        float amax2=0;
+        #pragma omp for nowait
+        for(int p=0;p<n;++p){
+          //-With periodic conditions ignore periodic particles / Con condiciones periodicas ignora las particulas periodicas.
+          if(!checkcodenormal || CODE_GetSpecialValue(code[p])==CODE_NORMAL){
+            const tfloat3 a=ace[p];
+            const float a2=a.x*a.x+a.y*a.y+a.z*a.z;
+            if(amax2<a2)amax2=a2;
+          }
+        }
+        #pragma omp critical 
+        {
+          if(amax<amax2)amax=amax2;
+        }
+      }
+      //-Guarda resultado.
+      acemax=sqrt(double(amax));
+    }
+    else if(np)acemax=ComputeAceMaxSeq(checkcodenormal,np,ace,code);
+  #else
+    if(np)acemax=ComputeAceMaxSeq(checkcodenormal,np,ace,code);
+  #endif
+  return(acemax);
 }
 
 //==============================================================================

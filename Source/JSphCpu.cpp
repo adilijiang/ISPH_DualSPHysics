@@ -455,7 +455,6 @@ void JSphCpu::InitRun(){
 
   //-Shows configuration of JTimeOut.
   if(TimeOut->UseSpecialConfig())TimeOut->VisuConfig(Log,"\nTimeOut configuration:"," ");
-
   Part=PartIni; Nstep=0; PartNstep=0; PartOut=0;
   TimeStep=TimeStepIni; TimeStepM1=TimeStep;
   if(DtFixed)DtIni=DtFixed->GetDt(TimeStep,DtIni);
@@ -932,9 +931,9 @@ template<TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
 
 			      //===== Acceleration from pressure gradient ===== 
             if(compute && tinter==2){
-			        const float temp_x=frx*dwxcorr[p1].x+fry*dwycorr[p1].x+frz*dwzcorr[p1].x;
-              const float temp_y=frx*dwxcorr[p1].y+fry*dwycorr[p1].y+frz*dwzcorr[p1].y;
-			        const float temp_z=frx*dwxcorr[p1].z+fry*dwycorr[p1].z+frz*dwzcorr[p1].z;
+			        const float temp_x=float(frx*dwxcorr[p1].x+fry*dwycorr[p1].x+frz*dwzcorr[p1].x);
+              const float temp_y=float(frx*dwxcorr[p1].y+fry*dwycorr[p1].y+frz*dwzcorr[p1].y);
+			        const float temp_z=float(frx*dwxcorr[p1].z+fry*dwycorr[p1].z+frz*dwzcorr[p1].z);
 			        const float temp=volumep2*(velrhop[p2].w-pressp1);
               acep1.x+=temp*temp_x; acep1.y+=temp*temp_y; acep1.z+=temp*temp_z;
 			      }
@@ -1396,9 +1395,9 @@ void JSphCpu::RunShifting(double dt){
     }
     else if(divrp1>=FreeSurface && divrp1<=FreeSurface+ShiftOffset){ 
       double FactorShift=0.5*(1-cos(PI*double(divrp1-FreeSurface)/0.2));
-      rshiftpos.x=dcds*tang.x/*+dcdb*bitang.x*/+dcdn*norm.x*FactorShift;
-      rshiftpos.y=dcds*tang.y/*+dcdb*bitang.y*/+dcdn*norm.y*FactorShift;
-      rshiftpos.z=dcds*tang.z/*+dcdb*bitang.z*/+dcdn*norm.z*FactorShift;
+      rshiftpos.x=float(dcds*tang.x/*+dcdb*bitang.x*/+dcdn*norm.x*FactorShift);
+      rshiftpos.y=float(dcds*tang.y/*+dcdb*bitang.y*/+dcdn*norm.y*FactorShift);
+      rshiftpos.z=float(dcds*tang.z/*+dcdb*bitang.z*/+dcdn*norm.z*FactorShift);
     }
 
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
@@ -1408,9 +1407,9 @@ void JSphCpu::RunShifting(double dt){
     //Max Shifting
 		if(TShifting==SHIFT_Max){
       float absShift=sqrt(rshiftpos.x*rshiftpos.x+rshiftpos.y*rshiftpos.y+rshiftpos.z*rshiftpos.z);
-      if(abs(rshiftpos.x>0.1*Dp)) rshiftpos.x=0.1*Dp*rshiftpos.x/absShift;
-      if(abs(rshiftpos.y>0.1*Dp)) rshiftpos.y=0.1*Dp*rshiftpos.y/absShift;
-      if(abs(rshiftpos.z>0.1*Dp)) rshiftpos.z=0.1*Dp*rshiftpos.z/absShift;
+      if(abs(rshiftpos.x>0.1*Dp)) rshiftpos.x=float(0.1*Dp*rshiftpos.x/absShift);
+      if(abs(rshiftpos.y>0.1*Dp)) rshiftpos.y=float(0.1*Dp*rshiftpos.y/absShift);
+      if(abs(rshiftpos.z>0.1*Dp)) rshiftpos.z=float(0.1*Dp*rshiftpos.z/absShift);
     }
 
     ShiftPosc[p]=rshiftpos; //particles in fluid bulk, normal shifting
@@ -1858,9 +1857,9 @@ void JSphCpu::RHSandLHSStorage(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsig
 			        //=====Divergence of velocity==========
 							const float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
 							
-			        const float temp_x=frx*dwxcorr[p1].x+fry*dwycorr[p1].x+frz*dwzcorr[p1].x;
-              const float temp_y=frx*dwxcorr[p1].y+fry*dwycorr[p1].y+frz*dwzcorr[p1].y;
-			        const float temp_z=frx*dwxcorr[p1].z+fry*dwycorr[p1].z+frz*dwzcorr[p1].z;
+			        const float temp_x=float(frx*dwxcorr[p1].x+fry*dwycorr[p1].x+frz*dwzcorr[p1].x);
+              const float temp_y=float(frx*dwxcorr[p1].y+fry*dwycorr[p1].y+frz*dwzcorr[p1].y);
+			        const float temp_z=float(frx*dwxcorr[p1].z+fry*dwycorr[p1].z+frz*dwzcorr[p1].z);
 			        float temp=dvx*temp_x+dvy*temp_y+dvz*temp_z;
 
 			        matrixb[oi]-=double(volume*temp);
@@ -2126,7 +2125,7 @@ void JSphCpu::PopulateMatrixABoundary(unsigned n,unsigned pinit,tint4 nc,int hdi
                 }
 
                 double dist = pos[p2k].z-pos[p2].z;
-			          temp = temp * RhopZero * fabs(Gravity.z) * dist;
+			          temp = temp * RhopZero * float(abs(Gravity.z) * dist);
 			          matrixb[oi]+=double(volume*temp); 
               }
 		        }  
@@ -2281,7 +2280,7 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
   for(int th=0;th<OmpThreads;th++)viscth[th*STRIDE_OMP]=0;
   //-Initial execution with OpenMP / Inicia ejecucion con OpenMP.
   const int pfin=int(pinit+n);
-  const float Wab1=GetKernelWab(Dp*Dp);
+  const float Wab1=GetKernelWab(float(Dp*Dp));
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif

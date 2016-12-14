@@ -584,7 +584,7 @@ IF EXIST cg_variables.h move cg_variables.h $(Configuration)\
       <SubSystem>Console</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>false</EnableCOMDATFolding>
-      <AdditionalDependencies>JWaveGen_$(PlatformName).lib;JFormatFiles2_$(PlatformName).lib;JSphMotion_$(PlatformName).lib;JXml_$(PlatformName).lib;cula_sparse.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>JWaveGen_$(PlatformName)_$(PlatformToolset)_Release.lib;JFormatFiles2_$(PlatformName)_$(PlatformToolset)_Release.lib;JSphMotion_$(PlatformName)_$(PlatformToolset)_Release.lib;JXml_$(PlatformName)_$(PlatformToolset)_Release.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>IF EXIST cg_variables.h move cg_variables.h $(Configuration)\</Command>

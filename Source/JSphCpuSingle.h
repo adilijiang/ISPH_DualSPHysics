@@ -51,7 +51,9 @@ protected:
     ,int &cxini,int &cxfin,int &yini,int &yfin,int &zini,int &zfin)const;
 
   void Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond);
-  double ComputeAceMax();
+
+  double ComputeAceMaxSeq(const bool checkcodenormal,unsigned np,const tfloat3* ace,const word* code)const;
+  double ComputeAceMaxOmp(const bool checkcodenormal,unsigned np,const tfloat3* ace,const word* code)const;
 
   double ComputeStep_Sym();
 
