@@ -206,7 +206,7 @@ void JPartsLoad4::LoadParticles(const std::string &casedir,const std::string &ca
         pd.Get_Idp(npok,Idp+ntot);  
         pd.Get_Vel(npok,auxf3);  
         pd.Get_Rhop(npok,auxf);  
-        for(unsigned p=0;p<npok;p++)VelRhop[ntot+p]=TFloat4(auxf3[p].x,auxf3[p].y,auxf3[p].z,auxf[p]);
+        for(unsigned p=0;p<npok;p++)VelRhop[ntot+p]=TFloat4(auxf3[p].x,auxf3[p].y,auxf3[p].z,0);
       }
       ntot+=npok;
     }

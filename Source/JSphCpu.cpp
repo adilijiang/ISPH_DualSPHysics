@@ -624,8 +624,16 @@ void JSphCpu::GetKernel(float rr2,float drx,float dry,float drz,float &frx,float
   const float rad=sqrt(rr2);
   const float qq=rad/H;
   //-Wendland kernel
-  const float wqq1=1.f-0.5f*qq;
-  const float fac=Bwen*qq*wqq1*wqq1*wqq1/rad;
+ /* const float wqq1=1.f-0.5f*qq;
+  const float fac=Bwen*qq*wqq1*wqq1*wqq1/rad;*/
+
+  //-Quintic Spline
+  float fac;
+  if(qq<1.0f)fac=Bwen*(-5.0f*powf(3.0f-qq,4.0f)+30.0f*powf(2.0f-qq,4.0f)-75.0f*powf(1.0f-qq,4.0f));
+  else if(qq<2.0f)fac=Bwen*(-5.0f*powf(3.0f-qq,4.0f)+30.0f*powf(2.0f-qq,4.0f));
+  else if(qq<3.0f)fac=Bwen*(-5.0f*powf(3.0f-qq,4.0f));
+  else fac=0;
+  fac=fac/rad;
 
   frx=fac*drx; fry=fac*dry; frz=fac*drz;
 }
@@ -637,11 +645,20 @@ void JSphCpu::GetKernel(float rr2,float drx,float dry,float drz,float &frx,float
 float JSphCpu::GetKernelWab(float rr2)const{
   const float qq=sqrt(rr2)/H;
   //-Wendland kernel.
-  const float wqq=2.f*qq+1.f;
+  /*const float wqq=2.f*qq+1.f;
   const float wqq1=1.f-0.5f*qq;
 
   const float wqq2=wqq1*wqq1;
-  return(Awen*wqq*wqq2*wqq2);
+  return(Awen*wqq*wqq2*wqq2);*/
+
+  //-Quintic Spline
+  float wab;
+ 
+  if(qq<1.0f)wab=Awen*(powf(3.0f-qq,5.0f)-6.0f*powf(2.0f-qq,5.0f)+15.0f*powf(1.0f-qq,5.0f));
+  else if(qq<2.0f)wab=Awen*(powf(3.0f-qq,5.0f)-6.0f*powf(2.0f-qq,5.0f));
+  else if(qq<3.0f)wab=Awen*(powf(3.0f-qq,5.0f));
+  else wab=0;
+  return(wab);
 }
 
 //==============================================================================
@@ -1345,9 +1362,9 @@ void JSphCpu::RunShifting(double dt){
   for(int p=pini;p<pfin;p++){
     tfloat3 rshiftpos=ShiftPosc[p];
     float divrp1=Divr[p];
-    double umagn=-double(ShiftCoef)*double(H)*double(H);
+    double umagn=double(ShiftCoef)*double(H)*double(H);
 
- 	  tfloat3 norm=TFloat3(-rshiftpos.x,-rshiftpos.y,-rshiftpos.z);
+ 	  tfloat3 norm=TFloat3(rshiftpos.x,rshiftpos.y,rshiftpos.z);
 	  tfloat3 tang=TFloat3(0);
 	  tfloat3 bitang=TFloat3(0);
 
@@ -1394,7 +1411,7 @@ void JSphCpu::RunShifting(double dt){
       rshiftpos.z=dcds*tang.z;//+dcdb*bitang.z;
     }
     else if(divrp1>=FreeSurface && divrp1<=FreeSurface+ShiftOffset){ 
-      double FactorShift=0.5*(1-cos(PI*double(divrp1-FreeSurface)/0.2));
+      double FactorShift=0.5*(1.0-cos(PI*double(divrp1-FreeSurface)/ShiftOffset));
       rshiftpos.x=float(dcds*tang.x/*+dcdb*bitang.x*/+dcdn*norm.x*FactorShift);
       rshiftpos.y=float(dcds*tang.y/*+dcdb*bitang.y*/+dcdn*norm.y*FactorShift);
       rshiftpos.z=float(dcds*tang.z/*+dcdb*bitang.z*/+dcdn*norm.z*FactorShift);
@@ -1855,14 +1872,17 @@ void JSphCpu::RHSandLHSStorage(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsig
 			        const float volume=massp2/RhopZero; //Volume of particle j
 
 			        //=====Divergence of velocity==========
-							const float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
+              float dvx,dvy,dvz,temp;
+              if(!(p1<int(Npb)&&p2<int(Npb))){
+							  dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
 							
-			        const float temp_x=float(frx*dwxcorr[p1].x+fry*dwycorr[p1].x+frz*dwzcorr[p1].x);
-              const float temp_y=float(frx*dwxcorr[p1].y+fry*dwycorr[p1].y+frz*dwzcorr[p1].y);
-			        const float temp_z=float(frx*dwxcorr[p1].z+fry*dwycorr[p1].z+frz*dwzcorr[p1].z);
-			        float temp=dvx*temp_x+dvy*temp_y+dvz*temp_z;
-
-			        matrixb[oi]-=double(volume*temp);
+			          const float temp_x=float(frx*dwxcorr[p1].x+fry*dwycorr[p1].x+frz*dwzcorr[p1].x);
+                const float temp_y=float(frx*dwxcorr[p1].y+fry*dwycorr[p1].y+frz*dwzcorr[p1].y);
+			          const float temp_z=float(frx*dwxcorr[p1].z+fry*dwycorr[p1].z+frz*dwzcorr[p1].z);
+			          temp=dvx*temp_x+dvy*temp_y+dvz*temp_z;
+                matrixb[oi]-=double(volume*temp);
+              }
+			        
 							numOfInteractions++;
 		        }
 		      }
@@ -2280,12 +2300,12 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
   for(int th=0;th<OmpThreads;th++)viscth[th*STRIDE_OMP]=0;
   //-Initial execution with OpenMP / Inicia ejecucion con OpenMP.
   const int pfin=int(pinit+n);
-  const float Wab1=GetKernelWab(float(Dp*Dp));
+  
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
   for(int p1=int(pinit);p1<pfin;p1++){
-   
+    
     tfloat3 shiftposp1=TFloat3(0);
     float divrp1=0;
 
@@ -2343,12 +2363,13 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
             //-Shifting correction
             //if(shiftposp1.x!=FLT_MAX){
               const float massrhop=massp2/RhopZero;
-              const float tensile=tensileN*powf(GetKernelWab(rr2)/Wab1,tensileR);
+              const float Wab1=GetKernelWab(float(Dp*Dp));
+              const float tensile=tensileN*powf((GetKernelWab(rr2)/Wab1),tensileR);
              
               //const bool noshift=(boundp2 && (tshifting==SHIFT_NoBound || (tshifting==SHIFT_NoFixed && CODE_GetType(code[p2])==CODE_TYPE_FIXED)));
-              shiftposp1.x+=massrhop*(1.0f+tensile)*frx; //-For boundary do not use shifting / Con boundary anula shifting.
-              shiftposp1.y+=massrhop*(1.0f+tensile)*fry;
-              shiftposp1.z+=massrhop*(1.0f+tensile)*frz;
+              shiftposp1.x-=massrhop*(1.0f+tensile)*frx; //-For boundary do not use shifting / Con boundary anula shifting.
+              shiftposp1.y-=massrhop*(1.0f+tensile)*fry;
+              shiftposp1.z-=massrhop*(1.0f+tensile)*frz;
               divrp1-=massrhop*(drx*frx+dry*fry+drz*frz);
             //}
           }

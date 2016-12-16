@@ -780,10 +780,11 @@ void JSph::ConfigConstants(bool simulate2d){
   Cs0=sqrt(double(Gamma)*double(CteB)/double(RhopZero));
   if(!DtIni)DtIni=h/Cs0;
   if(!DtMin)DtMin=(h/Cs0)*CoefDtMin; 
-  Dosh=float(h*2); 
-  H2=float(h*h);
-  Fourh2=float(h*h*4.0f); 
   Eta2=float((h*1.0e-5)*(h*1.0e-5));
+  H2=float(h*h);
+  //WENDLAND KERNEL
+  /*Dosh=float(h*2); 
+  Fourh2=float(h*h*4.0f); 
   if(simulate2d){
     Awen=float(7.0/(4.0*PI*h*h)); 
     Bwen=-float(35.0/(4.0*PI*h*h*h));
@@ -791,7 +792,16 @@ void JSph::ConfigConstants(bool simulate2d){
   else{
     Awen=float(0.41778/(h*h*h));
     Bwen=-float(2.08891/(h*h*h*h));
+  }*/
+  //QUINTIC SPLINE
+  Dosh=float(h*3); 
+  Fourh2=float(h*h*9.0f); 
+  if(simulate2d){
+    Awen=float(7.0/(478.0*PI*h*h)); 
+    Bwen=float(7.0/(478.0*PI*h*h*h));
   }
+  else RunException(met,"Cannot Run Quintic 3D");
+
   VisuConfig();
 }
 

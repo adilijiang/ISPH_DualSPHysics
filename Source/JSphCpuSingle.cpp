@@ -569,9 +569,9 @@ double JSphCpuSingle::ComputeAceMaxOmp(const bool checkcodenormal,unsigned np,co
 /// Perform interactions and updates of particles according to forces 
 /// calculated in the interaction using Symplectic.
 //==============================================================================
+#include <iomanip>
 double JSphCpuSingle::ComputeStep_Sym(){
   const double dt=DtPre;
-
   //-Predictor
   //-----------
   PreInteraction_Forces(INTER_Forces);

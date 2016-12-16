@@ -127,9 +127,6 @@
     <ClInclude Include="Source\JPartOutBi4Save.h">
       <Filter>Common</Filter>
     </ClInclude>
-    <ClInclude Include="Source\JPartsLoad4.h">
-      <Filter>Source\Single</Filter>
-    </ClInclude>
     <ClInclude Include="Source\JRangeFilter.h">
       <Filter>Common</Filter>
     </ClInclude>
@@ -177,6 +174,9 @@
     </ClInclude>
     <ClInclude Include="Source\JReadDatafile.h">
       <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\JPartsLoad4.h">
+      <Filter>Source</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -255,9 +255,6 @@
     <ClCompile Include="Source\JPartOutBi4Save.cpp">
       <Filter>Common</Filter>
     </ClCompile>
-    <ClCompile Include="Source\JPartsLoad4.cpp">
-      <Filter>Source\Single</Filter>
-    </ClCompile>
     <ClCompile Include="Source\JRangeFilter.cpp">
       <Filter>Common</Filter>
     </ClCompile>
@@ -299,6 +296,9 @@
     </ClCompile>
     <ClCompile Include="Source\JReadDatafile.cpp">
       <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\JPartsLoad4.cpp">
+      <Filter>Source</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
