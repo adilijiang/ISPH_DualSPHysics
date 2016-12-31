@@ -26,6 +26,7 @@
 class JPartsOut;
 class JArraysGpu;
 class JCellDivGpu;
+class JBlockSizeAuto;
 
 class JSphGpu : public JSph
 {
@@ -36,21 +37,15 @@ public:
   typedef struct {
     unsigned forcesfluid;
     unsigned forcesbound;
-    unsigned forcessps;
     unsigned forcesdem;
-    unsigned forcesfluid_zoleft;
-    unsigned forcesfluidcorr_zoleft;
-    unsigned forcesbound_zoleft;
-    unsigned forcesfluid_zoright;
-    unsigned forcesfluidcorr_zoright;
-    unsigned forcesbound_zoright;
   }StBlockSizes;
 
 protected:
-  std::string PtxasFile;      ///<ES: Fichero con informacion de ptxas. EN: File with register information for optimising the code
-  StBlockSizes BlockSizes;    ///<ES: Almacena configuracion de BlockSizes. EN: Stores configuration of BlockSizes
-  std::string BlockSizesStr;  ///<ES: Almacena configuracion de BlockSizes en texto. EN: Stores configuration of BlockSizes in text form
-
+  StBlockSizes BlockSizes;        ///<Almacena configuracion de BlockSizes. Stores configuration of BlockSizes
+  std::string BlockSizesStr;      ///<Almacena configuracion de BlockSizes en texto. Stores configuration of BlockSizes in text form
+  TpBlockSizeMode BlockSizeMode;  ///<Modes for BlockSize selection.
+  JBlockSizeAuto *BsAuto;         ///<Object to calculate the optimum BlockSize for particle interactions.
+  
   //-Vars. con informacion del hardware GPU.
   //-Variables with information for the GPU hardware
   int GpuSelect;          ///<ES: Gpu seleccionada (-1:sin seleccion). EN: GPU Selection (-1:no selection)
@@ -193,8 +188,6 @@ protected:
   unsigned ParticlesDataDown(unsigned n,unsigned pini,bool code,bool cellorderdecode,bool onlynormal);
   
   void SelecDevice(int gpuid);
-  static unsigned OptimizeBlockSize(unsigned compute,unsigned nreg);
-  unsigned BlockSizeConfig(const std::string& opname,unsigned compute,tuint2 data);
   void ConfigBlockSizes(bool usezone,bool useperi);
 
   void ConfigRunMode(std::string preinfo);
@@ -202,7 +195,7 @@ protected:
   void InitFloating();
   void InitRun();
 
-  void AddVarAcc();
+  void AddAccInput();
 
   void PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb);
   void PreInteraction_Forces(TpInter tinter,double dt);

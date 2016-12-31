@@ -21,17 +21,22 @@
 #include "Types.h"
 #include "JSphTimersGpu.h"
 #include <cuda_runtime_api.h>
+
 class JLog2;
+class JBlockSizeAuto;
 
 #define SPHBSIZE 256
 
 typedef struct{
   unsigned nbound;
-  float massb,massf;
-  float fourh2,h;
-  float awen,bwen;
-  float cs0,eta2;
-  float delta2h;     //delta2h=DeltaSph*H*2
+  float massb;              ///<Mass of a boundary particle.
+  float massf;              ///<Mass of a fluid particle.
+  float h;                  ///<Smoothing length (=coef*sqrt(dx*dx+dy*dy+dz*dz))
+  float fourh2;             ///< \ref h * \ref h * 4 
+  float awen,bwen;          ///<Ctes of Wendland kernel.
+  float cs0;                ///<Speed of sound of reference.
+  float eta2;               ///<eta*eta being eta=0.1*\ref h
+  float delta2h;            ///<delta2h=DeltaSph*H*2
   float scell,dosh,dp;
   float cteb,gamma;
   float rhopzero;    //rhopzero=RhopZero
@@ -49,6 +54,20 @@ typedef struct{
   double domposminx,domposminy,domposminz;
 }StCteInteraction; 
 
+///Structure to collect kernel information.
+typedef struct{
+  int forcesbound_rg;
+  int forcesbound_bs;
+  int forcesbound_bsmax;
+  int forcesfluid_rg;
+  int forcesfluid_bs;
+  int forcesfluid_bsmax;
+  int forcesdem_rg;
+  int forcesdem_bs;
+  int forcesdem_bsmax;
+}StKerInfo; 
+
+/// Implements a set of functions and CUDA kernels for the particle interaction and system update.
 namespace cusph{
 
 inline float3 Float3(const tfloat3& v){ float3 p={v.x,v.y,v.z}; return(p); }
@@ -81,7 +100,7 @@ void Interaction_Forces(bool floating,bool usedem,TpSlipCond tslipcond,TpCellMod
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg
-  ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,int *irelationg,float *divr,const double3 *mirror);
+  ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,int *irelationg,float *divr,const double3 *mirror,StKerInfo *kerinfo,JBlockSizeAuto *bsauto);
 
 //# Kernels para calculo de fuerzas DEM
 //# for the calculation of the DEM forces
@@ -89,7 +108,7 @@ void Interaction_ForcesDem(bool psimple,TpCellMode cellmode,unsigned bsize
   ,unsigned nfloat,tuint3 ncells,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const unsigned *ftridp,const float4 *demdata,float dtforce
   ,const double2 *posxy,const double *posz,const float4 *pospress,const float4 *velrhop
-  ,const word *code,const unsigned *idp,float *viscdt,float3 *ace);
+  ,const word *code,const unsigned *idp,float *viscdt,float3 *acez);
 
 //# Kernels para Delta-SPH
 //# Kernels for Delta-SPH
@@ -139,9 +158,9 @@ void PeriodicDuplicateSymplectic(unsigned n,unsigned pini
   ,tuint3 domcells,tdouble3 perinc,const unsigned *listp,unsigned *idp,word *code,unsigned *dcell
   ,double2 *posxy,double *posz,float4 *velrhop,tsymatrix3f *spstau,double2 *posxypre,double *poszpre,float4 *velrhoppre);
 
-//# Kernels para external forces (JSphVarAcc)
-//# Kernels for external forces (JSphVarAcc)
-void AddVarAcc(unsigned n,unsigned pini,word codesel
+//# Kernels para external forces (JSphAccInput)
+//# Kernels for external forces (JSphAccInput)
+void AddAccInput(unsigned n,unsigned pini,word codesel
   ,tdouble3 acclin,tdouble3 accang,tdouble3 centre,tdouble3 velang,tdouble3 vellin,bool setgravity
   ,tfloat3 gravity,const word *code,const double2 *posxy,const double *posz,const float4 *velrhop,float3 *ace);
 

@@ -1831,7 +1831,7 @@ void JSphCpu::RHSandLHSStorage(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsig
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
 
-  #ifdef _WITHOMP
+ #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
   for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])!=2){
@@ -1841,7 +1841,6 @@ void JSphCpu::RHSandLHSStorage(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsig
 		unsigned numOfInteractions=0;
 	  //-Particle order in Matrix
 	  unsigned oi = porder[p1];
-
     if(divr[p1]>freesurface){
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;

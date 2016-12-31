@@ -312,7 +312,7 @@ void JSph::LoadConfig(const JCfgRun *cfg){
   }
 
   LoadCaseConfig();
-
+	std::cout<<"12hello\n";
   //-Aplies configuration using command line.
   if(cfg->PosDouble==0){      SvDouble=false; }
   else if(cfg->PosDouble==1){ SvDouble=false; }

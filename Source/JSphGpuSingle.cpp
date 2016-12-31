@@ -24,11 +24,10 @@
 #include "JPartsLoad4.h"
 #include "JSphVisco.h"
 #include "JWaveGen.h"
+#include "JTimeOut.h"
 #include "JSphGpu_ker.h"
-#include "JPtxasInfo.h"
-#include <time.h>
 
-#include <iostream>
+#include "JBlockSizeAuto.h"
 
 using namespace std;
 //==============================================================================
@@ -113,10 +112,10 @@ void JSphGpuSingle::UpdateMaxValues(){
 //==============================================================================
 void JSphGpuSingle::LoadConfig(JCfgRun *cfg){
   const char met[]="LoadConfig";
-  PtxasFile=cfg->PtxasFile;
   //-Carga configuracion basica general
   //-Loads general configuration
   JSph::LoadConfig(cfg);
+	BlockSizeMode=cfg->BlockSizeMode;
   //-Checks compatibility of selected options.
   Log->Print("**Special case configuration is loaded");
 }
@@ -134,7 +133,7 @@ void JSphGpuSingle::LoadCaseParticles(){
   //-Recupera informacion de las particulas cargadas.
   //-Retrieves information of the loaded particles
   Simulate2D=PartsLoaded->GetSimulate2D();
-  if(Simulate2D&&PeriY)RunException("LoadCaseParticles","Can not use periodic conditions in Y with 2D simulations");
+  if(Simulate2D&&PeriY)RunException("LoadCaseParticles","Cannot use periodic conditions in Y with 2D simulations");
   CasePosMin=PartsLoaded->GetCasePosMin();
   CasePosMax=PartsLoaded->GetCasePosMax();
 
@@ -195,7 +194,7 @@ void JSphGpuSingle::ConfigDomain(){
 
   //-Calcula radio de floatings.
   //-Computes radius of floating bodies.
-  if(CaseNfloat && PeriActive!=0)CalcFloatingRadius(Np,AuxPos,Idp);
+  if(CaseNfloat && PeriActive!=0 && !PartBegin)CalcFloatingRadius(Np,AuxPos,Idp);
 
   //-Carga code de particulas.
   //-Loads Code of the particles.
@@ -212,11 +211,11 @@ void JSphGpuSingle::ConfigDomain(){
   ConfigCellDivision();
   //-Establece dominio de simulacion local dentro de Map_Cells y calcula DomCellCode.
   //-Sets local domain of the simulation within Map_Cells and computes DomCellCode.
+	
   SelecDomain(TUint3(0,0,0),Map_Cells);
   //-Calcula celda inicial de particulas y comprueba si hay excluidas inesperadas.
   //-Computes inital cell of the particles and checks if there are unexpected excluded particles
   LoadDcellParticles(Np,Code,AuxPos,Dcell);
-
   //-Sube datos de particulas a la GPU.
   //-Uploads particle data on the GPU.
   ReserveBasicArraysGpu();
@@ -225,16 +224,14 @@ void JSphGpuSingle::ConfigDomain(){
   //-Sube constantes a la GPU.
   //-Uploads constants on the GPU.
   ConstantDataUp();
-
   //-Crea objeto para divide en Gpu y selecciona un cellmode valido.
   //-Creates object for Celldiv on the GPU and selects a valid cellmode.
   CellDivSingle=new JCellDivGpuSingle(Stable,FtCount!=0,PeriActive,CellOrder,CellMode,Scell,Map_PosMin,Map_PosMax,Map_Cells,CaseNbound,CaseNfixed,CaseNpb,Log,DirOut);
   CellDivSingle->DefineDomain(DomCellCode,DomCelIni,DomCelFin,DomPosMin,DomPosMax);
   ConfigCellDiv((JCellDivGpu*)CellDivSingle);
-
   ConfigBlockSizes(false,PeriActive!=0);
   ConfigSaveData(0,1,"");
-
+	
   //-Reordena particulas por celda.
   //-Reorders particles according to cells
   BoundChanged=true;
@@ -276,7 +273,7 @@ void JSphGpuSingle::ResizeParticlesSize(unsigned newsize,float oversize,bool upd
 /// for boundaries and then the NpfPer for the fluids. The Np output also contains 
 /// the new periodic particles.
 //==============================================================================
-/*void JSphGpuSingle::RunPeriodic(){
+void JSphGpuSingle::RunPeriodic(){
   const char met[]="RunPeriodic";
   TmgStart(Timers,TMG_SuPeriodic);
   //-Guarda numero de periodicas actuales.
@@ -334,7 +331,7 @@ void JSphGpuSingle::ResizeParticlesSize(unsigned newsize,float oversize,bool upd
 			//-Create new periodic particles duplicating the particles from the list
             if(TStep==STEP_Symplectic){
               if((PosxyPreg || PoszPreg || VelrhopPreg) && (!PosxyPreg || !PoszPreg || !VelrhopPreg))RunException(met,"Symplectic data is invalid.") ;
-              cusph::PeriodicDuplicateSymplectic(count,Np,DomCells,perinc,listpg,Idpg,Codeg,Dcellg,Posxyg,Poszg,Velrhopg,SpsTaug,PosxyPreg,PoszPreg,VelrhopPreg);
+//              cusph::PeriodicDuplicateSymplectic(count,Np,DomCells,perinc,listpg,Idpg,Codeg,Dcellg,Posxyg,Poszg,Velrhopg,SpsTaug,PosxyPreg,PoszPreg,VelrhopPreg);
             }
             //-Libera lista y actualiza numero de particulas.
 			//-Releases memory and updates the particle number.
@@ -351,7 +348,7 @@ void JSphGpuSingle::ResizeParticlesSize(unsigned newsize,float oversize,bool upd
   }
   TmgStop(Timers,TMG_SuPeriodic);
   CheckCudaError(met,"Failed in creation of periodic particles.");
-}*/
+}
 
 //==============================================================================
 /// Ejecuta divide de particulas en celdas.
@@ -439,8 +436,7 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
 		cudaMemcpy(counterCPU,counterGPU,sizeof(unsigned),cudaMemcpyDeviceToHost);
 		PPEDim = counterCPU[0];
 	}
-
-  cusph::Interaction_Forces(WithFloating,UseDEM,TSlipCond,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,POrderg,counterGPU,Irelationg,Divrg,MirrorPosg);	
+  cusph::Interaction_Forces(WithFloating,UseDEM,TSlipCond,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,POrderg,counterGPU,Irelationg,Divrg,MirrorPosg,NULL,NULL);	
 	if(TSlipCond&&tinter==1)cudaMemcpy(Velrhopg,VelrhopPreg,sizeof(float4)*Npb,cudaMemcpyDeviceToDevice);
   //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
   //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
@@ -549,10 +545,6 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   //-------------------
   TmgCreation(Timers,cfg->SvTimers);
   TmgStart(Timers,TMG_Init);
-  if(cfg->SvTimersStep>0){
-    TimersStep=new JTimersStep(cfg->DirOut,cfg->SvTimersStep,0,0);
-    for(unsigned ct=0;ct<TimerGetCount();ct++)if(TimerIsActive(ct))TimersStep->AddTimer(TimerGetName(ct),TimerGetPtrValue(ct));
-  }
 
   //-Carga de parametros y datos de entrada
   //-Loads parameters and input data
@@ -584,14 +576,13 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   PrintHeadPart();
 	FindIrelation();
   while(TimeStep<TimeMax){
-    clock_t start = clock(); 
 		if(CaseNmoving)RunMotion(DtPre);
     double stepdt=ComputeStep_Sym();
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
     TimeStep+=stepdt;
     partoutstop=(Np<NpMinimum || !Np);
-    if((TimeStep-TimeStepIni)-TimePart*((Part-PartIni)-1)>=TimePart || partoutstop){
-      if(partoutstop){
+    if(TimeStep>=TimePartNext || partoutstop){ 
+			if(partoutstop){
         Log->Print("\n**** Particles OUT limit reached...\n");
         TimeMax=TimeStep;
       }
@@ -599,15 +590,12 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
       Part++;
       PartNstep=Nstep;
       TimeStepM1=TimeStep;
+			TimePartNext=TimeOut->GetNextTime(TimeStep);
       TimerPart.Start();
     }
     UpdateMaxValues();
     Nstep++;
-    if(TimersStep&&TimersStep->Check(float(TimeStep)))SaveTimersStep(Np,Npb,NpbOk,CellDivSingle->GetNct());
-    //if(Nstep>=1)break;
-    clock_t stop = clock();   
-    double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
-    cout<<"Timestep Time = " << dif << "ms\n";
+    //if(Nstep>=2)break;
   }
   TimerSim.Stop(); TimerTot.Stop();
 
@@ -714,9 +702,6 @@ void JSphGpuSingle::SaveData(){
   //-Stores particle data.
   const tdouble3 vdom[2]={OrderDecode(CellDivSingle->GetDomainLimits(true)),OrderDecode(CellDivSingle->GetDomainLimits(false))};
   JSph::SaveData(npsave,Idp,AuxPos,AuxVel,AuxRhop,1,vdom,&infoplus);
-  //-Graba informacion de ejecucion.
-  //-Stores information of the execution.
-  if(TimersStep)TimersStep->SaveData();
   TmgStop(Timers,TMG_SuSavePart);
 }
 
@@ -726,7 +711,6 @@ void JSphGpuSingle::SaveData(){
 //==============================================================================
 void JSphGpuSingle::FinishRun(bool stop){
   float tsim=TimerSim.GetElapsedTimeF()/1000.f,ttot=TimerTot.GetElapsedTimeF()/1000.f;
-  if(TimersStep)TimersStep->SaveData();
   JSph::ShowResume(stop,tsim,ttot,true,"");
   string hinfo=";RunMode",dinfo=string(";")+RunMode;
   if(SvTimers){
@@ -804,14 +788,19 @@ void JSphGpuSingle::SolvePPE(double dt){
   X=ArraysGpu->ReserveDouble(); cudaMemset(X,0,sizeof(double)*np);
   rowInd=ArraysGpu->ReserveUint(); cudaMemset(rowInd,0,sizeof(unsigned int)*(PPEDim+1));
   cusph::RHSandLHSStorage(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,b,POrderg,Idpg,dt,PPEDim,Divrg,Codeg,FreeSurface,rowInd);
+
+	CheckCudaError(met,"RHSLHSStorage");
   TmgStart(Timers,TMG_Nnz);
   unsigned Nnz=MatrixASetup(PPEDim,rowInd);
+	if(Nnz>Np*45) RunException(met,fun::PrintStr("Nnz exceeded memory of 'a', adjust matrix size"));
+	CheckCudaError(met,"Nnz");
   TmgStop(Timers,TMG_Nnz);
   cudaMemset(a,0,sizeof(double)*Nnz);
   cusph::InitArrayCol(Nnz,colInd,int(PPEDim));
   cusph::PopulateMatrixA(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velrhopg,a,b,rowInd,colInd,POrderg,Idpg,PPEDim,Divrg,Codeg,Irelationg,FreeSurface);
+	CheckCudaError(met,"Matrix Setup");
   cusph::FreeSurfaceMark(bsbound,bsfluid,np,npb,npbok,Divrg,a,b,rowInd,POrderg,Codeg,PI,FreeSurface);
-  CheckCudaError(met,"Matrix Setup");
+  CheckCudaError(met,"FreeSurfaceMark");
   TmgStop(Timers,TMG_SetupPPE);
 
   TmgStart(Timers,TMG_SolvePPE);

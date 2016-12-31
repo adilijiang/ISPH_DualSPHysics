@@ -934,7 +934,9 @@ void JSphCpuSingle::SolvePPE(double dt){
   RHSandLHSStorage(npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface,rowInd); //-Bound-Bound
   
   unsigned Nnz=0;
-  MatrixASetup(PPEDim,Nnz,rowInd); 
+
+	MatrixASetup(PPEDim,Nnz,rowInd); 
+	
   colInd.resize(Nnz,PPEDim); 
   a.resize(Nnz,0);
   //LHS
@@ -944,7 +946,7 @@ void JSphCpuSingle::SolvePPE(double dt){
   FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim,ShiftOffset);
   //allocate vectors
   x.resize(PPEDim,0);
-
+	std::cout<<Nnz<<"\t"<<PPEDim<<"\n";
   //solvers
 #ifndef _WITHGPU
   solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,b,x,rowInd,colInd,PPEDim,Nnz); 
@@ -977,10 +979,10 @@ void JSphCpuSingle::RunShifting(double dt){
 
   #ifdef _WITHOMP
       #pragma omp parallel for schedule (static)
-    #endif
-    for(int i=0;i<int(Np);i++){
-      PosPrec[i]=Posc[i];
-      VelrhopPrec[i]=Velrhopc[i];
+	#endif
+  for(int i=0;i<int(Np);i++){
+		PosPrec[i]=Posc[i];
+		VelrhopPrec[i]=Velrhopc[i];
   }
 
   RunCellDivide(true);

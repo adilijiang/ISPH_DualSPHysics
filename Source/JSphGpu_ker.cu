@@ -16,14 +16,17 @@
 */
 
 #include "JSphGpu_ker.h"
-#include <float.h>
+#include "JBlockSizeAuto.h"
 #include "JLog2.h"
+#include <cfloat>
 #include <math_constants.h>
 //#include "JDgKerPrint.h"
 //#include "JDgKerPrint_ker.h"
 
 #pragma warning(disable : 4267) //Cancels "warning C4267: conversion from 'size_t' to 'int', possible loss of data"
 #pragma warning(disable : 4244) //Cancels "warning C4244: conversion from 'unsigned __int64' to 'unsigned int', possible loss of data"
+#pragma warning(disable : 4503) //Cancels "warning C4503: decorated name length exceeded, name was truncated"
+#include <cuda_runtime.h>
 #include <thrust/device_vector.h>
 #include <thrust/sort.h>
 
@@ -120,25 +123,33 @@ template <unsigned blockSize> __global__ void KerReduMaxFloat(unsigned n,unsigne
 /// Size of resu[] must be >= a (N/SPHBSIZE+1)+(N/(SPHBSIZE*SPHBSIZE)+SPHBSIZE)
 //==============================================================================
 float ReduMaxFloat(unsigned ndata,unsigned inidata,float* data,float* resu){
-  unsigned n=ndata,ini=inidata;
-  unsigned smemSize=SPHBSIZE*sizeof(float);
-  dim3 sgrid=GetGridSize(n,SPHBSIZE);
-  unsigned n_blocks=sgrid.x*sgrid.y;
-  float *dat=data;
-  float *resu1=resu,*resu2=resu+n_blocks;
-  float *res=resu1;
-  while(n>1){
-    KerReduMaxFloat<SPHBSIZE><<<sgrid,SPHBSIZE,smemSize>>>(n,ini,dat,res);
-    n=n_blocks; ini=0;
-    sgrid=GetGridSize(n,SPHBSIZE);  
-    n_blocks=sgrid.x*sgrid.y;
-    if(n>1){
-      dat=res; res=(dat==resu1? resu2: resu1); 
+	float resf;
+  if(1){
+    unsigned n=ndata,ini=inidata;
+    unsigned smemSize=SPHBSIZE*sizeof(float);
+    dim3 sgrid=GetGridSize(n,SPHBSIZE);
+    unsigned n_blocks=sgrid.x*sgrid.y;
+    float *dat=data;
+    float *resu1=resu,*resu2=resu+n_blocks;
+    float *res=resu1;
+    while(n>1){
+      KerReduMaxFloat<SPHBSIZE><<<sgrid,SPHBSIZE,smemSize>>>(n,ini,dat,res);
+      n=n_blocks; ini=0;
+      sgrid=GetGridSize(n,SPHBSIZE);  
+      n_blocks=sgrid.x*sgrid.y;
+      if(n>1){
+        dat=res; res=(dat==resu1? resu2: resu1); 
+      }
     }
+	  
+		if(ndata>1)cudaMemcpy(&resf,res,sizeof(float),cudaMemcpyDeviceToHost);
+		else cudaMemcpy(&resf,data,sizeof(float),cudaMemcpyDeviceToHost);
   }
-  float resf;
-  if(ndata>1)cudaMemcpy(&resf,res,sizeof(float),cudaMemcpyDeviceToHost);
-  else cudaMemcpy(&resf,data,sizeof(float),cudaMemcpyDeviceToHost);
+
+	//else{//-Using Thrust library is slower than ReduMasFloat() with ndata < 5M.
+  //  thrust::device_ptr<float> dev_ptr(data);
+  //  resf=thrust::reduce(dev_ptr,dev_ptr+ndata,-FLT_MAX,thrust::maximum<float>());
+  //}
   return(resf);
 }
 
@@ -410,11 +421,21 @@ __device__ void KerGetKernel(float rr2,float drx,float dry,float drz
 {
   const float rad=sqrt(rr2);
   const float qq=rad/CTE.h;
-  
+  const float Bwen=CTE.bwen;
   //-Wendland kernel.
-  const float wqq1=1.f-0.5f*qq;
-  const float fac=CTE.bwen*qq*wqq1*wqq1*wqq1/rad;
+  /*const float wqq1=1.f-0.5f*qq;
+  const float fac=CTE.bwen*qq*wqq1*wqq1*wqq1/rad;*/
+
+	//-Quintic Spline
+  float fac;
+  if(qq<1.0f)fac=Bwen*(-5.0f*powf(3.0f-qq,4.0f)+30.0f*powf(2.0f-qq,4.0f)-75.0f*powf(1.0f-qq,4.0f));
+  else if(qq<2.0f)fac=Bwen*(-5.0f*powf(3.0f-qq,4.0f)+30.0f*powf(2.0f-qq,4.0f));
+  else if(qq<3.0f)fac=Bwen*(-5.0f*powf(3.0f-qq,4.0f));
+  else fac=0;
+  fac=fac/rad;
+
   frx=fac*drx; fry=fac*dry; frz=fac*drz;
+
 }
 
 //------------------------------------------------------------------------------
@@ -425,13 +446,22 @@ __device__ float KerGetKernelWab(float rr2)
 {
   const float rad=sqrt(rr2);
   const float qq=rad/CTE.h;
-
+	const float Awen=CTE.awen;
   //-Wendland kernel.
-  const float wqq=2.f*qq+1.f;
+  /*const float wqq=2.f*qq+1.f;
   const float wqq1=1.f-0.5f*qq;
   const float wqq2=wqq1*wqq1;
 
-  return(CTE.awen*wqq*wqq2*wqq2);
+  return(CTE.awen*wqq*wqq2*wqq2);*/
+
+	//-Quintic Spline
+  float wab;
+ 
+  if(qq<1.0f)wab=Awen*(powf(3.0f-qq,5.0f)-6.0f*powf(2.0f-qq,5.0f)+15.0f*powf(1.0f-qq,5.0f));
+  else if(qq<2.0f)wab=Awen*(powf(3.0f-qq,5.0f)-6.0f*powf(2.0f-qq,5.0f));
+  else if(qq<3.0f)wab=Awen*(powf(3.0f-qq,5.0f));
+  else wab=0;
+  return(wab);
 }
 
 
@@ -747,7 +777,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
 			}
 
 			if(divrp1) divr[p1]=divrp1;
-			if(idp[p1]==79728)divr[p1]=-1;
+			if(idp[p1]==9408)divr[p1]=-1;
 			if(dwxp1.x||dwxp1.y||dwxp1.z
 				||dwyp1.x||dwyp1.y||dwyp1.z
 				||dwzp1.x||dwzp1.y||dwzp1.z){
@@ -982,6 +1012,40 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesFluid
 }
 
 //==============================================================================
+/// Collects kernel information.
+//==============================================================================
+template<TpFtMode ftmode> void Interaction_ForcesT_KerInfo(StKerInfo *kerinfo)
+{
+	#if CUDART_VERSION >= 6050
+  {
+    typedef void (*fun_ptr)(TpInter,unsigned,unsigned,int,uint4,unsigned,float,float,const int2*,int3,const unsigned*,const float*,const double2*,const double*,const float4*,const word*,const unsigned*,double3*,double3*,double3*,float3*,float*);
+    fun_ptr ptr=&KerInteractionForcesFluid<ftmode>;
+    int qblocksize=0,mingridsize=0;
+    cudaOccupancyMaxPotentialBlockSize(&mingridsize,&qblocksize,(void*)ptr,0,0);
+    struct cudaFuncAttributes attr;
+    cudaFuncGetAttributes(&attr,(void*)ptr);
+    kerinfo->forcesfluid_bs=qblocksize;
+    kerinfo->forcesfluid_rg=attr.numRegs;
+    kerinfo->forcesfluid_bsmax=attr.maxThreadsPerBlock;
+    //printf(">> KerInteractionForcesFluid  blocksize:%u (%u)\n",qblocksize,0);
+  }
+  {
+    typedef void (*fun_ptr)(TpSlipCond,unsigned,int,uint4,const int2*,int3,const unsigned*,const float*,const double2*,const double*,float4*,const word*,const unsigned*,double3*,double3*,double3*,float*,const double3*,const int*);
+    fun_ptr ptr=&KerInteractionForcesBound<ftmode>;
+    int qblocksize=0,mingridsize=0;
+    cudaOccupancyMaxPotentialBlockSize(&mingridsize,&qblocksize,(void*)ptr,0,0);
+    struct cudaFuncAttributes attr;
+    cudaFuncGetAttributes(&attr,(void*)ptr);
+    kerinfo->forcesbound_bs=qblocksize;
+    kerinfo->forcesbound_rg=attr.numRegs;
+    kerinfo->forcesbound_bsmax=attr.maxThreadsPerBlock;
+    //printf(">> KerInteractionForcesBound  blocksize:%u (%u)\n",qblocksize,0);
+  }
+  CheckErrorCuda("Error collecting kernel information.");
+#endif
+}
+
+//==============================================================================
 /// Interaccion para el calculo de fuerzas.
 /// Interaction for the force computation.
 //==============================================================================
@@ -990,27 +1054,44 @@ template<TpFtMode ftmode> void Interaction_ForcesT
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg
-  ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,int *irelationg,float *divr,const double3 *mirror)
+  ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,int *irelationg,float *divr,const double3 *mirror,StKerInfo *kerinfo,JBlockSizeAuto *bsauto)
 {
-  const unsigned npf=np-npb;
-  const int hdiv=(cellmode==CELLMODE_H? 2: 1);
-  const uint4 nc=make_uint4(ncells.x,ncells.y,ncells.z,ncells.x*ncells.y);
-  const unsigned cellfluid=nc.w*nc.z+1;
-  const int3 cellzero=make_int3(cellmin.x,cellmin.y,cellmin.z);
+	if(kerinfo)Interaction_ForcesT_KerInfo<ftmode>(kerinfo);
+  //else if(bsauto)Interaction_ForcesT_BsAuto<psimple,tker,ftmode,lamsps,tdelta,shift>(cellmode,viscob,viscof,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,pospress,velrhop,code,idp,ftomassp,tau,gradvel,viscdt,ar,ace,delta,tshifting,shiftpos,shiftdetect,simulate2d,bsauto);
+  else{
+		//-Executes particle interactions.
+		const unsigned npf=np-npb;
+		const int hdiv=(cellmode==CELLMODE_H? 2: 1);
+		const uint4 nc=make_uint4(ncells.x,ncells.y,ncells.z,ncells.x*ncells.y);
+		const unsigned cellfluid=nc.w*nc.z+1;
+		const int3 cellzero=make_int3(cellmin.x,cellmin.y,cellmin.z);
+	
+		dim3 sgridb=GetGridSize(npbok,bsbound);
+		dim3 sgridf=GetGridSize(npf,bsfluid);
 
-	dim3 sgridb=GetGridSize(npbok,bsbound);
-	dim3 sgridf=GetGridSize(npf,bsfluid);
 
-	if(tinter==1){ 
-		KerMatrixOrderDummy <<<sgridb,bsbound>>> (np,npb,hdiv,nc,begincell,cellzero,dcell,code,idp,irelationg,porder);
-    KerInteractionForcesBound<ftmode> <<<sgridb,bsbound>>> (tslipcond,npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,divr,mirror,irelationg);
-  }
-  //-Interaccion Fluid-Fluid & Fluid-Bound
-  //-Interaction Fluid-Fluid & Fluid-Bound
-  if(npf){
-		if(tinter==1) KerMatrixOrderFluid <<<sgridf,bsfluid>>> (npf,npb,porder,counter);
-    KerInteractionForcesFluid<ftmode> <<<sgridf,bsfluid>>> (tinter,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ace,divr);
-  }
+		if(tinter==1){ 
+			KerMatrixOrderDummy <<<sgridb,bsbound>>> (np,npb,hdiv,nc,begincell,cellzero,dcell,code,idp,irelationg,porder);
+			KerInteractionForcesBound<ftmode> <<<sgridb,bsbound>>> (tslipcond,npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,divr,mirror,irelationg);
+		}
+		//-Interaccion Fluid-Fluid & Fluid-Bound
+		//-Interaction Fluid-Fluid & Fluid-Bound
+		if(npf){
+			if(tinter==1) KerMatrixOrderFluid <<<sgridf,bsfluid>>> (npf,npb,porder,counter);
+			KerInteractionForcesFluid<ftmode> <<<sgridf,bsfluid>>> (tinter,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ace,divr);
+		}
+		
+		if(tinter==1){
+			if(simulate2d){
+				KerInverseKernelCor2D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwzcorrg,code);
+				KerInverseKernelCor2D <<<sgridb,bsbound>>> (npbok,0,dwxcorrg,dwzcorrg,code);
+			}
+			else{
+				KerInverseKernelCor3D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwycorrg,dwzcorrg,code);
+				KerInverseKernelCor3D <<<sgridb,bsbound>>> (npbok,0,dwxcorrg,dwycorrg,dwzcorrg,code);
+			}
+		}
+	}
 }
 //==============================================================================
 void Interaction_Forces(bool floating,bool usedem,TpSlipCond tslipcond,TpCellMode cellmode
@@ -1018,11 +1099,11 @@ void Interaction_Forces(bool floating,bool usedem,TpSlipCond tslipcond,TpCellMod
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg
-  ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,int *irelationg,float *divr,const double3 *mirror)
+  ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,int *irelationg,float *divr,const double3 *mirror,StKerInfo *kerinfo,JBlockSizeAuto *bsauto)
 {
-  if(!floating)   Interaction_ForcesT<FTMODE_None> (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr,mirror);
-  else if(!usedem)Interaction_ForcesT<FTMODE_Sph>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr,mirror);
-  else            Interaction_ForcesT<FTMODE_Dem>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr,mirror);
+  if(!floating)   Interaction_ForcesT<FTMODE_None> (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr,mirror,kerinfo,bsauto);
+  else if(!usedem)Interaction_ForcesT<FTMODE_Sph>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr,mirror,kerinfo,bsauto);
+  else            Interaction_ForcesT<FTMODE_Dem>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr,mirror,kerinfo,bsauto);
 }
 
 void InverseKernelCorrection(unsigned bsbound,unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
@@ -2348,7 +2429,7 @@ void PeriodicDuplicateSymplectic(unsigned n,unsigned pini
 //------------------------------------------------------
 /// Adds variable forces to particle sets.
 //------------------------------------------------------
-__global__ void KerAddVarAccAng(unsigned n,unsigned pini,word codesel,float3 gravity
+__global__ void KerAddAccInputAng(unsigned n,unsigned pini,word codesel,float3 gravity
   ,bool setgravity,double3 acclin,double3 accang,double3 centre,double3 velang,double3 vellin
   ,const word *code,const double2 *posxy,const double *posz,const float4 *velrhop,float3 *ace)
 {
@@ -2373,9 +2454,9 @@ __global__ void KerAddVarAccAng(unsigned n,unsigned pini,word codesel,float3 gra
       const double dcz=posz[p]-centre.z;
       //-Get the current particle's velocity
       const float4 rvel=velrhop[p];
-      const double velx=rvel.x-vellin.x;
-      const double vely=rvel.y-vellin.y;
-      const double velz=rvel.z-vellin.z;
+      const double velx=rvel.x;
+      const double vely=rvel.y;
+      const double velz=rvel.z;
 
       //-Calculate angular acceleration ((Dw/Dt) x (r_i - r)) + (w x (w x (r_i - r))) + (2w x (v_i - v))
       //(Dw/Dt) x (r_i - r) (term1)
@@ -2394,9 +2475,9 @@ __global__ void KerAddVarAccAng(unsigned n,unsigned pini,word codesel,float3 gra
       accz+=(velang.x*innery)-(velang.y*innerx);
 
       //Coriolis acceleration 2w x (v_i - v) (term3)
-      accx+=((2.0*velang.y)*velz)-((2.0*velang.z)*vely);
-      accy+=((2.0*velang.z)*velx)-((2.0*velang.x)*velz);
-      accz+=((2.0*velang.x)*vely)-((2.0*velang.y)*velx);
+      accx+=((2.0*velang.y)*velz)-((2.0*velang.z)*(vely-vellin.y));
+      accy+=((2.0*velang.z)*velx)-((2.0*velang.x)*(velz-vellin.z));
+      accz+=((2.0*velang.x)*vely)-((2.0*velang.y)*(velx-vellin.x));
 
       //-Stores the new acceleration value.
       ace[p]=make_float3(float(accx),float(accy),float(accz));
@@ -2407,7 +2488,7 @@ __global__ void KerAddVarAccAng(unsigned n,unsigned pini,word codesel,float3 gra
 //------------------------------------------------------
 /// Adds variable forces to particle sets.
 //------------------------------------------------------
-__global__ void KerAddVarAccLin(unsigned n,unsigned pini,word codesel,float3 gravity
+__global__ void KerAddAccInputLin(unsigned n,unsigned pini,word codesel,float3 gravity
   ,bool setgravity,double3 acclin,const word *code,float3 *ace)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x;
@@ -2432,15 +2513,15 @@ __global__ void KerAddVarAccLin(unsigned n,unsigned pini,word codesel,float3 gra
 //==================================================================================================
 /// Adds variable acceleration forces for particle MK groups that have an input file.
 //==================================================================================================
-void AddVarAcc(unsigned n,unsigned pini,word codesel
+void AddAccInput(unsigned n,unsigned pini,word codesel
   ,tdouble3 acclin,tdouble3 accang,tdouble3 centre,tdouble3 velang,tdouble3 vellin,bool setgravity
   ,tfloat3 gravity,const word *code,const double2 *posxy,const double *posz,const float4 *velrhop,float3 *ace)
 {
   if(n){
     dim3 sgrid=GetGridSize(n,SPHBSIZE);
     const bool withaccang=(accang.x!=0 || accang.y!=0 || accang.z!=0);
-    if(withaccang)KerAddVarAccAng <<<sgrid,SPHBSIZE>>> (n,pini,codesel,Float3(gravity),setgravity,Double3(acclin),Double3(accang),Double3(centre),Double3(velang),Double3(vellin),code,posxy,posz,velrhop,ace);
-    else          KerAddVarAccLin <<<sgrid,SPHBSIZE>>> (n,pini,codesel,Float3(gravity),setgravity,Double3(acclin),code,ace);
+    if(withaccang)KerAddAccInputAng <<<sgrid,SPHBSIZE>>> (n,pini,codesel,Float3(gravity),setgravity,Double3(acclin),Double3(accang),Double3(centre),Double3(velang),Double3(vellin),code,posxy,posz,velrhop,ace);
+    else          KerAddAccInputLin <<<sgrid,SPHBSIZE>>> (n,pini,codesel,Float3(gravity),setgravity,Double3(acclin),code,ace);
   }
 }
 
