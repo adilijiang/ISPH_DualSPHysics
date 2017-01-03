@@ -18,7 +18,7 @@ else
     CCFLAGS+= -march=native
   endif
 endif
-CC=g++
+CC=g++ -I../../../../ViennaCLLibrary
 CCLINKFLAGS=-fopenmp -lgomp
 
 #=============== Files to compile ===============
