@@ -842,7 +842,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 			}
 
 			if(divrp1) divr[p1]=divrp1;
-			if(Idpc[p1]==9408)divr[p1]=-1;
+			//if(Idpc[p1]==9408)divr[p1]=-1;
 			if(dwxp1.x||dwxp1.y||dwxp1.z
 				||dwyp1.x||dwyp1.y||dwyp1.z
 				||dwzp1.x||dwzp1.y||dwzp1.z){
@@ -952,7 +952,7 @@ template<TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
               const float temp_y=float(frx*dwxcorr[p1].y+fry*dwycorr[p1].y+frz*dwzcorr[p1].y);
 			        const float temp_z=float(frx*dwxcorr[p1].z+fry*dwycorr[p1].z+frz*dwzcorr[p1].z);
 			        const float temp=volumep2*(velrhop[p2].w-pressp1);
-              acep1.x+=temp*temp_x; acep1.y+=temp*temp_y; acep1.z+=temp*temp_z;
+              acep1.x+=temp*frx/*temp_x*/; acep1.y+=temp*fry/*temp_y*/; acep1.z+=temp*frz/*temp_z*/;
 			      }
           }
         }
@@ -1360,8 +1360,14 @@ void JSphCpu::RunShifting(double dt){
     #pragma omp parallel for schedule (static) if(npf>LIMIT_COMPUTELIGHT_OMP)
   #endif
   for(int p=pini;p<pfin;p++){
+    bool nearBound=false;
     tfloat3 rshiftpos=ShiftPosc[p];
     float divrp1=Divr[p];
+    if(divrp1<0){
+      nearBound=true;
+      divrp1=-divrp1;
+    }
+
     double umagn=double(ShiftCoef)*double(H)*double(H);
 
  	  tfloat3 norm=TFloat3(rshiftpos.x,rshiftpos.y,rshiftpos.z);
@@ -1406,15 +1412,16 @@ void JSphCpu::RunShifting(double dt){
 	  float dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
 
     if(divrp1<FreeSurface){
-      rshiftpos.x=dcds*tang.x;//+dcdb*bitang.x;
-      rshiftpos.y=dcds*tang.y;//+dcdb*bitang.y;
-      rshiftpos.z=dcds*tang.z;//+dcdb*bitang.z;
+      rshiftpos.x=dcds*tang.x+dcdb*bitang.x;
+      rshiftpos.y=dcds*tang.y+dcdb*bitang.y;
+      rshiftpos.z=dcds*tang.z+dcdb*bitang.z;
     }
     else if(divrp1>=FreeSurface && divrp1<=FreeSurface+ShiftOffset){ 
-      double FactorShift=0.5*(1.0-cos(PI*double(divrp1-FreeSurface)/ShiftOffset));
-      rshiftpos.x=float(dcds*tang.x/*+dcdb*bitang.x*/+dcdn*norm.x*FactorShift);
-      rshiftpos.y=float(dcds*tang.y/*+dcdb*bitang.y*/+dcdn*norm.y*FactorShift);
-      rshiftpos.z=float(dcds*tang.z/*+dcdb*bitang.z*/+dcdn*norm.z*FactorShift);
+      double FactorShift=0.0;
+      if(nearBound)FactorShift=0.5*(1.0-cos(PI*double(divrp1-FreeSurface)/ShiftOffset));
+      rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*FactorShift);
+      rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*FactorShift);
+      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*FactorShift);
     }
 
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
@@ -1878,7 +1885,7 @@ void JSphCpu::RHSandLHSStorage(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsig
 			          const float temp_x=float(frx*dwxcorr[p1].x+fry*dwycorr[p1].x+frz*dwzcorr[p1].x);
                 const float temp_y=float(frx*dwxcorr[p1].y+fry*dwycorr[p1].y+frz*dwzcorr[p1].y);
 			          const float temp_z=float(frx*dwxcorr[p1].z+fry*dwycorr[p1].z+frz*dwzcorr[p1].z);
-			          temp=dvx*temp_x+dvy*temp_y+dvz*temp_z;
+			          temp=dvx*frx/*temp_x*/+dvy*fry/*temp_y*/+dvz*frz/*temp_z*/;
                 matrixb[oi]-=double(volume*temp);
               }
 			        
@@ -2304,7 +2311,7 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
     #pragma omp parallel for schedule (guided)
   #endif
   for(int p1=int(pinit);p1<pfin;p1++){
-    
+    bool nearBound=false;
     tfloat3 shiftposp1=TFloat3(0);
     float divrp1=0;
 
@@ -2342,6 +2349,7 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
 					const float drz=float(posp1.z-pos[p2].z);
 					const float rr2=drx*drx+dry*dry+drz*drz;
           if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
+            if(boundp2) nearBound=true;
             //-Wendland kernel.
             float frx,fry,frz;
             GetKernel(rr2,drx,dry,drz,frx,fry,frz);
@@ -2376,6 +2384,7 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
       }
     }
     divr[p1]+=divrp1;  
+    if(nearBound)divr[p1]=-divr[p1];
     shiftpos[p1]=shiftpos[p1]+shiftposp1; 
   }
 }

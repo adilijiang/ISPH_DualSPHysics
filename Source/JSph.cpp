@@ -800,7 +800,10 @@ void JSph::ConfigConstants(bool simulate2d){
     Awen=float(7.0/(478.0*PI*h*h)); 
     Bwen=float(7.0/(478.0*PI*h*h*h));
   }
-  else RunException(met,"Cannot Run Quintic 3D");
+  else{
+    Awen=float(1.0/(120.0*PI*h*h*h)); 
+    Bwen=float(1.0/(120.0*PI*h*h*h*h));
+  }
 
   VisuConfig();
 }

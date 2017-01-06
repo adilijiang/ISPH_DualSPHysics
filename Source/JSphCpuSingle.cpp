@@ -946,7 +946,7 @@ void JSphCpuSingle::SolvePPE(double dt){
   FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim,ShiftOffset);
   //allocate vectors
   x.resize(PPEDim,0);
-	std::cout<<Nnz<<"\t"<<PPEDim<<"\n";
+
   //solvers
 #ifndef _WITHGPU
   solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,b,x,rowInd,colInd,PPEDim,Nnz); 

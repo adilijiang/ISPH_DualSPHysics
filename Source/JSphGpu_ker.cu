@@ -880,7 +880,7 @@ template<TpFtMode ftmode> __device__ void KerInteractionForcesFluidPresGrad
         const float temp_y=frx*dwxcorrg[p1].y+fry*dwycorrg[p1].y+frz*dwzcorrg[p1].y;
 			  const float temp_z=frx*dwxcorrg[p1].z+fry*dwycorrg[p1].z+frz*dwzcorrg[p1].z;
         const float temp=volumep2*(pressp2-pressp1);
-        acep1.x+=temp*temp_x; acep1.y+=temp*temp_y; acep1.z+=temp*temp_z;
+        acep1.x+=temp*frx/*temp_x*/; acep1.y+=temp*fry/*temp_y*/; acep1.z+=temp*frz/*temp_z*/;
       }
     }
   }
@@ -1317,6 +1317,12 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
     const unsigned p1=p+pini;
     float3 rshiftpos=shiftpos[p1];
     float divrp1=divr[p1];
+    bool nearBound=false;
+    if(divrp1<0.0){
+      nearBound=true;
+      divrp1=-divrp1;
+    }
+
     double umagn=-double(shiftcoef)*double(CTE.h)*double(CTE.h);
     float dp=CTE.dp;
 
@@ -1362,12 +1368,13 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 	  float dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
 
     if(divrp1<freesurface){
-      rshiftpos.x=dcds*tang.x;//+dcdb*bitang.x;
-      rshiftpos.y=dcds*tang.y;//+dcdb*bitang.y;
-      rshiftpos.z=dcds*tang.z;//+dcdb*bitang.z;
+      rshiftpos.x=dcds*tang.x+dcdb*bitang.x;
+      rshiftpos.y=dcds*tang.y+dcdb*bitang.y;
+      rshiftpos.z=dcds*tang.z+dcdb*bitang.z;
     }
     else if(divrp1>=freesurface && divrp1<=freesurface+ShiftOffset){ 
-      double FactorShift=0.5*(1-cos(PI*double(divrp1-freesurface)/0.2));
+      double FactorShift=0.0;
+      if(nearBound) FactorShift=0.5*(1-cos(PI*double(divrp1-freesurface)/0.2));
       rshiftpos.x=dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*FactorShift;
       rshiftpos.y=dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*FactorShift;
       rshiftpos.z=dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*FactorShift;
@@ -2753,7 +2760,7 @@ __device__ void KerRHSandLHSStorage
       const float temp_x=frx*dwxcorrgp1.x+fry*dwycorrgp1.x+frz*dwzcorrgp1.x;
       const float temp_y=frx*dwxcorrgp1.y+fry*dwycorrgp1.y+frz*dwzcorrgp1.y;
 			const float temp_z=frx*dwxcorrgp1.z+fry*dwycorrgp1.z+frz*dwzcorrgp1.z;
-			float temp=dvx*temp_x+dvy*temp_y+dvz*temp_z;
+			float temp=dvx*frx/*temp_x*/+dvy*fry/*temp_y*/+dvz*frz/*temp_z*/;
 			
       matrixbp1-=double(volumep2*temp);
 			numOfInteractions++;
@@ -3258,13 +3265,14 @@ template<TpFtMode ftmode> __device__ void KerInteractionForcesShifting2
   ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code
   ,float massp2,float ftmassp1,bool ftp1
   ,double3 posdp1,float3 velp1
-  ,TpShifting tshifting,float3 &shiftposp1,float Wab1,const float tensilen, const float tensiler,float &divrp1)
+  ,TpShifting tshifting,float3 &shiftposp1,float Wab1,const float tensilen, const float tensiler,float &divrp1,bool &nearBound)
 {
   for(int p2=pini;p2<pfin;p2++){
     float drx,dry,drz;
     KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
     float rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
+      if(boundp2) nearBound=true;
       //-Wendland kernel.
       float frx,fry,frz;
       KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
@@ -3305,6 +3313,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesShifting1
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
     const float Wab1=KerGetKernelWab(CTE.dp*CTE.dp);
+    bool nearBound=false;
     //-Vars para Shifting.
 	//-Variables for Shifting.
     float3 shiftposp1=make_float3(0,0,0);
@@ -3348,7 +3357,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesShifting1
           }
         }
         if(pfin){
-		      KerInteractionForcesShifting2<ftmode> (false,p1,pini,pfin,viscob,ftomassp,posxy,posz,velrhop,code,CTE.massf,ftmassp1,ftp1,posdp1,velp1,tshifting,shiftposp1,Wab1,tensilen,tensiler,divrp1);
+		      KerInteractionForcesShifting2<ftmode> (false,p1,pini,pfin,viscob,ftomassp,posxy,posz,velrhop,code,CTE.massf,ftmassp1,ftp1,posdp1,velp1,tshifting,shiftposp1,Wab1,tensilen,tensiler,divrp1,nearBound);
         }
 	    }
     }
@@ -3377,7 +3386,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesShifting1
           }
         }
         if(pfin){
-		      KerInteractionForcesShifting2<ftmode> (true,p1,pini,pfin,viscof,ftomassp,posxy,posz,velrhop,code,CTE.massf,ftmassp1,ftp1,posdp1,velp1,tshifting,shiftposp1,Wab1,tensilen,tensiler,divrp1);
+		      KerInteractionForcesShifting2<ftmode> (true,p1,pini,pfin,viscof,ftomassp,posxy,posz,velrhop,code,CTE.massf,ftmassp1,ftp1,posdp1,velp1,tshifting,shiftposp1,Wab1,tensilen,tensiler,divrp1,nearBound);
         }
       }
     }
@@ -3387,6 +3396,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesShifting1
       s.x+=shiftposp1.x; s.y+=shiftposp1.y; s.z+=shiftposp1.z;
       shiftpos[p1]=s;
       divr[p1]+=divrp1;
+      if(nearBound) divr[p1]=-divr[p1];
     }
   }
 }

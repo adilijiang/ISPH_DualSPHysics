@@ -153,20 +153,16 @@ void JSphGpu::AllocGpuMemoryFixed(){
 
   unsigned matrixMemory; //Predicts max number of neighbours per particle dependant on kernel support size
 
-  if(H/Dp<1.5){
-    if(Simulate2D) matrixMemory=45;
-    else matrixMemory=280;
+  if(H/Dp<1.0){
+    if(Simulate2D) matrixMemory=20;
+    else matrixMemory=80;
+  }
+  else if(H/Dp<1.5){
+    if(Simulate2D) matrixMemory=44;
+    else matrixMemory=274;
   }
 	else RunException(met,fun::PrintStr("H/Dp too high for Quintic %f",H/Dp));
-  /*else if(H/Dp<2.0){//NEEDS CHANGING
-    if(Simulate2D) matrixMemory=45;
-    else matrixMemory=280;
-  }
-  else if(H/Dp<2.5){
-    if(Simulate2D) matrixMemory=69;
-    else matrixMemory=493;
-  }*/
-  std::cout<<H<<"\t"<<matrixMemory<<"\n";
+
   size_t m=sizeof(int)*Npb;
   cudaMalloc((void**)&Irelationg,m);    MemGpuFixed+=m;
   m=sizeof(double3)*Npb;
