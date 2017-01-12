@@ -198,6 +198,7 @@ protected:
   tdouble3 *dWxCorr; //Kernel correction in the x direction
   tdouble3 *dWyCorr; //Kernel correction in the y direction
   tdouble3 *dWzCorr; //Kernel correction in the z direction
+	tfloat3 *SumTensile;
   float *Divr; //Divergence of position
   unsigned *POrder; //Position in Matrix
   unsigned PPEDim;

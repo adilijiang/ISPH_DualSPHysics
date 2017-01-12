@@ -973,8 +973,10 @@ void JSphCpuSingle::RunShifting(double dt){
   VelrhopPrec=ArraysCpu->ReserveFloat4();
 
   ShiftPosc=ArraysCpu->ReserveFloat3();
+	SumTensile=ArraysCpu->ReserveFloat3();
   Divr=ArraysCpu->ReserveFloat();
   memset(ShiftPosc,0,sizeof(tfloat3)*np);               //ShiftPosc[]=0
+	memset(SumTensile,0,sizeof(tfloat3)*np);
   memset(Divr,0,sizeof(float)*np);           //Divr[]=0   
 
   #ifdef _WITHOMP
@@ -1003,6 +1005,7 @@ void JSphCpuSingle::RunShifting(double dt){
 
   ArraysCpu->Free(PosPrec);      PosPrec=NULL;
   ArraysCpu->Free(ShiftPosc);    ShiftPosc=NULL;
+	ArraysCpu->Free(SumTensile);	SumTensile=NULL;
   ArraysCpu->Free(Divr); Divr=NULL;
   ArraysCpu->Free(VelrhopPrec);  VelrhopPrec=NULL;
 }

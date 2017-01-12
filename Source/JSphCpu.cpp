@@ -101,6 +101,7 @@ void JSphCpu::InitVars(){
   FtoForces=NULL;
   Irelationc=NULL;
 	MirrorPosc=NULL;
+	SumTensile=NULL;
   a.clear();
   b.clear();
   x.clear();
@@ -181,7 +182,7 @@ void JSphCpu::AllocCpuMemoryParticles(unsigned np,float over){
     ArraysCpu->AddArrayCount(JArraysCpu::SIZE_16B,1); ///<-velrhoppre
   }
   if(TShifting!=SHIFT_None){
-    ArraysCpu->AddArrayCount(JArraysCpu::SIZE_12B,1); ///<-shiftpos
+    ArraysCpu->AddArrayCount(JArraysCpu::SIZE_12B,2); ///<-shiftpos
   }
   //-Show reserved memory / Muestra la memoria reservada.
   MemCpuParticles=ArraysCpu->GetAllocMemoryCpu();
@@ -952,7 +953,7 @@ template<TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
               const float temp_y=float(frx*dwxcorr[p1].y+fry*dwycorr[p1].y+frz*dwzcorr[p1].y);
 			        const float temp_z=float(frx*dwxcorr[p1].z+fry*dwycorr[p1].z+frz*dwzcorr[p1].z);
 			        const float temp=volumep2*(velrhop[p2].w-pressp1);
-              acep1.x+=temp*frx/*temp_x*/; acep1.y+=temp*fry/*temp_y*/; acep1.z+=temp*frz/*temp_z*/;
+              acep1.x+=temp*temp_x; acep1.y+=temp*temp_y; acep1.z+=temp*temp_z;
 			      }
           }
         }
@@ -1360,19 +1361,20 @@ void JSphCpu::RunShifting(double dt){
     #pragma omp parallel for schedule (static) if(npf>LIMIT_COMPUTELIGHT_OMP)
   #endif
   for(int p=pini;p<pfin;p++){
-    bool nearBound=false;
+    //bool nearBound=false;
     tfloat3 rshiftpos=ShiftPosc[p];
     float divrp1=Divr[p];
-    if(divrp1<0){
+    /*if(divrp1<0){
       nearBound=true;
       divrp1=-divrp1;
-    }
+    }*/
 
-    double umagn=double(ShiftCoef)*double(H)*double(H);
+    double umagn=-double(ShiftCoef)*double(H)*double(H);
 
- 	  tfloat3 norm=TFloat3(rshiftpos.x,rshiftpos.y,rshiftpos.z);
+ 	  tfloat3 norm=TFloat3(-rshiftpos.x,-rshiftpos.y,-rshiftpos.z);
 	  tfloat3 tang=TFloat3(0);
 	  tfloat3 bitang=TFloat3(0);
+		rshiftpos=rshiftpos+SumTensile[p];
 
 	  //-tangent and bitangent calculation
 	  tang.x=norm.z+norm.y;		
@@ -1418,7 +1420,7 @@ void JSphCpu::RunShifting(double dt){
     }
     else if(divrp1>=FreeSurface && divrp1<=FreeSurface+ShiftOffset){ 
       double FactorShift=0.0;
-      if(nearBound)FactorShift=0.5*(1.0-cos(PI*double(divrp1-FreeSurface)/ShiftOffset));
+      //if(nearBound)FactorShift=0.5*(1.0-cos(PI*double(divrp1-FreeSurface)/ShiftOffset));
       rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*FactorShift);
       rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*FactorShift);
       rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*FactorShift);
@@ -1885,7 +1887,7 @@ void JSphCpu::RHSandLHSStorage(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsig
 			          const float temp_x=float(frx*dwxcorr[p1].x+fry*dwycorr[p1].x+frz*dwzcorr[p1].x);
                 const float temp_y=float(frx*dwxcorr[p1].y+fry*dwycorr[p1].y+frz*dwzcorr[p1].y);
 			          const float temp_z=float(frx*dwxcorr[p1].z+fry*dwycorr[p1].z+frz*dwzcorr[p1].z);
-			          temp=dvx*frx/*temp_x*/+dvy*fry/*temp_y*/+dvz*frz/*temp_z*/;
+			          temp=dvx*temp_x+dvy*temp_y+dvz*temp_z;
                 matrixb[oi]-=double(volume*temp);
               }
 			        
@@ -2311,10 +2313,10 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
     #pragma omp parallel for schedule (guided)
   #endif
   for(int p1=int(pinit);p1<pfin;p1++){
-    bool nearBound=false;
+    //bool nearBound=false;
     tfloat3 shiftposp1=TFloat3(0);
     float divrp1=0;
-
+		tfloat3 sumtensile=TFloat3(0);
     //-Obtain data of particle p1 in case of floating objects / Obtiene datos de particula p1 en caso de existir floatings.
     //bool ftp1=false;     //-Indicate if it is floating / Indica si es floating.
     //float ftmassp1=1.f;  //-Contains floating particle mass or 1.0f if it is fluid / Contiene masa de particula floating o 1.0f si es fluid.
@@ -2349,7 +2351,7 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
 					const float drz=float(posp1.z-pos[p2].z);
 					const float rr2=drx*drx+dry*dry+drz*drz;
           if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-            if(boundp2) nearBound=true;
+            //if(boundp2) nearBound=true;
             //-Wendland kernel.
             float frx,fry,frz;
             GetKernel(rr2,drx,dry,drz,frx,fry,frz);
@@ -2374,9 +2376,12 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
               const float tensile=tensileN*powf((GetKernelWab(rr2)/Wab1),tensileR);
              
               //const bool noshift=(boundp2 && (tshifting==SHIFT_NoBound || (tshifting==SHIFT_NoFixed && CODE_GetType(code[p2])==CODE_TYPE_FIXED)));
-              shiftposp1.x-=massrhop*(1.0f+tensile)*frx; //-For boundary do not use shifting / Con boundary anula shifting.
-              shiftposp1.y-=massrhop*(1.0f+tensile)*fry;
-              shiftposp1.z-=massrhop*(1.0f+tensile)*frz;
+              shiftposp1.x+=massrhop*frx; //-For boundary do not use shifting / Con boundary anula shifting.
+              shiftposp1.y+=massrhop*fry;
+              shiftposp1.z+=massrhop*frz;
+							sumtensile.x+=massrhop*tensile*frx;
+							sumtensile.y+=massrhop*tensile*fry;
+							sumtensile.z+=massrhop*tensile*frz;
               divrp1-=massrhop*(drx*frx+dry*fry+drz*frz);
             //}
           }
@@ -2384,8 +2389,9 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
       }
     }
     divr[p1]+=divrp1;  
-    if(nearBound)divr[p1]=-divr[p1];
+    //if(nearBound)divr[p1]=-divr[p1];
     shiftpos[p1]=shiftpos[p1]+shiftposp1; 
+		SumTensile[p1]=SumTensile[p1]+sumtensile;
   }
 }
 
