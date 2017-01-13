@@ -152,31 +152,22 @@ protected:
     ,const tdouble3 *pos,const tfloat3 *pspos,const tfloat4 *velrhop,const word *code,const unsigned *idp
     ,float &viscdt,tfloat3 *ace)const;
 
-	void Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	const unsigned *dcell,const tdouble3 *pos,tfloat4 *velrhop,const word *code,float *divr,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,tdouble3 *mirror,const unsigned *idp,const int *irelation,const int *mirrorcell)const;
+	void Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
+  const tdouble3 *pos,tfloat4 *velrhop,const word *code,float *divr,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,tdouble3 *mirrorPos,const unsigned *idp,const unsigned *mirrorCell)const;
 
-	void IncludeBound(unsigned npbok,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
-	const tdouble3 *pos,const word *code,float *divr,const unsigned *idp,const int *irelation,const int *mirrorcell,const tdouble3 *mirror,const double PhysCrit,const double NeumCrit)const;
-
-	void PhysBoundDivr(unsigned npbok,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
-	const tdouble3 *pos,const word *code,float *divr,const unsigned *idp,const double PhysCrit)const;
-
-	void ExcludeNeumannParts(unsigned npbok,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
-  const tdouble3 *pos,const word *code,float *divr,const unsigned *idp,const int *irelation,const int *mirrorcell,const tdouble3 *mirror,const double NeumCrit)const;
- 
 	void KernelCorrectionPressure(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
-  const tdouble3 *pos,tfloat4 *velrhop,const word *code,float *divr,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,const unsigned *idp)const;
+  const tdouble3 *pos,const word *code,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,const unsigned *idp)const;
 
 	template<TpFtMode ftmode> void Interaction_ForcesT
     (TpInter tinter,unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tdouble3 *pos,tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,const word *code,const unsigned *idp
-    ,tfloat3 *ace,float *divr,tdouble3 *mirror,const int *irelation,const int *mirrorcell)const;
+    ,tfloat3 *ace,float *divr,tdouble3 *mirrorPos,const unsigned *mirrorCell)const;
 
   void Interaction_Forces(TpInter tinter,unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idp,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,const word *code
-    ,tfloat3 *ace,float *divr,tdouble3 *mirror,const int *irelation,const int *mirrorcell)const;
+    ,tfloat3 *ace,float *divr,tdouble3 *mirrorPos,const unsigned *mirrorCell)const;
 
   void UpdatePos(tdouble3 pos0,double dx,double dy,double dz,bool outrhop,unsigned p,tdouble3 *pos,unsigned *cell,word *code)const;
 
@@ -189,7 +180,7 @@ protected:
   void RunShifting(double dt);
 
   void CalcRidp(bool periactive,unsigned np,unsigned pini,unsigned idini,unsigned idfin,const word *code,const unsigned *idp,unsigned *ridp)const;
-  void MoveLinBound(unsigned np,unsigned ini,const tdouble3 &mvpos,const tfloat3 &mvvel,const unsigned *ridp,tdouble3 *pos,unsigned *dcell,tfloat4 *velrhop,word *code,const unsigned *idpc,tdouble3 *mirror,const int *irelation)const;
+  void MoveLinBound(unsigned np,unsigned ini,const tdouble3 &mvpos,const tfloat3 &mvvel,const unsigned *ridp,tdouble3 *pos,unsigned *dcell,tfloat4 *velrhop,word *code,const unsigned *idpc,tdouble3 *mirrorPos)const;
   void MoveMatBound(unsigned np,unsigned ini,tmatrix4d m,double dt,const unsigned *ridpmv,tdouble3 *pos,unsigned *dcell,tfloat4 *velrhop,word *code)const;
   void RunMotion(double stepdt);
 
@@ -205,17 +196,15 @@ protected:
   ///////////////////////////////////////////////
   //PPE Functions, variables, Kernel Correction//
   ///////////////////////////////////////////////
-  int *Irelationc; //Neumann particles: The closest fluid particle, j, for a boundary particle, Solid particles: MirrorPosc place
-	int *MirrorCell;
+	unsigned *MirrorCell;
 	tdouble3 *MirrorPosc;
   tdouble3 *dWxCorr; //Kernel correction in the x direction
   tdouble3 *dWyCorr; //Kernel correction in the y direction
   tdouble3 *dWzCorr; //Kernel correction in the z direction
-	tfloat3  *GhostVel;
+
 	tfloat3 *SumTensile;
   float *Divr; //Divergence of position
-  unsigned *POrder; //Position in Matrix
-  unsigned PPEDim;
+
   //matrix variables for CULA
   std::vector<double> b;
   std::vector<double> a;
@@ -226,34 +215,44 @@ protected:
 #ifndef _WITHGPU
   template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
   void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,std::vector<double> &matrixx,const unsigned ppedim); 
-  void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,std::vector<double> &matrixa,
+  
+	void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,std::vector<double> &matrixa,
     std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz);
 #endif
-  void MirrorDCell(unsigned npb,const word *code,const tdouble3 *mirror,const int*irelation,int *mirrorcell,unsigned *idpc);
-  void InverseCorrection(unsigned n, unsigned pinit,tdouble3 *dwxcorr,tdouble3 *dwzcorr)const;
-  void InverseCorrection3D(unsigned n, unsigned pinit,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr)const;
-  void FindIrelation(TpSlipCond tslip, unsigned np,unsigned npb,unsigned pinit,const tdouble3 *pos,const unsigned *idpc,int *irelation,tdouble3 *mirror,const word *code)const;
+  
+	void MirrorDCell(unsigned npb,const word *code,const tdouble3 *mirrorPos,unsigned *mirrorCell,unsigned *idpc);
+  
+	void InverseCorrection(unsigned n, unsigned pinit,tdouble3 *dwxcorr,tdouble3 *dwzcorr)const;
+  
+	void InverseCorrection3D(unsigned n, unsigned pinit,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr)const;
+  
+	void MirrorBoundary(TpSlipCond tslip, unsigned np,unsigned npb,unsigned pinit,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code)const;
 
   void solveMatrix();
-  void MatrixOrder(unsigned n,unsigned pinit,unsigned *porder,const unsigned *idpc,const int *irelation,word *code,unsigned &ppeDim);
-  void MatrixASetup(const unsigned ppedim,unsigned &nnz,std::vector<int> &row)const;
-  void RHSandLHSStorage(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,std::vector<double> &matrixb,const unsigned *porder,
-    const unsigned *idpc,const double dt,const unsigned ppedim,const float *divr,const float freesurface,std::vector<int> &row)const;
-  void StorageCode1(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
-	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwycorr
-	,tdouble3 *dwzcorr,std::vector<double> &matrixb, const unsigned *idpc,const double dt, const float *divr,const float freesurface,std::vector<int> &row)const;
-	void PopulateMatrixACode0(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
-    const unsigned *porder,const int *irelation,std::vector<double> &matrixb,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface,tfloat3 gravity,const double rhoZero)const;
-   void PopulateMatrixACode1(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-	  const unsigned *dcell,const tdouble3 *pos,const tfloat4 *velrhop,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
-    const unsigned *porder,const int *irelation,std::vector<double> &matrixb,const unsigned *idpc,const word *code,const unsigned ppedim,const float freesurface,tfloat3 gravity,const double rhoZero)const;
-	void PressureAssign(unsigned n,unsigned pinit,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,const int *irelation,const unsigned *porder,
-    std::vector<double> &matrixx,const word *code,const unsigned npb,float *divr,tfloat3 gravity)const;
-  void FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,std::vector<double> &matrixInd,std::vector<double> &matrixb,std::vector<int> &row,const unsigned *porder,const unsigned *idpc,const word *code,const unsigned ppedim,const float shiftoffset)const;
-
   
+	void MatrixASetup(const unsigned ppedim,unsigned &nnz,std::vector<int> &row)const;
+  
+	void RHSandLHSStorage(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
+	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,
+	const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,std::vector<double> &matrixb,const unsigned *idpc,const double dt,
+	const float *divr,const float freesurface,std::vector<int> &row)const;
+  
+	void StorageCode1(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
+	const unsigned *beginendcell,tint3 cellzero,const tdouble3 *pos,const unsigned *idpc,std::vector<int> &row,const tdouble3 *mirrorPos,const unsigned *mirrorCell)const;
+	
+	void PopulateMatrixACode0(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
+  const tdouble3 *pos,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
+  std::vector<double> &matrixb,const unsigned *idpc,const word *code,const float freesurface,tfloat3 gravity,const double rhoZero,const tdouble3 *mirrorPos)const;
+  
+	void PopulateMatrixACode1(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+  const tdouble3 *pos,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
+  std::vector<double> &matrixb,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,const unsigned *mirrorCell)const;
+	
+	void PressureAssign(unsigned n,unsigned npbok,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,std::vector<double> &matrixx,const word *code,
+		const unsigned npb,float *divr,tfloat3 gravity)const;
+  
+	void FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,std::vector<double> &matrixInd,std::vector<double> &matrixb,std::vector<int> &row,const unsigned *idpc,const word *code,const float shiftoffset)const;
+
   void Interaction_Shifting(unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idp,const word *code
@@ -266,8 +265,7 @@ protected:
   ,TpShifting tshifting,tfloat3 *shiftpos,float *divr,const float tensileN,const float tensileR)const;
 
   void Shift(double dt);
-  int count;
-  unsigned PPEDimOld;
+
 public:
   JSphCpu(bool withmpi);
   ~JSphCpu();
