@@ -799,7 +799,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   cusph::InitArrayCol(Nnz,colInd,int(PPEDim));
   cusph::PopulateMatrixA(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velrhopg,a,b,rowInd,colInd,POrderg,Idpg,PPEDim,Divrg,Codeg,Irelationg,FreeSurface);
 	CheckCudaError(met,"Matrix Setup");
-  cusph::FreeSurfaceMark(bsbound,bsfluid,np,npb,npbok,Divrg,a,b,rowInd,POrderg,Codeg,PI,FreeSurface);
+  cusph::FreeSurfaceMark(bsbound,bsfluid,np,npb,npbok,Divrg,a,b,rowInd,POrderg,Codeg,PI,FreeSurface,ShiftOffset);
   CheckCudaError(met,"FreeSurfaceMark");
   TmgStop(Timers,TMG_SetupPPE);
 
@@ -835,8 +835,10 @@ void JSphGpuSingle::RunShifting(double dt){
   VelrhopPreg=ArraysGpu->ReserveFloat4();
 
   ShiftPosg=ArraysGpu->ReserveFloat3();
+	SumTensileg=ArraysGpu->ReserveFloat3();
   Divrg=ArraysGpu->ReserveFloat();
   cudaMemset(ShiftPosg,0,sizeof(float3)*np);       //ShiftPosg[]=0
+	cudaMemset(SumTensileg,0,sizeof(float3)*np);       //SumTensile[]=0
   cudaMemset(Divrg,0,sizeof(float)*np);        //Divrg[]=0
 
   //-Cambia datos a variables Pre para calcular nuevos datos.
@@ -856,7 +858,7 @@ void JSphGpuSingle::RunShifting(double dt){
   const unsigned bsbound=BlockSizes.forcesbound;
   const unsigned bsfluid=BlockSizes.forcesfluid;
 
-  cusph::Interaction_Shifting(WithFloating,UseDEM,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,FtoMasspg,TShifting,ShiftPosg,Divrg,TensileN,TensileR);
+  cusph::Interaction_Shifting(WithFloating,UseDEM,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,FtoMasspg,TShifting,ShiftPosg,Divrg,TensileN,TensileR,SumTensileg);
 
   CheckCudaError(met,"Failed in calculating concentration");
 
@@ -870,6 +872,7 @@ void JSphGpuSingle::RunShifting(double dt){
   ArraysGpu->Free(PoszPreg);      PoszPreg=NULL;
   ArraysGpu->Free(VelrhopPreg);   VelrhopPreg=NULL;
   ArraysGpu->Free(ShiftPosg);     ShiftPosg=NULL;
+	ArraysGpu->Free(SumTensileg);		SumTensileg=NULL;
   ArraysGpu->Free(Divrg);         Divrg=NULL;
 }
 

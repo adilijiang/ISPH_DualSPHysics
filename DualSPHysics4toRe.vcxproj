@@ -606,7 +606,7 @@ rem ***Activa la visualizacion de registros por kernel
 set ptxinfo=--ptxas-options -v
 set ptxinfo=
 rem ***Sentencia de compilacion
-%CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -use_fast_math -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension)
+%CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension)
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Intermediate\$(Configuration)\%(Filename).obj</Outputs>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
@@ -643,7 +643,7 @@ rem ***Activa la visualizacion de registros por kernel
 set ptxinfo=--ptxas-options -v
 set ptxinfo=
 rem ***Sentencia de compilacion
-%CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -use_fast_math -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension)
+%CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension)
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Intermediate\$(Configuration)\%(Filename).obj</Outputs>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
@@ -681,9 +681,9 @@ rem ***Activa la visualizacion de registros por kernel y creacion de _ptxasinfo
 set ptxinfo=--ptxas-options -v
 rem set ptxinfo=
 rem ***Sentencia de compilacion sin salida _ptxasinfo
-rem %CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -use_fast_math -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension) -D _CRT_SECURE_NO_DEPRECATE 
+rem %CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension) -D _CRT_SECURE_NO_DEPRECATE 
 rem ***Sentencia de compilacion con salida _ptxasinfo
-%CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -use_fast_math -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension) -D _CRT_SECURE_NO_DEPRECATE 1&gt;$(OutDir)$(ProjectName)_$(Configuration)64_ptxasinfo
+%CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension) -D _CRT_SECURE_NO_DEPRECATE 1&gt;$(OutDir)$(ProjectName)_$(Configuration)64_ptxasinfo
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Intermediate\$(Configuration)\%(Filename).obj</Outputs>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>

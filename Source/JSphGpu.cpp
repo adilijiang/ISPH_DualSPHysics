@@ -90,6 +90,7 @@ void JSphGpu::InitVars(){
   X=NULL;
   dWxCorrg=NULL; dWyCorrg=NULL; dWzCorrg=NULL;
   POrderg=NULL;
+	SumTensileg=NULL;
   Divrg=NULL;
   ShiftPosg=NULL; //-Shifting.
   Irelationg=NULL;
@@ -293,7 +294,7 @@ void JSphGpu::AllocGpuMemoryParticles(unsigned np,float over){
     ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,4);  //-FtMasspg
   }
   if(TShifting!=SHIFT_None){
-    ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,1); //-shiftpos
+    ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,2); //-shiftpos
   }
   
   //-Muestra la memoria reservada.
@@ -980,7 +981,7 @@ void JSphGpu::RunShifting(double dt){
   const double coeftfs=(Simulate2D? 2.0: 3.0)-FreeSurface;
 	bool maxShift=false;
 	if(TShifting==SHIFT_Max) maxShift=true;
-  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,coeftfs,Velrhopg,Divrg,ShiftPosg,maxShift);
+  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,coeftfs,Velrhopg,Divrg,ShiftPosg,maxShift,SumTensileg);
 }
 
 //==============================================================================

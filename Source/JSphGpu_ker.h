@@ -118,7 +118,7 @@ void AddDelta(unsigned n,const float *delta,float *ar);
 //# Kernels for Shifting
 void RunShifting(const bool simulate2d,unsigned np,unsigned npb,double dt
   ,double shiftcoef,float freesurface,double coeftfs
-  ,float4 *velrhop,const float *divr,float3 *shiftpos,bool maxShift);
+  ,float4 *velrhop,const float *divr,float3 *shiftpos,bool maxShift,float3 *sumtensile);
 
 void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb
   ,const float4 *velrhoppre,const float3 *ace,double dtm,float rhopoutmin,float rhopoutmax
@@ -178,7 +178,7 @@ void MatrixASetup(const unsigned ppedim,unsigned int*row,unsigned *nnz);
 
 //# Kernels for marking the freesurface
 void FreeSurfaceMark(const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,float *divr
-  ,double *matrixInd,double *matrixb,unsigned int *row,const unsigned *porder,const word *code,const double pi,const float freesurface);
+  ,double *matrixInd,double *matrixb,unsigned int *row,const unsigned *porder,const word *code,const double pi,const float freesurface,const float shiftoffset);
 
 //# Kernels for Populating matrix B
 void RHSandLHSStorage(TpCellMode cellmode
@@ -215,7 +215,7 @@ void Interaction_Shifting(bool floating,bool usedem,TpCellMode cellmode
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz
   ,float4 *velrhop,const word *code,const float *ftomassp
-  ,TpShifting tshifting,float3 *shiftpos,float *divr,const float tensilen,const float tensiler);
+  ,TpShifting tshifting,float3 *shiftpos,float *divr,const float tensilen,const float tensiler,float3 *sumtensile);
 
 void InverseKernelCorrection(unsigned bsbound,unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
   ,const double2 *posxy,const double *posz,const word *code,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg

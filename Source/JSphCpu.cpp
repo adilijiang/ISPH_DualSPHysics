@@ -753,9 +753,9 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 							const float rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
 							divrp1-=volume*rDivW;
 						
-							dwxp1.x-=volume*frx*drx; dwxp1.y-=volume*fry*drx; dwxp1.z-=volume*frz*drx;
-							dwyp1.x-=volume*frx*dry; dwyp1.y-=volume*fry*dry; dwyp1.z-=volume*frz*dry;
-							dwzp1.x-=volume*frx*drz; dwzp1.y-=volume*fry*drz; dwzp1.z-=volume*frz*drz;
+							dwxp1.x-=volume*frx*drx; dwxp1.y-=volume*frx*dry; dwxp1.z-=volume*frx*drz;
+							dwyp1.x-=volume*fry*drx; dwyp1.y-=volume*fry*dry; dwyp1.z-=volume*fry*drz;
+							dwzp1.x-=volume*frz*drx; dwzp1.y-=volume*frz*dry; dwzp1.z-=volume*frz*drz;
 						}
 					}
 				}
@@ -787,9 +787,9 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 							const float rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
 							divrp1-=volume*rDivW;
 
-							dwxp1.x-=volume*frx*drx; dwxp1.y-=volume*fry*drx; dwxp1.z-=volume*frz*drx;
-							dwyp1.x-=volume*frx*dry; dwyp1.y-=volume*fry*dry; dwyp1.z-=volume*frz*dry;
-							dwzp1.x-=volume*frx*drz; dwzp1.y-=volume*fry*drz; dwzp1.z-=volume*frz*drz;
+							dwxp1.x-=volume*frx*drx; dwxp1.y-=volume*frx*dry; dwxp1.z-=volume*frx*drz;
+							dwyp1.x-=volume*fry*drx; dwyp1.y-=volume*fry*dry; dwyp1.z-=volume*fry*drz;
+							dwzp1.x-=volume*frz*drx; dwzp1.y-=volume*frz*dry; dwzp1.z-=volume*frz*drz;
 						}
 					}
 				}
@@ -942,16 +942,16 @@ template<TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
 
 							divrp1-=volumep2*rDivW;
 
-							dwxp1.x-=volumep2*frx*drx; dwxp1.y-=volumep2*fry*drx; dwxp1.z-=volumep2*frz*drx;
-							dwyp1.x-=volumep2*frx*dry; dwyp1.y-=volumep2*fry*dry; dwyp1.z-=volumep2*frz*dry;
-							dwzp1.x-=volumep2*frx*drz; dwzp1.y-=volumep2*fry*drz; dwzp1.z-=volumep2*frz*drz;
+							dwxp1.x-=volumep2*frx*drx; dwxp1.y-=volumep2*frx*dry; dwxp1.z-=volumep2*frx*drz;
+							dwyp1.x-=volumep2*fry*drx; dwyp1.y-=volumep2*fry*dry; dwyp1.z-=volumep2*fry*drz;
+							dwzp1.x-=volumep2*frz*drx; dwzp1.y-=volumep2*frz*dry; dwzp1.z-=volumep2*frz*drz;
             }
 
 			      //===== Acceleration from pressure gradient ===== 
             if(compute && tinter==2){
-			        const float temp_x=float(frx*dwxcorr[p1].x+fry*dwycorr[p1].x+frz*dwzcorr[p1].x);
-              const float temp_y=float(frx*dwxcorr[p1].y+fry*dwycorr[p1].y+frz*dwzcorr[p1].y);
-			        const float temp_z=float(frx*dwxcorr[p1].z+fry*dwycorr[p1].z+frz*dwzcorr[p1].z);
+			        const float temp_x=float(frx*dwxcorr[p1].x+fry*dwxcorr[p1].y+frz*dwxcorr[p1].z);
+              const float temp_y=float(frx*dwycorr[p1].x+fry*dwycorr[p1].y+frz*dwycorr[p1].z);
+			        const float temp_z=float(frx*dwzcorr[p1].x+fry*dwzcorr[p1].y+frz*dwzcorr[p1].z);
 			        const float temp=volumep2*(velrhop[p2].w-pressp1);
               acep1.x+=temp*temp_x; acep1.y+=temp*temp_y; acep1.z+=temp*temp_z;
 			      }
@@ -1361,13 +1361,8 @@ void JSphCpu::RunShifting(double dt){
     #pragma omp parallel for schedule (static) if(npf>LIMIT_COMPUTELIGHT_OMP)
   #endif
   for(int p=pini;p<pfin;p++){
-    //bool nearBound=false;
     tfloat3 rshiftpos=ShiftPosc[p];
     float divrp1=Divr[p];
-    /*if(divrp1<0){
-      nearBound=true;
-      divrp1=-divrp1;
-    }*/
 
     double umagn=-double(ShiftCoef)*double(H)*double(H);
 
@@ -1420,7 +1415,6 @@ void JSphCpu::RunShifting(double dt){
     }
     else if(divrp1>=FreeSurface && divrp1<=FreeSurface+ShiftOffset){ 
       double FactorShift=0.0;
-      //if(nearBound)FactorShift=0.5*(1.0-cos(PI*double(divrp1-FreeSurface)/ShiftOffset));
       rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*FactorShift);
       rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*FactorShift);
       rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*FactorShift);
@@ -1884,9 +1878,9 @@ void JSphCpu::RHSandLHSStorage(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsig
               if(!(p1<int(Npb)&&p2<int(Npb))){
 							  dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
 							
-			          const float temp_x=float(frx*dwxcorr[p1].x+fry*dwycorr[p1].x+frz*dwzcorr[p1].x);
-                const float temp_y=float(frx*dwxcorr[p1].y+fry*dwycorr[p1].y+frz*dwzcorr[p1].y);
-			          const float temp_z=float(frx*dwxcorr[p1].z+fry*dwycorr[p1].z+frz*dwzcorr[p1].z);
+			          const float temp_x=float(frx*dwxcorr[p1].x+fry*dwxcorr[p1].y+frz*dwxcorr[p1].z);
+								const float temp_y=float(frx*dwycorr[p1].x+fry*dwycorr[p1].y+frz*dwycorr[p1].z);
+								const float temp_z=float(frx*dwzcorr[p1].x+fry*dwzcorr[p1].y+frz*dwzcorr[p1].z);
 			          temp=dvx*temp_x+dvy*temp_y+dvz*temp_z;
                 matrixb[oi]-=double(volume*temp);
               }

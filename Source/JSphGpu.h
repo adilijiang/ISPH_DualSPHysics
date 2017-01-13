@@ -238,6 +238,7 @@ protected:
   unsigned *counterGPU;
   unsigned *counterCPU;
   unsigned int *rowCpu;
+	float3 *SumTensileg;
   unsigned MatrixASetup(const unsigned ppedim,unsigned int *rowGpu);
 
   void Shift(double dt,const unsigned bsfluid);
