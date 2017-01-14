@@ -427,15 +427,6 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   const unsigned bsbound=BlockSizes.forcesbound;
 
   //-Interaccion Fluid-Fluid/Bound & Bound-Fluid.
-  //-Interaction Fluid-Fluid/Bound & Bound-Fluid.
-	if(tinter==1){
-		POrderg=ArraysGpu->ReserveUint(); cusph::InitArrayPOrder(Np,POrderg,Np);
-		Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*Np);
-		cudaMemset(counterGPU, 0, sizeof(unsigned));
-		cusph::POrderBound(Np,Npb,NpbOk,Codeg,POrderg,counterGPU);
-		cudaMemcpy(counterCPU,counterGPU,sizeof(unsigned),cudaMemcpyDeviceToHost);
-		PPEDim = counterCPU[0];
-	}
   cusph::Interaction_Forces(WithFloating,UseDEM,TSlipCond,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,POrderg,counterGPU,Irelationg,Divrg,MirrorPosg,NULL,NULL);	
 	if(TSlipCond&&tinter==1)cudaMemcpy(Velrhopg,VelrhopPreg,sizeof(float4)*Npb,cudaMemcpyDeviceToDevice);
   //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
@@ -489,7 +480,7 @@ double JSphGpuSingle::ComputeStep_Sym(){
   //----------- 
   InitAdvection(dt);
 	RunCellDivide(true);
-	if(TSlipCond)CellDivSingle->MirrorDCellSingle(BlockSizes.forcesbound,Npb,Codeg,Irelationg,Idpg,MirrorPosg,DomRealPosMin,DomRealPosMax,DomPosMin,Scell,DomCellCode);
+	CellDivSingle->MirrorDCellSingle(BlockSizes.forcesbound,Npb,Codeg,Idpg,MirrorPosg,MirrorCellg,DomRealPosMin,DomRealPosMax,DomPosMin,Scell,DomCellCode);
   Interaction_Forces(INTER_Forces,dt);        //-Interaction
 	ComputeSymplecticPre(dt);                   //-Applies Symplectic-Predictor to the particles
 	//if(CaseNfloat)RunFloating(dt*.5,true);    //-Management of the floating bodies
@@ -724,10 +715,10 @@ void JSphGpuSingle::FinishRun(bool stop){
 //==============================================================================
 /// Irelation - Dummy particles' respective Wall particle
 //==============================================================================
-void JSphGpuSingle::FindIrelation(){
+void JSphGpuSingle::MirrorBoundary(){
 	const char met[]="FindIrelation";
   const unsigned bsbound=BlockSizes.forcesbound;
-  cusph::FindIrelation(TSlipCond,bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,Irelationg,MirrorPosg);
+  cusph::MirrorBoundary(TSlipCond,bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,MirrorPosg);
   CheckCudaError(met,"findIrelation");
 }
 
@@ -786,7 +777,6 @@ void JSphGpuSingle::SolvePPE(double dt){
   //Create matrix
   b=ArraysGpu->ReserveDouble(); cudaMemset(b,0,sizeof(double)*np);
   X=ArraysGpu->ReserveDouble(); cudaMemset(X,0,sizeof(double)*np);
-  rowInd=ArraysGpu->ReserveUint(); cudaMemset(rowInd,0,sizeof(unsigned int)*(PPEDim+1));
   cusph::RHSandLHSStorage(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,b,POrderg,Idpg,dt,PPEDim,Divrg,Codeg,FreeSurface,rowInd);
 
 	CheckCudaError(met,"RHSLHSStorage");
@@ -815,7 +805,6 @@ void JSphGpuSingle::SolvePPE(double dt){
   CheckCudaError(met,"Pressure assign");
   ArraysGpu->Free(POrderg);       POrderg=NULL;
   ArraysGpu->Free(Divrg);		      Divrg=NULL;
-	ArraysGpu->Free(rowInd);				rowInd=NULL;
   ArraysGpu->Free(b);             b=NULL;
   ArraysGpu->Free(X);             X=NULL;
 }

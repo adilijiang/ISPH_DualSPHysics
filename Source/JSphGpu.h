@@ -220,25 +220,26 @@ protected:
   ///////////////////////////////////////////////
   //PPE Functions, variables, Kernel Correction//
   ///////////////////////////////////////////////
-  int *Irelationg; //The closest fluid particle, j, for a boundary particle, i
-  //unsigned int *rowCpu;
-  unsigned *POrderg;
+  unsigned *MirrorCellg;
+	double3 *MirrorPosg;
   double3 *dWxCorrg; //Kernel correction in the x direction
   double3 *dWyCorrg; //Kernel correction in the y direction
   double3 *dWzCorrg; //Kernel correction in the z direction
-  float *Divrg; //Divergence of position
-	double3 *MirrorPosg;
+  
+	float3 *SumTensileg;
+	float *Divrg; //Divergence of position
+	
   //matrix variables 
   double *b;
   double *a;
   unsigned PPEDim;
-  unsigned int *colInd;
-  unsigned int *rowInd;
+  unsigned *colInd;
+  unsigned *rowInd;
   double *X;
+
   unsigned *counterGPU;
   unsigned *counterCPU;
-  unsigned int *rowCpu;
-	float3 *SumTensileg;
+	
   unsigned MatrixASetup(const unsigned ppedim,unsigned int *rowGpu);
 
   void Shift(double dt,const unsigned bsfluid);

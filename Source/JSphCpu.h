@@ -226,7 +226,7 @@ protected:
   
 	void InverseCorrection3D(unsigned n, unsigned pinit,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr)const;
   
-	void MirrorBoundary(TpSlipCond tslip, unsigned np,unsigned npb,unsigned pinit,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code)const;
+	void MirrorBoundary(unsigned np,unsigned npb,unsigned pinit,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code)const;
 
   void solveMatrix();
   

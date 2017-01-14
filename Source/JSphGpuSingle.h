@@ -56,7 +56,7 @@ protected:
   void FinishRun(bool stop);
 
   void InitAdvection(double dt);
-  void FindIrelation();
+  void MirrorBoundary();
   void BoundaryVelocity(TpSlipCond TSlipCond);
   void KernelCorrection();
   void SolvePPE(double dt);

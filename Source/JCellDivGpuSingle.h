@@ -40,7 +40,7 @@ public:
   JCellDivGpuSingle(bool stable,bool floating,byte periactive,TpCellOrder cellorder,TpCellMode cellmode,float scell,tdouble3 mapposmin,tdouble3 mapposmax,tuint3 mapcells,unsigned casenbound,unsigned casenfixed,unsigned casenpb,JLog2 *log,std::string dirout);
 
   void Divide(unsigned npb1,unsigned npf1,unsigned npb2,unsigned npf2,bool boundchanged,const unsigned *dcellg,const word* codeg,TimersGpu timers,const double2 *posxy,const double *posz,const unsigned *idp);
-	void MirrorDCellSingle(unsigned bsbound,unsigned npb,const word *code,int *irelation,unsigned *idpg,const double3 *mirror,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode);
+	void MirrorDCellSingle(unsigned bsbound,unsigned npb,const word *code,unsigned *idpg,const double3 *mirrorPos,unsigned *mirrorCell,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode);
   ullong GetAllocMemoryCpu()const{ return(JCellDivGpu::GetAllocMemoryCpu()); }
   ullong GetAllocMemoryGpu()const{ return(JCellDivGpu::GetAllocMemoryGpu()); }
   ullong GetAllocMemoryGpuNp()const{ return(JCellDivGpu::GetAllocMemoryGpuNp()); };

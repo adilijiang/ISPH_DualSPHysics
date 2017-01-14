@@ -1652,7 +1652,7 @@ void JSphCpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
 //===============================================================================
 ///Find the closest fluid particle to each boundary particle
 //===============================================================================
-void JSphCpu::MirrorBoundary(TpSlipCond tslip,unsigned np,unsigned npb,unsigned pinit,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code)const{
+void JSphCpu::MirrorBoundary(unsigned np,unsigned npb,unsigned pinit,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code)const{
   const int pfin=int(pinit+npb);
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)

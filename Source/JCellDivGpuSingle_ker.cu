@@ -119,33 +119,32 @@ void PreSortFluid(unsigned npf,unsigned pini,unsigned cellcode,const unsigned *d
   }
 }
 
-__device__ void KerMirrorDCellSort(const double3 ps,int *irelation,const unsigned idpg1,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode){
+__device__ void KerMirrorDCellSort(const double3 ps,const unsigned idpg1,tdouble3 domrealposmin,tdouble3 domrealposmax,
+	tdouble3 domposmin,float scell,int domcellcode,unsigned *mirrorCell){
 	const double dx=ps.x-domposmin.x;
 	const double dy=ps.y-domposmin.y;
 	const double dz=ps.z-domposmin.z;
 	unsigned cx=unsigned(dx/scell),cy=unsigned(dy/scell),cz=unsigned(dz/scell);
-	irelation[idpg1]=PC__Cell(domcellcode,cx,cy,cz);
+	mirrorCell[idpg1]=PC__Cell(domcellcode,cx,cy,cz);
 }
 
-__global__ void KerMirrorDCell(unsigned npb,const word *code,unsigned *idpg,const double3 *mirror,int *irelation
-	,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode){
+__global__ void KerMirrorDCell(unsigned npb,const word *code,unsigned *idpg,const double3 *mirrorPos,
+	unsigned *mirrorCell,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode){
 	unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
-		if(CODE_GetTypeValue(code[p1])==0){
+		if(CODE_GetTypeValue(code[p1])==1){
 			unsigned idpg1=idpg[p1];
-			if(irelation[idpg1]!=-1){
-				const double3 ps=mirror[idpg1];
-				KerMirrorDCellSort(ps,irelation,idpg1,domrealposmin,domrealposmax,domposmin,scell,domcellcode);
-			}
+			const double3 ps=mirrorPos[idpg1];
+				KerMirrorDCellSort(ps,idpg1,domrealposmin,domrealposmax,domposmin,scell,domcellcode,mirrorCell);
 		}
 	}
 }
 
-void MirrorDCell(const unsigned bsbound,unsigned npb,const word *code,int *irelation,unsigned *idpg,const double3 *mirror
-	,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode){
+void MirrorDCell(const unsigned bsbound,unsigned npb,const word *code,unsigned *idpg,const double3 *mirrorPos,
+	unsigned *mirrorCell,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode){
 	if(npb){
     dim3 sgridb=GetGridSize(npb,bsbound);
-    KerMirrorDCell <<<sgridb,bsbound>>> (npb,code,idpg,mirror,irelation,domrealposmin,domrealposmax,domposmin,scell,domcellcode);
+    KerMirrorDCell <<<sgridb,bsbound>>> (npb,code,idpg,mirrorPos,mirrorCell,domrealposmin,domrealposmax,domposmin,scell,domcellcode);
 	}
 }
 }

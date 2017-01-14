@@ -40,7 +40,7 @@ using namespace std;
 //==============================================================================
 JSphGpu::JSphGpu(bool withmpi):JSph(false,withmpi){
   ClassName="JSphGpu";
-  rowCpu=NULL; counterCPU=NULL;
+  counterCPU=NULL;
   Idp=NULL; Code=NULL; Dcell=NULL; Posxy=NULL; Posz=NULL; Velrhop=NULL; 
   AuxPos=NULL; AuxVel=NULL; AuxRhop=NULL;
   FtoForces=NULL; FtoCenter=NULL;   //-Floatings.
@@ -89,11 +89,9 @@ void JSphGpu::InitVars(){
   counterGPU=NULL;
   X=NULL;
   dWxCorrg=NULL; dWyCorrg=NULL; dWzCorrg=NULL;
-  POrderg=NULL;
 	SumTensileg=NULL;
   Divrg=NULL;
   ShiftPosg=NULL; //-Shifting.
-  Irelationg=NULL;
 	MirrorPosg=NULL;
   RidpMoveg=NULL;
   FtRidpg=NULL;    FtoMasspg=NULL;               //-Floatings.
@@ -129,7 +127,7 @@ void JSphGpu::CheckCudaError(const std::string &method,const std::string &msg){
 //==============================================================================
 void JSphGpu::FreeGpuMemoryFixed(){
   MemGpuFixed=0;
-  if(Irelationg)cudaFree(Irelationg); Irelationg=NULL;
+  if(rowInd)cudaFree(rowInd);					rowInd=NULL;
   if(MirrorPosg)cudaFree(MirrorPosg); MirrorPosg=NULL;
 	if(a)cudaFree(a);                   a=NULL;
   if(colInd)cudaFree(colInd);         colInd=NULL;
@@ -164,8 +162,8 @@ void JSphGpu::AllocGpuMemoryFixed(){
   }
 	else RunException(met,fun::PrintStr("H/Dp too high for Quintic %f",H/Dp));
 
-  size_t m=sizeof(int)*Npb;
-  cudaMalloc((void**)&Irelationg,m);    MemGpuFixed+=m;
+  size_t m=sizeof(unsigned)*(Np+1);
+  cudaMalloc((void**)&rowInd,m);    MemGpuFixed+=m;
   m=sizeof(double3)*Npb;
 	cudaMalloc((void**)&MirrorPosg,m);    MemGpuFixed+=m;
 	m=sizeof(double)*Np*matrixMemory;
@@ -210,7 +208,6 @@ void JSphGpu::FreeCpuMemoryParticles(){
   CpuParticlesSize=0;
   MemCpuParticles=0;
   delete[] counterCPU; counterCPU=NULL;
-  delete[] rowCpu;     rowCpu=NULL;
   delete[] Idp;        Idp=NULL;
   delete[] Code;       Code=NULL;
   delete[] Dcell;      Dcell=NULL;
@@ -235,7 +232,6 @@ void JSphGpu::AllocCpuMemoryParticles(unsigned np){
   if(np>0){
     try{
       counterCPU=new unsigned[1];MemCpuParticles+=sizeof(unsigned);
-      rowCpu=new unsigned[np];   MemCpuParticles+=sizeof(unsigned)*np;
       Idp=new unsigned[np];      MemCpuParticles+=sizeof(unsigned)*np;
       Code=new word[np];         MemCpuParticles+=sizeof(word)*np;
       Dcell=new unsigned[np];    MemCpuParticles+=sizeof(unsigned)*np;
@@ -281,7 +277,7 @@ void JSphGpu::AllocGpuMemoryParticles(unsigned np,float over){
   //-Compute total number of arrays
   ArraysGpu->SetArraySize(np2);
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_2B,2);  //-code,code2
-  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,6);  //-idp,dcell,porderg,rowInd
+  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,4);  //-idp,dcell
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,1); //-ace
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,4); //-velrhop,posxy
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,2);  //-posz,divrg
@@ -856,16 +852,18 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
   TmgStart(Timers,TMG_CfPreForces);
   //-Asigna memoria.
   //-Allocates memory.
-  Aceg=ArraysGpu->ReserveFloat3();
-
-	if(tinter==1){
-		dWxCorrg=ArraysGpu->ReserveDouble3();
-		dWyCorrg=ArraysGpu->ReserveDouble3();
-		dWzCorrg=ArraysGpu->ReserveDouble3();
-		cudaMemset(dWxCorrg,0,sizeof(double3)*Np);	
-		cudaMemset(dWyCorrg,0,sizeof(double)*Np);
-		cudaMemset(dWzCorrg,0,sizeof(double3)*Np);
+  if(tinter==1){
+		dWxCorrg=ArraysGpu->ReserveDouble3(); 
+		dWyCorrg=ArraysGpu->ReserveDouble3(); 
+		dWzCorrg=ArraysGpu->ReserveDouble3(); 	
+		Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*Np);
 	}
+
+	cudaMemset(dWxCorrg,0,sizeof(double3)*Np);
+	cudaMemset(dWyCorrg,0,sizeof(double)*Np);
+	cudaMemset(dWzCorrg,0,sizeof(double3)*Np);	
+
+	Aceg=ArraysGpu->ReserveFloat3();
 
   //-Inicializa arrays.
   //-Initialises arrays.
