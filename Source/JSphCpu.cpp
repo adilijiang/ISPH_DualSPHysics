@@ -746,9 +746,9 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 								divrp1-=volume*rDivW;
 						
 								if(CODE_GetTypeValue(code[p2])==0){
-									dwxp1.x-=volume*frx*drx; dwxp1.y-=volume*fry*drx; dwxp1.z-=volume*frz*drx;
-									dwyp1.x-=volume*frx*dry; dwyp1.y-=volume*fry*dry; dwyp1.z-=volume*frz*dry;
-									dwzp1.x-=volume*frx*drz; dwzp1.y-=volume*fry*drz; dwzp1.z-=volume*frz*drz;
+									dwxp1.x-=volume*frx*drx; dwxp1.y-=volume*frx*dry; dwxp1.z-=volume*frx*drz;
+									dwyp1.x-=volume*fry*drx; dwyp1.y-=volume*fry*dry; dwyp1.z-=volume*fry*drz;
+									dwzp1.x-=volume*frz*drx; dwzp1.y-=volume*frz*dry; dwzp1.z-=volume*frz*drz;
 								}
 							}
 						}
@@ -878,7 +878,7 @@ template<TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
 
         //-Interaction of Fluid with type Fluid or Bound / Interaccion de Fluid con varias Fluid o Bound.
         //------------------------------------------------
-        for(unsigned p2=pini;p2<pfin;p2++)if(divr[p2]!=-1.0||CODE_GetTypeValue(code[p2])==0){
+        for(unsigned p2=pini;p2<pfin;p2++){
           const float drx=float(posp1.x-pos[p2].x);
 					const float dry=float(posp1.y-pos[p2].y);
 					const float drz=float(posp1.z-pos[p2].z);
@@ -1513,7 +1513,6 @@ void JSphCpu::MoveLinBound(unsigned np,unsigned ini,const tdouble3 &mvpos,const 
     const unsigned pid=RidpMove[id];
 		if(CODE_GetTypeValue(code[pid])==1){
 			unsigned idp1=idpc[pid];
-			
 			mirrorPos[idp1].x+=mvpos.x;
 			mirrorPos[idp1].y+=mvpos.y;
 			mirrorPos[idp1].z+=mvpos.z;
@@ -1836,6 +1835,10 @@ void JSphCpu::RHSandLHSStorage(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsig
 	  unsigned oi=p1;
 		if(p1>=int(Npb)) oi=(oi-Npb)+NpbOk;
 
+		const tdouble3 dwxcorrp1=dwxcorr[p1];
+		const tdouble3 dwycorrp1=dwycorr[p1];
+    const tdouble3 dwzcorrp1=dwzcorr[p1];
+
     if(divr[p1]>freesurface){
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;
@@ -1871,15 +1874,13 @@ void JSphCpu::RHSandLHSStorage(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsig
 								if(!(p1<int(Npb)&&p2<int(Npb))){
 									dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
 							
-									const float temp_x=float(frx*dwxcorr[p1].x+fry*dwycorr[p1].x+frz*dwzcorr[p1].x);
-									const float temp_y=float(frx*dwxcorr[p1].y+fry*dwycorr[p1].y+frz*dwzcorr[p1].y);
-									const float temp_z=float(frx*dwxcorr[p1].z+fry*dwycorr[p1].z+frz*dwzcorr[p1].z);
+									const float temp_x=float(frx*dwxcorrp1.x+fry*dwxcorrp1.y+frz*dwxcorrp1.z);
+									const float temp_y=float(frx*dwycorrp1.x+fry*dwycorrp1.y+frz*dwycorrp1.z);
+									const float temp_z=float(frx*dwzcorrp1.x+fry*dwzcorrp1.y+frz*dwzcorrp1.z);
 									temp=dvx*temp_x+dvy*temp_y+dvz*temp_z;
 									matrixb[oi]-=double(volume*temp);
-									
 								}
 							}
-							
 							rowCount++;
 						}							
 		      }
@@ -2129,7 +2130,7 @@ void JSphCpu::PressureAssign(unsigned np,unsigned npbok,const tdouble3 *pos,tflo
   for(int p1=0;p1<int(npbok);p1++){
 		if(CODE_GetTypeValue(code[p1])==0){
 			velrhop[p1].w=float(x[p1]);
-			if(!NegativePressureBound)if(p1<int(npb)&&velrhop[p1].w<0)velrhop[p1].w=0.0;
+			if(!NegativePressureBound)if(velrhop[p1].w<0)velrhop[p1].w=0.0;
 		}
 		else{
 			double dist=MirrorPosc[Idpc[p1]].z-Posc[p1].z;

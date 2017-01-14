@@ -25,7 +25,7 @@ namespace cudiv{
 void PreSortFull(unsigned np,unsigned cellcode,const unsigned *dcell,const word *code,tuint3 cellmin,tuint3 ncells,unsigned *cellpart,unsigned *sortpart,JLog2 *log);
 void PreSortFluid(unsigned npf,unsigned pini,unsigned cellcode,const unsigned *dcell,const word *code,tuint3 cellmin,tuint3 ncells,unsigned *cellpart,unsigned *sortpart,JLog2 *log);
 //#Sorts mirrored positions into cells
-void MirrorDCell(unsigned bsbound,unsigned npb,const word *code,unsigned *idpg,const double3 *mirrorPos,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode);
+void MirrorDCell(unsigned bsbound,unsigned npb,const word *code,unsigned *idpg,const double3 *mirrorPos,unsigned *mirrorCell,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode);
 
 }
 #endif

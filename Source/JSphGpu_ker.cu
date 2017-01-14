@@ -578,93 +578,39 @@ __global__ void KerInverseKernelCor3D(unsigned n,unsigned pinit,double3 *dwxcorr
 /// Realiza la interaccion de una particula con un conjunto de ellas. Bound-Fluid/Float
 /// Interaction of a particle with a set of particles (Bound-Fluid).
 //------------------------------------------------------------------------------
-template<TpFtMode ftmode> __device__ void KerInteractionForcesBoundBound
-  (const unsigned &pini,const unsigned &pfin
-  ,const float *ftomassp,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned* idp
-  ,float massb,double3 posdp1,float3 velp1,double3 &dwxp1,double3 &dwyp1,double3 &dwzp1,float &divrp1,const unsigned codep1,float3 &wallVelocity)
+template<TpFtMode ftmode> __device__ void KerInteractionForcesBoundCode0
+  (const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz,const word *code
+	,float mass,double3 posdp1,double3 &dwxp1,double3 &dwyp1,double3 &dwzp1,float &divrp1)
 {
-	const float volume=massb/CTE.rhopzero;
+	const float volume=mass/CTE.rhopzero;
   for(int p2=pini;p2<pfin;p2++){
     float drx,dry,drz;
     KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
     const float rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
-			if(CODE_GetTypeValue(code[p2])==2){
-				wallVelocity.x=velrhop[p2].x;
-				wallVelocity.y=velrhop[p2].y;
-				wallVelocity.z=velrhop[p2].z;
+      //-Wendland kernel
+      float frx,fry,frz;
+      KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
+
+			const float rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
+			divrp1-=volume*rDivW;
+
+			if(CODE_GetTypeValue(code[p2])==0){
+				dwxp1.x-=volume*frx*drx; dwxp1.y-=volume*frx*dry; dwxp1.z-=volume*frx*drz;
+				dwyp1.x-=volume*fry*drx; dwyp1.y-=volume*fry*dry; dwyp1.z-=volume*fry*drz;
+				dwzp1.x-=volume*frz*drx; dwzp1.y-=volume*frz*dry; dwzp1.z-=volume*frz*drz;
 			}
-
-      //-Wendland kernel
-      float frx,fry,frz;
-      KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
-
-			const float rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
-			divrp1-=volume*rDivW;
-
-			dwxp1.x-=volume*frx*drx; dwxp1.y-=volume*frx*dry; dwxp1.z-=volume*frx*drz;
-			dwyp1.x-=volume*fry*drx; dwyp1.y-=volume*fry*dry; dwyp1.z-=volume*fry*drz;
-			dwzp1.x-=volume*frz*drx; dwzp1.y-=volume*frz*dry; dwzp1.z-=volume*frz*drz;
-
-      //-Obtiene masa de particula p2 en caso de existir floatings.
-	  //-Obtains particle mass p2 if there are floating bodies.
-     // float ftmassp2;    //-Contiene masa de particula floating o massf si es fluid. //-Contains mass of floating body or massf if fluid.
- 
-			// bool compute=true; //-Se desactiva cuando se usa DEM y es float-float o float-bound. //-Deactivated when DEM is used and is float-float or float-bound.
-     /* if(USE_FLOATING){
-        const word cod=code[p2];
-        bool ftp2=(CODE_GetType(cod)==CODE_TYPE_FLOATING);
-        ftmassp2=(ftp2? ftomassp[CODE_GetTypeValue(cod)]: massf);
-        compute=!(USE_DEM && ftp2); //-Se desactiva cuando se usa DEM y es bound-float. //-Deactivated when DEM is used and is bound-float.
-      }*/
-    }
-  }
-}
-
-template<TpFtMode ftmode> __device__ void KerInteractionForcesBoundFluid
-  (const unsigned &pini,const unsigned &pfin
-  ,const float *ftomassp,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned* idp
-  ,float massf,double3 posdp1,float3 velp1,double3 &dwxp1,double3 &dwyp1,double3 &dwzp1,float &divrp1,const unsigned codep1)
-{
-	const float volume=massf/CTE.rhopzero;
-  for(int p2=pini;p2<pfin;p2++){
-    float drx,dry,drz;
-    KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
-    float rr2=drx*drx+dry*dry+drz*drz;
-    if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
-      //-Wendland kernel
-      float frx,fry,frz;
-      KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
-
-			const float rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
-			divrp1-=volume*rDivW;
-
-			dwxp1.x-=volume*frx*drx; dwxp1.y-=volume*frx*dry; dwxp1.z-=volume*frx*drz;
-			dwyp1.x-=volume*fry*drx; dwyp1.y-=volume*fry*dry; dwyp1.z-=volume*fry*drz;
-			dwzp1.x-=volume*frz*drx; dwzp1.y-=volume*frz*dry; dwzp1.z-=volume*frz*drz;
-
-      //-Obtiene masa de particula p2 en caso de existir floatings.
-	  //-Obtains particle mass p2 if there are floating bodies.
-     // float ftmassp2;    //-Contiene masa de particula floating o massf si es fluid. //-Contains mass of floating body or massf if fluid.
- 
-			// bool compute=true; //-Se desactiva cuando se usa DEM y es float-float o float-bound. //-Deactivated when DEM is used and is float-float or float-bound.
-     /* if(USE_FLOATING){
-        const word cod=code[p2];
-        bool ftp2=(CODE_GetType(cod)==CODE_TYPE_FLOATING);
-        ftmassp2=(ftp2? ftomassp[CODE_GetTypeValue(cod)]: massf);
-        compute=!(USE_DEM && ftp2); //-Se desactiva cuando se usa DEM y es bound-float. //-Deactivated when DEM is used and is bound-float.
-      }*/
     }
   }
 }
 
 __device__ void KerCalculateMirrorVel
   (const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
-	,float4 *velrhop,double3 mirror,float3 &Sum1, float &Sum2)
+	,float4 *velrhop,double3 posdp1,float3 &Sum1, float &Sum2)
 {
 	for(int p2=pini;p2<pfin;p2++){
     float drx,dry,drz;
-    KerGetParticlesDr(p2,posxy,posz,mirror,drx,dry,drz);
+    KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
     float rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
 			const float4 velrhop2=velrhop[p2];
@@ -682,21 +628,18 @@ __device__ void KerCalculateMirrorVel
 /// Particle interaction. Bound-Fluid/Float
 //------------------------------------------------------------------------------
 template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
-  (TpSlipCond tslipcond,unsigned n,int hdiv,uint4 nc,const int2 *begincell,int3 cellzero,const unsigned *dcell
-  ,const float *ftomassp
-  ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg,float *divr,const double3 *mirror,const int *irelationg)
+  (TpSlipCond tslipcond,unsigned n,int hdiv,uint4 nc,const int2 *begincell,int3 cellzero,const unsigned *dcell,
+	const float *ftomassp,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,
+	double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg,float *divr,const double3 *mirrorPos,const unsigned *mirrorCell)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<n){
-		unsigned codep1=CODE_GetTypeValue(code[p1]);
-    if(codep1!=2){
-      //-Carga datos de particula p1.
+		//-Carga datos de particula p1.
 			//-Loads particle p1 data.
       double3 posdp1;
       float3 velp1;
       KerGetParticleData(p1,posxy,posz,velrhop,velp1,posdp1);
-			
-			float3 wallVelocity=make_float3(0,0,0);
+    if(CODE_GetTypeValue(code[p1])==0){
 			float divrp1=0.0;
 			double3 dwxp1=make_double3(0,0,0); double3 dwyp1=make_double3(0,0,0); double3 dwzp1=make_double3(0,0,0);
       
@@ -706,48 +649,9 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
       KerGetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
 
 			//-Boundary-Bound interaction.
-			for(int z=zini;z<zfin;z++){
-        int zmod=(nc.w)*z;
-        for(int y=yini;y<yfin;y++){
-          int ymod=zmod+nc.x*y;
-          unsigned pini,pfin=0;
-          for(int x=cxini;x<cxfin;x++){
-            int2 cbeg=begincell[x+ymod];
-            if(cbeg.y){
-              if(!pfin)pini=cbeg.x;
-              pfin=cbeg.y;
-            }
-          }
-          if(pfin)KerInteractionForcesBoundBound<ftmode> (pini,pfin,ftomassp,posxy,posz,velrhop,code,idp,CTE.massb,posdp1,velp1,dwxp1,dwyp1,dwzp1,divrp1,codep1,wallVelocity);
-        }
-      }
-			
-      //-Interaccion de Contorno con Fluidas.
-	  //-Boundary-Fluid interaction.
-      for(int z=zini;z<zfin;z++){
-        int zmod=(nc.w)*z+(nc.w*nc.z+1);//-Le suma Nct+1 que es la primera celda de fluido. //-Adds Nct + 1 which is the first cell fluid.
-        for(int y=yini;y<yfin;y++){
-          int ymod=zmod+nc.x*y;
-          unsigned pini,pfin=0;
-          for(int x=cxini;x<cxfin;x++){
-            int2 cbeg=begincell[x+ymod];
-            if(cbeg.y){
-              if(!pfin)pini=cbeg.x;
-              pfin=cbeg.y;
-            }
-          }
-          if(pfin)KerInteractionForcesBoundFluid<ftmode> (pini,pfin,ftomassp,posxy,posz,velrhop,code,idp,CTE.massf,posdp1,velp1,dwxp1,dwyp1,dwzp1,divrp1,codep1);
-        }
-      }
-
-			unsigned idp1=idp[p1];
-			if(tslipcond&&codep1==0&&irelationg[idp1]!=-1){
-				float3 Sum1=make_float3(0,0,0);
-				float Sum2=0.0;
-				KerGetInteractionCells(irelationg[idp1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
-
+			for(int fluid=0;fluid<=1;fluid++){
 				for(int z=zini;z<zfin;z++){
-					int zmod=(nc.w)*z+(nc.w*nc.z+1);//-Le suma Nct+1 que es la primera celda de fluido. //-Adds Nct + 1 which is the first cell fluid.
+					int zmod=(nc.w)*z+(nc.w*nc.z+1)*fluid;
 					for(int y=yini;y<yfin;y++){
 						int ymod=zmod+nc.x*y;
 						unsigned pini,pfin=0;
@@ -758,20 +662,10 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
 								pfin=cbeg.y;
 							}
 						}
-						if(pfin) KerCalculateMirrorVel (pini,pfin,posxy,posz,velrhop,mirror[idp1],Sum1,Sum2);
-					}
-				}
-
-				if(Sum2){
-					if(tslipcond==SLIPCOND_Slip){
-						velrhop[p1].x=(wallVelocity.x-(Sum1.x/Sum2))/2.0f;
-						velrhop[p1].y=(wallVelocity.y-(Sum1.y/Sum2))/2.0f;
-						velrhop[p1].z=(wallVelocity.z-(Sum1.z/Sum2))/2.0f;
-					}
-					else if(tslipcond==SLIPCOND_NoSlip){
-						velrhop[p1].x=(wallVelocity.x+(Sum1.x/Sum2))/2.0f;
-						velrhop[p1].y=(wallVelocity.y+(Sum1.y/Sum2))/2.0f;
-						velrhop[p1].z=(wallVelocity.z+(Sum1.z/Sum2))/2.0f;
+						float mass;
+						if(fluid) mass=CTE.massf;
+						else mass=CTE.massb;
+						if(pfin)KerInteractionForcesBoundCode0<ftmode> (pini,pfin,posxy,posz,code,mass,posdp1,dwxp1,dwyp1,dwzp1,divrp1);
 					}
 				}
 			}
@@ -781,12 +675,51 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
 			if(dwxp1.x||dwxp1.y||dwxp1.z
 				||dwyp1.x||dwyp1.y||dwyp1.z
 				||dwzp1.x||dwzp1.y||dwzp1.z){
-					dwxcorrg[p1].x+=dwxp1.x; dwxcorrg[p1].y+=dwxp1.y; dwxcorrg[p1].z+=dwxp1.z; 
-					dwycorrg[p1].x+=dwyp1.x; dwycorrg[p1].y+=dwyp1.y; dwycorrg[p1].z+=dwyp1.z;
-					dwzcorrg[p1].x+=dwzp1.x; dwzcorrg[p1].y+=dwzp1.y; dwzcorrg[p1].z+=dwzp1.z;
+				dwxcorrg[p1].x+=dwxp1.x; dwxcorrg[p1].y+=dwxp1.y; dwxcorrg[p1].z+=dwxp1.z; 
+				dwycorrg[p1].x+=dwyp1.x; dwycorrg[p1].y+=dwyp1.y; dwycorrg[p1].z+=dwyp1.z;
+				dwzcorrg[p1].x+=dwzp1.x; dwzcorrg[p1].y+=dwzp1.y; dwzcorrg[p1].z+=dwzp1.z;
 			}
-    }
-  }
+		}
+		else{
+			unsigned idpg1=idp[p1];
+			float3 Sum1=make_float3(0,0,0);
+			float Sum2=0.0;
+			const double3 posmp1=make_double3(mirrorPos[idpg1].x,mirrorPos[idpg1].y,mirrorPos[idpg1].z);
+			
+			int cxini,cxfin,yini,yfin,zini,zfin;
+			KerGetInteractionCells(mirrorCell[idpg1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+
+				
+			for(int z=zini;z<zfin;z++){
+				int zmod=(nc.w)*z+(nc.w*nc.z+1);//-Le suma Nct+1 que es la primera celda de fluido. //-Adds Nct + 1 which is the first cell fluid.	
+				for(int y=yini;y<yfin;y++){
+					int ymod=zmod+nc.x*y;
+					unsigned pini,pfin=0;
+					for(int x=cxini;x<cxfin;x++){
+						int2 cbeg=begincell[x+ymod];
+						if(cbeg.y){
+							if(!pfin)pini=cbeg.x;
+							pfin=cbeg.y;
+						}
+					}
+					if(pfin) KerCalculateMirrorVel (pini,pfin,posxy,posz,velrhop,posmp1,Sum1,Sum2);
+				}
+			}
+
+			if(Sum2){
+				if(tslipcond==SLIPCOND_Slip){
+					velrhop[p1].x=(velp1.x-(Sum1.x/Sum2))/2.0f;
+					velrhop[p1].y=(velp1.y-(Sum1.y/Sum2))/2.0f;
+					velrhop[p1].z=(velp1.z-(Sum1.z/Sum2))/2.0f;
+				}
+				else if(tslipcond==SLIPCOND_NoSlip){
+					velrhop[p1].x=(velp1.x+(Sum1.x/Sum2))/2.0f;
+					velrhop[p1].y=(velp1.y+(Sum1.y/Sum2))/2.0f;
+					velrhop[p1].z=(velp1.z+(Sum1.z/Sum2))/2.0f;
+				}
+			}
+		}
+	}
 }
 
 //------------------------------------------------------------------------------
@@ -864,7 +797,6 @@ template<TpFtMode ftmode> __device__ void KerInteractionForcesFluidPresGrad
 	  //-Obtains mass of particle p2 if any floating bodies exist.
       //bool ftp2;         //-Indica si es floating. //-indicates if it is floating.
       //float ftmassp2;    //-Contiene masa de particula floating o massp2 si es bound o fluid. //-Contains mass of floating body or massf if fluid.
-      bool compute=true; //-Se desactiva cuando se usa DEM y es float-float o float-bound. //-Deactivated when DEM is used and is float-float or float-bound.
      /* if(USE_FLOATING){
         const word cod=code[p2];
         ftp2=(CODE_GetType(cod)==CODE_TYPE_FLOATING);
@@ -874,14 +806,12 @@ template<TpFtMode ftmode> __device__ void KerInteractionForcesFluidPresGrad
         compute=!(USE_DEM && ftp1 && (boundp2 || ftp2)); //-Se desactiva cuando se usa DEM y es float-float o float-bound. //-Deactivated when DEM is used and is float-float or float-bound.
       }*/
       //===== Aceleration ===== 
-      if(compute){
-		    const float volumep2=massp2/CTE.rhopzero; //Volume of particle j
-        const float temp_x=float(frx*dwxcorrg[p1].x+fry*dwxcorrg[p1].y+frz*dwxcorrg[p1].z);
-        const float temp_y=float(frx*dwycorrg[p1].x+fry*dwycorrg[p1].y+frz*dwycorrg[p1].z);
-			  const float temp_z=float(frx*dwzcorrg[p1].x+fry*dwzcorrg[p1].y+frz*dwzcorrg[p1].z);
-        const float temp=volumep2*(pressp2-pressp1);
-        acep1.x+=temp*temp_x; acep1.y+=temp*temp_y; acep1.z+=temp*temp_z;
-      }
+	    const float volumep2=massp2/CTE.rhopzero; //Volume of particle j
+      const float temp_x=float(frx*dwxcorrg[p1].x+fry*dwxcorrg[p1].y+frz*dwxcorrg[p1].z);
+      const float temp_y=float(frx*dwycorrg[p1].x+fry*dwycorrg[p1].y+frz*dwycorrg[p1].z);
+		  const float temp_z=float(frx*dwzcorrg[p1].x+fry*dwzcorrg[p1].y+frz*dwzcorrg[p1].z);
+      const float temp=volumep2*(pressp2-pressp1);
+      acep1.x+=temp*temp_x; acep1.y+=temp*temp_y; acep1.z+=temp*temp_z;
     }
   }
 }
@@ -903,8 +833,8 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesFluid
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    float3 acep1=make_float3(0,0,0);
 		float divrp1=0.0;
+    float3 acep1=make_float3(0,0,0);
 		double3 dwxp1=make_double3(0,0,0); double3 dwyp1=make_double3(0,0,0); double3 dwzp1=make_double3(0,0,0);
     //-Obtiene datos de particula p1 en caso de existir floatings.
 	//-Obtains data of particle p1 in case there are floating bodies.
@@ -944,10 +874,10 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesFluid
           }
         }
         if(pfin){
-		  if(tinter==1)KerInteractionForcesFluidVisc<ftmode> (false,p1,pini,pfin,viscof,ftomassp,posxy,posz,velrhop,code,idp,CTE.massf,ftmassp1,ftp1,posdp1,velp1,pressp1,acep1,divrp1,dwxp1,dwyp1,dwzp1);
-		  else if(tinter==2) KerInteractionForcesFluidPresGrad<ftmode> (false,p1,pini,pfin,viscof,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,CTE.massf,ftmassp1,ftp1,posdp1,velp1,pressp1,acep1);
-		}
-	  }
+					if(tinter==1)KerInteractionForcesFluidVisc<ftmode> (false,p1,pini,pfin,viscof,ftomassp,posxy,posz,velrhop,code,idp,CTE.massf,ftmassp1,ftp1,posdp1,velp1,pressp1,acep1,divrp1,dwxp1,dwyp1,dwzp1);
+					else if(tinter==2) KerInteractionForcesFluidPresGrad<ftmode> (false,p1,pini,pfin,viscof,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,CTE.massf,ftmassp1,ftp1,posdp1,velp1,pressp1,acep1);
+				}
+			}
     }
 
     if(acep1.x||acep1.y||acep1.z||divrp1
@@ -987,7 +917,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesFluid
         if(pfin){
 		  		if(tinter==1)KerInteractionForcesFluidVisc<ftmode> (false,p1,pini,pfin,viscof,ftomassp,posxy,posz,velrhop,code,idp,CTE.massf,ftmassp1,ftp1,posdp1,velp1,pressp1,acep1,divrp1,dwxp1,dwyp1,dwzp1);
 					else if(tinter==2) KerInteractionForcesFluidPresGrad<ftmode> (false,p1,pini,pfin,viscof,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,CTE.massf,ftmassp1,ftp1,posdp1,velp1,pressp1,acep1);
-		}
+				}
       }
     }
     //-Almacena resultados.
@@ -1011,6 +941,103 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesFluid
   }
 }
 
+__device__ void KerKernelCorrPress
+  (unsigned p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz,const unsigned *idp
+  ,float massp2,double3 posdp1,double3 &dwxp1,double3 &dwyp1,double3 &dwzp1)
+{
+  for(int p2=pini;p2<pfin;p2++){
+    float drx,dry,drz;
+    KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+    float rr2=drx*drx+dry*dry+drz*drz;
+    if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
+      //-Wendland kernel.
+      float frx,fry,frz;
+      KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
+      
+		  const float volume=massp2/CTE.rhopzero; //Volume of particle j 
+
+			dwxp1.x-=volume*frx*drx; dwxp1.y-=volume*frx*dry; dwxp1.z-=volume*frx*drz;
+			dwyp1.x-=volume*fry*drx; dwyp1.y-=volume*fry*dry; dwyp1.z-=volume*fry*drz;
+			dwzp1.x-=volume*frz*drx; dwzp1.y-=volume*frz*dry; dwzp1.z-=volume*frz*drz;
+    }
+  }
+}
+
+__global__ void KerKernelCorrectionPressure
+  (TpInter tinter,unsigned n,unsigned pinit,int hdiv,uint4 nc,unsigned cellfluid,float viscob,float viscof
+  ,const int2 *begincell,int3 cellzero,const unsigned *dcell,const double2 *posxy,const double *posz,const unsigned *idp
+  ,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg)
+{
+  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+    unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
+		double3 dwxp1=make_double3(0,0,0); double3 dwyp1=make_double3(0,0,0); double3 dwzp1=make_double3(0,0,0);
+
+    //-Obtiene datos basicos de particula p1.
+	//-Obtains basic data of particle p1.
+    const double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
+    //-Obtiene limites de interaccion
+	//-Obtains interaction limits
+    int cxini,cxfin,yini,yfin,zini,zfin;
+    KerGetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+
+    //-Interaccion con Fluidas.
+	//-Interaction with fluids.
+    for(int z=zini;z<zfin;z++){
+      int zmod=(nc.w)*z+cellfluid; //-Le suma donde empiezan las celdas de fluido. //-The sum showing where fluid cells start
+      for(int y=yini;y<yfin;y++){
+        int ymod=zmod+nc.x*y;
+        unsigned pini,pfin=0;
+        for(int x=cxini;x<cxfin;x++){
+          int2 cbeg=begincell[x+ymod];
+          if(cbeg.y){
+            if(!pfin)pini=cbeg.x;
+            pfin=cbeg.y;
+          }
+        }
+		    if(pfin) KerKernelCorrPress (p1,pini,pfin,posxy,posz,idp,CTE.massf,posdp1,dwxp1,dwyp1,dwzp1);
+			}
+    }
+
+    if(dwxp1.x||dwxp1.y||dwxp1.z
+			||dwyp1.x||dwyp1.y||dwyp1.z
+			||dwzp1.x||dwzp1.y||dwzp1.z){
+				dwxcorrg[p1].x+=dwxp1.x; dwxcorrg[p1].y+=dwxp1.y; dwxcorrg[p1].z+=dwxp1.z; 
+				dwycorrg[p1].x+=dwyp1.x; dwycorrg[p1].y+=dwyp1.y; dwycorrg[p1].z+=dwyp1.z;
+				dwzcorrg[p1].x+=dwzp1.x; dwzcorrg[p1].y+=dwzp1.y; dwzcorrg[p1].z+=dwzp1.z;
+				dwxp1=make_double3(0,0,0); dwyp1=make_double3(0,0,0); dwzp1=make_double3(0,0,0);
+    }
+
+    //-Interaccion con contorno.
+		//-Interaction with boundaries.
+    for(int z=zini;z<zfin;z++){
+      int zmod=(nc.w)*z;
+      for(int y=yini;y<yfin;y++){
+        int ymod=zmod+nc.x*y;
+        unsigned pini,pfin=0;
+        for(int x=cxini;x<cxfin;x++){
+          int2 cbeg=begincell[x+ymod];
+          if(cbeg.y){
+            if(!pfin)pini=cbeg.x;
+            pfin=cbeg.y;
+          }
+        }
+        if(pfin) KerKernelCorrPress(p1,pini,pfin,posxy,posz,idp,CTE.massb,posdp1,dwxp1,dwyp1,dwzp1);
+      }
+    }
+    //-Almacena resultados.
+		//-Stores results.
+    if(dwxp1.x||dwxp1.y||dwxp1.z
+			||dwyp1.x||dwyp1.y||dwyp1.z
+			||dwzp1.x||dwzp1.y||dwzp1.z){
+
+			dwxcorrg[p1].x+=dwxp1.x; dwxcorrg[p1].y+=dwxp1.y; dwxcorrg[p1].z+=dwxp1.z; 
+			dwycorrg[p1].x+=dwyp1.x; dwycorrg[p1].y+=dwyp1.y; dwycorrg[p1].z+=dwyp1.z;
+			dwzcorrg[p1].x+=dwzp1.x; dwzcorrg[p1].y+=dwzp1.y; dwzcorrg[p1].z+=dwzp1.z;
+		} 
+  }
+}
+
 //==============================================================================
 /// Collects kernel information.
 //==============================================================================
@@ -1030,7 +1057,7 @@ template<TpFtMode ftmode> void Interaction_ForcesT_KerInfo(StKerInfo *kerinfo)
     //printf(">> KerInteractionForcesFluid  blocksize:%u (%u)\n",qblocksize,0);
   }
   {
-    typedef void (*fun_ptr)(TpSlipCond,unsigned,int,uint4,const int2*,int3,const unsigned*,const float*,const double2*,const double*,float4*,const word*,const unsigned*,double3*,double3*,double3*,float*,const double3*,const int*);
+    typedef void (*fun_ptr)(TpSlipCond,unsigned,int,uint4,const int2*,int3,const unsigned*,const float*,const double2*,const double*,float4*,const word*,const unsigned*,double3*,double3*,double3*,float*,const double3*,const unsigned*);
     fun_ptr ptr=&KerInteractionForcesBound<ftmode>;
     int qblocksize=0,mingridsize=0;
     cudaOccupancyMaxPotentialBlockSize(&mingridsize,&qblocksize,(void*)ptr,0,0);
@@ -1054,13 +1081,14 @@ template<TpFtMode ftmode> void Interaction_ForcesT
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg
-  ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,int *irelationg,float *divr,const double3 *mirror,StKerInfo *kerinfo,JBlockSizeAuto *bsauto)
+  ,const float *ftomassp,float3 *ace,bool simulate2d,float *divr,const double3 *mirrorPos,const unsigned *mirrorCell,StKerInfo *kerinfo,JBlockSizeAuto *bsauto)
 {
+	const unsigned npf=np-npb;
 	if(kerinfo)Interaction_ForcesT_KerInfo<ftmode>(kerinfo);
   //else if(bsauto)Interaction_ForcesT_BsAuto<psimple,tker,ftmode,lamsps,tdelta,shift>(cellmode,viscob,viscof,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,pospress,velrhop,code,idp,ftomassp,tau,gradvel,viscdt,ar,ace,delta,tshifting,shiftpos,shiftdetect,simulate2d,bsauto);
-  else{
+  else if(npf){
 		//-Executes particle interactions.
-		const unsigned npf=np-npb;
+		
 		const int hdiv=(cellmode==CELLMODE_H? 2: 1);
 		const uint4 nc=make_uint4(ncells.x,ncells.y,ncells.z,ncells.x*ncells.y);
 		const unsigned cellfluid=nc.w*nc.z+1;
@@ -1069,18 +1097,17 @@ template<TpFtMode ftmode> void Interaction_ForcesT
 		dim3 sgridb=GetGridSize(npbok,bsbound);
 		dim3 sgridf=GetGridSize(npf,bsfluid);
 
-
-		if(tinter==1){ 
-			KerMatrixOrderDummy <<<sgridb,bsbound>>> (np,npb,hdiv,nc,begincell,cellzero,dcell,code,idp,irelationg,porder);
-			KerInteractionForcesBound<ftmode> <<<sgridb,bsbound>>> (tslipcond,npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,divr,mirror,irelationg);
+		if(tinter==1) KerInteractionForcesBound<ftmode> <<<sgridb,bsbound>>> (tslipcond,npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,divr,mirrorPos,mirrorCell);
+		else{
+			KerKernelCorrectionPressure <<<sgridf,bsfluid>>> (tinter,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,posxy,posz,idp,dwxcorrg,dwycorrg,dwzcorrg);
+			if(simulate2d) KerInverseKernelCor2D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwzcorrg,code);
+			else KerInverseKernelCor3D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwycorrg,dwzcorrg,code);
 		}
+
 		//-Interaccion Fluid-Fluid & Fluid-Bound
 		//-Interaction Fluid-Fluid & Fluid-Bound
-		if(npf){
-			if(tinter==1) KerMatrixOrderFluid <<<sgridf,bsfluid>>> (npf,npb,porder,counter);
-			KerInteractionForcesFluid<ftmode> <<<sgridf,bsfluid>>> (tinter,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ace,divr);
-		}
-		
+		KerInteractionForcesFluid<ftmode> <<<sgridf,bsfluid>>> (tinter,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ace,divr);
+
 		if(tinter==1){
 			if(simulate2d){
 				KerInverseKernelCor2D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwzcorrg,code);
@@ -1099,30 +1126,11 @@ void Interaction_Forces(bool floating,bool usedem,TpSlipCond tslipcond,TpCellMod
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg
-  ,const float *ftomassp,float3 *ace,bool simulate2d,unsigned *porder,unsigned *counter,int *irelationg,float *divr,const double3 *mirror,StKerInfo *kerinfo,JBlockSizeAuto *bsauto)
+  ,const float *ftomassp,float3 *ace,bool simulate2d,float *divr,const double3 *mirrorPos,const unsigned *mirrorCell,StKerInfo *kerinfo,JBlockSizeAuto *bsauto)
 {
-  if(!floating)   Interaction_ForcesT<FTMODE_None> (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr,mirror,kerinfo,bsauto);
-  else if(!usedem)Interaction_ForcesT<FTMODE_Sph>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr,mirror,kerinfo,bsauto);
-  else            Interaction_ForcesT<FTMODE_Dem>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,porder,counter,irelationg,divr,mirror,kerinfo,bsauto);
-}
-
-void InverseKernelCorrection(unsigned bsbound,unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
-  ,const double2 *posxy,const double *posz,const word *code,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg
-  ,bool simulate2d)
-{
-  const unsigned npf=np-npb;
-
-	dim3 sgridb=GetGridSize(npbok,bsbound);
-	dim3 sgridf=GetGridSize(npf,bsfluid);
-
-	if(simulate2d){
-		KerInverseKernelCor2D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwzcorrg,code);
-		KerInverseKernelCor2D <<<sgridb,bsbound>>> (npbok,0,dwxcorrg,dwzcorrg,code);
-	}
-	else{
-		KerInverseKernelCor3D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwycorrg,dwzcorrg,code);
-		KerInverseKernelCor3D <<<sgridb,bsbound>>> (npbok,0,dwxcorrg,dwycorrg,dwzcorrg,code);
-	}
+  if(!floating)   Interaction_ForcesT<FTMODE_None> (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,kerinfo,bsauto);
+  else if(!usedem)Interaction_ForcesT<FTMODE_Sph>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,kerinfo,bsauto);
+  else            Interaction_ForcesT<FTMODE_Dem>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,kerinfo,bsauto);
 }
 
 /*//##############################################################################
@@ -1836,7 +1844,7 @@ void CalcRidp(bool periactive,unsigned np,unsigned pini,unsigned idini,unsigned 
 /// Applies a linear movement to a set of particles.
 //------------------------------------------------------------------------------
 template<bool periactive> __global__ void KerMoveLinBound(TpSlipCond tslip,unsigned n,unsigned ini,double3 mvpos,float3 mvvel
-  ,const unsigned *ridpmv,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code,const unsigned *idpg,double3 *mirror,const int *irelation)
+  ,const unsigned *ridpmv,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code,const unsigned *idpg,double3 *mirrorPos)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
@@ -1844,11 +1852,9 @@ template<bool periactive> __global__ void KerMoveLinBound(TpSlipCond tslip,unsig
     if(pid>=0){
 			if(tslip&&CODE_GetTypeValue(code[pid])==0){
 				unsigned idp1=idpg[pid];
-				if(irelation[idp1]!=-1){
-					mirror[idp1].x+=mvpos.x;
-					mirror[idp1].y+=mvpos.y;
-					mirror[idp1].z+=mvpos.z;
-				}
+				mirrorPos[idp1].x+=mvpos.x;
+				mirrorPos[idp1].y+=mvpos.y;
+				mirrorPos[idp1].z+=mvpos.z;
 			}
       //-Calcula desplazamiento y actualiza posicion.
 	  //-Computes displacement and updates position.
@@ -1865,11 +1871,11 @@ template<bool periactive> __global__ void KerMoveLinBound(TpSlipCond tslip,unsig
 /// Applies a linear movement to a set of particles.
 //==============================================================================
 void MoveLinBound(byte periactive,TpSlipCond tslip,unsigned np,unsigned ini,tdouble3 mvpos,tfloat3 mvvel
-  ,const unsigned *ridp,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code,const unsigned *idpg,double3 *mirror,const int *irelation)
+  ,const unsigned *ridp,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code,const unsigned *idpg,double3 *mirrorPos)
 {
   dim3 sgrid=GetGridSize(np,SPHBSIZE);
-  if(periactive)KerMoveLinBound<true>  <<<sgrid,SPHBSIZE>>> (tslip,np,ini,Double3(mvpos),Float3(mvvel),ridp,posxy,posz,dcell,velrhop,code,idpg,mirror,irelation);
-  else          KerMoveLinBound<false> <<<sgrid,SPHBSIZE>>> (tslip,np,ini,Double3(mvpos),Float3(mvvel),ridp,posxy,posz,dcell,velrhop,code,idpg,mirror,irelation);
+  if(periactive)KerMoveLinBound<true>  <<<sgrid,SPHBSIZE>>> (tslip,np,ini,Double3(mvpos),Float3(mvvel),ridp,posxy,posz,dcell,velrhop,code,idpg,mirrorPos);
+  else          KerMoveLinBound<false> <<<sgrid,SPHBSIZE>>> (tslip,np,ini,Double3(mvpos),Float3(mvvel),ridp,posxy,posz,dcell,velrhop,code,idpg,mirrorPos);
 }
 
 
@@ -2641,9 +2647,9 @@ __global__ void KerMirrorBoundary
 			const double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
 			float closestr=CTE.fourh2;
 		
-			KerFindIrelationCalc(posxy,posz,idpg1,posdp1,irelation,mirrorPos);
+			KerFindIrelationCalc(npb,0,posxy,posz,code,posdp1,irelation,closestr);
 			
-			if(irelation!=-1) KerFindMirror(npb,posxy,posz,code,idpg1,irelation,mirrorPos);
+			if(irelation!=-1) KerFindMirror(posxy,posz,idpg1,posdp1,irelation,mirrorPos);
 			else{
 				mirrorPos[idpg1].x=posdp1.x;
 				mirrorPos[idpg1].y=posdp1.y;
@@ -2658,27 +2664,7 @@ void MirrorBoundary(const unsigned bsbound,unsigned npb,const double2 *posxy
   if(npb){
     dim3 sgridb=GetGridSize(npb,bsbound);
     KerMirrorBoundary <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos);
-}
-
-//==============================================================================
-///Matrix Order 
-//==============================================================================
-__global__ void kerPOrder(const unsigned np,const unsigned npb,const unsigned npbok,const word *code,unsigned *porder,unsigned *index){
-   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
-   if(p1==0){
-     unsigned count=0;
-	   for(int i=0;i<int(npbok);i++) if(CODE_GetTypeValue(code[i])!=2){
-       porder[i]=count;
-       count++;  
-     }
-     index[0]=count+np-npb;
-   }
-}
-
-void POrderBound(const unsigned np,const unsigned npb,const unsigned npbok,const word *code,unsigned *porder,unsigned *index){
-  if(npbok){
-    kerPOrder <<<1,1>>> (np,npb,npbok,code,porder,index);
-  }
+	}
 }
 
 //==============================================================================
@@ -2687,44 +2673,46 @@ void POrderBound(const unsigned np,const unsigned npb,const unsigned npbok,const
 __device__ void KerRHSandLHSStorage
   (unsigned p1,const unsigned &pini,unsigned npb,const unsigned &pfin,const double2 *posxy,const double *posz
   ,const float4 *velrhop,const float3 velp1,const float massp2,const double3 posdp1
-	,const double3 dwxcorrgp1,const double3 dwycorrgp1,const double3 dwzcorrgp1,double &matrixbp1,const word *code,unsigned &numOfInteractions)
+	,const double3 dwxcorrgp1,const double3 dwycorrgp1,const double3 dwzcorrgp1,double &matrixbp1,const word *code,unsigned &rowCount)
 {
-  for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])!=2){
+  for(int p2=pini;p2<pfin;p2++){
     float drx,dry,drz;
     KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
     float rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
-      //-Wendland kernel.
-      float frx,fry,frz;
-      KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
+			if(CODE_GetTypeValue(code[p2])==0){
+				//-Wendland kernel.
+				float frx,fry,frz;
+				KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
 	  
-      const float volumep2=massp2/CTE.rhopzero; //Volume of particle j 
+				const float volumep2=massp2/CTE.rhopzero; //Volume of particle j 
 
-			if(!(p1<int(npb)&&p2<int(npb))){
-				const float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
-				const float temp_x=float(frx*dwxcorrgp1.x+fry*dwxcorrgp1.y+frz*dwxcorrgp1.z);
-				const float temp_y=float(frx*dwycorrgp1.x+fry*dwycorrgp1.y+frz*dwycorrgp1.z);
-				const float temp_z=float(frx*dwzcorrgp1.x+fry*dwzcorrgp1.y+frz*dwzcorrgp1.z);
-				float temp=dvx*temp_x+dvy*temp_y+dvz*temp_z;
-			
-				matrixbp1-=double(volumep2*temp);
+				if(!(p1<int(npb)&&p2<int(npb))){
+					const float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
+					const float temp_x=float(frx*dwxcorrgp1.x+fry*dwxcorrgp1.y+frz*dwxcorrgp1.z);
+					const float temp_y=float(frx*dwycorrgp1.x+fry*dwycorrgp1.y+frz*dwycorrgp1.z);
+					const float temp_z=float(frx*dwzcorrgp1.x+fry*dwzcorrgp1.y+frz*dwzcorrgp1.z);
+					float temp=dvx*temp_x+dvy*temp_y+dvz*temp_z;
+					matrixbp1-=double(volumep2*temp);
+				}
 			}
-			numOfInteractions++;
+			rowCount++;
     }
   }
 }
 
 __global__ void KerRHSandLHSStorage
-  (unsigned n,unsigned pinit,unsigned npb,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero,const unsigned *dcell
+  (unsigned n,unsigned pinit,unsigned npb,unsigned npbok,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const float4 *velrhop,const double3 *dwxcorrg,const double3 *dwycorrg,const double3 *dwzcorrg
-  ,double *matrixb,const unsigned *porder,const unsigned *idp,const double dt,const unsigned ppedim,const float *divr,const word *code,const float freesurface,unsigned *row)
+  ,double *matrixb,const unsigned *idp,const double dt,const float *divr,const word *code,const float freesurface,unsigned *row)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if(CODE_GetTypeValue(code[p1])!=2){
-			unsigned numOfInteractions=0;
-			const unsigned oi=porder[p1];
+    if(CODE_GetTypeValue(code[p1])==0){
+			unsigned rowCount=0;
+			unsigned oi=p1;
+			if(p1>=int(npb)) oi=(oi-npb)+npbok;
       if(divr[p1]>freesurface){
         //-Obtiene datos basicos de particula p1.
   	    //-Obtains basic data of particle p1.
@@ -2757,7 +2745,7 @@ __global__ void KerRHSandLHSStorage
               }
             }
             if(pfin){
-		          KerRHSandLHSStorage (p1,pini,npb,pfin,posxy,posz,velrhop,velp1,CTE.massf,posdp1,dwxcorrgp1,dwycorrgp1,dwzcorrgp1,matrixbp1,code,numOfInteractions);
+		          KerRHSandLHSStorage (p1,pini,npb,pfin,posxy,posz,velrhop,velp1,CTE.massf,posdp1,dwxcorrgp1,dwycorrgp1,dwzcorrgp1,matrixbp1,code,rowCount);
             }
 	        }
         }
@@ -2777,26 +2765,25 @@ __global__ void KerRHSandLHSStorage
               }
             }
             if(pfin){
-              KerRHSandLHSStorage (p1,pini,npb,pfin,posxy,posz,velrhop,velp1,CTE.massb,posdp1,dwxcorrgp1,dwycorrgp1,dwzcorrgp1,matrixbp1,code,numOfInteractions);
+              KerRHSandLHSStorage (p1,pini,npb,pfin,posxy,posz,velrhop,velp1,CTE.massb,posdp1,dwxcorrgp1,dwycorrgp1,dwzcorrgp1,matrixbp1,code,rowCount);
 		        }
           }
         }
 
         if(matrixbp1){
-					matrixb[oi]+=matrixbp1;
+					matrixb[oi]=matrixbp1;
 					matrixb[oi]=matrixb[oi]/dt;
 				}
       }
-			row[oi]=numOfInteractions;
+			row[oi]=rowCount;
     }
   }
 }
 
-void RHSandLHSStorage(TpCellMode cellmode
-  ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
-  ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,const float4 *velrhop,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg,double *matrixb
-  ,const unsigned *porder,const unsigned *idp,const double dt,const unsigned ppedim,const float *divr,const word *code,const float freesurface,unsigned *row){
+void RHSandLHSStorage(TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb
+	,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin,const unsigned *dcell,const double2 *posxy
+	,const double *posz,const float4 *velrhop,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg,double *matrixb
+  ,const unsigned *idp,const double dt,const float *divr,const word *code,const float freesurface,unsigned *row){
 
   const unsigned npf=np-npb;
   int hdiv=(cellmode==CELLMODE_H? 2: 1);
@@ -2809,9 +2796,81 @@ void RHSandLHSStorage(TpCellMode cellmode
     dim3 sgridf=GetGridSize(npf,bsfluid);
     dim3 sgridb=GetGridSize(npbok,bsbound);
 
-    KerRHSandLHSStorage <<<sgridf,bsfluid>>> (npf,npb,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,velrhop,dwxcorrg,dwycorrg,dwzcorrg,matrixb,porder,idp,dt,ppedim,divr,code,freesurface,row);
-    KerRHSandLHSStorage <<<sgridb,bsbound>>> (npbok,0,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,velrhop,dwxcorrg,dwycorrg,dwzcorrg,matrixb,porder,idp,dt,ppedim,divr,code,freesurface,row);
+    KerRHSandLHSStorage <<<sgridf,bsfluid>>> (npf,npb,npb,npbok,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,velrhop,dwxcorrg,dwycorrg,dwzcorrg,matrixb,idp,dt,divr,code,freesurface,row);
+    KerRHSandLHSStorage <<<sgridb,bsbound>>> (npbok,0,npb,npbok,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,velrhop,dwxcorrg,dwycorrg,dwzcorrg,matrixb,idp,dt,divr,code,freesurface,row);
   }
+}
+
+__device__ void KerStorageCode1Find
+  (const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
+  ,const double3 posdp1,unsigned &rowCount)
+{
+  for(int p2=pini;p2<pfin;p2++){
+    float drx,dry,drz;
+    KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+    float rr2=drx*drx+dry*dry+drz*drz;
+    if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO) rowCount++;
+  }
+}
+
+__global__ void KerStorageCode1
+  (unsigned n,unsigned pinit,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero
+  ,const double2 *posxy,const double *posz,const unsigned *idp,const word *code,unsigned *row,const double3 *mirrorPos,const unsigned *mirrorCell)
+{
+  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+    unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
+    if(CODE_GetTypeValue(code[p1])==1){
+			//-Obtiene datos basicos de particula p1.
+	    //-Obtains basic data of particle p1.
+			const unsigned idpg1=idp[p1];
+      double3 posdp1=make_double3(mirrorPos[idpg1].x,mirrorPos[idpg1].y,mirrorPos[idpg1].z);
+			//-Particle order in Matrix
+			unsigned rowCount=0;
+			const unsigned oi=p1;
+ 			
+			//-Obtiene limites de interaccion
+	    //-Obtains interaction limits
+      int cxini,cxfin,yini,yfin,zini,zfin;
+      KerGetInteractionCells(mirrorCell[idpg1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+
+      //-Interaccion con Fluidas.
+	    //-Interaction with fluids.
+      for(int z=zini;z<zfin;z++){
+        int zmod=(nc.w)*z+cellfluid; //-Le suma donde empiezan las celdas de fluido. //-The sum showing where fluid cells start
+        for(int y=yini;y<yfin;y++){
+          int ymod=zmod+nc.x*y;
+          unsigned pini,pfin=0;
+          for(int x=cxini;x<cxfin;x++){
+            int2 cbeg=begincell[x+ymod];
+            if(cbeg.y){
+              if(!pfin)pini=cbeg.x;
+              pfin=cbeg.y;
+            }
+          }
+          if(pfin){
+		        KerStorageCode1Find (pini,pfin,posxy,posz,posdp1,rowCount);
+          }
+	      }
+      }
+			row[oi]=rowCount;
+    }
+  }
+}
+
+void StorageCode1(TpCellMode cellmode,const unsigned bsbound,unsigned np,unsigned npb
+	,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin,const double2 *posxy
+	,const double *posz,const unsigned *idp,const word *code,unsigned *row,const double3 *mirrorPos,const unsigned *mirrorCell){
+
+  int hdiv=(cellmode==CELLMODE_H? 2: 1);
+  uint4 nc=make_uint4(ncells.x,ncells.y,ncells.z,ncells.x*ncells.y);
+  unsigned cellfluid=nc.w*nc.z+1;
+  int3 cellzero=make_int3(cellmin.x,cellmin.y,cellmin.z);
+  //-Interaccion Fluid-Fluid & Fluid-Bound
+  //-Interaction Fluid-Fluid & Fluid-Bound
+	dim3 sgridb=GetGridSize(npbok,bsbound);
+
+	KerStorageCode1 <<<sgridb,bsbound>>> (npbok,0,hdiv,nc,cellfluid,begincell,cellzero,posxy,posz,idp,code,row,mirrorPos,mirrorCell);
 }
 
 //==============================================================================
@@ -2838,25 +2897,107 @@ void MatrixASetup(const unsigned ppedim,unsigned int*row,unsigned *nnz){
 //==============================================================================
 ///Matrix A Population
 //==============================================================================
-__device__ void KerMatrixAFluid
-  (unsigned p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
-  ,double3 posdp1,const float massp2,const float RhopZero,const word *code,unsigned &index,unsigned int *col,double *matrixInd,const int diag,const unsigned *porder)
+__device__ void KerMatrixACode0
+  (const unsigned &pini,const unsigned &pfin,unsigned npb,unsigned npbok,const double2 *posxy,const double *posz,double3 posdp1
+	,tfloat3 gravity,const float massp2,const float RhopZero,const word *code,const unsigned *idp,unsigned &index
+	,unsigned int *col,double *matrixInd,double *matrixb,const int diag,const double3 *mirrorPos,const unsigned oi)
 {
   for(int p2=pini;p2<pfin;p2++){
     float drx,dry,drz;
     KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
     float rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
+			unsigned oj=p2;
+			if(p2=int(npb)) oj=(oj-npb)+npbok;
       //-Wendland kernel.
       float frx,fry,frz;
       KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
 
-      const unsigned oj=porder[p2];
 	    float volumep2=massp2/RhopZero; //Volume of particle j 
 
       float rDivW=drx*frx+dry*fry+drz*frz;
       float temp=2.0f*rDivW/(RhopZero*(rr2+CTE.eta2));
+      matrixInd[index]=double(-temp*volumep2);
+      col[index]=oj;
+      matrixInd[diag]+=double(temp*volumep2);
+      index++;
 
+			if(CODE_GetTypeValue(code[p2])==1){
+				double dist = mirrorPos[idp[p2]].z-posz[p2];
+			  temp = temp * RhopZero * float(abs(gravity.z) * dist);
+			  matrixb[oi]+=double(volumep2*temp); 
+			}
+    }
+  }
+}
+
+__global__ void KerPopulateMatrixACode0
+  (unsigned n,unsigned pinit,unsigned npb,unsigned npbok,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero,const unsigned *dcell,tfloat3 gravity
+  ,const double2 *posxy,const double *posz,const float4 *velrhop,const float *divr,const word *code
+  ,const unsigned *idp,unsigned int *row,unsigned int *col,double *matrixInd,double *matrixb,const float freesurface,const double3 *mirrorPos)
+{
+  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+    unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
+    if(CODE_GetTypeValue(code[p1])==0){
+      unsigned oi=p1;
+			if(p1>=int(npb)) oi=(oi-npb)+npbok;
+      const unsigned diag=row[oi];
+      col[diag]=oi;
+      unsigned index=diag+1;
+      if(divr[p1]>freesurface){
+        //-Obtiene datos basicos de particula p1.
+  	    //-Obtains basic data of particle p1.
+        double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
+    
+        //-Obtiene limites de interaccion
+	      //-Obtains interaction limits
+        int cxini,cxfin,yini,yfin,zini,zfin;
+        KerGetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+        
+        for(int fluid=0;fluid<=1;fluid++){
+					for(int z=zini;z<zfin;z++){
+						int zmod=(nc.w)*z+(cellfluid*fluid); //-Le suma donde empiezan las celdas de fluido. //-The sum showing where fluid cells start
+						for(int y=yini;y<yfin;y++){
+							int ymod=zmod+nc.x*y;
+							unsigned pini,pfin=0;
+							for(int x=cxini;x<cxfin;x++){
+								int2 cbeg=begincell[x+ymod];
+								if(cbeg.y){
+									if(!pfin)pini=cbeg.x;
+									pfin=cbeg.y;
+								}
+							}
+							if(pfin){
+								KerMatrixACode0 (pini,pfin,npb,npbok,posxy,posz,posdp1,gravity,CTE.massf,CTE.rhopzero,code,idp,index,col,matrixInd,matrixb,diag,mirrorPos,oi);
+							}
+						}
+					}
+				}
+      }
+      else matrixInd[diag]=1.0;
+    }
+  }
+}
+
+__device__ void KerMatrixACode1
+  (const unsigned &pini,const unsigned &pfin,unsigned npb,unsigned npbok,const double2 *posxy,const double *posz,double3 posdp1
+	,const float massp2,const float RhopZero,unsigned &index,unsigned int *col,double *matrixInd,const int diag)
+{
+  for(int p2=pini;p2<pfin;p2++){
+    float drx,dry,drz;
+    KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+    float rr2=drx*drx+dry*dry+drz*drz;
+    if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
+			unsigned oj=(p2-npb)+npbok;
+      //-Wendland kernel.
+      float frx,fry,frz;
+      KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
+
+	    float volumep2=massp2/RhopZero; //Volume of particle j 
+
+      float rDivW=drx*frx+dry*fry+drz*frz;
+      float temp=2.0f*rDivW/(RhopZero*(rr2+CTE.eta2));
       matrixInd[index]=double(-temp*volumep2);
       col[index]=oj;
       matrixInd[diag]+=double(temp*volumep2);
@@ -2864,135 +3005,57 @@ __device__ void KerMatrixAFluid
     }
   }
 }
-__device__ void KerMatrixABound
-  (unsigned p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
-  ,double3 posdp1,const unsigned *idp,const float massp2,const float RhopZero,tfloat3 gravity,const word *code,unsigned int *col,unsigned int *row
-  ,double *matrixInd,double *matrixb,const int diag,const unsigned *porder,const unsigned oi,const unsigned ppedim,const unsigned npb,const int *irelationg)
-{
-  for(int p2=pini;p2<pfin;p2++){
-    float drx,dry,drz;
-    KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
-    float rr2=drx*drx+dry*dry+drz*drz;
-    if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
-      //-Wendland kernel.
-      float frx,fry,frz;
-      KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
 
-      const unsigned idp2=idp[p2];
-      const unsigned mkp2=CODE_GetTypeValue(code[p2]);
-      const unsigned oj=porder[p2];
-	    const float volumep2=massp2/RhopZero; //Volume of particle j 
-
-      const float rDivW=drx*frx+dry*fry+drz*frz;
-      float temp=2.0f*rDivW/(RhopZero*(rr2+CTE.eta2));
-
-      if(oi!=oj){
-        for(unsigned pk=diag;pk<unsigned(row[oi+1]);pk++){
-          if(col[pk]==ppedim){
-            matrixInd[pk]=double(-temp*volumep2);
-            col[pk]=oj;
-            matrixInd[diag]+=double(temp*volumep2);
-            break;
-          }
-          else if(col[pk]==oj){
-            matrixInd[pk]-=double(temp*volumep2);
-            matrixInd[diag]+=double(temp*volumep2);
-            break;
-          }
-        }
-      }
-
-      if(mkp2==2){
-        unsigned p2k;
-        for(unsigned k=0;k<npb;k++) if(idp[k]==irelationg[idp2]){
-          p2k=k;
-          break;
-        }
-
-        float dist = posz[p2k]-posz[p2];
-			  temp = temp * RhopZero * fabs(gravity.z) * dist;
-			  matrixb[oi]+=double(volumep2*temp); 
-      }
-    }
-  }
-}
-
-__global__ void KerPopulateMatrixA
-  (unsigned np,unsigned n,unsigned pinit,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero,const unsigned *dcell,tfloat3 gravity
-  ,const double2 *posxy,const double *posz,const float4 *velrhop,const float *divr,const word *code
-  ,const unsigned *idp,const unsigned *porder,unsigned int *row,unsigned int *col,double *matrixInd,double *matrixb,const unsigned ppedim,const unsigned npb,const int *irelationg,const float freesurface)
+__global__ void KerPopulateMatrixACode1
+  (unsigned npbok,unsigned npb,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero,const unsigned *dcell
+  ,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,unsigned int *row,unsigned int *col,double *matrixInd,const double3 *mirrorPos,const unsigned *mirrorCell)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
-  if(p<n){
-    unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if((CODE_GetTypeValue(code[p1])!=2)&&porder[p1]!=int(np)){
-      unsigned oi=porder[p1];
+  if(p<npbok){
+    unsigned p1=p;      //-Nº de particula. //-NI of particle
+    if(CODE_GetTypeValue(code[p1])==1){
+			const unsigned idpg1=idp[p1];
+      unsigned oi=p1;
+
       const unsigned diag=row[oi];
       col[diag]=oi;
       unsigned index=diag+1;
-      if(divr[p1]>freesurface){
+      if(row[oi+1]-row[oi]>1){
         //-Obtiene datos basicos de particula p1.
   	    //-Obtains basic data of particle p1.
-        double3 posdp1;
-        float3 velp1;
-        KerGetParticleData(p1,posxy,posz,velrhop,velp1,posdp1);
+        double3 posdp1=make_double3(mirrorPos[idpg1].x,mirrorPos[idpg1].y,mirrorPos[idpg1].z);
     
         //-Obtiene limites de interaccion
 	      //-Obtains interaction limits
         int cxini,cxfin,yini,yfin,zini,zfin;
-        KerGetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+        KerGetInteractionCells(mirrorCell[idpg1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
         
-        //-Interaccion con Fluidas.
-	      //-Interaction with fluids.
-        for(int z=zini;z<zfin;z++){
-          int zmod=(nc.w)*z+cellfluid; //-Le suma donde empiezan las celdas de fluido. //-The sum showing where fluid cells start
-          for(int y=yini;y<yfin;y++){
-            int ymod=zmod+nc.x*y;
-            unsigned pini,pfin=0;
-            for(int x=cxini;x<cxfin;x++){
-              int2 cbeg=begincell[x+ymod];
-              if(cbeg.y){
-                if(!pfin)pini=cbeg.x;
-                pfin=cbeg.y;
-              }
-            }
-            if(pfin){
-		          KerMatrixAFluid (p1,pini,pfin,posxy,posz,posdp1,CTE.massf,CTE.rhopzero,code,index,col,matrixInd,diag,porder);
-            }
-	        }
-        }
-
-        //-Interaccion con contorno.
-	      //-Interaction with boundaries.
-        for(int z=zini;z<zfin;z++){
-          int zmod=(nc.w)*z;
-          for(int y=yini;y<yfin;y++){
-            int ymod=zmod+nc.x*y;
-            unsigned pini,pfin=0;
-            for(int x=cxini;x<cxfin;x++){
-              int2 cbeg=begincell[x+ymod];
-              if(cbeg.y){
-                if(!pfin)pini=cbeg.x;
-                pfin=cbeg.y;
-              }
-            }
-            if(pfin){
-              KerMatrixABound (p1,pini,pfin,posxy,posz,posdp1,idp,CTE.massb,CTE.rhopzero,gravity,code,col,row,matrixInd,matrixb,diag,porder,oi,ppedim,npb,irelationg);           
-		        }
-          }
-        }
+				for(int z=zini;z<zfin;z++){
+					int zmod=(nc.w)*z+cellfluid; //-Le suma donde empiezan las celdas de fluido. //-The sum showing where fluid cells start
+					for(int y=yini;y<yfin;y++){
+						int ymod=zmod+nc.x*y;
+						unsigned pini,pfin=0;
+						for(int x=cxini;x<cxfin;x++){
+							int2 cbeg=begincell[x+ymod];
+							if(cbeg.y){
+								if(!pfin)pini=cbeg.x;
+								pfin=cbeg.y;
+							}
+						}
+						if(pfin){
+							KerMatrixACode1 (pini,pfin,npb,npbok,posxy,posz,posdp1,CTE.massf,CTE.rhopzero,index,col,matrixInd,diag);
+						}
+					}
+				}
       }
       else matrixInd[diag]=1.0;
     }
   }
 }
 
-void PopulateMatrixA(TpCellMode cellmode
-  ,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
-  ,tuint3 ncells,const int2 *begincell,tuint3 cellmin,const unsigned *dcell,tfloat3 gravity,const double2 *posxy
-  ,const double *posz,const float4 *velrhop,double *matrixInd,double *matrixb
-  ,unsigned int *row,unsigned int *col,const unsigned *porder,const unsigned *idp,const unsigned ppedim
-  ,const float *divr,const word *code,const int *irelationg,const float freesurface){
+void PopulateMatrixA(TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
+	,const unsigned *dcell,tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *velrhop,double *matrixInd,double *matrixb
+  ,unsigned int *row,unsigned int *col,const unsigned *idp,const float *divr,const word *code,const float freesurface,const double3 *mirrorPos,const unsigned *mirrorCell){
   const unsigned npf=np-npb;
   const int hdiv=(cellmode==CELLMODE_H? 2: 1);
   const uint4 nc=make_uint4(ncells.x,ncells.y,ncells.z,ncells.x*ncells.y);
@@ -3003,23 +3066,25 @@ void PopulateMatrixA(TpCellMode cellmode
   if(npf){
     dim3 sgridf=GetGridSize(npf,bsfluid);
     dim3 sgridb=GetGridSize(npbok,bsbound);
-     
-		KerPopulateMatrixA <<<sgridf,bsfluid>>> (np,npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,divr,code,idp,porder,row,col,matrixInd,matrixb,ppedim,npb,irelationg,freesurface);
-    KerPopulateMatrixA <<<sgridb,bsbound>>> (np,npbok,0,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,divr,code,idp,porder,row,col,matrixInd,matrixb,ppedim,npb,irelationg,freesurface);
-  }
+
+		KerPopulateMatrixACode0 <<<sgridf,bsfluid>>> (npf,npb,npb,npbok,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos);
+    KerPopulateMatrixACode0 <<<sgridb,bsbound>>> (npbok,0,npb,npbok,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos);
+		KerPopulateMatrixACode1 <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell);
+	}
 }
 
 //==============================================================================
 ///Free Surface Mark
 //==============================================================================
 __global__ void KerFreeSurfaceMark
-  (unsigned n,unsigned pinit,float *divr,double *matrixInd, double *matrixb,unsigned int *row,const unsigned *porder,const word *code,const double pi,const float freesurface,const float shiftoffset)
+  (unsigned n,unsigned pinit,unsigned npb,unsigned npbok,float *divr,double *matrixInd, double *matrixb,unsigned int *row,const word *code,const double pi,const float freesurface,const float shiftoffset)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
       unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-      if(CODE_GetTypeValue(code[p1])!=2){
-        unsigned oi=porder[p1];
+      if(CODE_GetTypeValue(code[p1])==0){
+        unsigned oi=p1;
+				if(p1>=int(npb)) oi=(oi-npb)+npbok;
         const int Mark=row[oi]+1;
         if(divr[p1]>=freesurface && divr[p1]<=freesurface+shiftoffset){
           double alpha=0.5*(1.0-cos(pi*double(divr[p1]-freesurface)/shiftoffset));
@@ -3033,15 +3098,15 @@ __global__ void KerFreeSurfaceMark
 }
 
 void FreeSurfaceMark(const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,float *divr
-  ,double *matrixInd, double *matrixb,unsigned int *row,const unsigned *porder,const word *code,const double pi,const float freesurface,const float shiftoffset){
+  ,double *matrixInd, double *matrixb,unsigned int *row,const word *code,const double pi,const float freesurface,const float shiftoffset){
   const unsigned npf=np-npb;
 
   if(npf){
     dim3 sgridf=GetGridSize(npf,bsfluid);
     dim3 sgridb=GetGridSize(npbok,bsbound);
 
-    KerFreeSurfaceMark <<<sgridf,bsfluid>>> (npf,npb,divr,matrixInd,matrixb,row,porder,code,pi,freesurface,shiftoffset);
-    KerFreeSurfaceMark <<<sgridb,bsbound>>> (npbok,0,divr,matrixInd,matrixb,row,porder,code,pi,freesurface,shiftoffset);
+    KerFreeSurfaceMark <<<sgridf,bsfluid>>> (npf,npb,npb,npbok,divr,matrixInd,matrixb,row,code,pi,freesurface,shiftoffset);
+    KerFreeSurfaceMark <<<sgridb,bsbound>>> (npbok,0,npb,npbok,divr,matrixInd,matrixb,row,code,pi,freesurface,shiftoffset);
   }
 }
 
@@ -3051,61 +3116,46 @@ void FreeSurfaceMark(const unsigned bsbound,const unsigned bsfluid,unsigned np,u
 //------------------------------------------------------------------------------
 ///Pressure Assign 
 //------------------------------------------------------------------------------
-__global__ void KerPressureAssignCode01
-  (unsigned np,unsigned n,unsigned pinit,unsigned npb,float4 *velrhop,const word *code,const unsigned *porder,double *press,bool negpresbound)
+__global__ void KerPressureAssignFluid
+  (unsigned npf,unsigned npb,unsigned npbok,float4 *velrhop,double *press)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
-  if(p<n){
-    unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if((CODE_GetTypeValue(code[p1])!=2)&&porder[p1]!=np){
-      velrhop[p1].w=float(press[porder[p1]]);
-      if(!negpresbound)if(p1<npb&&velrhop[p1].w<0)velrhop[p1].w=0.0;
-    }
+  if(p<npf){
+    unsigned p1=p+npb;      //-Nº de particula. //-NI of particle
+    velrhop[p1].w=float(press[(p1-npb)+npbok]);
   }
 }
 
-__global__ void KerPressureAssignCode2
-  (unsigned np,unsigned npb,unsigned npbok,unsigned pinit,const tfloat3 gravity,const double2 *posxy,const double *posz
-  ,float4 *velrhop,double *press,const unsigned *porder,const unsigned *idp,const word *code,const int *irelationg,const float *divr,const float freesurface)
+__global__ void KerPressureAssignBound
+  (unsigned npbok,const tfloat3 gravity,const double *posz
+  ,float4 *velrhop,double *press,const unsigned *idp,const word *code,bool negpresbound,const double3 *mirrorPos)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<npbok){
-    unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if(CODE_GetTypeValue(code[p1])==2&&porder[p1]!=np){
-      //-Obtiene datos basicos de particula p1.
-  	  //-Obtains basic data of particle p1.
-      double3 posdp1;
-      float3 velp1;
-      KerGetParticleData(p1,posxy,posz,velrhop,velp1,posdp1);
-      
-      const unsigned j=irelationg[idp[p1]];
-      if(j!=npb){
-        unsigned p2k;
-        for(int k=int(pinit);k<int(np);k++) if(idp[k]==j){
-          p2k=k;
-          break;
-        }
-
-        const double drz=posz[p2k]-posdp1.z;
-        if(divr[p2k])velrhop[p1].w=float(velrhop[p2k].w+double(CTE.rhopzero)*abs(gravity.z)*drz);
-        else velrhop[p1].w=float(double(CTE.rhopzero)*abs(gravity.z)*drz);
-      }
-    }
+    unsigned p1=p;      //-Nº de particula. //-NI of particle
+    if(CODE_GetTypeValue(code[p1])==0){
+			velrhop[p1].w=float(press[p1]);
+			if(!negpresbound)if(velrhop[p1].w<0)velrhop[p1].w=0.0;
+		}
+		else{
+			double dist=mirrorPos[idp[p1]].z-posz[p1];
+			double Neumann=double(CTE.rhopzero)*abs(gravity.z)*dist;
+			velrhop[p1].w=float(press[p1]+Neumann);
+		}
   }
 }
 
 void PressureAssign(const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
-  ,const tfloat3 gravity,const double2 *posxy,const double *posz
-  ,float4 *velrhop,double *press,const unsigned *porder,const unsigned *idp,const word *code,const int *irelationg,const float *divr,const float freesurface,bool negpresbound){
+  ,const tfloat3 gravity,const double *posz,float4 *velrhop,double *press,const unsigned *idp
+	,const word *code,bool negpresbound,const double3 *mirrorPos){
   const unsigned npf=np-npb;
 
   if(np){
     dim3 sgridf=GetGridSize(npf,bsfluid);
     dim3 sgridb=GetGridSize(npb,bsbound);
 
-      KerPressureAssignCode01 <<<sgridf,bsfluid>>> (np,npf,npb,npb,velrhop,code,porder,press,negpresbound);
-      KerPressureAssignCode01 <<<sgridb,bsbound>>> (np,npbok,0,npb,velrhop,code,porder,press,negpresbound);
-      KerPressureAssignCode2 <<<sgridb,bsbound>>> (np,npb,npbok,0,gravity,posxy,posz,velrhop,press,porder,idp,code,irelationg,divr,freesurface); 
+      KerPressureAssignFluid <<<sgridf,bsfluid>>> (npf,npb,npbok,velrhop,press);
+			KerPressureAssignBound <<<sgridb,bsbound>>> (npbok,gravity,posz,velrhop,press,idp,code,negpresbound,mirrorPos); 
   }
 }
 
