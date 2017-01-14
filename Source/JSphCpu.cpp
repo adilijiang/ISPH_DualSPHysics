@@ -1394,13 +1394,8 @@ void JSphCpu::RunShifting(double dt){
     #pragma omp parallel for schedule (static) if(npf>LIMIT_COMPUTELIGHT_OMP)
   #endif
   for(int p=pini;p<pfin;p++){
-    //bool nearBound=false;
     tfloat3 rshiftpos=ShiftPosc[p];
     float divrp1=Divr[p];
-    /*if(divrp1<0){
-      nearBound=true;
-      divrp1=-divrp1;
-    }*/
 
     double umagn=-double(ShiftCoef)*double(H)*double(H);
 
@@ -1409,12 +1404,12 @@ void JSphCpu::RunShifting(double dt){
 	  tfloat3 bitang=TFloat3(0);
 		rshiftpos=rshiftpos+SumTensile[p];
 	  //-tangent and bitangent calculation
-	  //tang.x=norm.z+norm.y;		
-	  //if(!Simulate2D)tang.y=-(norm.x+norm.z);	
-	  //tang.z=-norm.x+norm.y;
-	  //bitang.x=tang.y*norm.z-norm.y*tang.z;
-	  //if(!Simulate2D)bitang.y=norm.x*tang.z-tang.x*norm.z;
-	  //bitang.z=tang.x*norm.y-norm.x*tang.y;
+	  tang.x=norm.z+norm.y;		
+	  if(!Simulate2D)tang.y=-(norm.x+norm.z);	
+	  tang.z=-norm.x+norm.y;
+	  bitang.x=tang.y*norm.z-norm.y*tang.z;
+	  if(!Simulate2D)bitang.y=norm.x*tang.z-tang.x*norm.z;
+	  bitang.z=tang.x*norm.y-norm.x*tang.y;
 
 	  //-unit normal vector
 	  float temp=norm.x*norm.x+norm.y*norm.y+norm.z*norm.z;
@@ -1423,40 +1418,37 @@ void JSphCpu::RunShifting(double dt){
 	    norm.x=norm.x/temp; norm.y=norm.y/temp; norm.z=norm.z/temp;
     }
     else {norm.x=0.f; norm.y=0.f; norm.z=0.f;}
-		tang.x=-norm.z+norm.y;
-		tang.z=norm.x+norm.y;
+
 	  //-unit tangent vector
-	  /*temp=tang.x*tang.x+tang.y*tang.y+tang.z*tang.z;
+	  temp=tang.x*tang.x+tang.y*tang.y+tang.z*tang.z;
 	  if(temp){
       temp=sqrt(temp);
 	    tang.x=tang.x/temp; tang.y=tang.y/temp; tang.z=tang.z/temp;
     }
     else{tang.x=0.f; tang.y=0.f; tang.z=0.f;}
 
-	  //-unit bitangent vector
-	  temp=bitang.x*bitang.x+bitang.y*bitang.y+bitang.z*bitang.z;
+	 //-unit bitangent vector
+	 temp=bitang.x*bitang.x+bitang.y*bitang.y+bitang.z*bitang.z;
 	 if(temp){
      temp=sqrt(temp);
 	   bitang.x=bitang.x/temp; bitang.y=bitang.y/temp; bitang.z=bitang.z/temp;
    }
-   else{bitang.x=0.f; bitang.y=0.f; bitang.z=0.f;}*/
+   else{bitang.x=0.f; bitang.y=0.f; bitang.z=0.f;}
 
 	  //-gradient calculation
 	  float dcds=tang.x*rshiftpos.x+tang.z*rshiftpos.z+tang.y*rshiftpos.y;
-	  //float dcdn=norm.x*rshiftpos.x+norm.z*rshiftpos.z+norm.y*rshiftpos.y;
-	  //float dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
+	  float dcdn=norm.x*rshiftpos.x+norm.z*rshiftpos.z+norm.y*rshiftpos.y;
+	  float dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
 
 		if(divrp1<FreeSurface){
-			rshiftpos.x=float(dcds*tang.x);//+dcdb*bitang.x;
-			rshiftpos.y=float(dcds*tang.y);//+dcdb*bitang.y;
-			rshiftpos.z=float(dcds*tang.z);//+dcdb*bitang.z;
+			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x);
+			rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y);
+			rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z);
     }
-    else if(divrp1>=FreeSurface && divrp1<=FreeSurface+ShiftOffset){ 
-      double FactorShift=0.0;
-      //if(nearBound)FactorShift=0.5*(1.0-cos(PI*double(divrp1-FreeSurface)/ShiftOffset));
-      rshiftpos.x=float(dcds*tang.x);//+dcdb*bitang.x+dcdn*norm.x*FactorShift);
-      rshiftpos.y=float(dcds*tang.y);//+dcdb*bitang.y+dcdn*norm.y*FactorShift);
-      rshiftpos.z=float(dcds*tang.z);//+dcdb*bitang.z+dcdn*norm.z*FactorShift);
+    else if(divrp1<=FreeSurface+ShiftOffset){ 
+			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*FactorNormShift);
+			rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*FactorNormShift);
+			rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*FactorNormShift);
     }
 
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
@@ -2245,9 +2237,11 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
     #pragma omp parallel for schedule (guided)
   #endif
   for(int p1=int(pinit);p1<pfin;p1++){
-     tfloat3 shiftposp1=TFloat3(0);
+		const float Wab1=GetKernelWab(float(Dp*Dp));
+    tfloat3 shiftposp1=TFloat3(0);
     float divrp1=0;
 		tfloat3 sumtensile=TFloat3(0);
+
     //-Obtain data of particle p1 in case of floating objects / Obtiene datos de particula p1 en caso de existir floatings.
     //bool ftp1=false;     //-Indicate if it is floating / Indica si es floating.
     //float ftmassp1=1.f;  //-Contains floating particle mass or 1.0f if it is fluid / Contiene masa de particula floating o 1.0f si es fluid.
@@ -2300,20 +2294,15 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
             }*/
 
             //-Shifting correction
-            //if(shiftposp1.x!=FLT_MAX){
-              const float massrhop=massp2/RhopZero;
-              const float Wab1=GetKernelWab(float(Dp*Dp));
-              const float tensile=tensileN*powf((GetKernelWab(rr2)/Wab1),tensileR);
-             
-              //const bool noshift=(boundp2 && (tshifting==SHIFT_NoBound || (tshifting==SHIFT_NoFixed && CODE_GetType(code[p2])==CODE_TYPE_FIXED)));
-              shiftposp1.x+=massrhop*frx; //-For boundary do not use shifting / Con boundary anula shifting.
-              shiftposp1.y+=massrhop*fry;
-              shiftposp1.z+=massrhop*frz;
-							sumtensile.x+=massrhop*tensile*frx;
-							sumtensile.y+=massrhop*tensile*fry;
-							sumtensile.z+=massrhop*tensile*frz;
-              divrp1-=massrhop*(drx*frx+dry*fry+drz*frz);
-            //}
+						const float tensile=tensileN*powf((GetKernelWab(rr2)/Wab1),tensileR);
+            
+						shiftposp1.x+=volumep2*frx; //-For boundary do not use shifting / Con boundary anula shifting.
+            shiftposp1.y+=volumep2*fry;
+            shiftposp1.z+=volumep2*frz;
+						sumtensile.x+=volumep2*tensile*frx;
+						sumtensile.y+=volumep2*tensile*fry;
+						sumtensile.z+=volumep2*tensile*frz;
+            divrp1-=volumep2*(drx*frx+dry*fry+drz*frz);
           }
         }
       }

@@ -425,6 +425,7 @@ void JSph::LoadCaseConfig(){
   }
 
   FreeSurface=eparms.GetValueFloat("FreeSurface",true,1.6f);
+	FactorNormShift=eparms.GetValueDouble("FactorNormShift",true,0.0f);
 
   Tolerance=eparms.GetValueDouble("Solver Tolerance",true,1e-5f);
   Iterations=eparms.GetValueInt("Max Iterations",true,100);
