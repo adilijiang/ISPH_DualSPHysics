@@ -1088,7 +1088,6 @@ template<TpFtMode ftmode> void Interaction_ForcesT
   //else if(bsauto)Interaction_ForcesT_BsAuto<psimple,tker,ftmode,lamsps,tdelta,shift>(cellmode,viscob,viscof,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,pospress,velrhop,code,idp,ftomassp,tau,gradvel,viscdt,ar,ace,delta,tshifting,shiftpos,shiftdetect,simulate2d,bsauto);
   else if(npf){
 		//-Executes particle interactions.
-		
 		const int hdiv=(cellmode==CELLMODE_H? 2: 1);
 		const uint4 nc=make_uint4(ncells.x,ncells.y,ncells.z,ncells.x*ncells.y);
 		const unsigned cellfluid=nc.w*nc.z+1;
@@ -2570,7 +2569,7 @@ void ComputeRStar(bool floating,unsigned npf,unsigned npb,const float4 *velrhopp
 //==============================================================================
 __device__ void KerFindMirror
   (const double2 *posxy,const double *posz,const unsigned idpg1,double3 posdp1
-	,const int irelationg,double3 *mirrorPos)
+	,const int irelation,double3 *mirrorPos)
 {
 	/*if(secondPoint){
 		unsigned mirrorpoint1=irelationg[idpg1];
@@ -2613,7 +2612,7 @@ __device__ void KerFindMirror
 		mirror[idpg1].z=posdp1.z+2*mirror[idpg1].z;
 	}
 	else{*/
-	unsigned mirrorpoint=irelationg;
+	unsigned mirrorpoint=irelation;
 	float drx,dry,drz;
 	KerGetParticlesDr(mirrorpoint,posxy,posz,posdp1,drx,dry,drz);
 	mirrorPos[idpg1].x=posxy[mirrorpoint].x-drx;
@@ -2647,7 +2646,7 @@ __global__ void KerMirrorBoundary
 			const double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
 			float closestr=CTE.fourh2;
 		
-			KerFindIrelationCalc(npb,0,posxy,posz,code,posdp1,irelation,closestr);
+			KerFindIrelationCalc(0,npb,posxy,posz,code,posdp1,irelation,closestr);
 			
 			if(irelation!=-1) KerFindMirror(posxy,posz,idpg1,posdp1,irelation,mirrorPos);
 			else{
@@ -2908,7 +2907,7 @@ __device__ void KerMatrixACode0
     float rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
 			unsigned oj=p2;
-			if(p2=int(npb)) oj=(oj-npb)+npbok;
+			if(p2>=int(npb)) oj=(oj-npb)+npbok;
       //-Wendland kernel.
       float frx,fry,frz;
       KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
@@ -3213,11 +3212,12 @@ void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int it
   typedef double       ScalarType;
 
   viennacl::compressed_matrix<ScalarType> vcl_A_cuda(row, col, matrixa, viennacl::CUDA_MEMORY, ppedim, ppedim, nnz);
-  
+
   viennacl::vector<ScalarType> vcl_vec(matrixb, viennacl::CUDA_MEMORY, ppedim);
   viennacl::vector<ScalarType> vcl_result(matrixx, viennacl::CUDA_MEMORY, ppedim);
 
   viennacl::linalg::bicgstab_tag bicgstab(tolerance,iterations);
+
 	if(viennacl::linalg::norm_2(vcl_vec)){
 		if(tprecond==PRECOND_Jacobi){
 			std::cout<<"JACOBI PRECOND" <<std::endl;

@@ -119,28 +119,30 @@ void PreSortFluid(unsigned npf,unsigned pini,unsigned cellcode,const unsigned *d
   }
 }
 
-__device__ void KerMirrorDCellSort(const double3 ps,const unsigned idpg1,tdouble3 domrealposmin,tdouble3 domrealposmax,
-	tdouble3 domposmin,float scell,int domcellcode,unsigned *mirrorCell){
+__device__ void KerMirrorDCellSort(const double3 ps,const unsigned idp,tdouble3 domrealposmin,tdouble3 domrealposmax,
+	tdouble3 domposmin,float scell,int domcellcode,unsigned &mcell){
 	const double dx=ps.x-domposmin.x;
 	const double dy=ps.y-domposmin.y;
 	const double dz=ps.z-domposmin.z;
 	unsigned cx=unsigned(dx/scell),cy=unsigned(dy/scell),cz=unsigned(dz/scell);
-	mirrorCell[idpg1]=PC__Cell(domcellcode,cx,cy,cz);
+	mcell=PC__Cell(domcellcode,cx,cy,cz);
 }
 
-__global__ void KerMirrorDCell(unsigned npb,const word *code,unsigned *idpg,const double3 *mirrorPos,
+__global__ void KerMirrorDCell(unsigned npb,const word *code,const unsigned *idpg,const double3 *mirrorPos,
 	unsigned *mirrorCell,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode){
 	unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
 		if(CODE_GetTypeValue(code[p1])==1){
-			unsigned idpg1=idpg[p1];
-			const double3 ps=mirrorPos[idpg1];
-				KerMirrorDCellSort(ps,idpg1,domrealposmin,domrealposmax,domposmin,scell,domcellcode,mirrorCell);
+			const unsigned idp=idpg[p1];
+			const double3 ps=mirrorPos[idp];
+			unsigned mcell;
+			KerMirrorDCellSort(ps,idp,domrealposmin,domrealposmax,domposmin,scell,domcellcode,mcell);
+			mirrorCell[idp]=mcell;
 		}
 	}
 }
 
-void MirrorDCell(const unsigned bsbound,unsigned npb,const word *code,unsigned *idpg,const double3 *mirrorPos,
+void MirrorDCell(const unsigned bsbound,unsigned npb,const word *code,const unsigned *idpg,const double3 *mirrorPos,
 	unsigned *mirrorCell,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode){
 	if(npb){
     dim3 sgridb=GetGridSize(npb,bsbound);

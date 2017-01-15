@@ -208,7 +208,7 @@ void JCellDivGpuSingle::Divide(unsigned npb1,unsigned npf1,unsigned npb2,unsigne
   CheckCudaError(met,"Error in NL construction.");
 }
 
-void JCellDivGpuSingle::MirrorDCellSingle(unsigned bsbound,unsigned npb,const word *codeg,unsigned *idpg,const double3 *mirrorPos,unsigned *mirrorCell,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode){
+void JCellDivGpuSingle::MirrorDCellSingle(unsigned bsbound,unsigned npb,const word *codeg,const unsigned *idpg,const double3 *mirrorPos,unsigned *mirrorCell,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode){
 	cudiv::MirrorDCell(bsbound,npb,codeg,idpg,mirrorPos,mirrorCell,domrealposmin,domrealposmax,domposmin,scell,domcellcode);
 }
 
