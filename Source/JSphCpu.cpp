@@ -1652,11 +1652,11 @@ void JSphCpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
 ///Find the closest fluid particle to each boundary particle
 //===============================================================================
 void JSphCpu::MirrorBoundary(unsigned np,unsigned npb,unsigned pinit,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code)const{
-  const int pfin=int(pinit+npb);
+
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==1){
+  for(int p1=0;p1<int(npb);p1++)if(CODE_GetTypeValue(code[p1])==1){
 		const unsigned idp1=idpc[p1];
 		unsigned irelation=-1;
 		const tdouble3 posp1=pos[p1];	
@@ -1773,7 +1773,7 @@ void JSphCpu::InverseCorrection(unsigned n, unsigned pinit, tdouble3 *dwxcorr,td
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-	for(int p1=int(pinit);p1<pfin;p1++){
+	for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==0){
 	  const double det=1.0/(dwxcorr[p1].x*dwzcorr[p1].z-dwzcorr[p1].x*dwxcorr[p1].z);
 	
       if(det){
@@ -1793,7 +1793,7 @@ void JSphCpu::InverseCorrection3D(unsigned n, unsigned pinit,tdouble3 *dwxcorr,t
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-	for(int p1=int(pinit);p1<pfin;p1++){
+	for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])==0){
     tdouble3 dwx=dwxcorr[p1]; //  dwx.x   dwx.y   dwx.z
     tdouble3 dwy=dwycorr[p1]; //  dwy.x   dwy.y   dwy.z
     tdouble3 dwz=dwzcorr[p1]; //  dwz.x   dwz.y   dwz.z

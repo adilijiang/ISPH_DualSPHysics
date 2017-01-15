@@ -531,7 +531,7 @@ __global__ void KerInverseKernelCor2D(unsigned n,unsigned pinit,double3 *dwxcorr
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if(CODE_GetTypeValue(code[p1])!=2){
+    if(CODE_GetTypeValue(code[p1])==0){
       const double det=1.0/(dwxcorrg[p1].x*dwzcorrg[p1].z-dwxcorrg[p1].z*dwzcorrg[p1].x);
 
       if(det){
@@ -550,22 +550,22 @@ __global__ void KerInverseKernelCor3D(unsigned n,unsigned pinit,double3 *dwxcorr
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if(CODE_GetTypeValue(code[p1])!=2){
+    if(CODE_GetTypeValue(code[p1])==0){
       double3 dwx=dwxcorrg[p1]; //  dwx.x   dwx.y   dwx.z
 			double3 dwy=dwycorrg[p1]; //  dwy.x   dwy.y   dwy.z
 			double3 dwz=dwzcorrg[p1]; //  dwz.x   dwz.y   dwz.z
 
-			double det=dwx.x*(dwy.y*dwz.z-dwz.y*dwy.z) + dwx.y*(dwy.x*dwz.z-dwz.x*dwy.z)+dwx.z*(dwy.x*dwz.y-dwz.x*dwy.y);
+			double det=dwx.x*dwy.y*dwx.x+dwx.y*dwy.z*dwz.x+dwy.x*dwz.y*dwx.z-(dwz.x*dwy.y*dwx.z+dwy.x*dwx.y*dwz.z+dwy.z*dwz.y*dwx.x);
 
-			dwxcorrg[p1].x=(dwy.y*dwz.z-dwz.y*dwy.z)/det;
-			dwxcorrg[p1].y=-(dwx.y*dwz.z-dwz.y*dwx.z)/det;
-			dwxcorrg[p1].z=(dwx.y*dwy.z-dwy.y*dwx.z)/det;
-			dwycorrg[p1].x=-(dwy.x*dwz.z-dwz.x*dwy.z)/det;
-			dwycorrg[p1].y=(dwx.x*dwz.z-dwz.x*dwx.z)/det;
-			dwycorrg[p1].z=-(dwx.x*dwy.z-dwy.x*dwx.z)/det;
-			dwzcorrg[p1].x=(dwy.x*dwz.y-dwz.x*dwy.y)/det;
-			dwzcorrg[p1].y=-(dwx.x*dwz.y-dwz.x*dwx.y)/det;
-			dwzcorrg[p1].z=(dwx.x*dwz.y-dwz.x*dwy.x)/det;
+			dwxcorr[p1].x=(dwy.y*dwz.z-dwy.z*dwz.y)/det;
+			dwxcorr[p1].y=-(dwx.y*dwz.z-dwx.z*dwz.y)/det;
+			dwxcorr[p1].z=(dwx.y*dwy.z-dwx.z*dwy.y)/det;
+			dwycorr[p1].x=-(dwy.x*dwz.z-dwy.z*dwz.x)/det;
+			dwycorr[p1].y=(dwx.x*dwz.z-dwx.z*dwz.x)/det;
+			dwycorr[p1].z=-(dwx.x*dwy.z-dwx.z*dwy.x)/det;
+			dwzcorr[p1].x=(dwy.x*dwz.y-dwy.y*dwz.x)/det;
+			dwzcorr[p1].y=-(dwx.x*dwz.y-dwx.y*dwz.x)/det;
+			dwzcorr[p1].z=(dwx.x*dwy.y-dwx.y*dwy.x)/det;
     }
   }
 }
