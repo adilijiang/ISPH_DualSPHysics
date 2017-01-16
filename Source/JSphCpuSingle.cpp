@@ -804,7 +804,7 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   PrintHeadPart();
 
   //-finding dummy particle relations to wall particles
-	JSphCpu::MirrorBoundary(Np,Npb,0,Posc,Idpc,MirrorPosc,Codec);  
+	JSphCpu::MirrorBoundary(Npb,Posc,Idpc,MirrorPosc,Codec);  
   while(TimeStep<TimeMax){
     //if(ViscoTime)Visco=ViscoTime->GetVisco(float(TimeStep));
 

@@ -1136,8 +1136,8 @@ template<TpFtMode ftmode> void JSphCpu::Interaction_ForcesT
 		else{
 			KernelCorrectionPressure(npf,npb,nc,hdiv,0,begincell,cellzero,dcell,pos,code,dwxcorr,dwycorr,dwzcorr,idp);
 			KernelCorrectionPressure(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,dcell,pos,code,dwxcorr,dwycorr,dwzcorr,idp);
-			if(Simulate2D) JSphCpu::InverseCorrection(npf,npb,dWxCorr,dWzCorr);
-			else JSphCpu::InverseCorrection3D(npf,npb,dWxCorr,dWyCorr,dWzCorr);
+			if(Simulate2D) JSphCpu::InverseCorrection(npf,npb,dWxCorr,dWzCorr,code);
+			else JSphCpu::InverseCorrection3D(npf,npb,dWxCorr,dWyCorr,dWzCorr,code);
 		}
 
 		//-Interaction Fluid-Fluid / Interaccion Fluid-Fluid
@@ -1150,12 +1150,12 @@ template<TpFtMode ftmode> void JSphCpu::Interaction_ForcesT
     //if(USE_DEM)InteractionForcesDEM<psimple> (CaseNfloat,nc,hdiv,cellfluid,begincell,cellzero,dcell,FtRidp,DemObjs,pos,pspos,velrhop,code,idp,viscdt,ace);
 		if(tinter==1){
 			if(Simulate2D){
-				JSphCpu::InverseCorrection(npf,npb,dWxCorr,dWzCorr);
-				JSphCpu::InverseCorrection(npbok,0,dWxCorr,dWzCorr);
+				JSphCpu::InverseCorrection(npf,npb,dWxCorr,dWzCorr,code);
+				JSphCpu::InverseCorrection(npbok,0,dWxCorr,dWzCorr,code);
 			}
 			else{
-				JSphCpu::InverseCorrection3D(npf,npb,dWxCorr,dWyCorr,dWzCorr);
-				JSphCpu::InverseCorrection3D(npbok,0,dWxCorr,dWyCorr,dWzCorr);
+				JSphCpu::InverseCorrection3D(npf,npb,dWxCorr,dWyCorr,dWzCorr,code);
+				JSphCpu::InverseCorrection3D(npbok,0,dWxCorr,dWyCorr,dWzCorr,code);
 			}
 		}
 	}
@@ -1651,7 +1651,7 @@ void JSphCpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
 //===============================================================================
 ///Find the closest fluid particle to each boundary particle
 //===============================================================================
-void JSphCpu::MirrorBoundary(unsigned np,unsigned npb,unsigned pinit,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code)const{
+void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code)const{
 
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
@@ -1662,7 +1662,7 @@ void JSphCpu::MirrorBoundary(unsigned np,unsigned npb,unsigned pinit,const tdoub
 		const tdouble3 posp1=pos[p1];	
 		float closestR=Fourh2;
 
-		for(int p2=int(pinit);p2<pfin;p2++) if(CODE_GetTypeValue(code[p2])==0){
+		for(int p2=0;p2<int(npb);p2++) if(CODE_GetTypeValue(code[p2])==0){
 			const float drx=float(posp1.x-pos[p2].x);
 			const float dry=float(posp1.y-pos[p2].y);
 			const float drz=float(posp1.z-pos[p2].z);
@@ -1670,7 +1670,7 @@ void JSphCpu::MirrorBoundary(unsigned np,unsigned npb,unsigned pinit,const tdoub
 			if(rr2<=closestR){
 				closestR=rr2;
 				irelation=p2;
-			}
+				}
 		}
 
 		/*#ifdef _WITHOMP
@@ -1766,7 +1766,7 @@ void JSphCpu::MirrorBoundary(unsigned np,unsigned npb,unsigned pinit,const tdoub
 //===============================================================================
 ///Kernel Correction
 //===============================================================================
-void JSphCpu::InverseCorrection(unsigned n, unsigned pinit, tdouble3 *dwxcorr,tdouble3 *dwzcorr)const{
+void JSphCpu::InverseCorrection(unsigned n, unsigned pinit, tdouble3 *dwxcorr,tdouble3 *dwzcorr,const word *code)const{
 
 	const int pfin=int(pinit+n);
 
@@ -1786,14 +1786,14 @@ void JSphCpu::InverseCorrection(unsigned n, unsigned pinit, tdouble3 *dwxcorr,td
 	}
 }
 
-void JSphCpu::InverseCorrection3D(unsigned n, unsigned pinit,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr)const{
+void JSphCpu::InverseCorrection3D(unsigned n, unsigned pinit,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,const word *code)const{
 
 	const int pfin=int(pinit+n);
 
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-	for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])==0){
+	for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==0){
     tdouble3 dwx=dwxcorr[p1]; //  dwx.x   dwx.y   dwx.z
     tdouble3 dwy=dwycorr[p1]; //  dwy.x   dwy.y   dwy.z
     tdouble3 dwz=dwzcorr[p1]; //  dwz.x   dwz.y   dwz.z
