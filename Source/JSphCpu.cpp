@@ -919,9 +919,9 @@ template<TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
 
 			      //===== Acceleration from pressure gradient ===== 
             if(compute && tinter==2){
-			        const float temp_x=float(frx*dwxcorr[p1].x+fry*dwxcorr[p1].y+frz*dwxcorr[p1].z);
-              const float temp_y=float(frx*dwycorr[p1].x+fry*dwycorr[p1].y+frz*dwycorr[p1].z);
-			        const float temp_z=float(frx*dwzcorr[p1].x+fry*dwzcorr[p1].y+frz*dwzcorr[p1].z);
+			        const float temp_x=float(frx*dwxcorr[p1].x+fry*dwycorr[p1].x+frz*dwzcorr[p1].x);
+              const float temp_y=float(frx*dwxcorr[p1].y+fry*dwycorr[p1].y+frz*dwzcorr[p1].y);
+			        const float temp_z=float(frx*dwxcorr[p1].z+fry*dwycorr[p1].z+frz*dwzcorr[p1].z);
 			        const float temp=volumep2*(velrhop[p2].w-pressp1);
               acep1.x+=temp*temp_x; acep1.y+=temp*temp_y; acep1.z+=temp*temp_z;
 			      }
@@ -1874,9 +1874,9 @@ void JSphCpu::RHSandLHSStorage(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsig
 								if(!(p1<int(Npb)&&p2<int(Npb))){
 									dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
 							
-									const float temp_x=float(frx*dwxcorrp1.x+fry*dwxcorrp1.y+frz*dwxcorrp1.z);
-									const float temp_y=float(frx*dwycorrp1.x+fry*dwycorrp1.y+frz*dwycorrp1.z);
-									const float temp_z=float(frx*dwzcorrp1.x+fry*dwzcorrp1.y+frz*dwzcorrp1.z);
+									const float temp_x=float(frx*dwxcorr[p1].x+fry*dwycorr[p1].x+frz*dwzcorr[p1].x);
+									const float temp_y=float(frx*dwxcorr[p1].y+fry*dwycorr[p1].y+frz*dwzcorr[p1].y);
+									const float temp_z=float(frx*dwxcorr[p1].z+fry*dwycorr[p1].z+frz*dwzcorr[p1].z);
 									temp=dvx*temp_x+dvy*temp_y+dvz*temp_z;
 									matrixb[oi]-=double(volume*temp);
 								}
