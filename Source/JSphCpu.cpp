@@ -1798,12 +1798,12 @@ void JSphCpu::InverseCorrection3D(unsigned n, unsigned pinit,tdouble3 *dwxcorr,t
     tdouble3 dwy=dwycorr[p1]; //  dwy.x   dwy.y   dwy.z
     tdouble3 dwz=dwzcorr[p1]; //  dwz.x   dwz.y   dwz.z
 
-    double det=dwx.x*dwy.y*dwx.x+dwx.y*dwy.z*dwz.x+dwy.x*dwz.y*dwx.z-(dwz.x*dwy.y*dwx.z+dwy.x*dwx.y*dwz.z+dwy.z*dwz.y*dwx.x);
+    const double det=(dwx.x*dwy.y*dwz.z+dwx.y*dwy.z*dwz.x+dwy.x*dwz.y*dwx.z)-(dwz.x*dwy.y*dwx.z+dwy.x*dwx.y*dwz.z+dwy.z*dwz.y*dwx.x);
 
     dwxcorr[p1].x=(dwy.y*dwz.z-dwy.z*dwz.y)/det;
     dwxcorr[p1].y=-(dwx.y*dwz.z-dwx.z*dwz.y)/det;
     dwxcorr[p1].z=(dwx.y*dwy.z-dwx.z*dwy.y)/det;
-    dwycorr[p1].x=-(dwy.x*dwz.z-dwy.z*dwz.x)/det;
+		dwycorr[p1].x=-(dwy.x*dwz.z-dwy.z*dwz.x)/det;
     dwycorr[p1].y=(dwx.x*dwz.z-dwx.z*dwz.x)/det;
     dwycorr[p1].z=-(dwx.x*dwy.z-dwx.z*dwy.x)/det;
     dwzcorr[p1].x=(dwy.x*dwz.y-dwy.y*dwz.x)/det;

@@ -946,6 +946,29 @@ void JSphCpuSingle::SolvePPE(double dt){
   //allocate vectors
   x.resize(PPEDim,0);
 
+	/* ofstream FileOutput;
+    string TimeFile;
+		unsigned count=1;
+    ostringstream TimeNum;
+    TimeNum << count;
+    ostringstream FileNum;
+    FileNum << count;
+
+    TimeFile =  "CPU Fluid Properties_" + FileNum.str() + ", T = " + TimeNum.str() + ".txt";
+
+    FileOutput.open(TimeFile.c_str());
+
+  for(int i=0;i<npbok;i++){
+    FileOutput << fixed << setprecision(19) << "particle "<< Idpc[i] << "\t Order " << i << "\t b " << b[i] << "\n";
+    for(int j=rowInd[i];j<rowInd[i+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\n";
+  }
+
+  for(int i=npb;i<np;i++){
+    FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << (i-npb)+npbok << "\t b " << b[(i-npb)+npbok] << "\n";
+    for(int j=rowInd[(i-npb)+npbok];j<rowInd[(i-npb)+npbok+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\n";
+  }
+  FileOutput.close();*/
+
   //solvers
 #ifndef _WITHGPU
   solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,b,x,rowInd,colInd,PPEDim,Nnz); 
