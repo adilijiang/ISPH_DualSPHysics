@@ -226,7 +226,7 @@ protected:
   
 	void InverseCorrection3D(unsigned n, unsigned pinit,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,const word *code)const;
   
-	void MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code)const;
+	void MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code,unsigned *Physrelation)const;
 
   void solveMatrix();
   
@@ -248,6 +248,9 @@ protected:
   const tdouble3 *pos,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
   std::vector<double> &matrixb,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,const unsigned *mirrorCell)const;
 	
+	void PopulatePeriodic(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+  const tdouble3 *pos,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,const unsigned *idpc,const word *code,const unsigned *dCell)const;
+
 	void PressureAssign(unsigned n,unsigned npbok,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,std::vector<double> &matrixx,const word *code,
 		const unsigned npb,float *divr,tfloat3 gravity)const;
   

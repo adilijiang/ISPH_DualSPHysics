@@ -281,7 +281,7 @@ void JSphCpuSingle::PeriodicDuplicatePos(unsigned pnew,unsigned pcopy,bool inver
 /// This kernel works for single-cpu & multi-cpu because it uses domposmin.
 //==============================================================================
 void JSphCpuSingle::PeriodicDuplicateSymplectic(unsigned n,unsigned pini,tuint3 cellmax,tdouble3 perinc,const unsigned *listp
-  ,unsigned *idp,word *code,unsigned *dcell,tdouble3 *pos,tfloat4 *velrhop,tsymatrix3f *spstau,tdouble3 *pospre,tfloat4 *velrhoppre)const
+  ,unsigned *idp,word *code,unsigned *dcell,tdouble3 *pos,tfloat4 *velrhop,tdouble3 *pospre,tfloat4 *velrhoppre)const
 {
   for(unsigned p=0;p<n;p++){
     const unsigned pnew=p+pini;
@@ -312,7 +312,7 @@ void JSphCpuSingle::PeriodicDuplicateSymplectic(unsigned n,unsigned pini,tuint3 
 /// of the boundry and then the NpfPer fluid ones. The Np of the those leaving contains also the
 /// new periodic ones.
 //==============================================================================
-/*void JSphCpuSingle::RunPeriodic(){
+void JSphCpuSingle::RunPeriodic(){
   const char met[]="RunPeriodic";
   TmcStart(Timers,TMC_SuPeriodic);
   //-Keep number of present periodic / Guarda numero de periodicas actuales.
@@ -366,9 +366,8 @@ void JSphCpuSingle::PeriodicDuplicateSymplectic(unsigned n,unsigned pini,tuint3 
             //-Create new duplicate periodic particles in the list
             if(TStep==STEP_Symplectic){
               if((PosPrec || VelrhopPrec) && (!PosPrec || !VelrhopPrec))RunException(met,"Symplectic data is invalid.") ;
-              PeriodicDuplicateSymplectic(count,Np,DomCells,perinc,listp,Idpc,Codec,Dcellc,Posc,Velrhopc,SpsTauc,PosPrec,VelrhopPrec);
+              PeriodicDuplicateSymplectic(count,Np,DomCells,perinc,listp,Idpc,Codec,Dcellc,Posc,Velrhopc,PosPrec,VelrhopPrec);
             }
-
             //-Free the list and update the number of particles / Libera lista y actualiza numero de particulas.
             ArraysCpu->Free(listp); listp=NULL;
             Np+=count;
@@ -381,7 +380,7 @@ void JSphCpuSingle::PeriodicDuplicateSymplectic(unsigned n,unsigned pini,tuint3 
     }
   }
   TmcStop(Timers,TMC_SuPeriodic);
-}*/
+}
 
 //==============================================================================
 /// Ejecuta divide de particulas en celdas.
@@ -390,7 +389,7 @@ void JSphCpuSingle::PeriodicDuplicateSymplectic(unsigned n,unsigned pini,tuint3 
 void JSphCpuSingle::RunCellDivide(bool updateperiodic){
   const char met[]="RunCellDivide";
   //-Create new periodic particles & mark the old ones to be ignored / Crea nuevas particulas periodicas y marca las viejas para ignorarlas.
-  //if(updateperiodic && PeriActive)RunPeriodic();
+  if(updateperiodic && PeriActive)RunPeriodic();
   
   //-Initial Divide / Inicia Divide.
   CellDivSingle->Divide(Npb,Np-Npb-NpbPer-NpfPer,NpbPer,NpfPer,BoundChanged,Dcellc,Codec,Idpc,Posc,Timers);
@@ -463,7 +462,22 @@ void JSphCpuSingle::GetInteractionCells(unsigned rcell
 //==============================================================================
 void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
   const char met[]="Interaction_Forces";	
-  	
+	const unsigned np=Np;
+	const unsigned npb=Npb;
+  if(tinter==1){
+		dWxCorr=ArraysCpu->ReserveDouble3(); 
+		dWyCorr=ArraysCpu->ReserveDouble3(); 
+		dWzCorr=ArraysCpu->ReserveDouble3(); 
+
+		Divr=ArraysCpu->ReserveFloat(); memset(Divr,0,sizeof(float)*np);
+  }
+	memset(dWxCorr,0,sizeof(tdouble3)*np);
+	memset(dWyCorr,0,sizeof(tdouble3)*np);
+	memset(dWzCorr,0,sizeof(tdouble3)*np);
+  //-Assign memory / Asigna memoria.
+  Acec=ArraysCpu->ReserveFloat3();
+	//-Initialize Arrays / Inicializa arrays.
+  PreInteractionVars_Forces(tinter,np,npb);
   TmcStart(Timers,TMC_CfForces);
 	
   //-Interaction of Fluid-Fluid/Bound & Bound-Fluid (forces and DEM) / Interaccion Fluid-Fluid/Bound & Bound-Fluid (forces and DEM).
@@ -571,7 +585,7 @@ double JSphCpuSingle::ComputeStep_Sym(){
   //-----------
   PreInteraction_Forces(INTER_Forces);
   RunCellDivide(true);
-	JSphCpu::MirrorDCell(Npb,Codec,MirrorPosc,MirrorCell,Idpc);
+	if(CaseNmoving)JSphCpu::MirrorDCell(Npb,Codec,MirrorPosc,MirrorCell,Idpc);
   Interaction_Forces(INTER_Forces,TSlipCond);      //-Interaction / Interaccion
   //const double ddt_p=DtVariable(false);   //-Calculate dt of predictor step / Calcula dt del predictor
   //if(TShifting)RunShifting(dt*.5);        //-Shifting
@@ -804,7 +818,8 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   PrintHeadPart();
 
   //-finding dummy particle relations to wall particles
-	JSphCpu::MirrorBoundary(Npb,Posc,Idpc,MirrorPosc,Codec);  
+	JSphCpu::MirrorBoundary(Npb,Posc,Idpc,MirrorPosc,Codec,MirrorCell);  
+	JSphCpu::MirrorDCell(Npb,Codec,MirrorPosc,MirrorCell,Idpc);
   while(TimeStep<TimeMax){
     //if(ViscoTime)Visco=ViscoTime->GetVisco(float(TimeStep));
 
@@ -941,6 +956,10 @@ void JSphCpuSingle::SolvePPE(double dt){
   PopulateMatrixACode0(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,a,rowInd,colInd,b,Idpc,Codec,FreeSurface,Gravity,RhopZero,MirrorPosc);//-Fluid-Fluid
 	PopulateMatrixACode0(npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,a,rowInd,colInd,b,Idpc,Codec,FreeSurface,Gravity,RhopZero,MirrorPosc);//-Fluid-Fluid
 	PopulateMatrixACode1(npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Posc,a,rowInd,colInd,b,Idpc,Codec,MirrorPosc,MirrorCell); //-Fluid-Fluid
+	if(PeriActive){
+		PopulatePeriodic(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,Dcellc);
+		PopulatePeriodic(npbok,0,nc,hdiv,0,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,Dcellc);
+	}
 	FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,Idpc,Codec,ShiftOffset);
   FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,Idpc,Codec,ShiftOffset);
   //allocate vectors
