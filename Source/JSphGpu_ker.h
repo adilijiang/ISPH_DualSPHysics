@@ -156,7 +156,7 @@ void PeriodicIgnore(unsigned n,word *code);
 unsigned PeriodicMakeList(unsigned n,unsigned pini,bool stable,unsigned nmax,tdouble3 mapposmin,tdouble3 mapposmax,tdouble3 perinc,const double2 *posxy,const double *posz,const word *code,unsigned *listp);
 void PeriodicDuplicateSymplectic(unsigned n,unsigned pini
   ,tuint3 domcells,tdouble3 perinc,const unsigned *listp,unsigned *idp,word *code,unsigned *dcell
-  ,double2 *posxy,double *posz,float4 *velrhop,tsymatrix3f *spstau,double2 *posxypre,double *poszpre,float4 *velrhoppre);
+  ,double2 *posxy,double *posz,float4 *velrhop,double2 *posxypre,double *poszpre,float4 *velrhoppre);
 
 //# Kernels para external forces (JSphAccInput)
 //# Kernels for external forces (JSphAccInput)

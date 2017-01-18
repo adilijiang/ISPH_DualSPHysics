@@ -758,10 +758,6 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 			float Sum2=0.0;
 			tdouble3 posp1=mirrorPos[idp1];
 
-			//===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
-			float massp2=MassFluid; //-Contiene masa de particula segun sea bound o fluid.
-			const float volumep2=massp2/RhopZero; //Volume of particle j
-
 			//-Obtain interaction limits / Obtiene limites de interaccion
 			int cxini,cxfin,yini,yfin,zini,zfin;
 			GetInteractionCells(mirrorCell[idp1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
@@ -787,7 +783,6 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 							Sum1.y+=W*velrhop2.y;
 							Sum1.z+=W*velrhop2.z;
 							Sum2+=W;
-
 						}
 					}
 				}
@@ -1825,11 +1820,12 @@ void JSphCpu::RHSandLHSStorage(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsig
 	  unsigned oi=p1;
 		if(p1>=int(Npb)) oi=(oi-Npb)+NpbOk;
 
-		const tdouble3 dwxcorrp1=dwxcorr[p1];
-		const tdouble3 dwycorrp1=dwycorr[p1];
-    const tdouble3 dwzcorrp1=dwzcorr[p1];
 		if(CODE_GetSpecialValue(Codec[p1])==CODE_PERIODIC){if(boundp2) rowCount=1;}
     else if(divr[p1]>freesurface){
+			const tdouble3 dwxcorrp1=dwxcorr[p1];
+			const tdouble3 dwycorrp1=dwycorr[p1];
+			const tdouble3 dwzcorrp1=dwzcorr[p1];
+
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;
       GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
@@ -1888,9 +1884,9 @@ void JSphCpu::StorageCode1(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned 
 
   const int pfin=int(pinit+n);
 
- /*#ifdef _WITHOMP
+ #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
-  #endif*/
+  #endif
   for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])==1){
 		const unsigned idp1=idpc[p1];
     tdouble3 posp1=mirrorPos[idp1];

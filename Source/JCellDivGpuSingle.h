@@ -41,7 +41,10 @@ public:
 
   void Divide(unsigned npb1,unsigned npf1,unsigned npb2,unsigned npf2,bool boundchanged,const unsigned *dcellg,const word* codeg,TimersGpu timers,const double2 *posxy,const double *posz,const unsigned *idp);
 	void MirrorDCellSingle(unsigned bsbound,unsigned npb,const word *code,const unsigned *idpg,const double3 *mirrorPos,unsigned *mirrorCell,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode);
-  ullong GetAllocMemoryCpu()const{ return(JCellDivGpu::GetAllocMemoryCpu()); }
+  void MatrixMirrorDCellSingle(const unsigned bsbound,const unsigned bsfluid,const unsigned npf,const unsigned npb,const unsigned npbok,const double2 *posxy,const double *posz
+	,const word *code,const unsigned *idpg,unsigned int *row,unsigned int *col,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell
+	,int domcellcode,const bool PeriActive,const tdouble3 MapRealPosMin,const tdouble3 MapRealSize,const tdouble3 PeriXinc,const tdouble3 PeriYinc,const tdouble3 PeriZinc);
+	ullong GetAllocMemoryCpu()const{ return(JCellDivGpu::GetAllocMemoryCpu()); }
   ullong GetAllocMemoryGpu()const{ return(JCellDivGpu::GetAllocMemoryGpu()); }
   ullong GetAllocMemoryGpuNp()const{ return(JCellDivGpu::GetAllocMemoryGpuNp()); };
   ullong GetAllocMemoryGpuNct()const{ return(JCellDivGpu::GetAllocMemoryGpuNct()); };

@@ -671,7 +671,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
 			}
 
 			if(divrp1) divr[p1]=divrp1;
-			//if(idp[p1]==9408)divr[p1]=-1;
+
 			if(dwxp1.x||dwxp1.y||dwxp1.z
 				||dwyp1.x||dwyp1.y||dwyp1.z
 				||dwzp1.x||dwzp1.y||dwzp1.z){
@@ -688,7 +688,6 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
 			
 			int cxini,cxfin,yini,yfin,zini,zfin;
 			KerGetInteractionCells(mirrorCell[idpg1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
-
 				
 			for(int z=zini;z<zfin;z++){
 				int zmod=(nc.w)*z+(nc.w*nc.z+1);//-Le suma Nct+1 que es la primera celda de fluido. //-Adds Nct + 1 which is the first cell fluid.	
@@ -2388,7 +2387,7 @@ __device__ void KerPeriodicDuplicatePos(unsigned pnew,unsigned pcopy
 //------------------------------------------------------------------------------
 template<bool varspre> __global__ void KerPeriodicDuplicateSymplectic(unsigned n,unsigned pini
   ,uint3 cellmax,double3 perinc,const unsigned *listp,unsigned *idp,word *code,unsigned *dcell
-  ,double2 *posxy,double *posz,float4 *velrhop,tsymatrix3f *spstau,double2 *posxypre,double *poszpre,float4 *velrhoppre)
+  ,double2 *posxy,double *posz,float4 *velrhop,double2 *posxypre,double *poszpre,float4 *velrhoppre)
 {
   const unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
@@ -2417,13 +2416,13 @@ template<bool varspre> __global__ void KerPeriodicDuplicateSymplectic(unsigned n
 //==============================================================================
 void PeriodicDuplicateSymplectic(unsigned n,unsigned pini
   ,tuint3 domcells,tdouble3 perinc,const unsigned *listp,unsigned *idp,word *code,unsigned *dcell
-  ,double2 *posxy,double *posz,float4 *velrhop,tsymatrix3f *spstau,double2 *posxypre,double *poszpre,float4 *velrhoppre)
+  ,double2 *posxy,double *posz,float4 *velrhop,double2 *posxypre,double *poszpre,float4 *velrhoppre)
 {
   if(n){
     uint3 cellmax=make_uint3(domcells.x-1,domcells.y-1,domcells.z-1);
     dim3 sgrid=GetGridSize(n,SPHBSIZE);
-    if(posxypre!=NULL)KerPeriodicDuplicateSymplectic<true>  <<<sgrid,SPHBSIZE>>> (n,pini,cellmax,Double3(perinc),listp,idp,code,dcell,posxy,posz,velrhop,spstau,posxypre,poszpre,velrhoppre);
-    else              KerPeriodicDuplicateSymplectic<false> <<<sgrid,SPHBSIZE>>> (n,pini,cellmax,Double3(perinc),listp,idp,code,dcell,posxy,posz,velrhop,spstau,posxypre,poszpre,velrhoppre);
+    if(posxypre!=NULL)KerPeriodicDuplicateSymplectic<true>  <<<sgrid,SPHBSIZE>>> (n,pini,cellmax,Double3(perinc),listp,idp,code,dcell,posxy,posz,velrhop,posxypre,poszpre,velrhoppre);
+    else              KerPeriodicDuplicateSymplectic<false> <<<sgrid,SPHBSIZE>>> (n,pini,cellmax,Double3(perinc),listp,idp,code,dcell,posxy,posz,velrhop,posxypre,poszpre,velrhoppre);
   }
 }
 
@@ -2758,7 +2757,9 @@ __global__ void KerRHSandLHSStorage
 			unsigned rowCount=0;
 			unsigned oi=p1;
 			if(p1>=int(npb)) oi=(oi-npb)+npbok;
-      if(divr[p1]>freesurface){
+      
+			if(CODE_GetSpecialValue(code[p1])==CODE_PERIODIC) rowCount=1;
+			else if(divr[p1]>freesurface){
         //-Obtiene datos basicos de particula p1.
   	    //-Obtains basic data of particle p1.
         double3 posdp1;
@@ -2874,28 +2875,31 @@ __global__ void KerStorageCode1
 			unsigned rowCount=0;
 			const unsigned oi=p1;
  			
-			//-Obtiene limites de interaccion
-	    //-Obtains interaction limits
-      int cxini,cxfin,yini,yfin,zini,zfin;
-      KerGetInteractionCells(mirrorCell[idpg1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+			if(CODE_GetSpecialValue(code[p1])==CODE_PERIODIC) rowCount=1;
+			else{
+				//-Obtiene limites de interaccion
+				//-Obtains interaction limits
+				int cxini,cxfin,yini,yfin,zini,zfin;
+				KerGetInteractionCells(mirrorCell[idpg1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
 
-      //-Interaccion con Fluidas.
-	    //-Interaction with fluids.
-      for(int z=zini;z<zfin;z++){
-        int zmod=(nc.w)*z+cellfluid; //-Le suma donde empiezan las celdas de fluido. //-The sum showing where fluid cells start
-        for(int y=yini;y<yfin;y++){
-          int ymod=zmod+nc.x*y;
-          unsigned pini,pfin=0;
-          for(int x=cxini;x<cxfin;x++){
-            int2 cbeg=begincell[x+ymod];
-            if(cbeg.y){
-              if(!pfin)pini=cbeg.x;
-              pfin=cbeg.y;
-            }
-          }
-          if(pfin){
-		        KerStorageCode1Find (pini,pfin,posxy,posz,posdp1,rowCount);
-          }
+				//-Interaccion con Fluidas.
+				//-Interaction with fluids.
+				for(int z=zini;z<zfin;z++){
+					int zmod=(nc.w)*z+cellfluid; //-Le suma donde empiezan las celdas de fluido. //-The sum showing where fluid cells start
+					for(int y=yini;y<yfin;y++){
+						int ymod=zmod+nc.x*y;
+						unsigned pini,pfin=0;
+						for(int x=cxini;x<cxfin;x++){
+							int2 cbeg=begincell[x+ymod];
+							if(cbeg.y){
+								if(!pfin)pini=cbeg.x;
+								pfin=cbeg.y;
+							}
+						}
+						if(pfin){
+							KerStorageCode1Find (pini,pfin,posxy,posz,posdp1,rowCount);
+						}
+					}
 	      }
       }
 			row[oi]=rowCount;
@@ -2984,7 +2988,7 @@ __global__ void KerPopulateMatrixACode0
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
-    if(CODE_GetTypeValue(code[p1])==0){
+    if(CODE_GetTypeValue(code[p1])==0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
       unsigned oi=p1;
 			if(p1>=int(npb)) oi=(oi-npb)+npbok;
       const unsigned diag=row[oi];
@@ -3058,7 +3062,7 @@ __global__ void KerPopulateMatrixACode1
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<npbok){
     unsigned p1=p;      //-Nº de particula. //-NI of particle
-    if(CODE_GetTypeValue(code[p1])==1){
+    if(CODE_GetTypeValue(code[p1])==1&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
 			const unsigned idpg1=idp[p1];
       unsigned oi=p1;
 
@@ -3115,6 +3119,96 @@ void PopulateMatrixA(TpCellMode cellmode,const unsigned bsbound,const unsigned b
 		KerPopulateMatrixACode0 <<<sgridf,bsfluid>>> (npf,npb,npb,npbok,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos);
     KerPopulateMatrixACode0 <<<sgridb,bsbound>>> (npbok,0,npb,npbok,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos);
 		KerPopulateMatrixACode1 <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell);
+	}
+}
+
+
+__device__ void KerPopulatePeriodicCalc
+  (const unsigned &pini,const unsigned &pfin,unsigned npb,unsigned npbok,const double2 *posxy,const double *posz,double3 posdp1
+	,const float massp2,const float RhopZero,unsigned &index,unsigned int *col,double *matrixInd,const int diag)
+{
+  for(int p2=pini;p2<pfin;p2++){
+    float drx,dry,drz;
+    KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+    float rr2=drx*drx+dry*dry+drz*drz;
+    if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
+			unsigned oj=(p2-npb)+npbok;
+      //-Wendland kernel.
+      float frx,fry,frz;
+      KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
+
+	    float volumep2=massp2/RhopZero; //Volume of particle j 
+
+      float rDivW=drx*frx+dry*fry+drz*frz;
+      float temp=2.0f*rDivW/(RhopZero*(rr2+CTE.eta2));
+      matrixInd[index]=double(-temp*volumep2);
+      col[index]=oj;
+      matrixInd[diag]+=double(temp*volumep2);
+      index++;
+    }
+  }
+}
+
+__global__ void KerPopulatePeriodic
+  (unsigned npbok,unsigned npb,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero,const unsigned *dcell
+  ,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,unsigned int *row,unsigned int *col,double *matrixInd,const unsigned *mirrorCell)
+{
+  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<npbok){
+    unsigned p1=p;      //-Nº de particula. //-NI of particle
+    if(CODE_GetTypeValue(code[p1])==1&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
+			const unsigned idpg1=idp[p1];
+      unsigned oi=p1;
+
+      const unsigned diag=row[oi];
+			Cell=col[diag];
+      col[diag]=oi;
+      unsigned index=diag+1;
+      if(row[oi+1]-row[oi]>1){
+    
+        //-Obtiene limites de interaccion
+	      //-Obtains interaction limits
+        int cxini,cxfin,yini,yfin,zini,zfin;
+        KerGetInteractionCells(Cell,hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+        
+				for(int z=zini;z<zfin;z++){
+					int zmod=(nc.w)*z+cellfluid; //-Le suma donde empiezan las celdas de fluido. //-The sum showing where fluid cells start
+					for(int y=yini;y<yfin;y++){
+						int ymod=zmod+nc.x*y;
+						unsigned pini,pfin=0;
+						for(int x=cxini;x<cxfin;x++){
+							int2 cbeg=begincell[x+ymod];
+							if(cbeg.y){
+								if(!pfin)pini=cbeg.x;
+								pfin=cbeg.y;
+							}
+						}
+						if(pfin){
+							//KerPopulatePeriodicCalc (pini,pfin,npb,npbok,posxy,posz,posdp1,CTE.massf,CTE.rhopzero,index,col,matrixInd,diag);
+						}
+					}
+				}
+      }
+      else matrixInd[diag]=1.0;
+    }
+  }
+}
+
+void PopulatePeriodic(TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
+	,const unsigned *dcell,const double2 *posxy,const double *posz,double *matrixInd
+  ,unsigned int *row,unsigned int *col,const unsigned *idp,const word *code,const unsigned *mirrorCell){
+  const unsigned npf=np-npb;
+  const int hdiv=(cellmode==CELLMODE_H? 2: 1);
+  const uint4 nc=make_uint4(ncells.x,ncells.y,ncells.z,ncells.x*ncells.y);
+  const unsigned cellfluid=nc.w*nc.z+1;
+  const int3 cellzero=make_int3(cellmin.x,cellmin.y,cellmin.z);
+  //-Interaccion Fluid-Fluid & Fluid-Bound
+  //-Interaction Fluid-Fluid & Fluid-Bound
+  if(npf){
+    dim3 sgridf=GetGridSize(npf,bsfluid);
+    dim3 sgridb=GetGridSize(npbok,bsbound);
+
+		KerPopulatePeriodic <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorCell);
 	}
 }
 

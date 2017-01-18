@@ -331,7 +331,7 @@ void JSphGpuSingle::RunPeriodic(){
 			//-Create new periodic particles duplicating the particles from the list
             if(TStep==STEP_Symplectic){
               if((PosxyPreg || PoszPreg || VelrhopPreg) && (!PosxyPreg || !PoszPreg || !VelrhopPreg))RunException(met,"Symplectic data is invalid.") ;
-//              cusph::PeriodicDuplicateSymplectic(count,Np,DomCells,perinc,listpg,Idpg,Codeg,Dcellg,Posxyg,Poszg,Velrhopg,SpsTaug,PosxyPreg,PoszPreg,VelrhopPreg);
+              cusph::PeriodicDuplicateSymplectic(count,Np,DomCells,perinc,listpg,Idpg,Codeg,Dcellg,Posxyg,Poszg,Velrhopg,PosxyPreg,PoszPreg,VelrhopPreg);
             }
             //-Libera lista y actualiza numero de particulas.
 			//-Releases memory and updates the particle number.
@@ -358,7 +358,7 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
   const char met[]="RunCellDivide";
   //-Crea nuevas particulas periodicas y marca las viejas para ignorarlas.
   //-Creates new periodic particles and marks the old ones to be ignored.
-  //if(updateperiodic && PeriActive)RunPeriodic();
+  if(updateperiodic && PeriActive)RunPeriodic();
   //-Inicia Divide.
   //-Initiates Divide.
   CellDivSingle->Divide(Npb,Np-Npb-NpbPer-NpfPer,NpbPer,NpfPer,BoundChanged,Dcellg,Codeg,Timers,Posxyg,Poszg,Idpg);
@@ -785,7 +785,13 @@ void JSphGpuSingle::SolvePPE(double dt){
   TmgStop(Timers,TMG_Nnz);
   cudaMemset(a,0,sizeof(double)*Nnz);
   cusph::InitArrayCol(Nnz,colInd,int(PPEDim));
+
   cusph::PopulateMatrixA(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velrhopg,a,b,rowInd,colInd,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg);
+	if(PeriActive){
+		CellDivSingle->MatrixMirrorDCellSingle(bsbound,bsfluid,npf,npb,npbok,Posxyg,Poszg,Codeg,Idpg,rowInd,colInd,DomRealPosMin,DomRealPosMax,DomPosMin,Scell,DomCellCode,PeriActive,MapRealPosMin,MapRealSize,PeriXinc,PeriYinc,PeriZinc);
+		cusph::PopulatePeriodic(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,a,rowInd,colInd,Idpg,Codeg,MirrorCellg);
+	}
+
 	CheckCudaError(met,"Matrix Setup");
 
 	cusph::FreeSurfaceMark(bsbound,bsfluid,np,npb,npbok,Divrg,a,b,rowInd,Codeg,PI,FreeSurface,ShiftOffset);

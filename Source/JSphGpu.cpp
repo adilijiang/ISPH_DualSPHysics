@@ -293,7 +293,7 @@ void JSphGpu::AllocGpuMemoryParticles(unsigned np,float over){
     ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,4);  //-FtMasspg
   }
   if(TShifting!=SHIFT_None){
-    ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,2); //-shiftpos
+    ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,2); //-shiftpos,sumTensile
   }
   
   //-Muestra la memoria reservada.
@@ -853,7 +853,7 @@ void JSphGpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
 //==============================================================================
 void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
   TmgStart(Timers,TMG_CfPreForces);
-  //-Asigna memoria.
+  //-Asigna memoria.ddd
   //-Allocates memory.
   if(tinter==1){
 		dWxCorrg=ArraysGpu->ReserveDouble3(); 
