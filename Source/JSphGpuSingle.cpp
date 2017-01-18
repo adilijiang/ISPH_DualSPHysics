@@ -476,7 +476,7 @@ double JSphGpuSingle::ComputeStep_Sym(){
   //----------- 
   InitAdvection(dt);
 	RunCellDivide(true);
-	CellDivSingle->MirrorDCellSingle(BlockSizes.forcesbound,Npb,Codeg,Idpg,MirrorPosg,MirrorCellg,DomRealPosMin,DomRealPosMax,DomPosMin,Scell,DomCellCode);
+	if(CaseNmoving)CellDivSingle->MirrorDCellSingle(BlockSizes.forcesbound,Npb,Codeg,Idpg,MirrorPosg,MirrorCellg,DomRealPosMin,DomRealPosMax,DomPosMin,Scell,DomCellCode);
 	Interaction_Forces(INTER_Forces,dt);        //-Interaction
 	ComputeSymplecticPre(dt);                   //-Applies Symplectic-Predictor to the particles
 	//if(CaseNfloat)RunFloating(dt*.5,true);    //-Management of the floating bodies
@@ -562,6 +562,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   Log->Print(string("\n[Initialising simulation (")+RunCode+")  "+fun::GetDateTime()+"]");
   PrintHeadPart();
 	MirrorBoundary();
+	CellDivSingle->MirrorDCellSingle(BlockSizes.forcesbound,Npb,Codeg,Idpg,MirrorPosg,MirrorCellg,DomRealPosMin,DomRealPosMax,DomPosMin,Scell,DomCellCode);
   while(TimeStep<TimeMax){
 		if(CaseNmoving)RunMotion(DtPre);
     double stepdt=ComputeStep_Sym();
@@ -714,7 +715,7 @@ void JSphGpuSingle::FinishRun(bool stop){
 void JSphGpuSingle::MirrorBoundary(){
 	const char met[]="FindIrelation";
   const unsigned bsbound=BlockSizes.forcesbound;
-  cusph::MirrorBoundary(bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,MirrorPosg);
+  cusph::MirrorBoundary(bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,MirrorPosg,MirrorCellg);
   CheckCudaError(met,"findIrelation");
 }
 

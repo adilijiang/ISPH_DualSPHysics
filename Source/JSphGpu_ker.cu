@@ -2568,12 +2568,12 @@ void ComputeRStar(bool floating,unsigned npf,unsigned npb,const float4 *velrhopp
 ///Find Irelation
 //==============================================================================
 __device__ void KerFindMirror
-  (const double2 *posxy,const double *posz,const unsigned idpg1,double3 posdp1
-	,const int irelation,double3 *mirrorPos)
+  (const double2 *posxy,const double *posz,const unsigned *idp,const unsigned idpg1,double3 posdp1
+	,const int irelation,double3 *mirrorPos,bool &secondPoint,int &secondIrelation,unsigned *Physrelation)
 {
-	/*if(secondPoint){
-		unsigned mirrorpoint1=irelationg[idpg1];
-		unsigned secondmirror1=irelationg[idp[mirrorpoint1]];
+	if(secondPoint){
+		unsigned mirrorpoint1=irelation;
+		unsigned secondmirror1=Physrelation[idp[mirrorpoint1]];
 		float drx=float(posxy[secondmirror1].x-posxy[mirrorpoint1].x);
 		float dry=float(posxy[secondmirror1].y-posxy[mirrorpoint1].y);
 		float drz=float(posz[secondmirror1]-posz[mirrorpoint1]);
@@ -2587,12 +2587,13 @@ __device__ void KerFindMirror
 		float directionz=0;
 		if(drxpoint)directionx=drxpoint/fabs(drxpoint);
 		if(drzpoint)directionz=drzpoint/fabs(drzpoint);
-		mirror[idpg1].x=magnitude*(drz/sqrtf(rr2))*directionx;
-		mirror[idpg1].z=magnitude*(drx/sqrtf(rr2))*directionz;
+		mirrorPos[idpg1].x=magnitude*(abs(drz)/sqrtf(rr2))*directionx;
+		mirrorPos[idpg1].y=0;
+		mirrorPos[idpg1].z=magnitude*(abs(drx)/sqrtf(rr2))*directionz;
 			
 		//Secondpoint
 		unsigned mirrorpoint2=secondIrelation;
-		unsigned secondmirror2=irelationg[idp[mirrorpoint2]];
+		unsigned secondmirror2=Physrelation[idp[mirrorpoint2]];
 		drx=float(posxy[secondmirror2].x-posxy[mirrorpoint2].x);
 		dry=float(posxy[secondmirror2].y-posxy[mirrorpoint2].y);
 		drz=float(posz[secondmirror2]-posz[mirrorpoint2]);
@@ -2606,49 +2607,62 @@ __device__ void KerFindMirror
 		directionz=0;
 		if(drxpoint)directionx=drxpoint/fabs(drxpoint);
 		if(drzpoint)directionz=drzpoint/fabs(drzpoint);
-		mirror[idpg1].x+=+magnitude*(drz/sqrtf(rr2))*directionx;
-		mirror[idpg1].z+=magnitude*(drx/sqrtf(rr2))*directionz;
-		mirror[idpg1].x=posdp1.x+2*mirror[idpg1].x;
-		mirror[idpg1].z=posdp1.z+2*mirror[idpg1].z;
+		mirrorPos[idpg1].x+=+magnitude*(abs(drz)/sqrtf(rr2))*directionx;
+		mirrorPos[idpg1].y=0;
+		mirrorPos[idpg1].z+=magnitude*(abs(drx)/sqrtf(rr2))*directionz;
+
+		mirrorPos[idpg1].x=posdp1.x+2*mirrorPos[idpg1].x;
+		mirrorPos[idpg1].y=0;
+		mirrorPos[idpg1].z=posdp1.z+2*mirrorPos[idpg1].z;
 	}
-	else{*/
-	unsigned mirrorpoint=irelation;
-	float drx,dry,drz;
-	KerGetParticlesDr(mirrorpoint,posxy,posz,posdp1,drx,dry,drz);
-	mirrorPos[idpg1].x=posxy[mirrorpoint].x-drx;
-	mirrorPos[idpg1].y=posxy[mirrorpoint].y-dry;
-	mirrorPos[idpg1].z=posz[mirrorpoint]-drz;
+	else{
+		unsigned mirrorpoint=irelation;
+		float drx,dry,drz;
+		KerGetParticlesDr(mirrorpoint,posxy,posz,posdp1,drx,dry,drz);
+		mirrorPos[idpg1].x=posxy[mirrorpoint].x-drx;
+		mirrorPos[idpg1].y=posxy[mirrorpoint].y-dry;
+		mirrorPos[idpg1].z=posz[mirrorpoint]-drz;
+	}
 }
 
 __device__ void KerFindIrelationCalc
   (const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
-  ,const word *code,double3 posdp1,int &irelation,float &closestr)
+  ,const word *code,double3 posdp1,int &irelation,float &closestr,bool &secondPoint,int &secondIrelation)
 {
 	for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==0){
 		float drx,dry,drz;
 		KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
 		float rr2=drx*drx+dry*dry+drz*drz;
-		if(rr2<=closestr){
+		if(rr2==closestr){
+			secondPoint=true;
+			secondIrelation=p2;
+		}
+		else if(rr2<closestr){
 			closestr=rr2;
 			irelation=p2;
+			if(secondPoint){
+				secondPoint=false;
+				secondIrelation=-1;
+			}
 		}
 	}
 }
 
-__global__ void KerMirrorBoundary
-  (unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos)
+__global__ void KerCreateMirrors
+  (unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,unsigned *Physrelation)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
-		if(CODE_GetTypeValue(code[p1])==1){
+		if(CODE_GetTypeValue(code[p1])==1&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
 			unsigned idpg1=idp[p1];
 			int irelation=-1;
 			const double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
 			float closestr=CTE.fourh2;
-		
-			KerFindIrelationCalc(0,npb,posxy,posz,code,posdp1,irelation,closestr);
+			bool secondPoint=false;
+			int secondIrelation=-1;
+			KerFindIrelationCalc(0,npb,posxy,posz,code,posdp1,irelation,closestr,secondPoint,secondIrelation);
 			
-			if(irelation!=-1) KerFindMirror(posxy,posz,idpg1,posdp1,irelation,mirrorPos);
+			if(irelation!=-1) KerFindMirror(posxy,posz,idp,idpg1,posdp1,irelation,mirrorPos,secondPoint,secondIrelation,Physrelation);
 			else{
 				mirrorPos[idpg1].x=posdp1.x;
 				mirrorPos[idpg1].y=posdp1.y;
@@ -2658,11 +2672,43 @@ __global__ void KerMirrorBoundary
 	}
 }
 
+__device__ void KerConnectBoundaryCalc
+  (const unsigned &p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
+  ,const word *code,double3 posdp1,unsigned &closestp,float &closestr)
+{
+	for(int p2=pini;p2<pfin;p2++)if(p1!=p2&&CODE_GetTypeValue(code[p2])==0){
+		float drx,dry,drz;
+		KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+		float rr2=drx*drx+dry*dry+drz*drz;
+		if(rr2<closestr){
+			closestr=rr2;
+			closestp=p2;
+		}
+	}
+}
+
+__global__ void KerConnectBoundary
+  (unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,unsigned *Physrelation)
+{
+  unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
+  if(p1<npb){
+		if(CODE_GetTypeValue(code[p1])==0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
+			unsigned idpg1=idp[p1];
+			const double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
+			float closestr=CTE.fourh2;
+			unsigned closestp;
+			KerConnectBoundaryCalc(p1,0,npb,posxy,posz,code,posdp1,closestp,closestr);
+			Physrelation[idpg1]=closestp;
+		}
+	}
+}
+
 void MirrorBoundary(const unsigned bsbound,unsigned npb,const double2 *posxy
-  ,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos){
+  ,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,unsigned *Physrelation){
   if(npb){
     dim3 sgridb=GetGridSize(npb,bsbound);
-    KerMirrorBoundary <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos);
+		KerConnectBoundary<<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,Physrelation);
+    KerCreateMirrors <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,Physrelation);
 	}
 }
 

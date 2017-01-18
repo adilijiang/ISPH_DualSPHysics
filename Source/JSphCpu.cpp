@@ -690,9 +690,9 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 
   const int pfin=int(pinit+n);
 
-  /*#ifdef _WITHOMP
+  #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
-  #endif*/
+  #endif
   for(int p1=int(pinit);p1<pfin;p1++){
 		if(CODE_GetTypeValue(Codec[p1])==0){
 			//-Obtain data of particle p1 / Obtiene datos de particula p1.
@@ -742,7 +742,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 			}
 
 			if(divrp1) divr[p1]=divrp1;
-			//if(Idpc[p1]==9408)divr[p1]=-1;
+
 			if(dwxp1.x||dwxp1.y||dwxp1.z
 				||dwyp1.x||dwyp1.y||dwyp1.z
 				||dwzp1.x||dwzp1.y||dwzp1.z){
@@ -756,7 +756,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 			unsigned idp1=idp[p1];
 			tfloat3 Sum1=TFloat3(0);
 			float Sum2=0.0;
-			const tdouble3 posp1=mirrorPos[idp1];
+			tdouble3 posp1=mirrorPos[idp1];
 
 			//===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
 			float massp2=MassFluid; //-Contiene masa de particula segun sea bound o fluid.
@@ -1640,7 +1640,7 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 	#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=0;p1<int(npb);p1++)if(CODE_GetTypeValue(code[p1])==0){
+  for(int p1=0;p1<int(npb);p1++)if(CODE_GetTypeValue(code[p1])==0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
 		const unsigned idp1=idpc[p1];
 		const tdouble3 posp1=pos[p1];	
 		float closestR=Fourh2;
@@ -1661,7 +1661,7 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 	#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=0;p1<int(npb);p1++)if(CODE_GetTypeValue(code[p1])==1){
+  for(int p1=0;p1<int(npb);p1++)if(CODE_GetTypeValue(code[p1])==1&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
 		const unsigned idp1=idpc[p1];
 		unsigned irelation=-1;
 		const tdouble3 posp1=pos[p1];	
@@ -1707,6 +1707,7 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 				if(drxpoint)directionx=drxpoint/fabs(drxpoint);
 				if(drzpoint)directionz=drzpoint/fabs(drzpoint);
 				mirrorPos[idp1].x=magnitude*(abs(drz)/sqrtf(rr2))*directionx;
+				mirrorPos[idp1].y=0;
 				mirrorPos[idp1].z=magnitude*(abs(drx)/sqrtf(rr2))*directionz;
 
 				//Secondpoint
@@ -1726,9 +1727,11 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 				if(drxpoint)directionx=drxpoint/fabs(drxpoint);
 				if(drzpoint)directionz=drzpoint/fabs(drzpoint);
 				mirrorPos[idp1].x+=+magnitude*(abs(drz)/sqrtf(rr2))*directionx;
+				mirrorPos[idp1].y=0;
 				mirrorPos[idp1].z+=magnitude*(abs(drx)/sqrtf(rr2))*directionz;
 
 				mirrorPos[idp1].x=posp1.x+2*mirrorPos[idp1].x;
+				mirrorPos[idp1].y=0;
 				mirrorPos[idp1].z=posp1.z+2*mirrorPos[idp1].z;
 			}
 			else{
@@ -1885,12 +1888,13 @@ void JSphCpu::StorageCode1(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned 
 
   const int pfin=int(pinit+n);
 
- #ifdef _WITHOMP
+ /*#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
-  #endif
+  #endif*/
   for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(Codec[p1])==1){
 		const unsigned idp1=idpc[p1];
     tdouble3 posp1=mirrorPos[idp1];
+
 	  //-Particle order in Matrix
 		int rowCount=0;
 		unsigned oi=p1;
@@ -2029,7 +2033,6 @@ void JSphCpu::PopulateMatrixACode1(unsigned n,unsigned pinit,tint4 nc,int hdiv,u
     const unsigned idp1=idpc[p1];
 		//-Obtain data of particle p1 / Obtiene datos de particula p1.
     const tdouble3 posp1=mirrorPos[idp1];
-
 		//-Particle order in Matrix
 		unsigned oi=p1;
 		const unsigned diag=row[oi];
@@ -2205,6 +2208,8 @@ void JSphCpu::PressureAssign(unsigned np,unsigned npbok,const tdouble3 *pos,tflo
 			double dist=MirrorPosc[Idpc[p1]].z-Posc[p1].z;
 			double Neumann=double(RhopZero)*abs(Gravity.z)*dist;
 			velrhop[p1].w=float(x[p1]+Neumann);
+			if(!NegativePressureBound)if(velrhop[p1].w<0)velrhop[p1].w=0.0;
+			if(Idpc[p1]==5657)std::cout<<Idpc[p1]<<"\t"<<MirrorPosc[Idpc[p1]].x<<"\t"<<MirrorPosc[Idpc[p1]].z<<"\t"<<x[p1]<<"\n";
 		}
   }
 

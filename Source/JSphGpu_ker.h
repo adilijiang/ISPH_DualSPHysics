@@ -170,7 +170,7 @@ void ComputeRStar(bool floating,unsigned np,unsigned npb,const float4 *velrhoppr
 //# Kernels for finding a dummy particles corresponding wall particle
 void MirrorBoundary(const unsigned bsbound,unsigned npbok
   ,const double2 *posxy,const double *posz
-  ,const word *code,const unsigned *idp,double3 *mirror);
+  ,const word *code,const unsigned *idp,double3 *mirror,unsigned *Physrelation);
 
 //# Kernels for particle matrix order
 void MatrixASetup(const unsigned ppedim,unsigned int*row,unsigned *nnz);
