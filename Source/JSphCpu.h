@@ -158,6 +158,9 @@ protected:
 	void KernelCorrectionPressure(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const word *code,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,const unsigned *idp)const;
 
+	void AssignPeriodic(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+  const tdouble3 *pos,const unsigned *idpc,const word *code,const unsigned *dCell)const;
+
 	template<TpFtMode ftmode> void Interaction_ForcesT
     (TpInter tinter,unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
@@ -266,6 +269,9 @@ protected:
   ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
   ,const tdouble3 *pos,tfloat4 *velrhop,const word *code,const unsigned *idp
   ,TpShifting tshifting,tfloat3 *shiftpos,float *divr,const float tensileN,const float tensileR)const;
+
+	//void MLSBoundary2D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+  //const tdouble3 *pos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwycorr,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,const unsigned *mirrorCell)const;
 
   void Shift(double dt);
 

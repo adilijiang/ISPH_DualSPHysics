@@ -484,6 +484,7 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
   float viscdt=0;
 
 	JSphCpu::Interaction_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,dWxCorr,dWyCorr,dWzCorr,Codec,Acec,Divr,MirrorPosc,MirrorCell);
+
 	if(TSlipCond&&tinter==1){
 		 #ifdef _WITHOMP
       #pragma omp parallel for schedule (static)
@@ -965,7 +966,7 @@ void JSphCpuSingle::SolvePPE(double dt){
   //allocate vectors
   x.resize(PPEDim,0);
 
-	/* ofstream FileOutput;
+	 /*ofstream FileOutput;
     string TimeFile;
 		unsigned count=1;
     ostringstream TimeNum;
