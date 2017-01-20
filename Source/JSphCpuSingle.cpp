@@ -966,7 +966,7 @@ void JSphCpuSingle::SolvePPE(double dt){
   //allocate vectors
   x.resize(PPEDim,0);
 
-	/* ofstream FileOutput;
+	/*ofstream FileOutput;
     string TimeFile;
 		unsigned count=1;
     ostringstream TimeNum;

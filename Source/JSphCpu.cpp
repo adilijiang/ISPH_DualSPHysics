@@ -1469,7 +1469,7 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
       double dy=(double(VelrhopPrec[p].y)+double(Velrhopc[p].y))*dt05; 
       double dz=(double(VelrhopPrec[p].z)+double(Velrhopc[p].z))*dt05;
       bool outrhop=false;//(rhopnew<RhopOutMin||rhopnew>RhopOutMax);
-      //UpdatePos(PosPrec[p],dx,dy,dz,outrhop,p,Posc,Dcellc,Codec);
+      UpdatePos(PosPrec[p],dx,dy,dz,outrhop,p,Posc,Dcellc,Codec);
     }
     else{//-Floating Particles / Particulas: Floating
       Velrhopc[p]=VelrhopPrec[p];
@@ -1893,12 +1893,12 @@ void JSphCpu::MLSBoundary2D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
 
-  #ifdef _WITHOMP
+  /*#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
-  #endif
+  #endif*/
   for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==1&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
     const unsigned idp1=idpc[p1];
-
+		
 		//-Obtain data of particle p1 / Obtiene datos de particula p1.
     const tdouble3 posp1=mirrorPos[idp1]; 
 		double b11 = 0.0; double b12 = 0.0; double b13 = 0.0;
@@ -1931,9 +1931,9 @@ void JSphCpu::MLSBoundary2D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned
 					const float rr2=drx*drx+dry*dry+drz*drz;
           if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
 		        double temp=GetKernelWab(rr2)*volume;
-						b11 += temp; b12 += drx * temp; b13 += drz * temp;
-						b22 += drx * drz * temp; b23 += drx * drz * temp;
-						b33 += drz * drz * temp;
+						b11+= temp;		b12+=drx*temp;			b13+=drz*temp;
+													b22+=drx*drx*temp;	b23+=drx*drz*temp;
+																							b33+=drz*drz*temp;
 					}  
 				}
 			}
@@ -1943,9 +1943,11 @@ void JSphCpu::MLSBoundary2D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned
 
 		double det = (b11*b22*b33+b12*b23*b31+b21*b32*b13)-(b31*b22*b13+b21*b12*b33+b23*b32*b11);
 		
-		dwxcorr[p1].x=(b22*b33-b23*b32)/det;
-		dwycorr[p1].x=-(b21*b33-b23*b31)/det;;
-		dwycorr[p1].z=(b21*b32-b22*b31)/det;
+		if(det){
+			dwxcorr[p1].x=(b22*b33-b23*b32)/det;
+			dwycorr[p1].x=-(b21*b33-b23*b31)/det;
+			dwycorr[p1].z=(b21*b32-b22*b31)/det;
+		}
   }
 }
 
