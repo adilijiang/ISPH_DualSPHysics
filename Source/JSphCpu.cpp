@@ -754,6 +754,58 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 		}
 		else{
 			unsigned idp1=idp[p1];
+			tfloat3 Sum=TFloat3(0);
+			tdouble3 posp1=mirrorPos[idp1];
+
+			//===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
+			float massp2=MassFluid; //-Contiene masa de particula segun sea bound o fluid.
+			const float volume=massp2/RhopZero; //Volume of particle j
+
+			//-Obtain interaction limits / Obtiene limites de interaccion
+			int cxini,cxfin,yini,yfin,zini,zfin;
+			GetInteractionCells(mirrorCell[idp1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+
+			for(int z=zini;z<zfin;z++){
+				const int zmod=(nc.w)*z+cellinitial; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
+				for(int y=yini;y<yfin;y++){
+					int ymod=zmod+nc.x*y;
+					const unsigned pini=beginendcell[cxini+ymod];
+					const unsigned pfin=beginendcell[cxfin+ymod];
+					//-Interactions
+					//------------------------------------------------
+					for(unsigned p2=pini;p2<pfin;p2++){
+						const float drx=float(posp1.x-pos[p2].x);
+						const float dry=float(posp1.y-pos[p2].y);
+						const float drz=float(posp1.z-pos[p2].z);
+						const float rr2=drx*drx+dry*dry+drz*drz;
+
+						if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
+							const tfloat4 velrhop2=velrhop[p2];
+							const float W=GetKernelWab(rr2);
+
+							float temp=float(dwxcorr[p1].x+dwycorr[p1].x*drx+dwycorr[p1].z*drz)*W;
+							Sum.x=velrhop2.x*temp*volume;
+							Sum.z=velrhop2.z*temp*volume;
+						}
+					}
+				}
+			}
+
+			if(Sum.x||Sum.z){
+				if(TSlipCond==SLIPCOND_Slip){
+					//NEEDS REDOING
+					/*velrhop[p1].x=(velrhop[p1].x-(Sum1.x/Sum2))/2.0f;
+					velrhop[p1].y=(velrhop[p1].y-(Sum1.y/Sum2))/2.0f;
+					velrhop[p1].z=(velrhop[p1].z-(Sum1.z/Sum2))/2.0f;*/
+				}
+				else if(TSlipCond==SLIPCOND_NoSlip){
+					velrhop[p1].x=(velrhop[p1].x+Sum.x)/2.0f;
+					velrhop[p1].y=(velrhop[p1].y+Sum.y)/2.0f;
+					velrhop[p1].z=(velrhop[p1].z+Sum.z)/2.0f;
+				}
+
+		/*else{
+			unsigned idp1=idp[p1];
 			tfloat3 Sum1=TFloat3(0);
 			float Sum2=0.0;
 			tdouble3 posp1=mirrorPos[idp1];
@@ -796,10 +848,11 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 					velrhop[p1].z=(velrhop[p1].z-(Sum1.z/Sum2))/2.0f;
 				}
 				else if(TSlipCond==SLIPCOND_NoSlip){
+					if(Idpc[p1]==81)std::cout<<Sum1.x/Sum2<<"\n";
 					velrhop[p1].x=(velrhop[p1].x+(Sum1.x/Sum2))/2.0f;
 					velrhop[p1].y=(velrhop[p1].y+(Sum1.y/Sum2))/2.0f;
 					velrhop[p1].z=(velrhop[p1].z+(Sum1.z/Sum2))/2.0f;
-				}
+				}*/
 			}
 		}
   }
@@ -1178,7 +1231,10 @@ template<TpFtMode ftmode> void JSphCpu::Interaction_ForcesT
   const int hdiv=(CellMode==CELLMODE_H? 2: 1);
 
   if(npf){
-		if(tinter==1) Boundary_Velocity(TSlipCond,NpbOk,0,nc,hdiv,cellfluid,begincell,cellzero,dcell,pos,velrhop,code,divr,dwxcorr,dwycorr,dwzcorr,mirrorPos,idp,mirrorCell);
+		if(tinter==1){
+			MLSBoundary2D(NpbOk,0,nc,hdiv,cellfluid,begincell,cellzero,pos,velrhop,dwxcorr,dwycorr,idp,code,mirrorPos,mirrorCell); 
+			Boundary_Velocity(TSlipCond,NpbOk,0,nc,hdiv,cellfluid,begincell,cellzero,dcell,pos,velrhop,code,divr,dwxcorr,dwycorr,dwzcorr,mirrorPos,idp,mirrorCell);
+		}
 		else{
 			KernelCorrectionPressure(npf,npb,nc,hdiv,0,begincell,cellzero,dcell,pos,code,dwxcorr,dwycorr,dwzcorr,idp);
 			KernelCorrectionPressure(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,dcell,pos,code,dwxcorr,dwycorr,dwzcorr,idp);
@@ -1819,7 +1875,7 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 	}
 }
 
-/*void JSphCpu::MLSBoundary2D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+void JSphCpu::MLSBoundary2D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
   const tdouble3 *pos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwycorr,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,const unsigned *mirrorCell)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
@@ -1830,11 +1886,12 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
   #endif
   for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==1&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
     const unsigned idp1=idpc[p1];
+
 		//-Obtain data of particle p1 / Obtiene datos de particula p1.
     const tdouble3 posp1=mirrorPos[idp1]; 
-		float b11 = 0.0; float b12 = 0.0; float b13 = 0.0;
-		float b21 = 0.0; float b22 = 0.0; float b23 = 0.0;
-		float b31 = 0.0; float b32 = 0.0; float b33 = 0.0;
+		double b11 = 0.0; double b12 = 0.0; double b13 = 0.0;
+		double b21 = 0.0; double b22 = 0.0; double b23 = 0.0;
+		double b31 = 0.0; double b32 = 0.0; double b33 = 0.0;
 
     //FLUID INTERACTION
 		//-Obtain interaction limits / Obtiene limites de interaccion
@@ -1861,26 +1918,25 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 					const float drz=float(posp1.z-pos[p2].z);
 					const float rr2=drx*drx+dry*dry+drz*drz;
           if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-		        float temp=GetKernelWab(rr2)*volume;
+		        double temp=GetKernelWab(rr2)*volume;
 						b11 += temp; b12 += drx * temp; b13 += drz * temp;
 						b22 += drx * drz * temp; b23 += drx * drz * temp;
 						b33 += drz * drz * temp;
 					}  
 				}
-
-				b21=b12; b31=b13; b32=b23;
-
-				double det = (b11*b22*b33+b12*b23*b31+b21*b32*b13)-(b31*b22*b13+b21*b12*b33+b23*b32*b11);
-
-		
-				dwxcorr[p1].x=(b22 * b33 - b23 * b32) / det;
-				dwycorr[p1].x=(b32 * b13 - b12 * b33) / det;
-				dwycorr[p1].z=(b12 * b23 - b13 * b22) / det;
 			}
 		}
+		
+		b21=b12; b31=b13; b32=b23;
+
+		double det = (b11*b22*b33+b12*b23*b31+b21*b32*b13)-(b31*b22*b13+b21*b12*b33+b23*b32*b11);
+		
+		dwxcorr[p1].x=(b22*b33-b23*b32)/det;
+		dwycorr[p1].x=-(b21*b33-b23*b31)/det;;
+		dwycorr[p1].z=(b21*b32-b22*b31)/det;
   }
 }
-*/
+
 //===============================================================================
 ///Kernel Correction
 //===============================================================================

@@ -270,8 +270,8 @@ protected:
   ,const tdouble3 *pos,tfloat4 *velrhop,const word *code,const unsigned *idp
   ,TpShifting tshifting,tfloat3 *shiftpos,float *divr,const float tensileN,const float tensileR)const;
 
-	//void MLSBoundary2D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-  //const tdouble3 *pos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwycorr,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,const unsigned *mirrorCell)const;
+	void MLSBoundary2D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+  const tdouble3 *pos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwycorr,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,const unsigned *mirrorCell)const;
 
   void Shift(double dt);
 
