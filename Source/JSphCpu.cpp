@@ -741,8 +741,8 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 				}
 			}
 
-			//if(divrp1) divr[p1]=divrp1;
-			divr[p1]=0.0;
+			if(divrp1) divr[p1]=divrp1;
+			//divr[p1]=0.0;
 			if(dwxp1.x||dwxp1.y||dwxp1.z
 				||dwyp1.x||dwyp1.y||dwyp1.z
 				||dwzp1.x||dwzp1.y||dwzp1.z){
@@ -785,6 +785,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 
 							float temp=float(dwxcorr[p1].x+dwycorr[p1].x*drx+dwycorr[p1].z*drz)*W;
 							Sum.x=velrhop2.x*temp*volume;
+							Sum.y=velrhop2.x*temp*volume;
 							Sum.z=velrhop2.z*temp*volume;
 						}
 					}
@@ -793,10 +794,21 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 
 			if(Sum.x||Sum.z){
 				if(TSlipCond==SLIPCOND_Slip){
-					//NEEDS REDOING
-					/*velrhop[p1].x=(velrhop[p1].x-(Sum1.x/Sum2))/2.0f;
-					velrhop[p1].y=(velrhop[p1].y-(Sum1.y/Sum2))/2.0f;
-					velrhop[p1].z=(velrhop[p1].z-(Sum1.z/Sum2))/2.0f;*/
+					tfloat3 NormDir, NormVel,TangVel; 
+					NormDir.x=float(posp1.x-pos[p1].x);
+					NormDir.y=float(posp1.y-pos[p1].y);
+					NormDir.z=float(posp1.z-pos[p1].z);
+					float NormProdVel=Sum.x*NormDir.x+Sum.y*NormDir.y+Sum.z*NormDir.z;
+					NormVel.x=NormDir.x*NormProdVel;
+					NormVel.y=NormDir.y*NormProdVel;
+					NormVel.z=NormDir.z*NormProdVel;
+					TangVel.x=Sum.x-NormVel.x;
+					TangVel.y=Sum.x-NormVel.x;
+					TangVel.z=Sum.x-NormVel.x;
+					
+					velrhop[p1].x=(velrhop[p1].x-TangVel.x+NormVel.x)/2.0f;
+					velrhop[p1].y=(velrhop[p1].y-TangVel.y+NormVel.y)/2.0f;
+					velrhop[p1].z=(velrhop[p1].z-TangVel.z+NormVel.z)/2.0f;
 				}
 				else if(TSlipCond==SLIPCOND_NoSlip){
 					velrhop[p1].x=(velrhop[p1].x+Sum.x)/2.0f;
@@ -1457,7 +1469,7 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
       double dy=(double(VelrhopPrec[p].y)+double(Velrhopc[p].y))*dt05; 
       double dz=(double(VelrhopPrec[p].z)+double(Velrhopc[p].z))*dt05;
       bool outrhop=false;//(rhopnew<RhopOutMin||rhopnew>RhopOutMax);
-      UpdatePos(PosPrec[p],dx,dy,dz,outrhop,p,Posc,Dcellc,Codec);
+      //UpdatePos(PosPrec[p],dx,dy,dz,outrhop,p,Posc,Dcellc,Codec);
     }
     else{//-Floating Particles / Particulas: Floating
       Velrhopc[p]=VelrhopPrec[p];
@@ -2254,17 +2266,12 @@ void JSphCpu::PopulateMatrixACode1(unsigned n,unsigned pinit,tint4 nc,int hdiv,u
             if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
   	          unsigned oj=(p2-Npb)+NpbOk;
 							
-		          //-Wendland kernel.
-              float frx,fry,frz;
-              GetKernel(rr2,drx,dry,drz,frx,fry,frz);
-			
-			        //===== Laplacian operator =====
-			        const float rDivW=drx*frx+dry*fry+drz*frz;
-			        float temp=2.0f*rDivW/(RhopZero*(rr2+Eta2));
-              matrixInd[index]=double(-temp*volume);
+							const float W=GetKernelWab(rr2);
+							float temp=float(dWxCorr[p1].x+dWyCorr[p1].x*drx+dWyCorr[p1].z*drz)*W;
+							matrixInd[index]=double(-temp*volume);
               col[index]=oj;
-			        matrixInd[diag]+=double(temp*volume);
-              index++;
+			        matrixInd[diag]=1.0;
+							index++;
 		        }  
           }	
         }
