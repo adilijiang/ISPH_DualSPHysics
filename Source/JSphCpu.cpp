@@ -741,8 +741,8 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 				}
 			}
 
-			if(divrp1) divr[p1]=divrp1;
-			//divr[p1]=0.0;
+			//if(divrp1) divr[p1]=divrp1;
+			divr[p1]=0.0;
 			if(dwxp1.x||dwxp1.y||dwxp1.z
 				||dwyp1.x||dwyp1.y||dwyp1.z
 				||dwzp1.x||dwzp1.y||dwzp1.z){
@@ -784,87 +784,45 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 							const float W=GetKernelWab(rr2);
 
 							float temp=float(dwxcorr[p1].x+dwycorr[p1].x*drx+dwycorr[p1].z*drz)*W;
-							Sum.x=velrhop2.x*temp*volume;
-							Sum.y=velrhop2.x*temp*volume;
-							Sum.z=velrhop2.z*temp*volume;
+							Sum.x+=velrhop2.x*temp*volume;
+							Sum.y+=velrhop2.x*temp*volume;
+							Sum.z+=velrhop2.z*temp*volume;
 						}
 					}
 				}
 			}
 
-			if(Sum.x||Sum.z){
-				if(TSlipCond==SLIPCOND_Slip){
-					tfloat3 NormDir, NormVel,TangVel; 
-					NormDir.x=float(posp1.x-pos[p1].x);
-					NormDir.y=float(posp1.y-pos[p1].y);
-					NormDir.z=float(posp1.z-pos[p1].z);
-					float NormProdVel=Sum.x*NormDir.x+Sum.y*NormDir.y+Sum.z*NormDir.z;
-					NormVel.x=NormDir.x*NormProdVel;
-					NormVel.y=NormDir.y*NormProdVel;
-					NormVel.z=NormDir.z*NormProdVel;
-					TangVel.x=Sum.x-NormVel.x;
-					TangVel.y=Sum.x-NormVel.x;
-					TangVel.z=Sum.x-NormVel.x;
-					
-					velrhop[p1].x=(velrhop[p1].x-TangVel.x+NormVel.x)/2.0f;
-					velrhop[p1].y=(velrhop[p1].y-TangVel.y+NormVel.y)/2.0f;
-					velrhop[p1].z=(velrhop[p1].z-TangVel.z+NormVel.z)/2.0f;
-				}
-				else if(TSlipCond==SLIPCOND_NoSlip){
-					velrhop[p1].x=(velrhop[p1].x+Sum.x)/2.0f;
-					velrhop[p1].y=(velrhop[p1].y+Sum.y)/2.0f;
-					velrhop[p1].z=(velrhop[p1].z+Sum.z)/2.0f;
-				}
+			tfloat3 NormDir, NormVel,TangDir,TangVel; 
+			NormDir.x=float(posp1.x-pos[p1].x);
+			if(Simulate2D)NormDir.y=float(posp1.y-pos[p1].y);
+			else NormDir.y=0.0;
+			NormDir.z=float(posp1.z-pos[p1].z);
+			TangDir.x=NormDir.z+NormDir.y;
+			if(Simulate2D)TangDir.y=-(NormDir.x+NormDir.z);
+			else TangDir.y=0.0;
+			TangDir.z=-NormDir.x+NormDir.y;
+			float MagNorm=NormDir.x*NormDir.x+NormDir.y*NormDir.y+NormDir.z*NormDir.z;
+			if(MagNorm){MagNorm=sqrtf(MagNorm); NormDir.x=NormDir.x/MagNorm; NormDir.y=NormDir.y/MagNorm; NormDir.z=NormDir.z/MagNorm;}
+			float MagTang=TangDir.x*TangDir.x+TangDir.y*TangDir.y+TangDir.z*TangDir.z;
+			if(MagTang){MagTang=sqrtf(MagTang); TangDir.x=TangDir.x/MagNorm; TangDir.y=TangDir.y/MagNorm; TangDir.z=TangDir.z/MagNorm;}
+			float NormProdVel=Sum.x*NormDir.x+Sum.y*NormDir.y+Sum.z*NormDir.z;
+			float TangProdVel=Sum.x*TangDir.x+Sum.y*TangDir.y+Sum.z*TangDir.z;
+			NormVel.x=NormDir.x*NormProdVel;
+			NormVel.y=NormDir.y*NormProdVel;
+			NormVel.z=NormDir.z*NormProdVel;
+			TangVel.x=TangDir.x*TangProdVel;
+			TangVel.y=TangDir.y*TangProdVel;
+			TangVel.z=TangDir.z*TangProdVel;
 
-		/*else{
-			unsigned idp1=idp[p1];
-			tfloat3 Sum1=TFloat3(0);
-			float Sum2=0.0;
-			tdouble3 posp1=mirrorPos[idp1];
-
-			//-Obtain interaction limits / Obtiene limites de interaccion
-			int cxini,cxfin,yini,yfin,zini,zfin;
-			GetInteractionCells(mirrorCell[idp1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
-
-			for(int z=zini;z<zfin;z++){
-				const int zmod=(nc.w)*z+cellinitial; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
-				for(int y=yini;y<yfin;y++){
-					int ymod=zmod+nc.x*y;
-					const unsigned pini=beginendcell[cxini+ymod];
-					const unsigned pfin=beginendcell[cxfin+ymod];
-					//-Interactions
-					//------------------------------------------------
-					for(unsigned p2=pini;p2<pfin;p2++){
-						const float drx=float(posp1.x-pos[p2].x);
-						const float dry=float(posp1.y-pos[p2].y);
-						const float drz=float(posp1.z-pos[p2].z);
-						const float rr2=drx*drx+dry*dry+drz*drz;
-
-						if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-							const tfloat4 velrhop2=velrhop[p2];
-							const float W=GetKernelWab(rr2);
-							Sum1.x+=W*velrhop2.x;
-							Sum1.y+=W*velrhop2.y;
-							Sum1.z+=W*velrhop2.z;
-							Sum2+=W;
-						}
-					}
-				}
+			if(TSlipCond==SLIPCOND_Slip){
+				velrhop[p1].x=velrhop[p1].x+TangVel.x-NormVel.x;
+				velrhop[p1].y=velrhop[p1].y+TangVel.y-NormVel.y;
+				velrhop[p1].z=velrhop[p1].z+TangVel.z-NormVel.z;
 			}
-
-			if(Sum2){
-				if(TSlipCond==SLIPCOND_Slip){
-					//NEEDS REDOING
-					velrhop[p1].x=(velrhop[p1].x-(Sum1.x/Sum2))/2.0f;
-					velrhop[p1].y=(velrhop[p1].y-(Sum1.y/Sum2))/2.0f;
-					velrhop[p1].z=(velrhop[p1].z-(Sum1.z/Sum2))/2.0f;
-				}
-				else if(TSlipCond==SLIPCOND_NoSlip){
-					if(Idpc[p1]==81)std::cout<<Sum1.x/Sum2<<"\n";
-					velrhop[p1].x=(velrhop[p1].x+(Sum1.x/Sum2))/2.0f;
-					velrhop[p1].y=(velrhop[p1].y+(Sum1.y/Sum2))/2.0f;
-					velrhop[p1].z=(velrhop[p1].z+(Sum1.z/Sum2))/2.0f;
-				}*/
+			else if(TSlipCond==SLIPCOND_NoSlip){
+				velrhop[p1].x=2.0f*velrhop[p1].x-TangVel.x-NormVel.x;
+				velrhop[p1].y=2.0f*velrhop[p1].x-TangVel.y-NormVel.y;
+				velrhop[p1].z=2.0f*velrhop[p1].x-TangVel.z-NormVel.z;
 			}
 		}
   }
