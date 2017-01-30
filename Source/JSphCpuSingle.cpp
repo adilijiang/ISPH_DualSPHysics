@@ -485,12 +485,14 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
 
 	JSphCpu::Interaction_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,dWxCorr,dWyCorr,dWzCorr,Codec,Acec,Divr,MirrorPosc,MirrorCell);
 
-	if(TSlipCond&&tinter==1){
+	if(TSlipCond&&tinter==2){
 		 #ifdef _WITHOMP
       #pragma omp parallel for schedule (static)
     #endif
     for(int i=0;i<int(Npb);i++){
-      Velrhopc[i]=VelrhopPrec[i]; //Put value of Velrhop[] in VelrhopPre[] / Es decir... VelrhopPre[] <= Velrhop[]
+      Velrhopc[i].x=VelrhopPrec[i].x; //Put value of Velrhop[] in VelrhopPre[] / Es decir... VelrhopPre[] <= Velrhop[]
+			Velrhopc[i].y=VelrhopPrec[i].y;
+			Velrhopc[i].z=VelrhopPrec[i].z;
     }
 	}
 
@@ -941,7 +943,7 @@ void JSphCpuSingle::SolvePPE(double dt){
 	const unsigned PPEDim=npbok+npf;
 	b.resize(PPEDim,0);
 	rowInd.resize(PPEDim+1,0);
-
+	std::cout<<b[0]<<"\n";
   //RHS
   RHSandLHSStorage(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,Idpc,dt,Divr,FreeSurface,rowInd); //-Fluid-Fluid
   RHSandLHSStorage(npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,Idpc,dt,Divr,FreeSurface,rowInd); //-Fluid-Bound
@@ -949,20 +951,22 @@ void JSphCpuSingle::SolvePPE(double dt){
   RHSandLHSStorage(npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,Idpc,dt,Divr,FreeSurface,rowInd); //-Bound-Bound
 	StorageCode1(npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Posc,Idpc,rowInd,MirrorPosc,MirrorCell);
   unsigned Nnz=0;
-
+	std::cout<<b[0]<<"\n";
 	MatrixASetup(PPEDim,Nnz,rowInd);
   colInd.resize(Nnz,PPEDim); 
   a.resize(Nnz,0);
   //LHS
   PopulateMatrixACode0(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,a,rowInd,colInd,b,Idpc,Codec,FreeSurface,Gravity,RhopZero,MirrorPosc);//-Fluid-Fluid
 	PopulateMatrixACode0(npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,a,rowInd,colInd,b,Idpc,Codec,FreeSurface,Gravity,RhopZero,MirrorPosc);//-Fluid-Fluid
-	PopulateMatrixACode1(npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Posc,a,rowInd,colInd,b,Idpc,Codec,MirrorPosc,MirrorCell); //-Fluid-Fluid
+	PopulateMatrixACode1(npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Posc,a,rowInd,colInd,b,Idpc,Codec,MirrorPosc,MirrorCell);
+	std::cout<<b[0]<<"\n";
 	if(PeriActive){
 		PopulatePeriodic(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,Dcellc);
 		PopulatePeriodic(npbok,0,nc,hdiv,0,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,Dcellc);
 	}
 	FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,Idpc,Codec,ShiftOffset);
   FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,Idpc,Codec,ShiftOffset);
+	std::cout<<b[0]<<"\n";
   //allocate vectors
   x.resize(PPEDim,0);
 
@@ -987,7 +991,8 @@ void JSphCpuSingle::SolvePPE(double dt){
     FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << (i-npb)+npbok << "\t b " << b[(i-npb)+npbok] << "\n";
     for(int j=rowInd[(i-npb)+npbok];j<rowInd[(i-npb)+npbok+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\t"<<Idpc[colInd[j]]<<"\n";
   }
-  FileOutput.close();*/
+  FileOutput.close();
+	count++;*/
 
   //solvers
 #ifndef _WITHGPU
