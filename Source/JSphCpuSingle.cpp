@@ -468,12 +468,13 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
 		dWxCorr=ArraysCpu->ReserveDouble3(); 
 		dWyCorr=ArraysCpu->ReserveDouble3(); 
 		dWzCorr=ArraysCpu->ReserveDouble3(); 
+		memset(dWxCorr,0,sizeof(tdouble3)*np);
+		memset(dWyCorr,0,sizeof(tdouble3)*np);
+		memset(dWzCorr,0,sizeof(tdouble3)*np);
 
 		Divr=ArraysCpu->ReserveFloat(); memset(Divr,0,sizeof(float)*np);
   }
-	memset(dWxCorr,0,sizeof(tdouble3)*np);
-	memset(dWyCorr,0,sizeof(tdouble3)*np);
-	memset(dWzCorr,0,sizeof(tdouble3)*np);
+	
   //-Assign memory / Asigna memoria.
   Acec=ArraysCpu->ReserveFloat3();
 	//-Initialize Arrays / Inicializa arrays.
@@ -943,7 +944,7 @@ void JSphCpuSingle::SolvePPE(double dt){
 	const unsigned PPEDim=npbok+npf;
 	b.resize(PPEDim,0);
 	rowInd.resize(PPEDim+1,0);
-	std::cout<<b[0]<<"\n";
+
   //RHS
   RHSandLHSStorage(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,Idpc,dt,Divr,FreeSurface,rowInd); //-Fluid-Fluid
   RHSandLHSStorage(npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,Idpc,dt,Divr,FreeSurface,rowInd); //-Fluid-Bound
@@ -951,7 +952,7 @@ void JSphCpuSingle::SolvePPE(double dt){
   RHSandLHSStorage(npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,Idpc,dt,Divr,FreeSurface,rowInd); //-Bound-Bound
 	StorageCode1(npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Posc,Idpc,rowInd,MirrorPosc,MirrorCell);
   unsigned Nnz=0;
-	std::cout<<b[0]<<"\n";
+
 	MatrixASetup(PPEDim,Nnz,rowInd);
   colInd.resize(Nnz,PPEDim); 
   a.resize(Nnz,0);
@@ -959,14 +960,14 @@ void JSphCpuSingle::SolvePPE(double dt){
   PopulateMatrixACode0(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,a,rowInd,colInd,b,Idpc,Codec,FreeSurface,Gravity,RhopZero,MirrorPosc);//-Fluid-Fluid
 	PopulateMatrixACode0(npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Divr,a,rowInd,colInd,b,Idpc,Codec,FreeSurface,Gravity,RhopZero,MirrorPosc);//-Fluid-Fluid
 	PopulateMatrixACode1(npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Posc,a,rowInd,colInd,b,Idpc,Codec,MirrorPosc,MirrorCell);
-	std::cout<<b[0]<<"\n";
+
 	if(PeriActive){
 		PopulatePeriodic(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,Dcellc);
 		PopulatePeriodic(npbok,0,nc,hdiv,0,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,Dcellc);
 	}
 	FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,Idpc,Codec,ShiftOffset);
   FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,Idpc,Codec,ShiftOffset);
-	std::cout<<b[0]<<"\n";
+
   //allocate vectors
   x.resize(PPEDim,0);
 
