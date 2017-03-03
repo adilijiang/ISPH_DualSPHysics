@@ -791,10 +791,6 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 									Sum.x+=velrhop2.x*temp*volume;
 									Sum.y+=0.0;
 									Sum.z+=velrhop2.z*temp*volume;
-
-
-									dwxp1.x-=volume*frx*drx; dwxp1.z-=volume*frx*drz;
-									dwzp1.x-=volume*frz*drx;	dwzp1.z-=volume*frz*drz;
 								}
 							}
 						}
@@ -803,8 +799,6 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 			}
 
 			divr[p1]=divrp1;
-			dWxCorr[p1]=dWxCorr[p1]+dwxp1;
-			dWzCorr[p1]=dWzCorr[p1]+dwzp1;
 
 			tfloat3 NormDir, NormVel,TangDir,TangVel; 
 			NormDir.x=float(posp1.x-pos[p1].x);
@@ -818,7 +812,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 			float MagNorm=NormDir.x*NormDir.x+NormDir.y*NormDir.y+NormDir.z*NormDir.z;
 			if(MagNorm){MagNorm=sqrtf(MagNorm); NormDir.x=NormDir.x/MagNorm; NormDir.y=NormDir.y/MagNorm; NormDir.z=NormDir.z/MagNorm;}
 			float MagTang=TangDir.x*TangDir.x+TangDir.y*TangDir.y+TangDir.z*TangDir.z;
-			if(MagTang){MagTang=sqrtf(MagTang); TangDir.x=TangDir.x/MagNorm; TangDir.y=TangDir.y/MagNorm; TangDir.z=TangDir.z/MagNorm;}
+			if(MagTang){MagTang=sqrtf(MagTang); TangDir.x=TangDir.x/MagTang; TangDir.y=TangDir.y/MagTang; TangDir.z=TangDir.z/MagTang;}
 			float NormProdVel=Sum.x*NormDir.x+Sum.y*NormDir.y+Sum.z*NormDir.z;
 			float TangProdVel=Sum.x*TangDir.x+Sum.y*TangDir.y+Sum.z*TangDir.z;
 			NormVel.x=NormDir.x*NormProdVel;
@@ -1869,7 +1863,7 @@ void JSphCpu::InverseCorrection(unsigned n, unsigned pinit, tdouble3 *dwxcorr,td
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-	for(int p1=int(pinit);p1<pfin;p1++){
+	for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==0){
 	  const double det=1.0/(dwxcorr[p1].x*dwzcorr[p1].z-dwzcorr[p1].x*dwxcorr[p1].z);
 	
       if(det){
@@ -2176,21 +2170,10 @@ void JSphCpu::PopulateMatrixACode1(unsigned n,unsigned pinit,tint4 nc,int hdiv,u
             if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
   	          unsigned oj=(p2-Npb)+NpbOk;
 							
-
 							//-Wendland kernel.
 							float frx,fry,frz;
 							GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 			
-							const float temp_x=float(frx*dWxCorr[p1].x+fry*dWyCorr[p1].x+frz*dWzCorr[p1].x);
-              const float temp_y=float(frx*dWxCorr[p1].y+fry*dWyCorr[p1].y+frz*dWzCorr[p1].y);
-			        const float temp_z=float(frx*dWxCorr[p1].z+fry*dWyCorr[p1].z+frz*dWzCorr[p1].z);
-							//===== Laplacian operator =====
-							/*const float rDivW=drx*temp_x+dry*temp_y+drz*temp_z;
-							float temp=2.0f*rDivW/(RhopZero*(rr2+Eta2));
-							matrixInd[index]=double(-temp*volume);
-							col[index]=oj;
-							matrixInd[diag]+=double(temp*volume);
-							index++;*/
 							const float W=GetKernelWab(rr2);
 							float temp=float(dWyCorr[p1].y+dWyCorr[p1].x*drx+dWyCorr[p1].z*drz)*W;
 							matrixInd[index]=double(-temp*volume);

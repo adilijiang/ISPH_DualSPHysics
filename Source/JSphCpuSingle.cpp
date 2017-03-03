@@ -952,7 +952,7 @@ void JSphCpuSingle::SolvePPE(double dt){
   RHSandLHSStorage(npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorr,dWyCorr,dWzCorr,b,Idpc,dt,Divr,FreeSurface,rowInd); //-Bound-Bound
 	StorageCode1(npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Posc,Idpc,rowInd,MirrorPosc,MirrorCell);
   unsigned Nnz=0;
-
+	
 	MatrixASetup(PPEDim,Nnz,rowInd);
   colInd.resize(Nnz,PPEDim); 
   a.resize(Nnz,0);
