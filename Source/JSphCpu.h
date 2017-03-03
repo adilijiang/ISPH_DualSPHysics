@@ -143,7 +143,7 @@ protected:
     (TpInter tinter, unsigned n,unsigned pini,tint4 nc,int hdiv,unsigned cellfluid,float visco
     ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
     ,const tdouble3 *pos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,const word *code,const unsigned *idp
-    ,tfloat3 *ace,float *divr)const;
+    ,tfloat3 *ace,float *divr,int *row,const unsigned matOrder)const;
 
   template<bool psimple> void InteractionForcesDEM
     (unsigned nfloat,tint4 nc,int hdiv,unsigned cellfluid
@@ -153,7 +153,7 @@ protected:
     ,float &viscdt,tfloat3 *ace)const;
 
 	void Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
-  const tdouble3 *pos,tfloat4 *velrhop,const word *code,float *divr,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,tdouble3 *mirrorPos,const unsigned *idp,const unsigned *mirrorCell)const;
+  const tdouble3 *pos,tfloat4 *velrhop,const word *code,float *divr,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,tdouble3 *mirrorPos,const unsigned *idp,const unsigned *mirrorCell,tfloat4 *mls,int *row)const;
 
 	void KernelCorrectionPressure(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const word *code,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,const unsigned *idp)const;
@@ -165,12 +165,12 @@ protected:
     (TpInter tinter,unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tdouble3 *pos,tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,const word *code,const unsigned *idp
-    ,tfloat3 *ace,float *divr,tdouble3 *mirrorPos,const unsigned *mirrorCell)const;
+    ,tfloat3 *ace,float *divr,tdouble3 *mirrorPos,const unsigned *mirrorCell,tfloat4 *mls,int *row)const;
 
   void Interaction_Forces(TpInter tinter,unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idp,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,const word *code
-    ,tfloat3 *ace,float *divr,tdouble3 *mirrorPos,const unsigned *mirrorCell)const;
+    ,tfloat3 *ace,float *divr,tdouble3 *mirrorPos,const unsigned *mirrorCell,tfloat4 *mls,int *row)const;
 
   void UpdatePos(tdouble3 pos0,double dx,double dy,double dz,bool outrhop,unsigned p,tdouble3 *pos,unsigned *cell,word *code)const;
 
@@ -204,6 +204,7 @@ protected:
   tdouble3 *dWxCorr; //Kernel correction in the x direction
   tdouble3 *dWyCorr; //Kernel correction in the y direction
   tdouble3 *dWzCorr; //Kernel correction in the z direction
+	tfloat4 *MLS;
 
 	tfloat3 *SumTensile;
   float *Divr; //Divergence of position
@@ -212,7 +213,7 @@ protected:
   std::vector<double> b;
   std::vector<double> a;
   std::vector<int> colInd;
-  std::vector<int> rowInd;
+	int *rowInd;
   std::vector<double> x;
   
 #ifndef _WITHGPU
@@ -220,7 +221,7 @@ protected:
   void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,std::vector<double> &matrixx,const unsigned ppedim); 
   
 	void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,std::vector<double> &matrixa,
-    std::vector<double> &matrixb,std::vector<double> &matrixx,std::vector<int> &row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz);
+    std::vector<double> &matrixb,std::vector<double> &matrixx,int *row,std::vector<int> &col,const unsigned ppedim,const unsigned nnz);
 #endif
   
 	void MirrorDCell(unsigned npb,const word *code,const tdouble3 *mirrorPos,unsigned *mirrorCell,unsigned *idpc);
@@ -233,7 +234,7 @@ protected:
 
   void solveMatrix();
   
-	void MatrixASetup(const unsigned ppedim,unsigned &nnz,std::vector<int> &row)const;
+	void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim,unsigned &nnz,int *row,const float *divr,const float freeSurface)const;
   
 	void RHSandLHSStorage(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
 	const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,const tdouble3 *pos,
@@ -243,21 +244,21 @@ protected:
 	void StorageCode1(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,
 	const unsigned *beginendcell,tint3 cellzero,const tdouble3 *pos,const unsigned *idpc,std::vector<int> &row,const tdouble3 *mirrorPos,const unsigned *mirrorCell)const;
 	
-	void PopulateMatrixACode0(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
-  const tdouble3 *pos,float *divr,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
-  std::vector<double> &matrixb,const unsigned *idpc,const word *code,const float freesurface,tfloat3 gravity,const double rhoZero,const tdouble3 *mirrorPos)const;
+	void PopulateMatrixACode0(const bool fluidp1,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
+  const tdouble3 *pos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwycorr,tdouble3 *dwzcorr,float *divr,std::vector<double> &matrixInd,int *row,std::vector<int> &col,
+  std::vector<double> &matrixb,const unsigned *idpc,const word *code,const float freesurface,tfloat3 gravity,const double rhoZero,const tdouble3 *mirrorPos,const unsigned matOrder,const double dt)const;
   
 	void PopulateMatrixACode1(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-  const tdouble3 *pos,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,
-  std::vector<double> &matrixb,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,const unsigned *mirrorCell)const;
+  const tdouble3 *pos,std::vector<double> &matrixInd,int *row,std::vector<int> &col,
+  std::vector<double> &matrixb,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,const unsigned *mirrorCell,tfloat4 *mls)const;
 	
 	void PopulatePeriodic(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-  const tdouble3 *pos,std::vector<double> &matrixInd,std::vector<int> &row,std::vector<int> &col,const unsigned *idpc,const word *code,const unsigned *dCell)const;
+  const tdouble3 *pos,std::vector<double> &matrixInd,int *row,std::vector<int> &col,const unsigned *idpc,const word *code,const unsigned *dCell)const;
 
 	void PressureAssign(unsigned n,unsigned npbok,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,std::vector<double> &matrixx,const word *code,
 		const unsigned npb,float *divr,tfloat3 gravity)const;
   
-	void FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,std::vector<double> &matrixInd,std::vector<double> &matrixb,std::vector<int> &row,const unsigned *idpc,const word *code,const float shiftoffset)const;
+	void FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,std::vector<double> &matrixInd,std::vector<double> &matrixb,int *row,const unsigned *idpc,const word *code,const float shiftoffset)const;
 
   void Interaction_Shifting(unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
@@ -271,7 +272,7 @@ protected:
   ,TpShifting tshifting,tfloat3 *shiftpos,float *divr,const float tensileN,const float tensileR)const;
 
 	void MLSBoundary2D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-  const tdouble3 *pos,const tfloat4 *velrhop,tdouble3 *dwxcorr,tdouble3 *dwycorr,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,const unsigned *mirrorCell)const;
+  const tdouble3 *pos,const tfloat4 *velrhop,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,const unsigned *mirrorCell,tfloat4 *mls)const;
 
   void Shift(double dt);
 
