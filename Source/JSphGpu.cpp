@@ -89,6 +89,7 @@ void JSphGpu::InitVars(){
   counterGPU=NULL;
   X=NULL;
   dWxCorrg=NULL; dWyCorrg=NULL; dWzCorrg=NULL;
+	MLS=NULL;
 	SumTensileg=NULL;
   Divrg=NULL;
   ShiftPosg=NULL; //-Shifting.
@@ -133,6 +134,7 @@ void JSphGpu::FreeGpuMemoryFixed(){
 	if(a)cudaFree(a);                   a=NULL;
   if(colInd)cudaFree(colInd);         colInd=NULL;
   if(counterGPU)cudaFree(counterGPU); counterGPU=NULL;
+	if(MLS)cudaFree(MLS);								MLS=NULL;
   if(RidpMoveg)cudaFree(RidpMoveg);   RidpMoveg=NULL;
   if(FtRidpg)cudaFree(FtRidpg);       FtRidpg=NULL;
   if(FtoMasspg)cudaFree(FtoMasspg);   FtoMasspg=NULL;
@@ -158,8 +160,8 @@ void JSphGpu::AllocGpuMemoryFixed(){
     else matrixMemory=80;
   }
   else if(H/Dp<1.5){
-    if(Simulate2D) matrixMemory=44;
-    else matrixMemory=274;
+    if(Simulate2D) matrixMemory=70;
+    else matrixMemory=400;
   }
 	else RunException(met,fun::PrintStr("H/Dp too high for Quintic %f",H/Dp));
 
@@ -174,7 +176,9 @@ void JSphGpu::AllocGpuMemoryFixed(){
   m=sizeof(unsigned)*Np*matrixMemory;
   cudaMalloc((void**)&colInd,m);    MemGpuFixed+=m;
   m=sizeof(unsigned);
-  cudaMalloc((void**)&counterGPU,sizeof(unsigned)); MemGpuFixed+=m;
+  cudaMalloc((void**)&counterGPU,m); MemGpuFixed+=m;
+	m=sizeof(float4)*Npb;
+  cudaMalloc((void**)&MLS,m); MemGpuFixed+=m;
   //-Allocates memory for moving objects.
   if(CaseNmoving){
     m=sizeof(unsigned)*CaseNmoving;
@@ -623,7 +627,7 @@ void JSphGpu::ConfigBlockSizes(bool usezone,bool useperi){
     //-Collects kernel information.
     StKerInfo kerinfo;
     memset(&kerinfo,0,sizeof(StKerInfo));
-    cusph::Interaction_Forces(WithFloating,UseDEM,TSlipCond,CellMode,0,0,0,0,INTER_Forces,100,50,20,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Simulate2D,NULL,NULL,NULL,&kerinfo,NULL);
+    cusph::Interaction_Forces(WithFloating,UseDEM,TSlipCond,CellMode,0,0,0,0,INTER_Forces,100,50,20,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Simulate2D,NULL,NULL,NULL,NULL,&kerinfo,NULL);
     //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&kerinfo);
     //Log->Printf("====> bound -> r:%d  bs:%d  bsmax:%d",kerinfo.forcesbound_rg,kerinfo.forcesbound_bs,kerinfo.forcesbound_bsmax);
     //Log->Printf("====> fluid -> r:%d  bs:%d  bsmax:%d",kerinfo.forcesfluid_rg,kerinfo.forcesfluid_bs,kerinfo.forcesfluid_bsmax);
@@ -856,15 +860,14 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
   //-Asigna memoria.ddd
   //-Allocates memory.
   if(tinter==1){
-		dWxCorrg=ArraysGpu->ReserveDouble3(); 
-		dWyCorrg=ArraysGpu->ReserveDouble3(); 
-		dWzCorrg=ArraysGpu->ReserveDouble3(); 	
+		dWxCorrg=ArraysGpu->ReserveDouble3();	cudaMemset(dWxCorrg,0,sizeof(double3)*Np);
+		dWyCorrg=ArraysGpu->ReserveDouble3();	cudaMemset(dWyCorrg,0,sizeof(double)*Np); 
+		dWzCorrg=ArraysGpu->ReserveDouble3(); cudaMemset(dWzCorrg,0,sizeof(double3)*Np);
 		Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*Np);
+		cudaMemset(MLS,0,sizeof(float4)*Npb);
 	}
 
-	cudaMemset(dWxCorrg,0,sizeof(double3)*Np);
-	cudaMemset(dWyCorrg,0,sizeof(double)*Np);
-	cudaMemset(dWzCorrg,0,sizeof(double3)*Np);	
+
 
 	Aceg=ArraysGpu->ReserveFloat3();
 

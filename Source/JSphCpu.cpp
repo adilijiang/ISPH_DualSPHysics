@@ -1880,7 +1880,7 @@ void JSphCpu::MLSBoundary2D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned
 					const float drz=float(posp1.z-pos[p2].z);
 					const float rr2=drx*drx+dry*dry+drz*drz;
           if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-		        double temp=GetKernelWab(rr2)*volume;
+		        const double temp=GetKernelWab(rr2)*volume;
 						b11+= temp;		b12+=drx*temp;			b13+=drz*temp;
 													b22+=drx*drx*temp;	b23+=drx*drz*temp;
 																							b33+=drz*drz*temp;
@@ -1973,10 +1973,6 @@ void JSphCpu::MLSBoundary3D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned
 			mls[p1].x=float((b21*b34*b43+b23*b31*b44+b24*b33*b41-b21*b33*b44-b23*b34*b41-b24*b31*b43)/det);
 			mls[p1].y=float((b21*b32*b44+b22*b34*b41+b24*b31*b42-b21*b34*b42-b22*b31*b44-b24*b32*b41)/det);
 			mls[p1].z=float((b21*b33*b42+b22*b31*b43+b23*b32*b41-b21*b32*b43-b22*b33*b41-b23*b31*b42)/det);
-		}
-
-		if(Idpc[p1]==35292){
-			std::cout<<b11*mls[p1].w+b12*mls[p1].x+b13*mls[p1].y+b14*mls[p1].z<<"\n";
 		}
   }
 }

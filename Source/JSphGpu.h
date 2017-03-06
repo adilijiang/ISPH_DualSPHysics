@@ -228,7 +228,7 @@ protected:
   
 	float3 *SumTensileg;
 	float *Divrg; //Divergence of position
-	
+	float4 *MLS;
   //matrix variables 
   double *b;
   double *a;

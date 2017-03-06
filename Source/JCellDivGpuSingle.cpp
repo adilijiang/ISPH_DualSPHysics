@@ -215,6 +215,6 @@ void JCellDivGpuSingle::MirrorDCellSingle(unsigned bsbound,unsigned npb,const wo
 void JCellDivGpuSingle::MatrixMirrorDCellSingle(const unsigned bsbound,const unsigned bsfluid,const unsigned npf,const unsigned npb,const unsigned npbok,const double2 *posxy,const double *posz
 	,const word *code,const unsigned *idpg,unsigned int *row,unsigned int *col,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell
 	,int domcellcode,const bool PeriActive,const tdouble3 MapRealPosMin,const tdouble3 MapRealSize,const tdouble3 PeriXinc,const tdouble3 PeriYinc,const tdouble3 PeriZinc){
-	cudiv::MatrixMirrorDCell(bsbound,bsfluid,npf,npb,npbok,posxy,posz,codeg,idpg,row,col,domrealposmin,domrealposmax,domposmin,scell,domcellcode,PeriActive,MapRealPosMin,MapRealSize,PeriXinc,PeriYinc,PeriZinc);
+	cudiv::MatrixMirrorDCell(bsbound,bsfluid,npf,npb,npbok,posxy,posz,code,idpg,row,col,domrealposmin,domrealposmax,domposmin,scell,domcellcode,PeriActive,MapRealPosMin,MapRealSize,PeriXinc,PeriYinc,PeriZinc);
 }
 
