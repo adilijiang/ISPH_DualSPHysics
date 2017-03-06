@@ -826,15 +826,13 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 			row[p1]+=rowCount;
 
 			if(TSlipCond==SLIPCOND_Slip){
-				tfloat3 NormDir,NormVel,TangDir,TangVel,BitangDir,BitangVel; 
+				tfloat3 NormDir=TFloat3(0),NormVel=TFloat3(0),TangDir=TFloat3(0),TangVel=TFloat3(0),BitangDir=TFloat3(0),BitangVel=TFloat3(0); 
 				NormDir.x=float(posp1.x-pos[p1].x);
 				if(Simulate2D)NormDir.y=float(posp1.y-pos[p1].y);
-				else NormDir.y=0.0;
 				NormDir.z=float(posp1.z-pos[p1].z);
 
 				TangDir.x=NormDir.z+NormDir.y;
 				if(Simulate2D)TangDir.y=-(NormDir.x+NormDir.z);
-				else TangDir.y=0.0;
 				TangDir.z=-NormDir.x+NormDir.y;
 
 				BitangDir.x=TangDir.y*NormDir.z-NormDir.y*TangDir.z;
@@ -1961,20 +1959,24 @@ void JSphCpu::MLSBoundary3D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned
 		b21=b12; b31=b13; b32=b23; b41=b14; b42=b24; b43=b34;
 
 		double det=0;
-		det+=(b11*b22*b33+b44+b11*b23*b34*b42+b11*b24*b32*b43);
-		det+=(b12*b21*b34*b43+b12*b23*b31*b44+b12*b24*b33*b41);
-		det+=(b13*b21*b32*b44+b13*b22*b34*b41+b13*b24*b31*b42);
-		det+=(b14*b21*b33*b42+b14*b22*b31*b43+b14*b23*b32*b41);
-		det-=(b11*b22*b34*b43+b11*b23*b32*b44+b11*b24*b33*b42);
-		det-=(b12*b21*b33*b44+b12*b23*b34*b41+b12*b24*b31*b43);
-		det-=(b13*b21*b34*b42+b13*b22*b31*b44+b13*b24*b32*b41);
-		det-=(b14*b21*b32*b43+b14*b22*b33*b41+b14*b23*b31*b42);
+		det+=(b11*b22*b33*b44 + b11*b23*b34*b42 + b11*b24*b32*b43);
+		det+=(b12*b21*b34*b43 + b12*b23*b31*b44 + b12*b24*b33*b41);
+		det+=(b13*b21*b32*b44 + b13*b22*b34*b41 + b13*b24*b31*b42);
+		det+=(b14*b21*b33*b42 + b14*b22*b31*b43 + b14*b23*b32*b41);
+		det-=(b11*b22*b34*b43 + b11*b23*b32*b44 + b11*b24*b33*b42);
+		det-=(b12*b21*b33*b44 + b12*b23*b34*b41 + b12*b24*b31*b43);
+		det-=(b13*b21*b34*b42 + b13*b22*b31*b44 + b13*b24*b32*b41);
+		det-=(b14*b21*b32*b43 + b14*b22*b33*b41 + b14*b23*b31*b42);
 		
 		if(det){
 			mls[p1].w=float((b22*b33*b44+b23*b34*b42+b24*b32*b43-b22*b34*b43-b23*b32*b44-b24*b33*b42)/det);
 			mls[p1].x=float((b21*b34*b43+b23*b31*b44+b24*b33*b41-b21*b33*b44-b23*b34*b41-b24*b31*b43)/det);
-			mls[p1].y=float((b21*b32*b44+b22*b34*b41+b24*b31*b42-b21*b34*b42-b22*b31*b44-b24*b31*b41)/det);
+			mls[p1].y=float((b21*b32*b44+b22*b34*b41+b24*b31*b42-b21*b34*b42-b22*b31*b44-b24*b32*b41)/det);
 			mls[p1].z=float((b21*b33*b42+b22*b31*b43+b23*b32*b41-b21*b32*b43-b22*b33*b41-b23*b31*b42)/det);
+		}
+
+		if(Idpc[p1]==35292){
+			std::cout<<b11*mls[p1].w+b12*mls[p1].x+b13*mls[p1].y+b14*mls[p1].z<<"\n";
 		}
   }
 }
