@@ -427,7 +427,7 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   const unsigned bsbound=BlockSizes.forcesbound;
 	CheckCudaError(met,"Failed checkin.");
   //-Interaccion Fluid-Fluid/Bound & Bound-Fluid.
-  cusph::Interaction_Forces(WithFloating,UseDEM,TSlipCond,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLS,NULL,NULL);	
+  cusph::Interaction_Forces(WithFloating,UseDEM,TSlipCond,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,NULL,NULL);	
 	if(TSlipCond&&tinter==1)cudaMemcpy(Velrhopg,VelrhopPreg,sizeof(float4)*Npb,cudaMemcpyDeviceToDevice);
   //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
   //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
@@ -773,47 +773,47 @@ void JSphGpuSingle::SolvePPE(double dt){
   const unsigned bsfluid=BlockSizes.forcesfluid;
 
   //Create matrix
-  b=ArraysGpu->ReserveDouble(); cudaMemset(b,0,sizeof(double)*PPEDim);
-  cudaMemset(rowInd,0,sizeof(unsigned)*(PPEDim+1));
+  bg=ArraysGpu->ReserveDouble(); cudaMemset(bg,0,sizeof(double)*PPEDim);
+  cudaMemset(rowIndg,0,sizeof(unsigned)*(PPEDim+1));
 	
-  cusph::RHSandLHSStorage(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,b,Idpg,dt,Divrg,Codeg,FreeSurface,rowInd);
-	cusph::StorageCode1(CellMode,bsbound,np,npb,npbok,ncells,begincell,cellmin,Posxyg,Poszg,Idpg,Codeg,rowInd,MirrorPosg,MirrorCellg);
+  cusph::RHSandLHSStorage(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,bg,Idpg,dt,Divrg,Codeg,FreeSurface,rowIndg);
+	cusph::StorageCode1(CellMode,bsbound,np,npb,npbok,ncells,begincell,cellmin,Posxyg,Poszg,Idpg,Codeg,rowIndg,MirrorPosg,MirrorCellg);
 	CheckCudaError(met,"RHSLHSStorage");
   TmgStart(Timers,TMG_Nnz);
-  unsigned Nnz=MatrixASetup(PPEDim,rowInd);	
+  unsigned Nnz=MatrixASetup(PPEDim,rowIndg);	
 	CheckCudaError(met,"Nnz");
   TmgStop(Timers,TMG_Nnz);
-  cudaMemset(a,0,sizeof(double)*Nnz);
-  cusph::InitArrayCol(Nnz,colInd,int(PPEDim));
+  cudaMemset(ag,0,sizeof(double)*Nnz);
+  cusph::InitArrayCol(Nnz,colIndg,int(PPEDim));
 
-  cusph::PopulateMatrixA(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velrhopg,a,b,rowInd,colInd,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLS);
+  cusph::PopulateMatrixA(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velrhopg,ag,bg,rowIndg,colIndg,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLSg);
 	if(PeriActive){
-		CellDivSingle->MatrixMirrorDCellSingle(bsbound,bsfluid,npf,npb,npbok,Posxyg,Poszg,Codeg,Idpg,rowInd,colInd,DomRealPosMin,DomRealPosMax,DomPosMin,Scell,DomCellCode,PeriActive,MapRealPosMin,MapRealSize,PeriXinc,PeriYinc,PeriZinc);
+		CellDivSingle->MatrixMirrorDCellSingle(bsbound,bsfluid,npf,npb,npbok,Posxyg,Poszg,Codeg,Idpg,rowIndg,colIndg,DomRealPosMin,DomRealPosMax,DomPosMin,Scell,DomCellCode,PeriActive,MapRealPosMin,MapRealSize,PeriXinc,PeriYinc,PeriZinc);
 		//cusph::PopulatePeriodic(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,a,rowInd,colInd,Idpg,Codeg,MirrorCellg);
 	}
 
 	CheckCudaError(met,"Matrix Setup");
 
-	cusph::FreeSurfaceMark(bsbound,bsfluid,np,npb,npbok,Divrg,a,b,rowInd,Codeg,PI,FreeSurface,ShiftOffset);
+	cusph::FreeSurfaceMark(bsbound,bsfluid,np,npb,npbok,Divrg,ag,bg,rowIndg,Codeg,PI,FreeSurface,ShiftOffset);
   CheckCudaError(met,"FreeSurfaceMark");
 
   TmgStop(Timers,TMG_SetupPPE);
 
-	X=ArraysGpu->ReserveDouble(); cudaMemset(X,0,sizeof(double)*PPEDim);
+	Xg=ArraysGpu->ReserveDouble(); cudaMemset(Xg,0,sizeof(double)*PPEDim);
 
   TmgStart(Timers,TMG_SolvePPE);
-  cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,a,X,b,rowInd,colInd,Nnz,PPEDim); 
+  cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Xg,bg,rowIndg,colIndg,Nnz,PPEDim); 
   CheckCudaError(met,"Matrix Solve");
   TmgStop(Timers,TMG_SolvePPE);
 
   TmgStart(Timers,TMG_PressureAssign);
-  cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Poszg,Velrhopg,X,Idpg,Codeg,NegativePressureBound,MirrorPosg);
+  cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Poszg,Velrhopg,Xg,Idpg,Codeg,NegativePressureBound,MirrorPosg);
   TmgStop(Timers,TMG_PressureAssign);
 
   CheckCudaError(met,"Pressure assign");
   ArraysGpu->Free(Divrg);		      Divrg=NULL;
-  ArraysGpu->Free(b);             b=NULL;
-  ArraysGpu->Free(X);             X=NULL;
+  ArraysGpu->Free(bg);             bg=NULL;
+  ArraysGpu->Free(Xg);             Xg=NULL;
 }
 
 //==============================================================================

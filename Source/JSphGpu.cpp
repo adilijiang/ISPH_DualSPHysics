@@ -81,15 +81,15 @@ void JSphGpu::InitVars(){
   Idpg=NULL; Codeg=NULL; Dcellg=NULL; Posxyg=NULL; Poszg=NULL; Velrhopg=NULL;
   PosxyPreg=NULL; PoszPreg=NULL; VelrhopPreg=NULL; //-Symplectic
   Aceg=NULL;
-  b=NULL;
-  a=NULL;
+  bg=NULL;
+  ag=NULL;
 	PPEDim=0;
-  colInd=NULL;
-  rowInd=NULL;
+  colIndg=NULL;
+  rowIndg=NULL;
   counterGPU=NULL;
-  X=NULL;
+  Xg=NULL;
   dWxCorrg=NULL; dWyCorrg=NULL; dWzCorrg=NULL;
-	MLS=NULL;
+	MLSg=NULL;
 	SumTensileg=NULL;
   Divrg=NULL;
   ShiftPosg=NULL; //-Shifting.
@@ -128,13 +128,13 @@ void JSphGpu::CheckCudaError(const std::string &method,const std::string &msg){
 //==============================================================================
 void JSphGpu::FreeGpuMemoryFixed(){
   MemGpuFixed=0;
-  if(rowInd)cudaFree(rowInd);					rowInd=NULL;
+  if(rowIndg)cudaFree(rowIndg);					rowIndg=NULL;
   if(MirrorPosg)cudaFree(MirrorPosg); MirrorPosg=NULL;
 	if(MirrorCellg)cudaFree(MirrorCellg); MirrorCellg=NULL;
-	if(a)cudaFree(a);                   a=NULL;
-  if(colInd)cudaFree(colInd);         colInd=NULL;
+	if(ag)cudaFree(ag);                   ag=NULL;
+  if(colIndg)cudaFree(colIndg);         colIndg=NULL;
   if(counterGPU)cudaFree(counterGPU); counterGPU=NULL;
-	if(MLS)cudaFree(MLS);								MLS=NULL;
+	if(MLSg)cudaFree(MLSg);								MLSg=NULL;
   if(RidpMoveg)cudaFree(RidpMoveg);   RidpMoveg=NULL;
   if(FtRidpg)cudaFree(FtRidpg);       FtRidpg=NULL;
   if(FtoMasspg)cudaFree(FtoMasspg);   FtoMasspg=NULL;
@@ -166,19 +166,19 @@ void JSphGpu::AllocGpuMemoryFixed(){
 	else RunException(met,fun::PrintStr("H/Dp too high for Quintic %f",H/Dp));
 
   size_t m=sizeof(unsigned)*(Np+1);
-  cudaMalloc((void**)&rowInd,m);    MemGpuFixed+=m;
+  cudaMalloc((void**)&rowIndg,m);    MemGpuFixed+=m;
   m=sizeof(double3)*Npb;
 	cudaMalloc((void**)&MirrorPosg,m);    MemGpuFixed+=m;
 	m=sizeof(unsigned)*Npb;
 	cudaMalloc((void**)&MirrorCellg,m);    MemGpuFixed+=m;
 	m=sizeof(double)*Np*matrixMemory;
-  cudaMalloc((void**)&a,m);    MemGpuFixed+=m;
+  cudaMalloc((void**)&ag,m);    MemGpuFixed+=m;
   m=sizeof(unsigned)*Np*matrixMemory;
-  cudaMalloc((void**)&colInd,m);    MemGpuFixed+=m;
+  cudaMalloc((void**)&colIndg,m);    MemGpuFixed+=m;
   m=sizeof(unsigned);
   cudaMalloc((void**)&counterGPU,m); MemGpuFixed+=m;
 	m=sizeof(float4)*Npb;
-  cudaMalloc((void**)&MLS,m); MemGpuFixed+=m;
+  cudaMalloc((void**)&MLSg,m); MemGpuFixed+=m;
   //-Allocates memory for moving objects.
   if(CaseNmoving){
     m=sizeof(unsigned)*CaseNmoving;
@@ -864,7 +864,7 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
 		dWyCorrg=ArraysGpu->ReserveDouble3();	cudaMemset(dWyCorrg,0,sizeof(double)*Np); 
 		dWzCorrg=ArraysGpu->ReserveDouble3(); cudaMemset(dWzCorrg,0,sizeof(double3)*Np);
 		Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*Np);
-		cudaMemset(MLS,0,sizeof(float4)*Npb);
+		cudaMemset(MLSg,0,sizeof(float4)*Npb);
 	}
 
 

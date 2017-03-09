@@ -228,14 +228,14 @@ protected:
   
 	float3 *SumTensileg;
 	float *Divrg; //Divergence of position
-	float4 *MLS;
+	float4 *MLSg;
   //matrix variables 
-  double *b;
-  double *a;
+  double *bg;
+  double *ag;
   unsigned PPEDim;
-  unsigned *colInd;
-  unsigned *rowInd;
-  double *X;
+  unsigned *colIndg;
+  unsigned *rowIndg;
+  double *Xg;
 
   unsigned *counterGPU;
   unsigned *counterCPU;
