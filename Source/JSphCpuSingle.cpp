@@ -966,7 +966,7 @@ void JSphCpuSingle::SolvePPE(double dt){
 	FreeSurfaceMark(true,npf,npb,Divr,a,b,rowInd,Idpc,Codec,ShiftOffset,matOrder,FreeSurface);
   FreeSurfaceMark(false,npbok,0,Divr,a,b,rowInd,Idpc,Codec,ShiftOffset,matOrder,FreeSurface);
 
-	/*ofstream FileOutput;
+	ofstream FileOutput;
     string TimeFile;
 		unsigned count=1;
     ostringstream TimeNum;
@@ -988,7 +988,7 @@ void JSphCpuSingle::SolvePPE(double dt){
     for(int j=rowInd[(i-npb)+npbok];j<rowInd[(i-npb)+npbok+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\t"<<Idpc[colInd[j]]<<"\n";
   }
   FileOutput.close();
-	count++;*/
+	count++;
 
   //solvers
 #ifndef _WITHGPU

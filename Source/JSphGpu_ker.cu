@@ -491,7 +491,7 @@ __global__ void KerMLSBoundary3D
 {
 	unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<n){
-    if(CODE_GetTypeValue(code[p1])==0){
+    if(CODE_GetTypeValue(code[p1])==1){
 			unsigned idpg1=idp[p1];
 			const double3 posmp1=make_double3(mirrorPos[idpg1].x,mirrorPos[idpg1].y,mirrorPos[idpg1].z);
 			double b11=0.0; double b12=0.0; double b13=0.0; double b14=0.0;
@@ -566,7 +566,7 @@ __global__ void KerMLSBoundary2D
 {
 	unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<n){
-    if(CODE_GetTypeValue(code[p1])==0){
+    if(CODE_GetTypeValue(code[p1])==1){
 			unsigned idpg1=idp[p1];
 			const double3 posmp1=make_double3(mirrorPos[idpg1].x,mirrorPos[idpg1].y,mirrorPos[idpg1].z);
 			double b11 = 0.0; double b12 = 0.0; double b13 = 0.0;
@@ -3264,6 +3264,7 @@ __global__ void KerPressureAssignBound
 			double dist=mirrorPos[idp[p1]].z-posz[p1];
 			double Neumann=double(CTE.rhopzero)*abs(gravity.z)*dist;
 			velrhop[p1].w=float(press[p1]+Neumann);
+			if(!negpresbound)if(velrhop[p1].w<0)velrhop[p1].w=0.0;
 		}
   }
 }
