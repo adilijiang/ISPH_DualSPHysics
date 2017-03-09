@@ -810,7 +810,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 								if(fluid){
 									const tfloat4 velrhop2=velrhop[p2];
 									const float W=GetKernelWab(rr2);
-									float temp=(mlsp1.w+mlsp1.x*drx+mlsp1.y*dry+mlsp1.z*drz)*W;
+									const float temp=(mlsp1.w+mlsp1.x*drx+mlsp1.y*dry+mlsp1.z*drz)*W;
 									Sum.x+=velrhop2.x*temp*volume;
 									Sum.y+=velrhop2.y*temp*volume;
 									Sum.z+=velrhop2.z*temp*volume;
@@ -823,16 +823,16 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 			}
 
 			divr[p1]=divrp1;
-			row[p1]+=rowCount;
+			row[p1]=rowCount;
 
 			if(TSlipCond==SLIPCOND_Slip){
 				tfloat3 NormDir=TFloat3(0),NormVel=TFloat3(0),TangDir=TFloat3(0),TangVel=TFloat3(0),BitangDir=TFloat3(0),BitangVel=TFloat3(0); 
 				NormDir.x=float(posp1.x-pos[p1].x);
-				if(Simulate2D)NormDir.y=float(posp1.y-pos[p1].y);
+				if(!Simulate2D)NormDir.y=float(posp1.y-pos[p1].y);
 				NormDir.z=float(posp1.z-pos[p1].z);
 
 				TangDir.x=NormDir.z+NormDir.y;
-				if(Simulate2D)TangDir.y=-(NormDir.x+NormDir.z);
+				if(!Simulate2D)TangDir.y=-(NormDir.x+NormDir.z);
 				TangDir.z=-NormDir.x+NormDir.y;
 
 				BitangDir.x=TangDir.y*NormDir.z-NormDir.y*TangDir.z;

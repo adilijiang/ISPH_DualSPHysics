@@ -628,7 +628,7 @@ void JSphGpu::ConfigBlockSizes(bool usezone,bool useperi){
     //-Collects kernel information.
     StKerInfo kerinfo;
     memset(&kerinfo,0,sizeof(StKerInfo));
-    cusph::Interaction_Forces(WithFloating,UseDEM,TSlipCond,CellMode,0,0,0,0,INTER_Forces,100,50,20,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Simulate2D,NULL,NULL,NULL,NULL,&kerinfo,NULL);
+    cusph::Interaction_Forces(WithFloating,UseDEM,TSlipCond,CellMode,0,0,0,0,INTER_Forces,100,50,20,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Simulate2D,NULL,NULL,NULL,NULL,NULL,&kerinfo,NULL);
     //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&kerinfo);
     //Log->Printf("====> bound -> r:%d  bs:%d  bsmax:%d",kerinfo.forcesbound_rg,kerinfo.forcesbound_bs,kerinfo.forcesbound_bsmax);
     //Log->Printf("====> fluid -> r:%d  bs:%d  bsmax:%d",kerinfo.forcesfluid_rg,kerinfo.forcesfluid_bs,kerinfo.forcesfluid_bsmax);
@@ -858,14 +858,16 @@ void JSphGpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
 //==============================================================================
 void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
   TmgStart(Timers,TMG_CfPreForces);
+	const unsigned np=Np;
   //-Asigna memoria.ddd
   //-Allocates memory.
   if(tinter==1){
-		dWxCorrg=ArraysGpu->ReserveDouble3();	cudaMemset(dWxCorrg,0,sizeof(double3)*Np);
-		dWyCorrg=ArraysGpu->ReserveDouble3();	cudaMemset(dWyCorrg,0,sizeof(double)*Np); 
-		dWzCorrg=ArraysGpu->ReserveDouble3(); cudaMemset(dWzCorrg,0,sizeof(double3)*Np);
-		Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*Np);
+		dWxCorrg=ArraysGpu->ReserveDouble3();	cudaMemset(dWxCorrg,0,sizeof(double3)*np);
+		dWyCorrg=ArraysGpu->ReserveDouble3();	cudaMemset(dWyCorrg,0,sizeof(double)*np); 
+		dWzCorrg=ArraysGpu->ReserveDouble3(); cudaMemset(dWzCorrg,0,sizeof(double3)*np);
+		Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
 		cudaMemset(MLSg,0,sizeof(float4)*Npb);
+		cudaMemset(rowIndg,0,sizeof(int)*(np+1));
 	}
 
 
