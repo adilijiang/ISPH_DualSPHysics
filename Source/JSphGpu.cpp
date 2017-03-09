@@ -94,6 +94,7 @@ void JSphGpu::InitVars(){
   Divrg=NULL;
   ShiftPosg=NULL; //-Shifting.
 	MirrorPosg=NULL;
+	MirrorCellg=NULL;
   RidpMoveg=NULL;
   FtRidpg=NULL;    FtoMasspg=NULL;               //-Floatings.
   FtoDatag=NULL;   FtoForcesg=NULL;              //-Calculo de fuerzas en floatings.  //-Calculates forces on floating bodies
