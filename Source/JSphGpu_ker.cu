@@ -3015,8 +3015,9 @@ __global__ void KerPopulateMatrixACode0
 
 __device__ void KerMatrixACode1
   (const unsigned &pini,const unsigned &pfin,unsigned npb,unsigned npbok,const double2 *posxy,const double *posz,double3 posdp1
-	,const float massp2,const float RhopZero,unsigned &index,unsigned int *col,double *matrixInd,const int diag)
+	,const float massp2,const float RhopZero,unsigned &index,unsigned int *col,double *matrixInd,const int diag,const float4 mlsp1)
 {
+	float volume=massp2/RhopZero; //Volume of particle j 
   for(int p2=pini;p2<pfin;p2++){
     float drx,dry,drz;
     KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
@@ -3027,21 +3028,19 @@ __device__ void KerMatrixACode1
       float frx,fry,frz;
       KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
 
-	    float volumep2=massp2/RhopZero; //Volume of particle j 
-
-      float rDivW=drx*frx+dry*fry+drz*frz;
-      float temp=2.0f*rDivW/(RhopZero*(rr2+CTE.eta2));
-      matrixInd[index]=double(-temp*volumep2);
+      const float W=KerGetKernelWab(rr2);
+			float temp=(mlsp1.w+mlsp1.x*drx+mlsp1.y*dry+mlsp1.z*drz)*W;
+			matrixInd[index]=double(-temp*volume);
       col[index]=oj;
-      matrixInd[diag]+=double(temp*volumep2);
-      index++;
+			matrixInd[diag]=1.0;
+			index++;
     }
   }
 }
 
 __global__ void KerPopulateMatrixACode1
   (unsigned npbok,unsigned npb,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,unsigned int *row,unsigned int *col,double *matrixInd,const double3 *mirrorPos,const unsigned *mirrorCell)
+  ,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,unsigned int *row,unsigned int *col,double *matrixInd,const double3 *mirrorPos,const unsigned *mirrorCell,const float4 *mls)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<npbok){
@@ -3049,6 +3048,7 @@ __global__ void KerPopulateMatrixACode1
     if(CODE_GetTypeValue(code[p1])==1&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
 			const unsigned idpg1=idp[p1];
       unsigned oi=p1;
+			const float4 mlsp1=mls[p1];
 
       const unsigned diag=row[oi];
       col[diag]=oi;
@@ -3076,7 +3076,7 @@ __global__ void KerPopulateMatrixACode1
 							}
 						}
 						if(pfin){
-							KerMatrixACode1 (pini,pfin,npb,npbok,posxy,posz,posdp1,CTE.massf,CTE.rhopzero,index,col,matrixInd,diag);
+							KerMatrixACode1 (pini,pfin,npb,npbok,posxy,posz,posdp1,CTE.massf,CTE.rhopzero,index,col,matrixInd,diag,mlsp1);
 						}
 					}
 				}
@@ -3088,7 +3088,7 @@ __global__ void KerPopulateMatrixACode1
 
 void PopulateMatrixA(TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
 	,const unsigned *dcell,tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *velrhop,double *matrixInd,double *matrixb
-  ,unsigned int *row,unsigned int *col,const unsigned *idp,const float *divr,const word *code,const float freesurface,const double3 *mirrorPos,const unsigned *mirrorCell){
+  ,unsigned int *row,unsigned int *col,const unsigned *idp,const float *divr,const word *code,const float freesurface,const double3 *mirrorPos,const unsigned *mirrorCell,const float4 *mls){
   const unsigned npf=np-npb;
   const int hdiv=(cellmode==CELLMODE_H? 2: 1);
   const uint4 nc=make_uint4(ncells.x,ncells.y,ncells.z,ncells.x*ncells.y);
@@ -3102,7 +3102,7 @@ void PopulateMatrixA(TpCellMode cellmode,const unsigned bsbound,const unsigned b
 
 		KerPopulateMatrixACode0 <<<sgridf,bsfluid>>> (npf,npb,npb,npbok,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos);
     KerPopulateMatrixACode0 <<<sgridb,bsbound>>> (npbok,0,npb,npbok,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos);
-		KerPopulateMatrixACode1 <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell);
+		KerPopulateMatrixACode1 <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls);
 	}
 }
 

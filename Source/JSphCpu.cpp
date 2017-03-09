@@ -2163,6 +2163,7 @@ void JSphCpu::PopulateMatrixACode1(unsigned n,unsigned pinit,tint4 nc,int hdiv,u
 
 		//-Obtain data of particle p1 / Obtiene datos de particula p1.
     const tdouble3 posp1=mirrorPos[idp1];
+		const tfloat4 mlsp1=mls[p1];
 		//-Particle order in Matrix
 		unsigned oi=p1;
 		const unsigned diag=row[oi];
@@ -2202,7 +2203,7 @@ void JSphCpu::PopulateMatrixACode1(unsigned n,unsigned pinit,tint4 nc,int hdiv,u
 							GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 			
 							const float W=GetKernelWab(rr2);
-							float temp=(mls[p1].w+mls[p1].x*drx+mls[p1].y*dry+mls[p1].z*drz)*W;
+							float temp=(mlsp1.w+mlsp1.x*drx+mlsp1.y*dry+mlsp1.z*drz)*W;
 							matrixInd[index]=double(-temp*volume);
               col[index]=oj;
 			        matrixInd[diag]=1.0;

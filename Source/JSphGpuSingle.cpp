@@ -786,7 +786,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   cudaMemset(a,0,sizeof(double)*Nnz);
   cusph::InitArrayCol(Nnz,colInd,int(PPEDim));
 
-  cusph::PopulateMatrixA(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velrhopg,a,b,rowInd,colInd,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg);
+  cusph::PopulateMatrixA(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velrhopg,a,b,rowInd,colInd,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLS);
 	if(PeriActive){
 		CellDivSingle->MatrixMirrorDCellSingle(bsbound,bsfluid,npf,npb,npbok,Posxyg,Poszg,Codeg,Idpg,rowInd,colInd,DomRealPosMin,DomRealPosMax,DomPosMin,Scell,DomCellCode,PeriActive,MapRealPosMin,MapRealSize,PeriXinc,PeriYinc,PeriZinc);
 		//cusph::PopulatePeriodic(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,a,rowInd,colInd,Idpg,Codeg,MirrorCellg);
