@@ -278,6 +278,20 @@ void ResetBoundVel(const unsigned npbok,const unsigned bsbound,float4 *vel,float
   }
 }
 
+__global__ void KerResetrowIndg(const unsigned npplus,unsigned *row,const unsigned npb)
+{
+  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<npplus){
+		row[p]=npb;
+	}
+}
+
+void ResetrowIndg(const unsigned npplus,unsigned *row,const unsigned npb){
+	if(npplus){
+    dim3 sgrid=GetGridSize(npplus,SPHBSIZE);
+    KerResetrowIndg <<<sgrid,SPHBSIZE>>> (npplus,row,npb);
+  }
+}
 //------------------------------------------------------------------------------
 /// Calculates module^2 of ace.
 //------------------------------------------------------------------------------
@@ -932,7 +946,7 @@ template<TpFtMode ftmode> __device__ void KerInteractionForcesFluidPresGrad
   ,const float *ftomassp,const double2 *posxy,const double *posz,const float4 *velrhop,const word *code,const unsigned *idp
   ,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg,float massp2,float ftmassp1,bool ftp1
   ,double3 posdp1,float3 velp1,float pressp1
-  ,float3 &acep1)
+  ,float3 &acep1,unsigned *row,float &nearestBound)
 {
   for(int p2=pini;p2<pfin;p2++){
     float drx,dry,drz;
@@ -963,6 +977,13 @@ template<TpFtMode ftmode> __device__ void KerInteractionForcesFluidPresGrad
 		  const float temp_z=float(frx*dwxcorrg[p1].z+fry*dwycorrg[p1].z+frz*dwzcorrg[p1].z);
       const float temp=volumep2*(pressp2-pressp1);
       acep1.x+=temp*temp_x; acep1.y+=temp*temp_y; acep1.z+=temp*temp_z;
+
+			if(CODE_GetTypeValue(code[p2])==1){
+				if(rr2<=nearestBound){
+					nearestBound=rr2;
+					row[p1]=p2;
+				}
+			}
     }
   }
 }
@@ -988,6 +1009,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesFluid
     float3 acep1=make_float3(0,0,0);
 		double3 dwxp1=make_double3(0,0,0); double3 dwyp1=make_double3(0,0,0); double3 dwzp1=make_double3(0,0,0);
     unsigned rowCount=0; 
+		float nearestBound=4.0f*float(CTE.dp*CTE.dp);
 		//-Obtiene datos de particula p1 en caso de existir floatings.
 	//-Obtains data of particle p1 in case there are floating bodies.
     bool ftp1;       //-Indica si es floating. //-Indicates if it is floating.
@@ -1027,7 +1049,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesFluid
         }
         if(pfin){
 					if(tinter==1)KerInteractionForcesFluidVisc<ftmode> (false,p1,pini,pfin,viscof,ftomassp,posxy,posz,velrhop,code,idp,CTE.massf,ftmassp1,ftp1,posdp1,velp1,pressp1,acep1,divrp1,dwxp1,dwyp1,dwzp1,rowCount);
-					else if(tinter==2) KerInteractionForcesFluidPresGrad<ftmode> (false,p1,pini,pfin,viscof,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,CTE.massf,ftmassp1,ftp1,posdp1,velp1,pressp1,acep1);
+					else if(tinter==2) KerInteractionForcesFluidPresGrad<ftmode> (false,p1,pini,pfin,viscof,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,CTE.massf,ftmassp1,ftp1,posdp1,velp1,pressp1,acep1,row,nearestBound);
 				}
 			}
     }
@@ -1068,8 +1090,8 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesFluid
           }
         }
         if(pfin){
-		  		if(tinter==1)KerInteractionForcesFluidVisc<ftmode> (false,p1,pini,pfin,viscof,ftomassp,posxy,posz,velrhop,code,idp,CTE.massf,ftmassp1,ftp1,posdp1,velp1,pressp1,acep1,divrp1,dwxp1,dwyp1,dwzp1,rowCount);
-					else if(tinter==2) KerInteractionForcesFluidPresGrad<ftmode> (false,p1,pini,pfin,viscof,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,CTE.massf,ftmassp1,ftp1,posdp1,velp1,pressp1,acep1);
+		  		if(tinter==1)KerInteractionForcesFluidVisc<ftmode> (true,p1,pini,pfin,viscof,ftomassp,posxy,posz,velrhop,code,idp,CTE.massf,ftmassp1,ftp1,posdp1,velp1,pressp1,acep1,divrp1,dwxp1,dwyp1,dwzp1,rowCount);
+					else if(tinter==2) KerInteractionForcesFluidPresGrad<ftmode> (true,p1,pini,pfin,viscof,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,CTE.massf,ftmassp1,ftp1,posdp1,velp1,pressp1,acep1,row,nearestBound);
 				}
       }
     }
@@ -1553,10 +1575,40 @@ void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb
 /// Computes new values for Pos, Check, Vel and Ros (using Symplectic-Corrector).
 /// The value of Vel always set to be reset.
 //------------------------------------------------------------------------------
+__device__ void KerCorrectVelocity(const unsigned p1,const unsigned nearestBound,const double2 *posxy,const double *posz,float4 &rvelrhop,float4 *velrhop,const unsigned *idpg,const double3 *mirrorPos)
+{
+	float3 NormDir=make_float3(0,0,0), NormVelWall=make_float3(0,0,0), NormVelp1=make_float3(0,0,0);
+	const unsigned nearestID=idpg[nearestBound];
+	const float3 velwall=make_float3(velrhop[nearestBound].x,velrhop[nearestBound].y,velrhop[nearestBound].z);
+	const float3 velp1=make_float3(rvelrhop.x,rvelrhop.y,rvelrhop.z);
+	NormDir.x=float(mirrorPos[nearestID].x-posxy[nearestBound].x);
+	NormDir.y=float(mirrorPos[nearestID].y-posxy[nearestBound].y);
+	NormDir.z=float(mirrorPos[nearestID].z-posz[nearestBound]);
+	float MagNorm=NormDir.x*NormDir.x+NormDir.y*NormDir.y+NormDir.z*NormDir.z;
+	if(MagNorm){MagNorm=sqrtf(MagNorm); NormDir.x=NormDir.x/MagNorm; NormDir.y=NormDir.y/MagNorm; NormDir.z=NormDir.z/MagNorm;}
+	float NormProdVelWall=velwall.x*NormDir.x+velwall.y*NormDir.y+velwall.z*NormDir.z;
+	float NormProdVelp1=velp1.x*NormDir.x+velp1.y*NormDir.y+velp1.z*NormDir.z;
+
+	NormVelWall.x=NormDir.x*NormProdVelWall; NormVelp1.x=NormDir.x*NormProdVelp1;
+	NormVelWall.y=NormDir.y*NormProdVelWall; NormVelp1.y=NormDir.y*NormProdVelp1;
+	NormVelWall.z=NormDir.z*NormProdVelWall; NormVelp1.z=NormDir.z*NormProdVelp1;
+
+	float dux=NormVelp1.x-NormVelWall.x;
+	float duy=NormVelp1.y-NormVelWall.y;
+	float duz=NormVelp1.z-NormVelWall.z;
+
+	float VelNorm=dux*NormDir.x+duy*NormDir.y+duz*NormDir.z;
+	if(VelNorm<0){
+		rvelrhop.x-=VelNorm*NormDir.x;
+		rvelrhop.y-=VelNorm*NormDir.y;
+		rvelrhop.z-=VelNorm*NormDir.z;
+	}
+}
+
 template<bool floating> __global__ void KerComputeStepSymplecticCor
   (unsigned n,unsigned npb
   ,const float4 *velrhoppre,const float3 *ace,double dtm,double dt,float rhopoutmin,float rhopoutmax
-  ,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity)
+  ,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity,const unsigned *row,const double2 *posxy,const double *posz,const unsigned *idp,const double3 *mirrorPos)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
   if(p<n){
@@ -1581,6 +1633,8 @@ template<bool floating> __global__ void KerComputeStepSymplecticCor
         rvelrhop.x-=float(double(race.x-gravity.x)*dt);
         rvelrhop.y-=float(double(race.y-gravity.y)*dt);
         rvelrhop.z-=float(double(race.z-gravity.z)*dt);
+
+				if(row[p]!=npb) KerCorrectVelocity(p,row[p],posxy,posz,rvelrhop,velrhop,idp,mirrorPos);
         //-Comprueba limites de rhop.
 		/*//-Checks rhop limits.
         if(rvelrhop.w<rhopoutmin||rvelrhop.w>rhopoutmax){//-Solo marca como excluidas las normales (no periodicas). //-Only brands as excluded normal particles (not periodic)
@@ -1618,13 +1672,13 @@ template<bool floating> __global__ void KerComputeStepSymplecticCor
 //==============================================================================   
 void ComputeStepSymplecticCor(bool floating,unsigned np,unsigned npb
   ,const float4 *velrhoppre,const float3 *ace,double dtm,double dt,float rhopoutmin,float rhopoutmax
-  ,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity)
+  ,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity,const unsigned *row,const double2 *posxy,const double *posz,const unsigned *idp,const double3 *mirrorPos)
 {
   if(np){
     dim3 sgrid=GetGridSize(np,SPHBSIZE);
 
-    if(floating)KerComputeStepSymplecticCor<true>  <<<sgrid,SPHBSIZE>>> (np,npb,velrhoppre,ace,dtm,dt,rhopoutmin,rhopoutmax,code,movxy,movz,velrhop,gravity);
-    else        KerComputeStepSymplecticCor<false> <<<sgrid,SPHBSIZE>>> (np,npb,velrhoppre,ace,dtm,dt,rhopoutmin,rhopoutmax,code,movxy,movz,velrhop,gravity);
+    if(floating)KerComputeStepSymplecticCor<true>  <<<sgrid,SPHBSIZE>>> (np,npb,velrhoppre,ace,dtm,dt,rhopoutmin,rhopoutmax,code,movxy,movz,velrhop,gravity,row,posxy,posz,idp,mirrorPos);
+    else        KerComputeStepSymplecticCor<false> <<<sgrid,SPHBSIZE>>> (np,npb,velrhoppre,ace,dtm,dt,rhopoutmin,rhopoutmax,code,movxy,movz,velrhop,gravity,row,posxy,posz,idp,mirrorPos);
   }
 }
 

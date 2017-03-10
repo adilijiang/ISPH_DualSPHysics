@@ -266,7 +266,7 @@ protected:
 	void MLSBoundary3D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
   const tdouble3 *pos,const tfloat4 *velrhop,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,const unsigned *mirrorCell,tfloat4 *mls)const;
 
-	void CorrectVelocity(const unsigned p1,const unsigned nearestBound,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos);
+	void CorrectVelocity(const unsigned p1,const unsigned nearestBound,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,const tdouble3 *mirrorPos);
   
 	void Shift(double dt);
 

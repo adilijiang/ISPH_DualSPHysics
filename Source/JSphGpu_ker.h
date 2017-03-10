@@ -84,6 +84,7 @@ void CteInteractionUp(const StCteInteraction *cte);
 void InitArray(unsigned n,float3 *v,tfloat3 value);
 void Resety(unsigned n,unsigned ini,float3 *v);
 void ResetBoundVel(const unsigned npbok,const unsigned bsbound,float4 *vel,float4 *velpre);
+void ResetrowIndg(const unsigned npplus,unsigned *row,const unsigned npb);
 void ComputeAceMod(unsigned n,const float3 *ace,float *acemod);
 void ComputeAceMod(unsigned n,const word *code,const float3 *ace,float *acemod);
 
@@ -127,7 +128,7 @@ void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb
 
 void ComputeStepSymplecticCor(bool floating,unsigned np,unsigned npb
   ,const float4 *velrhoppre,const float3 *ace,double dtm,double dt,float rhopoutmin,float rhopoutmax
-  ,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity);
+  ,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity,const unsigned *row,const double2 *posxy,const double *posz,const unsigned *idp,const double3 *mirrorPos);
 
 //# Kernels para ComputeStep (position)
 //# Kernels for ComputeStep (position)

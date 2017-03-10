@@ -1418,7 +1418,7 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
       Velrhopc[p].y-=float((Acec[p].y-Gravity.y)*dt);  
       Velrhopc[p].z-=float((Acec[p].z-Gravity.z)*dt);
 
-			if(rowInd[p]!=npb) CorrectVelocity(p,rowInd[p],Posc,Velrhopc,Idpc,Codec,MirrorPosc);
+			if(rowInd[p]!=npb) CorrectVelocity(p,rowInd[p],Posc,Velrhopc,Idpc,MirrorPosc);
 
       //-Calculate displacement and update position / Calcula desplazamiento y actualiza posicion.
       double dx=(double(VelrhopPrec[p].x)+double(Velrhopc[p].x))*dt05; 
@@ -1440,7 +1440,7 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
   TmcStop(Timers,TMC_SuComputeStep);
 }
 
-void JSphCpu::CorrectVelocity(const unsigned p1,const unsigned nearestBound,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos){
+void JSphCpu::CorrectVelocity(const unsigned p1,const unsigned nearestBound,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,const tdouble3 *mirrorPos){
 	tfloat3 NormDir=TFloat3(0), NormVelWall=TFloat3(0), NormVelp1=TFloat3(0);
 	const unsigned nearestID=idpc[nearestBound];
 	const tfloat3 velwall=TFloat3(velrhop[nearestBound].x,velrhop[nearestBound].y,velrhop[nearestBound].z);
