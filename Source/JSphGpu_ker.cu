@@ -2825,7 +2825,7 @@ __device__ void KerMatrixACode0
       matrixInd[diag]+=double(temp*volumep2);
       index++;
 
-			if(!(!matOrderp1&&!matOrderp2)){
+			if(matOrderp1){
 				float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
 							
 				const float temp_x=frx*dwx.x+fry*dwy.x+frz*dwz.x;

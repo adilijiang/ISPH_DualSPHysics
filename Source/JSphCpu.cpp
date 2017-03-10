@@ -901,6 +901,7 @@ template<TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
 		tdouble3 dwxp1=TDouble3(0); tdouble3 dwyp1=TDouble3(0); tdouble3 dwzp1=TDouble3(0);
 		tfloat3 dwx=dwxcorr[p1]; tfloat3 dwy=dwycorr[p1]; tfloat3 dwz=dwzcorr[p1]; //  dwz.x   dwz.y   dwz.z
 		int rowCount=0;
+		float nearestBound=2.0f*float(Dp);
     //-Obtain data of particle p1 in case of floating objects / Obtiene datos de particula p1 en caso de existir floatings.
     /*bool ftp1=false;     //-Indicate if it is floating / Indica si es floating.
     float ftmassp1=1.f;  //-Contains floating particle mass or 1.0f if it is fluid / Contiene masa de particula floating o 1.0f si es fluid.
@@ -976,6 +977,14 @@ template<TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
 			        const float temp_z=frx*dwx.z+fry*dwy.z+frz*dwz.z;
 			        const float temp=volumep2*(velrhop[p2].w-pressp1);
               acep1.x+=temp*temp_x; acep1.y+=temp*temp_y; acep1.z+=temp*temp_z;
+
+							//See if fluid particles are close to boundary
+							if(CODE_GetTypeValue(code[p2])==1){
+								if(rr2<=nearestBound){
+									nearestBound=rr2;
+									row[p1]=p2;
+								}
+							}
 			      }
           }
         }
@@ -1383,7 +1392,6 @@ void JSphCpu::ComputeSymplecticCorr(double dt){
 //==============================================================================
 template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
   TmcStart(Timers,TMC_SuComputeStep);
-  
   //-Calculate rhop of boudary and set velocity=0 / Calcula rhop de contorno y vel igual a cero.
   const int npb=int(Npb);
   /*#ifdef _WITHOMP
@@ -1409,6 +1417,8 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
       Velrhopc[p].x-=float((Acec[p].x-Gravity.x)*dt); 
       Velrhopc[p].y-=float((Acec[p].y-Gravity.y)*dt);  
       Velrhopc[p].z-=float((Acec[p].z-Gravity.z)*dt);
+
+			if(rowInd[p]!=npb) CorrectVelocity(p,rowInd[p],Posc,Velrhopc,Idpc,Codec,MirrorPosc);
       //Velrhopc[p].w=rhopnew;
       //-Calculate displacement and update position / Calcula desplazamiento y actualiza posicion.
       double dx=(double(VelrhopPrec[p].x)+double(Velrhopc[p].x))*dt05; 
@@ -1428,6 +1438,10 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
   ArraysCpu->Free(PosPrec);      PosPrec=NULL;
   ArraysCpu->Free(VelrhopPrec);  VelrhopPrec=NULL;
   TmcStop(Timers,TMC_SuComputeStep);
+}
+
+void JSphCpu::CorrectVelocity(const unsigned p1,const unsigned nearestBound,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos){
+
 }
 
 //==============================================================================
@@ -2121,7 +2135,7 @@ void JSphCpu::PopulateMatrixACode0(const bool fluidp1,unsigned n,unsigned pinit,
 								index++;
 
 								//=====Divergence of velocity==========
-								if(!(p1<int(Npb)&&p2<int(Npb))){
+								if(p1>=int(Npb)){//if(!(p1<int(Npb)&&p2<int(Npb))){
 									float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
 							
 									const float temp_x=frx*dwx.x+fry*dwy.x+frz*dwz.x;
