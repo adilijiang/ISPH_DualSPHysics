@@ -901,7 +901,7 @@ template<TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
 		tdouble3 dwxp1=TDouble3(0); tdouble3 dwyp1=TDouble3(0); tdouble3 dwzp1=TDouble3(0);
 		tfloat3 dwx=dwxcorr[p1]; tfloat3 dwy=dwycorr[p1]; tfloat3 dwz=dwzcorr[p1]; //  dwz.x   dwz.y   dwz.z
 		int rowCount=0;
-		float nearestBound=2.0f*float(Dp);
+		float nearestBound=4.0f*float(Dp*Dp);
     //-Obtain data of particle p1 in case of floating objects / Obtiene datos de particula p1 en caso de existir floatings.
     /*bool ftp1=false;     //-Indicate if it is floating / Indica si es floating.
     float ftmassp1=1.f;  //-Contains floating particle mass or 1.0f if it is fluid / Contiene masa de particula floating o 1.0f si es fluid.
@@ -1402,8 +1402,8 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
     const float rhopnew=float(double(VelrhopPrec[p].w) * (2.-epsilon_rdot)/(2.+epsilon_rdot));
     Velrhopc[p]=TFloat4(0,0,0,(rhopnew<RhopZero? RhopZero: rhopnew));//-Avoid fluid particles being absorbed by boundary ones / Evita q las boundary absorvan a las fluidas.
   }*/
-
-  //-Calculate fluid values / Calcula datos de fluido.
+	
+	//-Calculate fluid values / Calcula datos de fluido.
   const double dt05=dt*0.5;
   const int np=int(Np);
   #ifdef _WITHOMP
@@ -1419,7 +1419,7 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
       Velrhopc[p].z-=float((Acec[p].z-Gravity.z)*dt);
 
 			if(rowInd[p]!=npb) CorrectVelocity(p,rowInd[p],Posc,Velrhopc,Idpc,Codec,MirrorPosc);
-      //Velrhopc[p].w=rhopnew;
+
       //-Calculate displacement and update position / Calcula desplazamiento y actualiza posicion.
       double dx=(double(VelrhopPrec[p].x)+double(Velrhopc[p].x))*dt05; 
       double dy=(double(VelrhopPrec[p].y)+double(Velrhopc[p].y))*dt05; 
@@ -1441,7 +1441,32 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
 }
 
 void JSphCpu::CorrectVelocity(const unsigned p1,const unsigned nearestBound,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos){
+	tfloat3 NormDir=TFloat3(0), NormVelWall=TFloat3(0), NormVelp1=TFloat3(0);
+	const unsigned nearestID=idpc[nearestBound];
+	const tfloat3 velwall=TFloat3(velrhop[nearestBound].x,velrhop[nearestBound].y,velrhop[nearestBound].z);
+	const tfloat3 velp1=TFloat3(velrhop[p1].x,velrhop[p1].y,velrhop[p1].z);
+	NormDir.x=float(mirrorPos[nearestID].x-pos[nearestBound].x);
+	NormDir.y=float(mirrorPos[nearestID].y-pos[nearestBound].y);
+	NormDir.z=float(mirrorPos[nearestID].z-pos[nearestBound].z);
+	float MagNorm=NormDir.x*NormDir.x+NormDir.y*NormDir.y+NormDir.z*NormDir.z;
+	if(MagNorm){MagNorm=sqrtf(MagNorm); NormDir.x=NormDir.x/MagNorm; NormDir.y=NormDir.y/MagNorm; NormDir.z=NormDir.z/MagNorm;}
+	float NormProdVelWall=velwall.x*NormDir.x+velwall.y*NormDir.y+velwall.z*NormDir.z;
+	float NormProdVelp1=velp1.x*NormDir.x+velp1.y*NormDir.y+velp1.z*NormDir.z;
 
+	NormVelWall.x=NormDir.x*NormProdVelWall; NormVelp1.x=NormDir.x*NormProdVelp1;
+	NormVelWall.y=NormDir.y*NormProdVelWall; NormVelp1.y=NormDir.y*NormProdVelp1;
+	NormVelWall.z=NormDir.z*NormProdVelWall; NormVelp1.z=NormDir.z*NormProdVelp1;
+
+	float dux=NormVelp1.x-NormVelWall.x;
+	float duy=NormVelp1.y-NormVelWall.y;
+	float duz=NormVelp1.z-NormVelWall.z;
+
+	float VelNorm=dux*NormDir.x+duy*NormDir.y+duz*NormDir.z;
+	if(VelNorm<0){
+		velrhop[p1].x-=VelNorm*NormDir.x;
+		velrhop[p1].y-=VelNorm*NormDir.y;
+		velrhop[p1].z-=VelNorm*NormDir.z;
+	}
 }
 
 //==============================================================================

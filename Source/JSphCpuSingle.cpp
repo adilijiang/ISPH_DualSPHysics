@@ -477,7 +477,12 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
 		memset(MLS,0,sizeof(tfloat4)*npb);
 		memset(rowInd,0,sizeof(int)*(np+1));
   }
-	else memset(rowInd,npb,sizeof(int)*(np+1));
+	else{
+			#ifdef _WITHOMP
+      #pragma omp parallel for schedule (static)
+    #endif
+    for(int i=0;i<int(Np+1);i++)rowInd[i]=Npb;
+	}
 	
   //-Assign memory / Asigna memoria.
   Acec=ArraysCpu->ReserveFloat3();
@@ -489,7 +494,7 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
   float viscdt=0;
 
 	JSphCpu::Interaction_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,dWxCorrShiftPos,dWyCorrTensile,dWzCorr,Codec,Acec,Divr,MirrorPosc,MirrorCell,MLS,rowInd);
-	
+
 	if(TSlipCond&&tinter==2){
 		 #ifdef _WITHOMP
       #pragma omp parallel for schedule (static)
@@ -953,7 +958,7 @@ void JSphCpuSingle::SolvePPE(double dt){
 	const unsigned matOrder=npb-npbok;
 
 	MatrixASetup(np,npb,npbok,PPEDim,Nnz,rowInd,Divr,FreeSurface);
-  memset(colInd,PPEDim,sizeof(int)*Nnz);
+  memset(colInd,0,sizeof(int)*Nnz);
   memset(a,0,sizeof(double)*Nnz);
   //LHS
   PopulateMatrixACode0(true,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorrShiftPos,dWyCorrTensile,dWzCorr,Divr,a,rowInd,colInd,b,Idpc,Codec,FreeSurface,Gravity,RhopZero,MirrorPosc,matOrder,dt);//-Fluid-Fluid
