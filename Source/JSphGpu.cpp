@@ -863,7 +863,7 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
   //-Allocates memory.
   if(tinter==1){
 		dWxCorrg=ArraysGpu->ReserveDouble3();	cudaMemset(dWxCorrg,0,sizeof(double3)*np);
-		dWyCorrg=ArraysGpu->ReserveDouble3();	cudaMemset(dWyCorrg,0,sizeof(double)*np); 
+		dWyCorrg=ArraysGpu->ReserveDouble3();	cudaMemset(dWyCorrg,0,sizeof(double3)*np); 
 		dWzCorrg=ArraysGpu->ReserveDouble3(); cudaMemset(dWzCorrg,0,sizeof(double3)*np);
 		Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
 		cudaMemset(MLSg,0,sizeof(float4)*Npb);
