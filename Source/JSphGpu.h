@@ -240,7 +240,8 @@ protected:
   unsigned *counterGPU;
   unsigned *counterCPU;
 	
-  unsigned MatrixASetup(const unsigned ppedim,unsigned int *rowGpu);
+  unsigned MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,
+		const unsigned ppedim,unsigned int *rowGpu,const float *divr,const float freesurface);
 
   void Shift(double dt,const unsigned bsfluid);
 public:

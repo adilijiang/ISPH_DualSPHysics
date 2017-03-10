@@ -867,7 +867,7 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
 		dWzCorrg=ArraysGpu->ReserveDouble3(); cudaMemset(dWzCorrg,0,sizeof(double3)*np);
 		Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
 		cudaMemset(MLSg,0,sizeof(float4)*Npb);
-		cudaMemset(rowIndg,0,sizeof(int)*(np+1));
+		cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
 	}
 
 
@@ -1078,11 +1078,12 @@ void JSphGpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
 //===============================================================================
 ///Matrix storage
 //===============================================================================
-unsigned JSphGpu::MatrixASetup(const unsigned ppedim,unsigned int *row){
+unsigned JSphGpu::MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,
+		const unsigned ppedim,unsigned int *rowGpu,const float *divr,const float freesurface){
  
   cudaMemset(counterGPU, 0, sizeof(unsigned));
 
-  cusph::MatrixASetup(ppedim,row,counterGPU);
+  cusph::MatrixASetup(np,npb,npbok,ppedim,rowGpu,counterGPU,divr,freesurface);
 	
 	cudaMemcpy(counterCPU,counterGPU,sizeof(unsigned),cudaMemcpyDeviceToHost);
 

@@ -173,7 +173,7 @@ void MirrorBoundary(const unsigned bsbound,unsigned npbok
   ,const word *code,const unsigned *idp,double3 *mirror,unsigned *Physrelation);
 
 //# Kernels for particle matrix order
-void MatrixASetup(const unsigned ppedim,unsigned int*row,unsigned *nnz);
+void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim,unsigned int*row,unsigned *nnz,const float *divr,const float freesurface);
 
 //# Kernels for marking the freesurface
 void FreeSurfaceMark(const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,float *divr
@@ -190,9 +190,9 @@ void StorageCode1(TpCellMode cellmode,const unsigned bsbound,unsigned np,unsigne
 	,const double *posz,const unsigned *idp,const word *code,unsigned *row,const double3 *mirrorPos,const unsigned *mirrorCell);
 
 //# Kernels for Populating matrix A
-void PopulateMatrixA(TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
-	,const unsigned *dcell,tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *velrhop,double *matrixInd,double *matrixb
-  ,unsigned int *row,unsigned int *col,const unsigned *idp,const float *divr,const word *code,const float freesurface,const double3 *mirrorPos,const unsigned *mirrorCell,const float4 *mls);
+void PopulateMatrix(TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
+	,const unsigned *dcell,tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *velrhop,const double3 *dwxCorr,const double3 *dwyCorr,const double3 *dwzCorr,double *matrixInd,double *matrixb
+  ,unsigned int *row,unsigned int *col,const unsigned *idp,const float *divr,const word *code,const float freesurface,const double3 *mirrorPos,const unsigned *mirrorCell,const float4 *mls,const double dt);
 
 //# Kernels for Assigning Pressure
 void PressureAssign(const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
