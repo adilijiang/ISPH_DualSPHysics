@@ -1396,7 +1396,7 @@ void Interaction_ForcesDem(bool psimple,TpCellMode cellmode,unsigned bsize
 //------------------------------------------------------------------------------
 __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,double dt
   ,float shiftcoef,float freesurface,double coeftfs
-  ,float4 *velrhop,const float *divr,float3 *shiftpos,const double ShiftOffset,bool maxShift,float3 *sumtensile)
+  ,float4 *velrhop,const float *divr,float3 *shiftpos,const double ShiftOffset,const double FactorNormShift,bool maxShift,float3 *sumtensile)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
   if(p<n){
@@ -1450,15 +1450,14 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 	  float dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
 
     if(divrp1<freesurface){
-      rshiftpos.x=dcds*tang.x+dcdb*bitang.x;
-      rshiftpos.y=dcds*tang.y+dcdb*bitang.y;
-      rshiftpos.z=dcds*tang.z+dcdb*bitang.z;
+      rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x);
+      rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y);
+      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z);
     }
     else if(divrp1>=freesurface && divrp1<=freesurface+ShiftOffset){ 
-      double FactorShift=0.0;
-      rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*FactorShift);
-      rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*FactorShift);
-      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*FactorShift);
+      rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*FactorNormShift);
+      rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*FactorNormShift);
+      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*FactorNormShift);
     }
 
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
@@ -1483,12 +1482,12 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 //==============================================================================
 void RunShifting(const bool simulate2d,unsigned np,unsigned npb,double dt
   ,double shiftcoef,float freesurface,double coeftfs
-  ,float4 *velrhop,const float *divr,float3 *shiftpos,bool maxShift,float3 *sumtensile){
+  ,float4 *velrhop,const float *divr,float3 *shiftpos,bool maxShift,float3 *sumtensile,const double FactorNormShift){
   const unsigned npf=np-npb;
   const double ShiftOffset=0.2;
   if(npf){
     dim3 sgrid=GetGridSize(npf,SPHBSIZE);
-    KerRunShifting <<<sgrid,SPHBSIZE>>> (simulate2d,npf,npb,dt,shiftcoef,freesurface,coeftfs,velrhop,divr,shiftpos,ShiftOffset,maxShift,sumtensile);
+    KerRunShifting <<<sgrid,SPHBSIZE>>> (simulate2d,npf,npb,dt,shiftcoef,freesurface,coeftfs,velrhop,divr,shiftpos,ShiftOffset,FactorNormShift,maxShift,sumtensile);
   }
 }
 
@@ -3433,7 +3432,9 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesShifting1
       shiftpos[p1]=s;
       shiftposp1=make_float3(0,0,0);
       divr[p1]+=divrp1;
-			sumtensile[p1].x+=sumtensilep1.x; sumtensile[p1].y+=sumtensilep1.y; sumtensile[p1].z+=sumtensilep1.z;
+			s=sumtensile[p1];
+			s.x+=sumtensilep1.x; s.y+=sumtensilep1.y; s.z+=sumtensilep1.z;
+			sumtensile[p1]=s;
 			sumtensilep1=make_float3(0,0,0);
       divrp1=0;
     }
@@ -3463,8 +3464,10 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesShifting1
       s.x+=shiftposp1.x; s.y+=shiftposp1.y; s.z+=shiftposp1.z;
       shiftpos[p1]=s;
       divr[p1]+=divrp1;
-			sumtensile[p1].x+=sumtensilep1.x; sumtensile[p1].y+=sumtensilep1.y; sumtensile[p1].z+=sumtensilep1.z;
-    }
+			s=sumtensile[p1];
+			s.x+=sumtensilep1.x; s.y+=sumtensilep1.y; s.z+=sumtensilep1.z;
+			sumtensile[p1]=s;
+		}
   }
 }
 

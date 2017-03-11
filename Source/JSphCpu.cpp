@@ -2160,7 +2160,7 @@ void JSphCpu::PopulateMatrixACode0(const bool fluidp1,unsigned n,unsigned pinit,
 								index++;
 
 								//=====Divergence of velocity==========
-								if(p1>=int(Npb)){//if(!(p1<int(Npb)&&p2<int(Npb))){
+								if(p1>=int(Npb)){
 									float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
 							
 									const float temp_x=frx*dwx.x+fry*dwy.x+frz*dwz.x;
