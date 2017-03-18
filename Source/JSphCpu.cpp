@@ -691,7 +691,7 @@ void JSphCpu::MirrorDCell(unsigned npb,const word *code,const tdouble3 *mirrorPo
 	#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=0;p1<int(npb);p1++)if(CODE_GetTypeValue(code[p1])==1){
+  for(int p1=0;p1<int(npb);p1++)/*if(CODE_GetTypeValue(code[p1])==1)*/{
 		unsigned idp1=idpc[p1];
 		const tdouble3 ps=mirrorPos[idp1];
 		const double dx=ps.x-DomPosMin.x;
@@ -714,7 +714,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
     #pragma omp parallel for schedule (guided)
   #endif
   for(int p1=int(pinit);p1<pfin;p1++){
-		if(CODE_GetTypeValue(Codec[p1])==0){
+		/*if(CODE_GetTypeValue(Codec[p1])==0){
 			//-Obtain data of particle p1 / Obtiene datos de particula p1.
 			const tdouble3 posp1=pos[p1];
 			float divrp1=0.0;
@@ -753,7 +753,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 								dwxp1.x-=volume*frx*drx; dwxp1.y-=volume*frx*dry; dwxp1.z-=volume*frx*drz;
 								dwyp1.x-=volume*fry*drx; dwyp1.y-=volume*fry*dry; dwyp1.z-=volume*fry*drz;
 								dwzp1.x-=volume*frz*drx; dwzp1.y-=volume*frz*dry; dwzp1.z-=volume*frz*drz;
-								rowCount++;
+								if(fluid)rowCount++;
 							}
 						}
 					}
@@ -761,6 +761,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 			}
 
 			if(divrp1) divr[p1]=divrp1;
+
 			//divr[p1]=0.0;
 			if(dwxp1.x||dwxp1.y||dwxp1.z
 				||dwyp1.x||dwyp1.y||dwyp1.z
@@ -772,7 +773,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 			}
 			row[p1]=rowCount;
 		}
-		else{
+		else{*/
 			unsigned idp1=idp[p1];
 			tfloat3 Sum=TFloat3(0);
 			const tdouble3 posp1=mirrorPos[idp1];
@@ -824,7 +825,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 
 			divr[p1]=divrp1;
 			row[p1]=rowCount;
-
+			
 			if(TSlipCond==SLIPCOND_Slip){
 				tfloat3 NormDir=TFloat3(0),NormVel=TFloat3(0),TangDir=TFloat3(0),TangVel=TFloat3(0),BitangDir=TFloat3(0),BitangVel=TFloat3(0); 
 				NormDir.x=float(posp1.x-pos[p1].x);
@@ -872,7 +873,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 				velrhop[p1].z=2.0f*velrhop[p1].z-Sum.z;
 			}
 		}
-  }
+ // }
 }
 
 //==============================================================================
@@ -901,7 +902,7 @@ template<TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
 		tdouble3 dwxp1=TDouble3(0); tdouble3 dwyp1=TDouble3(0); tdouble3 dwzp1=TDouble3(0);
 		tfloat3 dwx=dwxcorr[p1]; tfloat3 dwy=dwycorr[p1]; tfloat3 dwz=dwzcorr[p1]; //  dwz.x   dwz.y   dwz.z
 		int rowCount=0;
-		float nearestBound=4.0f*float(Dp*Dp);
+		float nearestBound=float(Dp*Dp);
     //-Obtain data of particle p1 in case of floating objects / Obtiene datos de particula p1 en caso de existir floatings.
     /*bool ftp1=false;     //-Indicate if it is floating / Indica si es floating.
     float ftmassp1=1.f;  //-Contains floating particle mass or 1.0f if it is fluid / Contiene masa de particula floating o 1.0f si es fluid.
@@ -979,7 +980,8 @@ template<TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
               acep1.x+=temp*temp_x; acep1.y+=temp*temp_y; acep1.z+=temp*temp_z;
 
 							//See if fluid particles are close to boundary
-							if(CODE_GetTypeValue(code[p2])==1){
+							//if(CODE_GetTypeValue(code[p2])==1){
+							if(boundp2){
 								if(rr2<=nearestBound){
 									nearestBound=rr2;
 									row[p1]=p2;
@@ -1220,11 +1222,11 @@ template<TpFtMode ftmode> void JSphCpu::Interaction_ForcesT
 		if(tinter==1){
 			if(Simulate2D){
 				JSphCpu::InverseCorrection(npf,npb,dWxCorrShiftPos,dWzCorr,code);
-				JSphCpu::InverseCorrection(npbok,0,dWxCorrShiftPos,dWzCorr,code);
+			//	JSphCpu::InverseCorrection(npbok,0,dWxCorrShiftPos,dWzCorr,code);
 			}
 			else{
 				JSphCpu::InverseCorrection3D(npf,npb,dWxCorrShiftPos,dWyCorrTensile,dWzCorr,code);
-				JSphCpu::InverseCorrection3D(npbok,0,dWxCorrShiftPos,dWyCorrTensile,dWzCorr,code);
+				//JSphCpu::InverseCorrection3D(npbok,0,dWxCorrShiftPos,dWyCorrTensile,dWzCorr,code);
 			}
 		}
 
@@ -1502,6 +1504,7 @@ void JSphCpu::RunShifting(double dt){
     float divrp1=Divr[p];
 
     double umagn=-double(ShiftCoef)*double(H)*double(H);
+		//double umagn=-double(ShiftCoef)*double(H)*dt*sqrt(double(Velrhopc[p].x*Velrhopc[p].x+Velrhopc[p].z*Velrhopc[p].z));
 
  	  tfloat3 norm=TFloat3(-rshiftpos.x,-rshiftpos.y,-rshiftpos.z);
 	  tfloat3 tang=TFloat3(0);
@@ -1543,6 +1546,8 @@ void JSphCpu::RunShifting(double dt){
 	  float dcds=tang.x*rshiftpos.x+tang.z*rshiftpos.z+tang.y*rshiftpos.y;
 	  float dcdn=norm.x*rshiftpos.x+norm.z*rshiftpos.z+norm.y*rshiftpos.y;
 	  float dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
+
+		//FactorNormShift=-3*pow(double((Divr[p]-FreeSurface)/ShiftOffset),4.0)+4.0*pow(double((Divr[p]-FreeSurface)/ShiftOffset),3.0);
 
 		if(divrp1<FreeSurface){
 			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x);
@@ -1615,12 +1620,12 @@ void JSphCpu::MoveLinBound(unsigned np,unsigned ini,const tdouble3 &mvpos,const 
   const unsigned fin=ini+np;
   for(unsigned id=ini;id<fin;id++){
     const unsigned pid=RidpMove[id];
-		if(CODE_GetTypeValue(code[pid])==1){
+		//if(CODE_GetTypeValue(code[pid])==1){
 			unsigned idp1=idpc[pid];
 			mirrorPos[idp1].x+=mvpos.x;
 			mirrorPos[idp1].y+=mvpos.y;
 			mirrorPos[idp1].z+=mvpos.z;
-		}
+		//}
     if(pid!=UINT_MAX){
       UpdatePos(pos[pid],mvpos.x,mvpos.y,mvpos.z,false,pid,pos,dcell,code);
       velrhop[pid].x=mvvel.x;  velrhop[pid].y=mvvel.y;  velrhop[pid].z=mvvel.z;
@@ -1775,19 +1780,23 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 				Physrelation[idp1]=p2;
 			}
 		}
+		
+		mirrorPos[idp1].x=posp1.x;
+		mirrorPos[idp1].y=posp1.y;
+		mirrorPos[idp1].z=posp1.z;
 	}
 
 
 	#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=0;p1<int(npb);p1++)if(CODE_GetTypeValue(code[p1])==1&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
+  for(int p1=0;p1<int(npb);p1++)/*if(CODE_GetTypeValue(code[p1])==1&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC)*/{
 		const unsigned idp1=idpc[p1];
 		unsigned irelation=-1;
 		const tdouble3 posp1=pos[p1];	
 		float closestR=Fourh2;
 
-		bool secondPoint=false;
+		/*bool secondPoint=false;
 			int secondIrelation=-1;
 		for(int p2=0;p2<int(npb);p2++) if(CODE_GetTypeValue(code[p2])==0){
 			const float drx=float(posp1.x-pos[p2].x);
@@ -1806,9 +1815,9 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 					secondIrelation=-1;
 				}
 			}
-		}
+		}*/
 
-		if(irelation!=-1){
+	/*	if(irelation!=-1){
 			if(secondPoint){
 				//Firstpoint
 				unsigned mirrorpoint1=irelation;
@@ -1858,21 +1867,24 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 				mirrorPos[idp1].y=posp1.y+2*mirrorPos[idp1].y;
 				mirrorPos[idp1].z=posp1.z+2*mirrorPos[idp1].z;
 			}
-			else{
-				unsigned mirrorpoint=irelation;
-				const float drx=float(posp1.x-pos[mirrorpoint].x);
-				const float dry=float(posp1.y-pos[mirrorpoint].y);
-				const float drz=float(posp1.z-pos[mirrorpoint].z);
-				mirrorPos[idp1].x=pos[mirrorpoint].x-drx;
-				mirrorPos[idp1].y=pos[mirrorpoint].y-dry;
-				mirrorPos[idp1].z=pos[mirrorpoint].z-drz;
-			}
+			else{*/
+				tdouble3 mirrorpoint=TDouble3(0,0,posp1.z);
+
+				if(posp1.x <=0) mirrorpoint.x=0.5*Dp;
+				else mirrorpoint.x=2.0-0.5*Dp;
+				const float drx=float(posp1.x-mirrorpoint.x);
+				const float dry=float(posp1.y-mirrorpoint.y);
+				const float drz=float(posp1.z-mirrorpoint.z);
+				mirrorPos[idp1].x=mirrorpoint.x-drx;
+				mirrorPos[idp1].y=mirrorpoint.y-dry;
+				mirrorPos[idp1].z=mirrorpoint.z-drz;
+			/*}
 		}
 		else{
 			mirrorPos[idp1].x=posp1.x;
 			mirrorPos[idp1].y=posp1.y;
 			mirrorPos[idp1].z=posp1.z;
-		}
+		}*/
 	}
 }
 
@@ -1885,7 +1897,7 @@ void JSphCpu::MLSBoundary2D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==1&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
+  for(int p1=int(pinit);p1<pfin;p1++)/*if(CODE_GetTypeValue(code[p1])==1&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC)*/{
     const unsigned idp1=idpc[p1];
 		
 		//-Obtain data of particle p1 / Obtiene datos de particula p1.
@@ -2160,7 +2172,8 @@ void JSphCpu::PopulateMatrixACode0(const bool fluidp1,unsigned n,unsigned pinit,
 								index++;
 
 								//=====Divergence of velocity==========
-								if(p1>=int(Npb)){
+								//if(!(p1<int(Npb)&&p2<int(Npb))){
+								//if(p1>=int(Npb)){
 									float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
 							
 									const float temp_x=frx*dwx.x+fry*dwy.x+frz*dwz.x;
@@ -2168,7 +2181,7 @@ void JSphCpu::PopulateMatrixACode0(const bool fluidp1,unsigned n,unsigned pinit,
 									const float temp_z=frx*dwx.z+fry*dwy.z+frz*dwz.z;
 									const double tempDivU=double(dvx*temp_x+dvy*temp_y+dvz*temp_z);
 									divU-=double(volume*tempDivU);
-								}
+								//}
 
 								if(CODE_GetTypeValue(code[p2])==1){
 									double dist = mirrorPos[idpc[p2]].z-pos[p2].z;
@@ -2197,7 +2210,7 @@ void JSphCpu::PopulateMatrixACode1(unsigned n,unsigned pinit,tint4 nc,int hdiv,u
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetTypeValue(code[p1])==1&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
+  for(int p1=int(pinit);p1<pfin;p1++)/*if(CODE_GetTypeValue(code[p1])==1&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC)*/{
     const unsigned idp1=idpc[p1];
 
 		//-Obtain data of particle p1 / Obtiene datos de particula p1.
