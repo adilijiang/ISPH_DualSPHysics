@@ -153,7 +153,7 @@ protected:
     ,float &viscdt,tfloat3 *ace)const;
 
 	void Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
-  const tdouble3 *pos,tfloat4 *velrhop,const word *code,float *divr,tfloat3 *dwxcorr,tfloat3 *dwycorr,tfloat3 *dwzcorr,tdouble3 *mirrorPos,const unsigned *idp,const unsigned *mirrorCell,tfloat4 *mls,int *row)const;
+  const tdouble3 *pos,tfloat4 *velrhop,const word *code,float *divr,tdouble3 *mirrorPos,const unsigned *idp,const unsigned *mirrorCell,tfloat4 *mls,int *row)const;
 
 	void AssignPeriodic(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
   const tdouble3 *pos,const unsigned *idpc,const word *code,const unsigned *dCell)const;
@@ -233,11 +233,11 @@ protected:
   
 	void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim,unsigned &nnz,int *row,const float *divr,const float freeSurface)const;
   
-	void PopulateMatrixACode0(const bool fluidp1,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
+	void PopulateMatrixAFluid(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwycorr,tfloat3 *dwzcorr,float *divr,double *matrixInd,int *row,int *col,
   double *matrixb,const unsigned *idpc,const word *code,const float freesurface,tfloat3 gravity,const double rhoZero,const tdouble3 *mirrorPos,const unsigned matOrder,const double dt)const;
   
-	void PopulateMatrixACode1(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+	void PopulateMatrixABound(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
   const tdouble3 *pos,double *matrixInd,int *row,int *col,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,
 	const unsigned *mirrorCell,tfloat4 *mls)const;
 	
@@ -247,7 +247,7 @@ protected:
 	void PressureAssign(unsigned n,unsigned npbok,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idpc,double *matrixx,const word *code,
 		const unsigned npb,float *divr,tfloat3 gravity)const;
   
-	void FreeSurfaceMark(const bool fluidp1,unsigned n,unsigned pinit,float *divr,double *matrixInd,double *matrixb,int *row,const unsigned *idpc,const word *code,const float shiftoffset,const unsigned matOrder,const float freeSurface)const;
+	void FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,double *matrixInd,double *matrixb,int *row,const unsigned *idpc,const word *code,const float shiftoffset,const unsigned matOrder,const float freeSurface)const;
 
   void Interaction_Shifting(unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell

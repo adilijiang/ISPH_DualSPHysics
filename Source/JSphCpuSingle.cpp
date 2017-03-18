@@ -961,16 +961,14 @@ void JSphCpuSingle::SolvePPE(double dt){
   memset(colInd,0,sizeof(int)*Nnz);
   memset(a,0,sizeof(double)*Nnz);
   //LHS
-  PopulateMatrixACode0(true,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorrShiftPos,dWyCorrTensile,dWzCorr,Divr,a,rowInd,colInd,b,Idpc,Codec,FreeSurface,Gravity,RhopZero,MirrorPosc,matOrder,dt);//-Fluid-Fluid
-	//PopulateMatrixACode0(false,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorrShiftPos,dWyCorrTensile,dWzCorr,Divr,a,rowInd,colInd,b,Idpc,Codec,FreeSurface,Gravity,RhopZero,MirrorPosc,matOrder,dt);//-Fluid-Fluid
-	PopulateMatrixACode1(npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,MirrorPosc,MirrorCell,MLS);
+  PopulateMatrixAFluid(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorrShiftPos,dWyCorrTensile,dWzCorr,Divr,a,rowInd,colInd,b,Idpc,Codec,FreeSurface,Gravity,RhopZero,MirrorPosc,matOrder,dt);//-Fluid-Fluid
+	PopulateMatrixABound(npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,MirrorPosc,MirrorCell,MLS);
 
 	if(PeriActive){
 		PopulatePeriodic(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,Dcellc);
 		PopulatePeriodic(npbok,0,nc,hdiv,0,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,Dcellc);
 	}
-	FreeSurfaceMark(true,npf,npb,Divr,a,b,rowInd,Idpc,Codec,ShiftOffset,matOrder,FreeSurface);
-  //FreeSurfaceMark(false,npbok,0,Divr,a,b,rowInd,Idpc,Codec,ShiftOffset,matOrder,FreeSurface);
+	FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,Idpc,Codec,ShiftOffset,matOrder,FreeSurface);
 
 	/*ofstream FileOutput;
     string TimeFile;
