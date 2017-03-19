@@ -229,6 +229,8 @@ protected:
   
 	void MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code,unsigned *Physrelation)const;
 
+	void mirrorTwoPoints(const unsigned p1,unsigned &Physparticle,const unsigned secondIrelation,const tdouble3 posp1,const tdouble3 *pos,const unsigned npb)const;
+
   void solveMatrix();
   
 	void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim,unsigned &nnz,int *row,const float *divr,const float freeSurface)const;

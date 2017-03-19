@@ -764,6 +764,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 		}
 		
 		divr[p1]=divrp1;
+		if(Idpc[p1]==100) divr[p1]=0;
 		row[p1]=rowCount;
 			
 		if(TSlipCond==SLIPCOND_Slip){
@@ -1704,35 +1705,31 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 		double closestR=2.25*Fourh2;
 		unsigned Physparticle=Np;
 		Physrelation[p1]=Np;
+		bool secondPoint=false;
+		unsigned secondIrelation=Np;
 
 		for(int p2=0;p2<int(npb);p2++) if(CODE_GetTypeValue(code[p2])==0){
 			const double drx=posp1.x-pos[p2].x;
 			const double dry=posp1.y-pos[p2].y;
 			const double drz=posp1.z-pos[p2].z;
 			const double rr2=drx*drx+dry*dry+drz*drz;
-			if(rr2<closestR){
+			if(rr2==closestR){
+					secondPoint=true;
+					secondIrelation=p2;
+			}
+			else if(rr2<closestR){
 				closestR=rr2;
-				Physrelation[p1]=p2;
 				Physparticle=p2;
+				if(secondPoint){
+					secondPoint=false;
+					secondIrelation=-1;
+				}
 			}
 		}
 
 		if(Physparticle!=Np){
-			const double drx=posp1.x-pos[Physparticle].x;
-			const double dry=posp1.y-pos[Physparticle].y;
-			const double drz=posp1.z-pos[Physparticle].z;
-
-			double rr2=drx*drx+dry*dry+drz*drz;
-
-			unsigned idp2=Idpc[Physparticle];
-			Physrelation[Physparticle]+=1;
-
-			if(rr2){
-				rr2=sqrt(rr2);
-				mirrorPos[idp2].x-=drx/rr2;
-				if(!Simulate2D) mirrorPos[idp2].y-=dry/rr2;
-				mirrorPos[idp2].z-=drz/rr2;
-			}
+			if(secondPoint) mirrorTwoPoints(p1,Physparticle,secondIrelation,posp1,pos,npb);
+			Physrelation[p1]=Physparticle;
 		}
 	}
 
@@ -1741,14 +1738,67 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
   #endif
   for(int p1=0;p1<int(npb);p1++)if(CODE_GetTypeValue(code[p1])==0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
 		const unsigned idp1=idpc[p1];
-		const tdouble3 posp1=pos[p1];	
-		tdouble3 NormDir=TDouble3(mirrorPos[idp1].x,mirrorPos[idp1].y,mirrorPos[idp1].z); 
-		unsigned count=Physrelation[p1];
+		const tdouble3 posp1=pos[p1];
+		tdouble3 NormDir=TDouble3(0);
+		unsigned count=0;
 
-		NormDir.x=NormDir.x/double(count); NormDir.y=NormDir.y/double(count); NormDir.z=NormDir.z/double(count);
+		for(int p2=0;p2<int(npb);p2++) if(CODE_GetTypeValue(code[p2])!=0){
+			if(Physrelation[p2]==p1){
+				const double drx=posp1.x-pos[p2].x;
+				const double dry=posp1.y-pos[p2].y;
+				const double drz=posp1.z-pos[p2].z;
+				double rr2=drx*drx+dry*dry+drz*drz;
+		
+				rr2=sqrt(rr2);
+				NormDir.x+=drx/rr2;
+				if(!Simulate2D) NormDir.y+=dry/rr2;
+				NormDir.z+=drz/rr2;
+			}
+		}
 
 		double MagNorm=NormDir.x*NormDir.x+NormDir.y*NormDir.y+NormDir.z*NormDir.z;
 		if(MagNorm){MagNorm=sqrt(MagNorm); NormDir.x=NormDir.x/MagNorm; NormDir.y=NormDir.y/MagNorm; NormDir.z=NormDir.z/MagNorm;}
+
+		//Scale Norm to dp in each direction.
+		double largestDir=abs(NormDir.x);
+		if(abs(NormDir.y)>largestDir)largestDir=abs(NormDir.y);
+		if(abs(NormDir.z)>largestDir)largestDir=abs(NormDir.z);
+
+		if(largestDir){
+			NormDir.x=NormDir.x/largestDir;
+			NormDir.y=NormDir.y/largestDir;
+			NormDir.z=NormDir.z/largestDir;
+		}
+		else{
+			double closestR=2.25*Fourh2;
+			unsigned closestp;
+			for(int p2=0;p2<int(npb);p2++) if(CODE_GetTypeValue(code[p2])!=0){
+				const double drx=posp1.x-pos[p2].x;
+				const double dry=posp1.y-pos[p2].y;
+				const double drz=posp1.z-pos[p2].z;
+				const double rr2=drx*drx+dry*dry+drz*drz;
+				if(rr2<closestR){
+					closestR=rr2;
+					closestp=p2;
+				}
+			}
+
+			const double drx=posp1.x-pos[closestp].x;
+			const double dry=posp1.y-pos[closestp].y;
+			const double drz=posp1.z-pos[closestp].z;
+			const double rr2=drx*drx+dry*dry+drz*drz;
+
+			NormDir.x=drx/rr2; NormDir.y=dry/rr2; NormDir.z=drz/rr2;
+
+			//Scale Norm to dp in each direction.
+			double largestDir=abs(NormDir.x);
+			if(abs(NormDir.y)>largestDir)largestDir=abs(NormDir.y);
+			if(abs(NormDir.z)>largestDir)largestDir=abs(NormDir.z);
+			
+			NormDir.x=NormDir.x/largestDir;
+			NormDir.y=NormDir.y/largestDir;
+			NormDir.z=NormDir.z/largestDir;
+		}
 
 		mirrorPos[idp1].x=posp1.x+0.5*Dp*NormDir.x;
 		if(!Simulate2D) mirrorPos[idp1].y=posp1.y+0.5*Dp*NormDir.y;
@@ -1765,7 +1815,7 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 		const unsigned Physparticle=Physrelation[p1];
 		const unsigned mirIdp1=Idpc[Physparticle];
 		const tdouble3 mirrorPoint=TDouble3(mirrorPos[mirIdp1].x,mirrorPos[mirIdp1].y,mirrorPos[mirIdp1].z);
-		
+
 		if(Physparticle!=Np){
 			mirrorPos[idp1].x=2.0*mirrorPoint.x-posp1.x;
 			mirrorPos[idp1].y=2.0*mirrorPoint.y-posp1.y;
@@ -1787,107 +1837,35 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 		const unsigned Physparticle=Physrelation[p1];
 		const unsigned mirIdp1=Idpc[Physparticle];
 		const tdouble3 mirrorPoint=TDouble3(mirrorPos[mirIdp1].x,mirrorPos[mirIdp1].y,mirrorPos[mirIdp1].z);
-		
-		if(Physparticle!=Np){
-			mirrorPos[idp1].x=2.0*mirrorPoint.x-posp1.x;
-			mirrorPos[idp1].y=2.0*mirrorPoint.y-posp1.y;
-			mirrorPos[idp1].z=2.0*mirrorPoint.z-posp1.z;
-		}
-		else{
-			mirrorPos[idp1].x=mirrorPos[idp1].x;
-			mirrorPos[idp1].y=mirrorPos[idp1].y;
-			mirrorPos[idp1].z=mirrorPos[idp1].z;
-		}
+
+		mirrorPos[idp1].x=2.0*mirrorPoint.x-posp1.x;
+		mirrorPos[idp1].y=2.0*mirrorPoint.y-posp1.y;
+		mirrorPos[idp1].z=2.0*mirrorPoint.z-posp1.z;
 	}
-		/*bool secondPoint=false;
-			int secondIrelation=-1;
-		for(int p2=0;p2<int(npb);p2++) if(CODE_GetTypeValue(code[p2])==0){
-			const float drx=float(posp1.x-pos[p2].x);
-			const float dry=float(posp1.y-pos[p2].y);
-			const float drz=float(posp1.z-pos[p2].z);
-			const float rr2=drx*drx+dry*dry+drz*drz;
-			if(rr2==closestR){
-					secondPoint=true;
-					secondIrelation=p2;
-			}
-			else if(rr2<closestR){
-				closestR=rr2;
-				irelation=p2;
-				if(secondPoint){
-					secondPoint=false;
-					secondIrelation=-1;
-				}
-			}
-		}*/
+}
 
-	/*	if(irelation!=-1){
-			if(secondPoint){
-				//Firstpoint
-				tdouble3 mirrorpoint=TDouble3(0,0,posp1.z);
+void JSphCpu::mirrorTwoPoints(const unsigned p1,unsigned &Physparticle,const unsigned secondIrelation,const tdouble3 posp1,const tdouble3 *pos,const unsigned npb)const{
+	const double drx1=posp1.x-pos[Physparticle].x;
+	const double dry1=posp1.y-pos[Physparticle].y;
+	const double drz1=posp1.z-pos[Physparticle].z;
+	const double drx2=posp1.x-pos[secondIrelation].x;
+	const double dry2=posp1.y-pos[secondIrelation].y;
+	const double drz2=posp1.z-pos[secondIrelation].z;
 
-				if(posp1.x <=0) mirrorpoint.x=0.5*Dp;
-				else mirrorpoint.x=2.0-0.5*Dp;
-				const float drx=float(posp1.x-mirrorpoint.x);
-				const float dry=float(posp1.y-mirrorpoint.y);
-				const float drz=float(posp1.z-mirrorpoint.z);
-				mirrorPos[idp1].x=mirrorpoint.x-drx;
-				mirrorPos[idp1].y=mirrorpoint.y-dry;
-				mirrorPos[idp1].z=mirrorpoint.z-drz;
-			/*}
-		}
-		else{
-			mirrorPos[idp1].x=posp1.x;
-			mirrorPos[idp1].y=posp1.y;
-			mirrorPos[idp1].z=posp1.z;
-		}*/
+	tdouble3 searchPoint=TDouble3(0);
+	searchPoint.x=posp1.x-(drx1+drx2);
+	searchPoint.y=posp1.y-(dry1+dry2);
+	searchPoint.z=posp1.z-(drz1+drz2);
 
-			
-				/*unsigned mirrorpoint1=irelation;
-				unsigned secondmirror1=Physrelation[idpc[mirrorpoint1]];
-				float drx=float(pos[secondmirror1].x-pos[mirrorpoint1].x);
-				float dry=float(pos[secondmirror1].y-pos[mirrorpoint1].y);
-				float drz=float(pos[secondmirror1].z-pos[mirrorpoint1].z);
-				float rr2=drx*drx+dry*dry+drz*drz;
-			
-				float drxpoint=float(pos[mirrorpoint1].x-posp1.x);
-				float drypoint=float(pos[mirrorpoint1].y-posp1.y);
-				float drzpoint=float(pos[mirrorpoint1].z-posp1.z);
-				float magnitude=sqrtf(drxpoint*drxpoint+drypoint*drypoint+drzpoint*drzpoint);
-				float directionx=0;
-				float directiony=0;
-				float directionz=0;
-				if(drxpoint)directionx=drxpoint/fabs(drxpoint);
-				if(drypoint)directiony=drypoint/fabs(drypoint);
-				if(drzpoint)directionz=drzpoint/fabs(drzpoint);
-				mirrorPos[idp1].x=magnitude*(abs(drz)/sqrtf(rr2))*directionx;
-				mirrorPos[idp1].y=magnitude*(abs(dry)/sqrtf(rr2))*directiony;
-				mirrorPos[idp1].z=magnitude*(abs(drx)/sqrtf(rr2))*directionz;
+	for(int i=0;i<int(npb);i++) {
+		const double drx=searchPoint.x-pos[i].x;
+		const double dry=searchPoint.y-pos[i].y;
+		const double drz=searchPoint.z-pos[i].z;
 
-				//Secondpoint
-				unsigned mirrorpoint2=secondIrelation;
-				unsigned secondmirror2=Physrelation[idpc[mirrorpoint2]];
-				drx=float(pos[secondmirror2].x-pos[mirrorpoint2].x);
-				dry=float(pos[secondmirror2].y-pos[mirrorpoint2].y);
-				drz=float(pos[secondmirror2].z-pos[mirrorpoint2].z);
-				rr2=drx*drx+dry*dry+drz*drz;
-			
-				drxpoint=float(pos[mirrorpoint2].x-posp1.x);
-				drypoint=float(pos[mirrorpoint2].y-posp1.y);
-				drzpoint=float(pos[mirrorpoint2].z-posp1.z);
-				magnitude=sqrtf(drxpoint*drxpoint+drypoint*drypoint+drzpoint*drzpoint);
-				directionx=0;
-				directiony=0;
-				directionz=0;
-				if(drxpoint)directionx=drxpoint/fabs(drxpoint);
-				if(drypoint)directiony=drypoint/fabs(drypoint);
-				if(drzpoint)directionz=drzpoint/fabs(drzpoint);
-				mirrorPos[idp1].x+=magnitude*(abs(drz)/sqrtf(rr2))*directionx;
-				mirrorPos[idp1].y+=magnitude*(abs(dry)/sqrtf(rr2))*directiony;
-				mirrorPos[idp1].z+=magnitude*(abs(drx)/sqrtf(rr2))*directionz;
+		double rr2=drx*drx+dry*dry+drz*drz;
+		if(rr2<=ALMOSTZERO) Physparticle=i;
+	}
 
-				mirrorPos[idp1].x=posp1.x+2*mirrorPos[idp1].x;
-				mirrorPos[idp1].y=posp1.y+2*mirrorPos[idp1].y;
-				mirrorPos[idp1].z=posp1.z+2*mirrorPos[idp1].z;*/
 }
 
 void JSphCpu::MLSBoundary2D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
@@ -2431,6 +2409,7 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
 		}
 
     viennacl::linalg::bicgstab_tag bicgstab(tolerance,iterations);
+
 		if(viennacl::linalg::norm_2(vcl_vec)){
 			if(tprecond==PRECOND_Jacobi){
 				Log->Printf("JACOBI PRECOND");
