@@ -540,8 +540,6 @@ void JSphCpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
   //-Initialize Arrays / Inicializa arrays.
   const unsigned npf=np-npb;
   //if(Deltac)memset(Deltac,0,sizeof(float)*np);                       //Deltac[]=0
- 
-  memset(Acec,0,sizeof(tfloat3)*np);
 
   //-Apply the extra forces to the correct particle sets.
   if(AccInput)AddAccInput();
@@ -614,7 +612,6 @@ void JSphCpu::PosInteraction_Forces(TpInter tinter){
   //-Free memory assinged in PreInteraction_Forces() / Libera memoria asignada en PreInteraction_Forces().
   ArraysCpu->Free(Acec);         Acec=NULL;
   if(tinter==2){
-	  ArraysCpu->Free(Divr);		 Divr=NULL;
 	  ArraysCpu->Free(dWxCorrShiftPos);	 dWxCorrShiftPos=NULL;
     ArraysCpu->Free(dWyCorrTensile);	 dWyCorrTensile=NULL;
 	  ArraysCpu->Free(dWzCorr);	 dWzCorr=NULL;
@@ -1159,14 +1156,8 @@ template<TpFtMode ftmode> void JSphCpu::Interaction_ForcesT
     //-Interaction of DEM Floating-Bound & Floating-Floating / Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
     //if(USE_DEM)InteractionForcesDEM<psimple> (CaseNfloat,nc,hdiv,cellfluid,begincell,cellzero,dcell,FtRidp,DemObjs,pos,pspos,velrhop,code,idp,viscdt,ace);
 		if(tinter==1){
-			if(Simulate2D){
-				JSphCpu::InverseCorrection(npf,npb,dWxCorrShiftPos,dWzCorr,code);
-			//	JSphCpu::InverseCorrection(npbok,0,dWxCorrShiftPos,dWzCorr,code);
-			}
-			else{
-				JSphCpu::InverseCorrection3D(npf,npb,dWxCorrShiftPos,dWyCorrTensile,dWzCorr,code);
-				//JSphCpu::InverseCorrection3D(npbok,0,dWxCorrShiftPos,dWyCorrTensile,dWzCorr,code);
-			}
+			if(Simulate2D) JSphCpu::InverseCorrection(npf,npb,dWxCorrShiftPos,dWzCorr,code);
+			else JSphCpu::InverseCorrection3D(npf,npb,dWxCorrShiftPos,dWyCorrTensile,dWzCorr,code);
 		}
 
 		if(PeriActive){
@@ -1303,7 +1294,7 @@ template<bool shift> void JSphCpu::ComputeSymplecticPreT(double dt){
       }
       bool outrhop=(rhopnew<RhopOutMin||rhopnew>RhopOutMax);
       UpdatePos(PosPrec[p],dx,dy,dz,outrhop,p,Posc,Dcellc,Codec);*/
-      //-Update velocity & density / Actualiza velocidad y densidad.
+      //-Update velocity
       Velrhopc[p].x=float(double(VelrhopPrec[p].x)+double(Acec[p].x)* dt);
       Velrhopc[p].y=float(double(VelrhopPrec[p].y)+double(Acec[p].y)* dt);
       Velrhopc[p].z=float(double(VelrhopPrec[p].z)+double(Acec[p].z)* dt);
@@ -2199,7 +2190,7 @@ void JSphCpu::PopulateMatrixABound(unsigned n,unsigned pinit,tint4 nc,int hdiv,u
 		col[diag]=oi;
 		unsigned index=diag+1;
 	  if(row[oi+1]-row[oi]>1){  
-
+			matrixInd[diag]=1.0;
       //FLUID INTERACTION
       //-Obtain interaction limits / Obtiene limites de interaccion
       int cxini,cxfin,yini,yfin,zini,zfin;
@@ -2235,7 +2226,6 @@ void JSphCpu::PopulateMatrixABound(unsigned n,unsigned pinit,tint4 nc,int hdiv,u
 							float temp=(mlsp1.w+mlsp1.x*drx+mlsp1.y*dry+mlsp1.z*drz)*W;
 							matrixInd[index]=double(-temp*volume);
               col[index]=oj;
-			        matrixInd[diag]=1.0;
 							index++;
 		        }  
           }	

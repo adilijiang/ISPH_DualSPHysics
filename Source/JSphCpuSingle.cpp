@@ -485,9 +485,9 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
 	}
 	
   //-Assign memory / Asigna memoria.
-  Acec=ArraysCpu->ReserveFloat3();
+  Acec=ArraysCpu->ReserveFloat3(); memset(Acec,0,sizeof(tfloat3)*np);
 	//-Initialize Arrays / Inicializa arrays.
-  PreInteractionVars_Forces(tinter,np,npb);
+  //PreInteractionVars_Forces(tinter,np,npb);
   TmcStart(Timers,TMC_CfForces);
 	
   //-Interaction of Fluid-Fluid/Bound & Bound-Fluid (forces and DEM) / Interaccion Fluid-Fluid/Bound & Bound-Fluid (forces and DEM).
@@ -519,9 +519,9 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
   }*/
 
   //-Calculates maximum value of ViscDt.
-  ViscDtMax=viscdt;
+  //ViscDtMax=viscdt;
   //-Calculates maximum value of Ace.
-  AceMax=ComputeAceMaxOmp(PeriActive!=0,Np-Npb,Acec+Npb,Codec+Npb);
+  //AceMax=ComputeAceMaxOmp(PeriActive!=0,Np-Npb,Acec+Npb,Codec+Npb);
   TmcStop(Timers,TMC_CfForces);
 }
 
@@ -600,26 +600,19 @@ double JSphCpuSingle::ComputeStep_Sym(){
   RunCellDivide(true);
 	if(CaseNmoving)JSphCpu::MirrorDCell(Npb,Codec,MirrorPosc,MirrorCell,Idpc);
   Interaction_Forces(INTER_Forces,TSlipCond);      //-Interaction / Interaccion
-  //const double ddt_p=DtVariable(false);   //-Calculate dt of predictor step / Calcula dt del predictor
-  //if(TShifting)RunShifting(dt*.5);        //-Shifting
   ComputeSymplecticPre(dt);               //-Apply Symplectic-Predictor to particles / Aplica Symplectic-Predictor a las particulas
-  //if(CaseNfloat)RunFloating(dt*.5,true);  //-Control of floating bodies / Gestion de floating bodies
   PosInteraction_Forces(INTER_Forces);          //-Free memory used for interaction / Libera memoria de interaccion
   //-Pressure Poisson equation
   //-----------
   SolvePPE(dt); //-Solve pressure Poisson equation
   //-Corrector
   //-----------
-  //DemDtForce=dt;                          //(DEM)
-  PreInteraction_Forces(INTER_ForcesCorr);
   Interaction_Forces(INTER_ForcesCorr,TSlipCond);   //Interaction / Interaccion
-  //const double ddt_c=DtVariable(true);    //-Calculate dt of corrector step / Calcula dt del corrector
   ComputeSymplecticCorr(dt);              //-Apply Symplectic-Corrector to particles / Aplica Symplectic-Corrector a las particulas
-  //if(CaseNfloat)RunFloating(dt,false);    //-Control of floating bodies / Gestion de floating bodies
-  //for(int i=0;i<Np;i++)Velrhopc[i].w=Divr[i];
 	PosInteraction_Forces(INTER_ForcesCorr);             //-Free memory used for interaction / Libera memoria de interaccion
-  if(TShifting)RunShifting(dt);           //-Shifting
-  // DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep
+	//-Shifting
+	//-----------
+	if(TShifting)RunShifting(dt);           
   return(dt);
 }
 
@@ -835,12 +828,9 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 	JSphCpu::MirrorBoundary(Npb,Posc,Idpc,MirrorPosc,Codec,MirrorCell);  
 	JSphCpu::MirrorDCell(Npb,Codec,MirrorPosc,MirrorCell,Idpc);
   while(TimeStep<TimeMax){
-    //if(ViscoTime)Visco=ViscoTime->GetVisco(float(TimeStep));
-
 		if(CaseNmoving)RunMotion(DtPre);
     double stepdt=ComputeStep_Sym();
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
-    
     TimeStep+=stepdt;
     partoutstop=(Np<NpMinimum || !Np);
     if(TimeStep>=TimePartNext || partoutstop){
@@ -1002,6 +992,7 @@ void JSphCpuSingle::SolvePPE(double dt){
   
 	PressureAssign(np,npbok,Posc,Velrhopc,Idpc,x,Codec,npb,Divr,Gravity);
 	
+	ArraysCpu->Free(Divr);	 Divr=NULL;
   ArraysCpu->Free(b);      b=NULL;
   ArraysCpu->Free(x);      x=NULL;
 }
@@ -1017,12 +1008,9 @@ void JSphCpuSingle::RunShifting(double dt){
   PosPrec=ArraysCpu->ReserveDouble3();
   VelrhopPrec=ArraysCpu->ReserveFloat4();
 
-  ShiftPosc=ArraysCpu->ReserveFloat3();
-	SumTensile=ArraysCpu->ReserveFloat3();
-  Divr=ArraysCpu->ReserveFloat();
-  memset(ShiftPosc,0,sizeof(tfloat3)*np);               //ShiftPosc[]=0
-  memset(Divr,0,sizeof(float)*np);           //Divr[]=0   
-	memset(SumTensile,0,sizeof(tfloat3)*np);
+  ShiftPosc=ArraysCpu->ReserveFloat3();		memset(ShiftPosc,0,sizeof(tfloat3)*np);
+	SumTensile=ArraysCpu->ReserveFloat3();	memset(SumTensile,0,sizeof(tfloat3)*np);
+	Divr=ArraysCpu->ReserveFloat();					memset(Divr,0,sizeof(float)*np);	
 
   #ifdef _WITHOMP
       #pragma omp parallel for schedule (static)
@@ -1048,9 +1036,9 @@ void JSphCpuSingle::RunShifting(double dt){
 
   Shift(dt);
 
-  ArraysCpu->Free(PosPrec);      PosPrec=NULL;
-  ArraysCpu->Free(ShiftPosc);    ShiftPosc=NULL;
-  ArraysCpu->Free(Divr); Divr=NULL;
+  ArraysCpu->Free(PosPrec);			PosPrec=NULL;
+  ArraysCpu->Free(VelrhopPrec);	VelrhopPrec=NULL;
+	ArraysCpu->Free(ShiftPosc);   ShiftPosc=NULL;
 	ArraysCpu->Free(SumTensile);	SumTensile=NULL;
-  ArraysCpu->Free(VelrhopPrec);  VelrhopPrec=NULL;
+	ArraysCpu->Free(Divr);				Divr=NULL;
 }

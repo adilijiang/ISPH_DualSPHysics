@@ -847,7 +847,7 @@ void JSphGpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
   //-Inicializa arrays.
   //-Initialises arrays.
   const unsigned npf=np-npb;
-  cudaMemset(Aceg,0,sizeof(tfloat3)*np);
+  
   //-Apply the extra forces to the correct particle sets.
   if(AccInput)AddAccInput();
 }
@@ -872,11 +872,11 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
 	else cusph::ResetrowIndg(np+1,rowIndg,Npb);
 
 
-	Aceg=ArraysGpu->ReserveFloat3();
+	Aceg=ArraysGpu->ReserveFloat3(); cudaMemset(Aceg,0,sizeof(tfloat3)*np);
 
   //-Inicializa arrays.
   //-Initialises arrays.
-  PreInteractionVars_Forces(tinter,Np,Npb);
+  //PreInteractionVars_Forces(tinter,Np,Npb);
 
   //-Calcula VelMax: Se incluyen las particulas floatings y no afecta el uso de condiciones periodicas.
   //-Computes VelMax: Includes the particles from floating bodies and does not affect the periodic conditions.
@@ -914,19 +914,11 @@ void JSphGpu::PosInteraction_Forces(TpInter tinter){
 //==============================================================================
 void JSphGpu::ComputeSymplecticPre(double dt){
   TmgStart(Timers,TMG_SuComputeStep);
-  //-Asigna memoria para calcular el desplazamiento.
   //-Allocate memory to compute the diplacement
   double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*Np);
   double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*Np);
-  //-Calcula desplazamiento, velocidad y densidad.
-  //-Compute displacement, velocity and density.
-  //const double dt05=dt*.5;
+	//-Update velocity
   cusph::ComputeStepSymplecticPre(WithFloating,Np,Npb,VelrhopPreg,Aceg,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velrhopg);
-  //-Aplica desplazamiento a las particulas fluid no periodicas.
-  //-Applies displacement to non-periodic fluid particles.
-  cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
-  //-Libera memoria asignada al desplazamiento.
-  //-Releases memory allocated for the displacement
   ArraysGpu->Free(movxyg);   movxyg=NULL;
   ArraysGpu->Free(movzg);    movzg=NULL;
   TmgStop(Timers,TMG_SuComputeStep);

@@ -132,13 +132,11 @@ __global__ void KerMirrorDCell(unsigned npb,const word *code,const unsigned *idp
 	unsigned *mirrorCell,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode){
 	unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
-		if(CODE_GetTypeValue(code[p1])==1){
-			const unsigned idp=idpg[p1];
-			const double3 ps=mirrorPos[idp];
-			unsigned mcell;
-			KerMirrorDCellSort(ps,idp,domrealposmin,domrealposmax,domposmin,scell,domcellcode,mcell);
-			mirrorCell[idp]=mcell;
-		}
+		const unsigned idp=idpg[p1];
+		const double3 ps=mirrorPos[idp];
+		unsigned mcell;
+		KerMirrorDCellSort(ps,idp,domrealposmin,domrealposmax,domposmin,scell,domcellcode,mcell);
+		mirrorCell[idp]=mcell;
 	}
 }
 

@@ -478,18 +478,17 @@ double JSphGpuSingle::ComputeStep_Sym(){
 	if(CaseNmoving)CellDivSingle->MirrorDCellSingle(BlockSizes.forcesbound,Npb,Codeg,Idpg,MirrorPosg,MirrorCellg,DomRealPosMin,DomRealPosMax,DomPosMin,Scell,DomCellCode);
 	Interaction_Forces(INTER_Forces,dt);        //-Interaction
 	ComputeSymplecticPre(dt);                   //-Applies Symplectic-Predictor to the particles
-	//if(CaseNfloat)RunFloating(dt*.5,true);    //-Management of the floating bodies
   PosInteraction_Forces(INTER_Forces);        //-Releases memory of the interaction
 	//-Pressure Poisson equation
   //-----------
 	SolvePPE(dt);                               //-Solve pressure Poisson equation
   //-Corrector
   //-----------
-  //DemDtForce=dt;                            //(DEM)
   Interaction_Forces(INTER_ForcesCorr,dt);    //-Interaccion //-interaction
   ComputeSymplecticCorr(dt);                  //Applies Symplectic-Corrector to the particles
-  //if(CaseNfloat)RunFloating(dt,false);      //-Management of the floating bodies
   PosInteraction_Forces(INTER_ForcesCorr);    //-Releases memory of the interaction
+	//-Shifting
+	//-----------
   if(TShifting)RunShifting(dt);               //-Shifting
   return(dt);
 }
@@ -560,6 +559,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   TimerPart.Start();
   Log->Print(string("\n[Initialising simulation (")+RunCode+")  "+fun::GetDateTime()+"]");
   PrintHeadPart();
+	cudaMemset(MirrorPosg,0,sizeof(double3)*Npb);
 	MirrorBoundary();
 	CellDivSingle->MirrorDCellSingle(BlockSizes.forcesbound,Npb,Codeg,Idpg,MirrorPosg,MirrorCellg,DomRealPosMin,DomRealPosMax,DomPosMin,Scell,DomCellCode);
   while(TimeStep<TimeMax){
@@ -771,7 +771,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   const unsigned bsbound=BlockSizes.forcesbound;
   const unsigned bsfluid=BlockSizes.forcesfluid;
 
-  //Create matrix
+	//Create matrix
   bg=ArraysGpu->ReserveDouble(); cudaMemset(bg,0,sizeof(double)*PPEDim);
 	Xg=ArraysGpu->ReserveDouble(); cudaMemset(Xg,0,sizeof(double)*PPEDim);
 
@@ -779,15 +779,17 @@ void JSphGpuSingle::SolvePPE(double dt){
   unsigned Nnz=MatrixASetup(np,npb,npbok,PPEDim,rowIndg,Divrg,FreeSurface);	
 	CheckCudaError(met,"Nnz");
   TmgStop(Timers,TMG_Nnz);
-  cudaMemset(ag,0,sizeof(double)*Nnz);
-  cusph::InitArrayCol(Nnz,colIndg,int(PPEDim));
+  cudaMemset(colIndg,0,sizeof(int)*Nnz);
+	cudaMemset(ag,0,sizeof(double)*Nnz);
 
   cusph::PopulateMatrix(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,ag,bg,rowIndg,colIndg,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLSg,dt);
+	
 	/*unsigned *rowInd=new unsigned[PPEDim]; cudaMemcpy(rowInd,rowIndg,sizeof(unsigned)*PPEDim,cudaMemcpyDeviceToHost);
 	unsigned *colInd=new unsigned[Nnz]; cudaMemcpy(colInd,colIndg,sizeof(unsigned)*Nnz,cudaMemcpyDeviceToHost);
 	double *b=new double[PPEDim]; cudaMemcpy(b,bg,sizeof(double)*PPEDim,cudaMemcpyDeviceToHost);
 	double *a=new double[Nnz]; cudaMemcpy(a,ag,sizeof(double)*Nnz,cudaMemcpyDeviceToHost);
 	unsigned *Idpc=new unsigned[Np]; cudaMemcpy(Idpc,Idpg,sizeof(unsigned)*Np,cudaMemcpyDeviceToHost);
+
 		ofstream FileOutput;
     string TimeFile;
 		unsigned count=1;
@@ -853,13 +855,10 @@ void JSphGpuSingle::RunShifting(double dt){
   PoszPreg=ArraysGpu->ReserveDouble();
   VelrhopPreg=ArraysGpu->ReserveFloat4();
 
-  ShiftPosg=ArraysGpu->ReserveFloat3();
-	SumTensileg=ArraysGpu->ReserveFloat3();
-  Divrg=ArraysGpu->ReserveFloat();
-  cudaMemset(ShiftPosg,0,sizeof(float3)*np);       //ShiftPosg[]=0
-	cudaMemset(SumTensileg,0,sizeof(float3)*np);       //SumTensile[]=0
-  cudaMemset(Divrg,0,sizeof(float)*np);        //Divrg[]=0
-
+  ShiftPosg=ArraysGpu->ReserveFloat3();		cudaMemset(ShiftPosg,0,sizeof(float3)*np);
+	SumTensileg=ArraysGpu->ReserveFloat3(); cudaMemset(SumTensileg,0,sizeof(float3)*np);
+	Divrg=ArraysGpu->ReserveFloat();				cudaMemset(Divrg,0,sizeof(float)*np);
+  
   //-Cambia datos a variables Pre para calcular nuevos datos.
   //-Changes data of predictor variables for calculating the new data
   cudaMemcpy(PosxyPreg,Posxyg,sizeof(double2)*np,cudaMemcpyDeviceToDevice);     //Es decir... PosxyPre[] <= Posxy[] //i.e. PosxyPre[] <= Posxy[]
