@@ -2017,8 +2017,7 @@ void JSphCpu::InverseCorrection(unsigned n, unsigned pinit, tfloat3 *dwxcorr,tfl
 
 	  const double det=1.0/(dwx.x*dwz.z-dwz.x*dwx.z);
 	
-      if(det){
-	    const double temp=dwxcorr[p1].x;
+    if(det){
       dwxcorr[p1].x=float(dwz.z*det);
 	    dwxcorr[p1].z=-float(dwx.z*det); 
 	    dwzcorr[p1].x=-float(dwz.x*det);

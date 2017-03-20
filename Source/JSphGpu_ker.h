@@ -101,7 +101,7 @@ void Interaction_Forces(bool floating,bool usedem,TpSlipCond tslipcond,TpCellMod
   ,float viscob,float viscof,unsigned bsbound,unsigned bsfluid
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg
+  ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,float3 *dwxcorrg,float3 *dwycorrg,float3 *dwzcorrg
   ,const float *ftomassp,float3 *ace,bool simulate2d,float *divr,const double3 *mirrorPos,const unsigned *mirrorCell,float4 *mls,unsigned *row,StKerInfo *kerinfo,JBlockSizeAuto *bsauto);
 
 //# Kernels para calculo de fuerzas DEM
@@ -181,19 +181,9 @@ void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,cons
 void FreeSurfaceMark(const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,float *divr
   ,double *matrixInd,double *matrixb,unsigned int *row,const word *code,const double pi,const float freesurface,const float shiftoffset);
 
-//# Kernels for Populating matrix B
-void RHSandLHSStorage(TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb
-	,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin,const unsigned *dcell,const double2 *posxy
-	,const double *posz,const float4 *velrhop,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg,double *matrixb
-  ,const unsigned *idp,const double dt,const float *divr,const word *code,const float freesurface,unsigned *row);
-
-void StorageCode1(TpCellMode cellmode,const unsigned bsbound,unsigned np,unsigned npb
-	,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin,const double2 *posxy
-	,const double *posz,const unsigned *idp,const word *code,unsigned *row,const double3 *mirrorPos,const unsigned *mirrorCell);
-
 //# Kernels for Populating matrix A
 void PopulateMatrix(TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
-	,const unsigned *dcell,tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *velrhop,const double3 *dwxCorr,const double3 *dwyCorr,const double3 *dwzCorr,double *matrixInd,double *matrixb
+	,const unsigned *dcell,tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *velrhop,const float3 *dwxCorr,const float3 *dwyCorr,const float3 *dwzCorr,double *matrixInd,double *matrixb
   ,unsigned int *row,unsigned int *col,const unsigned *idp,const float *divr,const word *code,const float freesurface,const double3 *mirrorPos,const unsigned *mirrorCell,const float4 *mls,const double dt);
 
 //# Kernels for Assigning Pressure

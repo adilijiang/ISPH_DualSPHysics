@@ -222,13 +222,14 @@ protected:
   ///////////////////////////////////////////////
   unsigned *MirrorCellg;
 	double3 *MirrorPosg;
-  double3 *dWxCorrg; //Kernel correction in the x direction
-  double3 *dWyCorrg; //Kernel correction in the y direction
-  double3 *dWzCorrg; //Kernel correction in the z direction
-  
+  float3 *dWxCorrg; //Kernel correction in the x direction
+  float3 *dWyCorrg; //Kernel correction in the y direction
+  float3 *dWzCorrg; //Kernel correction in the z direction
+  float4 *MLSg;
+
 	float3 *SumTensileg;
 	float *Divrg; //Divergence of position
-	float4 *MLSg;
+	
   //matrix variables 
   double *bg;
   double *ag;

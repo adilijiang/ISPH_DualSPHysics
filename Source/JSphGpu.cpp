@@ -286,10 +286,9 @@ void JSphGpu::AllocGpuMemoryParticles(unsigned np,float over){
   ArraysGpu->SetArraySize(np2);
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_2B,2);  //-code,code2
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,5);  //-idp,dcell
-  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,1); //-ace
+  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,4); //-ace,dWxCorrg
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,4); //-velrhop,posxy
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,2);  //-posz,divrg
-  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_24B,3); //-dWxCorrg,dWyCorrg,dWzCorrg
   if(TStep==STEP_Symplectic){
     ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,3);  //-poszpre,b,x
     ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,2); //-posxypre,velrhoppre
@@ -862,9 +861,9 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
   //-Asigna memoria.ddd
   //-Allocates memory.
   if(tinter==1){
-		dWxCorrg=ArraysGpu->ReserveDouble3();	cudaMemset(dWxCorrg,0,sizeof(double3)*np);
-		dWyCorrg=ArraysGpu->ReserveDouble3();	cudaMemset(dWyCorrg,0,sizeof(double3)*np); 
-		dWzCorrg=ArraysGpu->ReserveDouble3(); cudaMemset(dWzCorrg,0,sizeof(double3)*np);
+		dWxCorrg=ArraysGpu->ReserveFloat3();	cudaMemset(dWxCorrg,0,sizeof(float3)*np);
+		dWyCorrg=ArraysGpu->ReserveFloat3();	cudaMemset(dWyCorrg,0,sizeof(float3)*np); 
+		dWzCorrg=ArraysGpu->ReserveFloat3(); cudaMemset(dWzCorrg,0,sizeof(float3)*np);
 		Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
 		cudaMemset(MLSg,0,sizeof(float4)*Npb);
 		cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
