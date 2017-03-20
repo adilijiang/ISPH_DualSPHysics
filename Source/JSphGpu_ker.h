@@ -170,7 +170,7 @@ void AddAccInput(unsigned n,unsigned pini,word codesel
 void ComputeRStar(bool floating,unsigned np,unsigned npb,const float4 *velrhoppre,double dtm,word *code,double2 *movxy,double *movz);
 
 //# Kernels for finding a dummy particles corresponding wall particle
-void MirrorBoundary(const unsigned bsbound,unsigned npbok
+void MirrorBoundary(const bool simulate2d,const unsigned bsbound,unsigned npbok
   ,const double2 *posxy,const double *posz
   ,const word *code,const unsigned *idp,double3 *mirror,unsigned *Physrelation);
 

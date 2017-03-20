@@ -761,7 +761,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 		}
 		
 		divr[p1]=divrp1;
-		if(Idpc[p1]==100) divr[p1]=0;
+		if(Idpc[p1]==50) divr[p1]=0;
 		row[p1]=rowCount;
 			
 		if(TSlipCond==SLIPCOND_Slip){
@@ -1687,6 +1687,8 @@ void JSphCpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
 //===============================================================================
 void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code,unsigned *Physrelation)const{
 
+	//--Connect boundary-------
+	//-------------------------
 	#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
@@ -1694,10 +1696,10 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 		const unsigned idp1=idpc[p1];
 		const tdouble3 posp1=pos[p1];	
 		double closestR=2.25*Fourh2;
-		unsigned Physparticle=Np;
-		Physrelation[p1]=Np;
+		unsigned Physparticle=npb;
+		Physrelation[p1]=npb;
 		bool secondPoint=false;
-		unsigned secondIrelation=Np;
+		unsigned secondIrelation=npb;
 
 		for(int p2=0;p2<int(npb);p2++) if(CODE_GetTypeValue(code[p2])==0){
 			const double drx=posp1.x-pos[p2].x;
@@ -1711,19 +1713,18 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 			else if(rr2<closestR){
 				closestR=rr2;
 				Physparticle=p2;
-				if(secondPoint){
-					secondPoint=false;
-					secondIrelation=-1;
-				}
+				if(secondPoint)	secondPoint=false;
 			}
 		}
 
-		if(Physparticle!=Np){
+		if(Physparticle!=npb){
 			if(secondPoint) mirrorTwoPoints(p1,Physparticle,secondIrelation,posp1,pos,npb);
 			Physrelation[p1]=Physparticle;
 		}
 	}
 
+	//--Find Mirror Points-----
+	//-------------------------
 	#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
@@ -1731,7 +1732,6 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 		const unsigned idp1=idpc[p1];
 		const tdouble3 posp1=pos[p1];
 		tdouble3 NormDir=TDouble3(0);
-		unsigned count=0;
 
 		for(int p2=0;p2<int(npb);p2++) if(CODE_GetTypeValue(code[p2])!=0){
 			if(Physrelation[p2]==p1){
@@ -1797,6 +1797,8 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 		Physrelation[p1]=p1;
 	}
 
+	//--Create Mirrors--------- 
+	//-------------------------
 	#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
@@ -1807,7 +1809,7 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 		const unsigned mirIdp1=Idpc[Physparticle];
 		const tdouble3 mirrorPoint=TDouble3(mirrorPos[mirIdp1].x,mirrorPos[mirIdp1].y,mirrorPos[mirIdp1].z);
 
-		if(Physparticle!=Np){
+		if(Physparticle!=npb){
 			mirrorPos[idp1].x=2.0*mirrorPoint.x-posp1.x;
 			mirrorPos[idp1].y=2.0*mirrorPoint.y-posp1.y;
 			mirrorPos[idp1].z=2.0*mirrorPoint.z-posp1.z;

@@ -714,7 +714,7 @@ void JSphGpuSingle::FinishRun(bool stop){
 void JSphGpuSingle::MirrorBoundary(){
 	const char met[]="FindIrelation";
   const unsigned bsbound=BlockSizes.forcesbound;
-  cusph::MirrorBoundary(bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,MirrorPosg,MirrorCellg);
+  cusph::MirrorBoundary(Simulate2D,bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,MirrorPosg,MirrorCellg);
   CheckCudaError(met,"findIrelation");
 }
 

@@ -784,6 +784,7 @@ template<TpFtMode ftmode> __global__ void KerInteractionForcesBound
 		}
 
 		divr[p1]=divrp1;
+		if(idpg1==50) divr[p1]=0;
 		row[p1]=rowCount;
 
 		if(tslipcond==SLIPCOND_Slip){
@@ -2703,56 +2704,177 @@ __device__ void KerFindIrelationCalc
 	}
 }
 
-__global__ void KerCreateMirrors
+__global__ void KerCreateMirrorsCodeZero
   (unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,unsigned *Physrelation)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
-		unsigned idpg1=idp[p1];
-		double3 posp1=make_double3(posxy[p1].x,0,posz[p1]);
-		double left=0.5*CTE.dp;
-		double right=2.0-0.5*CTE.dp;
-		if(posp1.x<=left){
-			mirrorPos[idpg1].x=2.0*left-posp1.x;
-			mirrorPos[idpg1].y=0;
-			mirrorPos[idpg1].z=posp1.z;
+		if(CODE_GetTypeValue(code[p1])==0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
+			unsigned idp1=idp[p1];
+			double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
+			const unsigned Physparticle=Physrelation[p1];
+			const unsigned mirIdp1=idp[Physparticle];
+			const double3 mirrorPoint=make_double3(mirrorPos[mirIdp1].x,mirrorPos[mirIdp1].y,mirrorPos[mirIdp1].z);
+
+			mirrorPos[idp1].x=2.0*mirrorPoint.x-posdp1.x;
+			mirrorPos[idp1].y=2.0*mirrorPoint.y-posdp1.y;
+			mirrorPos[idp1].z=2.0*mirrorPoint.z-posdp1.z;
 		}
-		else if(posp1.x>=right){
-			mirrorPos[idpg1].x=2.0*right-posp1.x;
-			mirrorPos[idpg1].y=0;
-			mirrorPos[idpg1].z=posp1.z;
-		}
-		/*if(CODE_GetTypeValue(code[p1])==1&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
-			unsigned idpg1=idp[p1];
-			int irelation=-1;
-			const double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
-			float closestr=CTE.fourh2;
-			bool secondPoint=false;
-			int secondIrelation=-1;
-			KerFindIrelationCalc(0,npb,posxy,posz,code,posdp1,irelation,closestr,secondPoint,secondIrelation);
-			
-			if(irelation!=-1) KerFindMirror(posxy,posz,idp,idpg1,posdp1,irelation,mirrorPos,secondPoint,secondIrelation,Physrelation);
-			else{
-				mirrorPos[idpg1].x=posdp1.x;
-				mirrorPos[idpg1].y=posdp1.y;
-				mirrorPos[idpg1].z=posdp1.z;
+	}
+}
+
+__global__ void KerCreateMirrorsCodeNonZero
+  (unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,unsigned *Physrelation)
+{
+  unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
+  if(p1<npb){
+		if(CODE_GetTypeValue(code[p1])!=0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
+			unsigned idp1=idp[p1];
+			double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
+			const unsigned Physparticle=Physrelation[p1];
+			const unsigned mirIdp1=idp[Physparticle];
+			const double3 mirrorPoint=make_double3(mirrorPos[mirIdp1].x,mirrorPos[mirIdp1].y,mirrorPos[mirIdp1].z);
+
+			if(Physparticle!=npb){
+				mirrorPos[idp1].x=2.0*mirrorPoint.x-posdp1.x;
+				mirrorPos[idp1].y=2.0*mirrorPoint.y-posdp1.y;
+				mirrorPos[idp1].z=2.0*mirrorPoint.z-posdp1.z;
 			}
-		}*/
+			else{
+				mirrorPos[idp1].x=mirrorPos[idp1].x;
+				mirrorPos[idp1].y=mirrorPos[idp1].y;
+				mirrorPos[idp1].z=mirrorPos[idp1].z;
+			}
+		}
+	}
+}
+
+__device__ void KerNormNoRelation(const unsigned npb,double3 &NormDir,const double3 posdp1,const double2 *posxy,const double *posz,const word *code)
+{
+	double closestR=2.25*CTE.fourh2;
+	unsigned closestp;
+
+	for(int p2=0;p2<int(npb);p2++) if(CODE_GetTypeValue(code[p2])!=0){
+		const double drx=posdp1.x-posxy[p2].x;
+		const double dry=posdp1.y-posxy[p2].y;
+		const double drz=posdp1.z-posz[p2];
+		const double rr2=drx*drx+dry*dry+drz*drz;
+		if(rr2<closestR){
+			closestR=rr2;
+			closestp=p2;
+		}
+	}
+
+	const double drx=posdp1.x-posxy[closestp].x;
+	const double dry=posdp1.y-posxy[closestp].y;
+	const double drz=posdp1.z-posz[closestp];
+	const double rr2=drx*drx+dry*dry+drz*drz;
+
+	NormDir.x=drx/rr2; NormDir.y=dry/rr2; NormDir.z=drz/rr2;
+	
+	//Scale Norm to dp in each direction.
+	double largestDir=abs(NormDir.x);
+	if(abs(NormDir.y)>largestDir)largestDir=abs(NormDir.y);
+	if(abs(NormDir.z)>largestDir)largestDir=abs(NormDir.z);
+			
+	NormDir.x=NormDir.x/largestDir;
+	NormDir.y=NormDir.y/largestDir;
+	NormDir.z=NormDir.z/largestDir;
+}
+
+__device__ void KerSumNorm(const bool simulate2d,const unsigned p1,const unsigned npb,double3 &NormDir,const double3 posdp1,const double2 *posxy,const double *posz,const unsigned *Physrelation,const word *code)
+{
+	for(int p2=0;p2<int(npb);p2++) if(CODE_GetTypeValue(code[p2])!=0){
+		if(Physrelation[p2]==p1){
+			const double drx=posdp1.x-posxy[p2].x;
+			const double dry=posdp1.y-posxy[p2].y;
+			const double drz=posdp1.z-posz[p2];
+			double rr2=drx*drx+dry*dry+drz*drz;
+		
+			rr2=sqrt(rr2);
+			NormDir.x+=drx/rr2;
+			if(!simulate2d) NormDir.y+=dry/rr2;
+			NormDir.z+=drz/rr2;
+		}
+	}
+}
+
+__global__ void KerFindMirrorPoints
+  (const bool simulate2d,unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,unsigned *Physrelation)
+{
+  unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
+  if(p1<npb){
+		const float Dp=CTE.dp;
+		if(CODE_GetTypeValue(code[p1])==0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
+			const unsigned idp1=idp[p1];
+			const double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
+			double3 NormDir=make_double3(0,0,0);
+			KerSumNorm(simulate2d,p1,npb,NormDir,posdp1,posxy,posz,Physrelation,code);
+
+			double MagNorm=NormDir.x*NormDir.x+NormDir.y*NormDir.y+NormDir.z*NormDir.z;
+			if(MagNorm){MagNorm=sqrt(MagNorm); NormDir.x=NormDir.x/MagNorm; NormDir.y=NormDir.y/MagNorm; NormDir.z=NormDir.z/MagNorm;}
+
+			//Scale Norm to dp in each direction.
+			double largestDir=abs(NormDir.x);
+			if(abs(NormDir.y)>largestDir)largestDir=abs(NormDir.y);
+			if(abs(NormDir.z)>largestDir)largestDir=abs(NormDir.z);
+
+			if(largestDir){
+				NormDir.x=NormDir.x/largestDir;
+				NormDir.y=NormDir.y/largestDir;
+				NormDir.z=NormDir.z/largestDir;
+			}
+			else KerNormNoRelation(npb,NormDir,posdp1,posxy,posz,code);
+
+			mirrorPos[idp1].x=posdp1.x+0.5*Dp*NormDir.x;
+			if(!simulate2d) mirrorPos[idp1].y=posdp1.y+0.5*Dp*NormDir.y;
+			mirrorPos[idp1].z=posdp1.z+0.5*Dp*NormDir.z;
+			Physrelation[p1]=p1;
+		}
+	}
+}
+
+__device__ void KerMirrorTwoPoints(const unsigned p1,unsigned &Physparticle,const unsigned secondIrelation,const double3 posp1,const double2 *posxy,const double *posz,const unsigned npb)
+{
+	const double drx1=posp1.x-posxy[Physparticle].x;
+	const double dry1=posp1.y-posxy[Physparticle].y;
+	const double drz1=posp1.z-posz[Physparticle];
+	const double drx2=posp1.x-posxy[secondIrelation].x;
+	const double dry2=posp1.y-posxy[secondIrelation].y;
+	const double drz2=posp1.z-posz[secondIrelation];
+
+	double3 searchPoint=make_double3(0,0,0);
+	searchPoint.x=posp1.x-(drx1+drx2);
+	searchPoint.y=posp1.y-(dry1+dry2);
+	searchPoint.z=posp1.z-(drz1+drz2);
+
+	for(int i=0;i<int(npb);i++) {
+		const double drx=searchPoint.x-posxy[i].x;
+		const double dry=searchPoint.y-posxy[i].y;
+		const double drz=searchPoint.z-posz[i];
+
+		double rr2=drx*drx+dry*dry+drz*drz;
+		if(rr2<=ALMOSTZERO) Physparticle=i;
 	}
 }
 
 __device__ void KerConnectBoundaryCalc
   (const unsigned &p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
-  ,const word *code,double3 posdp1,unsigned &closestp,float &closestr)
+  ,const word *code,double3 posdp1,unsigned &Physparticle,float closestR,bool &secondPoint,unsigned &secondIrelation)
 {
-	for(int p2=pini;p2<pfin;p2++)if(p1!=p2&&CODE_GetTypeValue(code[p2])==0){
+	for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==0){
 		float drx,dry,drz;
 		KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
 		float rr2=drx*drx+dry*dry+drz*drz;
-		if(rr2<closestr){
-			closestr=rr2;
-			closestp=p2;
-		}
+		if(rr2==closestR){
+					secondPoint=true;
+					secondIrelation=p2;
+			}
+			else if(rr2<closestR){
+				closestR=rr2;
+				Physparticle=p2;
+				if(secondPoint) secondPoint=false;
+			}
 	}
 }
 
@@ -2761,23 +2883,31 @@ __global__ void KerConnectBoundary
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
-		if(CODE_GetTypeValue(code[p1])==0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
-			unsigned idpg1=idp[p1];
+		if(CODE_GetTypeValue(code[p1])!=0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
 			const double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
-			float closestr=CTE.fourh2;
-			unsigned closestp;
-			KerConnectBoundaryCalc(p1,0,npb,posxy,posz,code,posdp1,closestp,closestr);
-			Physrelation[idpg1]=closestp;
+			float closestR=2.25*CTE.fourh2;
+			unsigned Physparticle=npb;
+			Physrelation[p1]=npb;
+			bool secondPoint=false;
+			unsigned secondIrelation=npb;
+
+			KerConnectBoundaryCalc(p1,0,npb,posxy,posz,code,posdp1,Physparticle,closestR,secondPoint,secondIrelation);
+			if(Physparticle!=npb){
+				if(secondPoint) KerMirrorTwoPoints(p1,Physparticle,secondIrelation,posdp1,posxy,posz,npb);
+				Physrelation[p1]=Physparticle;
+			}
 		}
 	}
 }
 
-void MirrorBoundary(const unsigned bsbound,unsigned npb,const double2 *posxy
+void MirrorBoundary(const bool simulate2d,const unsigned bsbound,unsigned npb,const double2 *posxy
   ,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,unsigned *Physrelation){
   if(npb){
     dim3 sgridb=GetGridSize(npb,bsbound);
-		//KerConnectBoundary<<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,Physrelation);
-    KerCreateMirrors <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,Physrelation);
+		KerConnectBoundary<<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,Physrelation);
+		KerFindMirrorPoints<<<sgridb,bsbound>>> (simulate2d,npb,posxy,posz,code,idp,mirrorPos,Physrelation);
+    KerCreateMirrorsCodeNonZero <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,Physrelation);
+		KerCreateMirrorsCodeZero <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,Physrelation);
 	}
 }
 
