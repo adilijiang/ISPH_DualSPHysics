@@ -464,13 +464,11 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
   const char met[]="Interaction_Forces";	
 	const unsigned np=Np;
 	const unsigned npb=Npb;
+	const unsigned npf=np-npb;
   if(tinter==1){
-		dWxCorrShiftPos=ArraysCpu->ReserveFloat3(); 
-		dWyCorrTensile=ArraysCpu->ReserveFloat3(); 
-		dWzCorr=ArraysCpu->ReserveFloat3(); 
-		memset(dWxCorrShiftPos,0,sizeof(tfloat3)*np);
-		memset(dWyCorrTensile,0,sizeof(tfloat3)*np);
-		memset(dWzCorr,0,sizeof(tfloat3)*np);
+		memset(dWxCorrShiftPos,0,sizeof(tfloat3)*npf);
+		dWyCorr=ArraysCpu->ReserveFloat3(); memset(dWyCorr,0,sizeof(tfloat3)*npf);
+		memset(dWzCorrTensile,0,sizeof(tfloat3)*npf);
 
 		Divr=ArraysCpu->ReserveFloat(); memset(Divr,0,sizeof(float)*np);
 
@@ -485,7 +483,7 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
 	}
 	
   //-Assign memory / Asigna memoria.
-  Acec=ArraysCpu->ReserveFloat3(); memset(Acec,0,sizeof(tfloat3)*np);
+  memset(Acec,0,sizeof(tfloat3)*npf);
 	//-Initialize Arrays / Inicializa arrays.
   //PreInteractionVars_Forces(tinter,np,npb);
   TmcStart(Timers,TMC_CfForces);
@@ -493,9 +491,12 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
   //-Interaction of Fluid-Fluid/Bound & Bound-Fluid (forces and DEM) / Interaccion Fluid-Fluid/Bound & Bound-Fluid (forces and DEM).
   float viscdt=0;
 
-	JSphCpu::Interaction_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,dWxCorrShiftPos,dWyCorrTensile,dWzCorr,Codec,Acec,Divr,MirrorPosc,MirrorCell,MLS,rowInd);
+	JSphCpu::Interaction_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,dWxCorrShiftPos,dWyCorr,dWzCorrTensile,Codec,Acec,Divr,MirrorPosc,MirrorCell,MLS,rowInd);
 
-	if(TSlipCond&&tinter==2){
+	//-For 2-D simulations zero the 2nd component / Para simulaciones 2D anula siempre la 2º componente
+  if(Simulate2D)for(unsigned p=0;p<npf;p++)Acec[p].y=0;
+
+	if(tinter==2){
 		 #ifdef _WITHOMP
       #pragma omp parallel for schedule (static)
     #endif
@@ -504,19 +505,9 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
 			Velrhopc[i].y=VelrhopPrec[i].y;
 			Velrhopc[i].z=VelrhopPrec[i].z;
     }
+
+		ArraysCpu->Free(dWyCorr);	dWyCorr=NULL;
 	}
-
-  //-For 2-D simulations zero the 2nd component / Para simulaciones 2D anula siempre la 2º componente
-  if(Simulate2D)for(unsigned p=Npb;p<Np;p++)Acec[p].y=0;
-
-  //-Add Delta-SPH correction to Arg[] / Añade correccion de Delta-SPH a Arg[].
-  /*if(Deltac){
-    const int ini=int(Npb),fin=int(Np),npf=int(Np-Npb);
-    #ifdef _WITHOMP
-      #pragma omp parallel for schedule (static) if(npf>LIMIT_COMPUTELIGHT_OMP)
-    #endif
-    for(int p=ini;p<fin;p++)if(Deltac[p]!=FLT_MAX)Arc[p]+=Deltac[p];
-  }*/
 
   //-Calculates maximum value of ViscDt.
   //ViscDtMax=viscdt;
@@ -601,7 +592,6 @@ double JSphCpuSingle::ComputeStep_Sym(){
 	if(CaseNmoving)JSphCpu::MirrorDCell(Npb,Codec,MirrorPosc,MirrorCell,Idpc);
   Interaction_Forces(INTER_Forces,TSlipCond);      //-Interaction / Interaccion
   ComputeSymplecticPre(dt);               //-Apply Symplectic-Predictor to particles / Aplica Symplectic-Predictor a las particulas
-  PosInteraction_Forces(INTER_Forces);          //-Free memory used for interaction / Libera memoria de interaccion
   //-Pressure Poisson equation
   //-----------
   SolvePPE(dt); //-Solve pressure Poisson equation
@@ -609,7 +599,6 @@ double JSphCpuSingle::ComputeStep_Sym(){
   //-----------
   Interaction_Forces(INTER_ForcesCorr,TSlipCond);   //Interaction / Interaccion
   ComputeSymplecticCorr(dt);              //-Apply Symplectic-Corrector to particles / Aplica Symplectic-Corrector a las particulas
-	PosInteraction_Forces(INTER_ForcesCorr);             //-Free memory used for interaction / Libera memoria de interaccion
 	//-Shifting
 	//-----------
 	if(TShifting)RunShifting(dt);           
@@ -952,7 +941,7 @@ void JSphCpuSingle::SolvePPE(double dt){
   memset(colInd,0,sizeof(int)*Nnz);
   memset(a,0,sizeof(double)*Nnz);
   //LHS
-  PopulateMatrixAFluid(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorrShiftPos,dWyCorrTensile,dWzCorr,Divr,a,rowInd,colInd,b,Idpc,Codec,FreeSurface,Gravity,RhopZero,MirrorPosc,matOrder,dt);//-Fluid-Fluid
+  PopulateMatrixAFluid(np,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorrShiftPos,dWyCorr,dWzCorrTensile,Divr,a,rowInd,colInd,b,Idpc,Codec,FreeSurface,Gravity,RhopZero,MirrorPosc,matOrder,dt);//-Fluid-Fluid
 	PopulateMatrixABound(npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,MirrorPosc,MirrorCell,MLS);
 
 	if(PeriActive){
@@ -1008,8 +997,8 @@ void JSphCpuSingle::RunShifting(double dt){
   PosPrec=ArraysCpu->ReserveDouble3();
   VelrhopPrec=ArraysCpu->ReserveFloat4();
 
-  ShiftPosc=ArraysCpu->ReserveFloat3();		memset(ShiftPosc,0,sizeof(tfloat3)*np);
-	SumTensile=ArraysCpu->ReserveFloat3();	memset(SumTensile,0,sizeof(tfloat3)*np);
+ 	memset(dWxCorrShiftPos,0,sizeof(tfloat3)*npf);
+	memset(dWzCorrTensile,0,sizeof(tfloat3)*npf);
 	Divr=ArraysCpu->ReserveFloat();					memset(Divr,0,sizeof(float)*np);	
 
   #ifdef _WITHOMP
@@ -1030,7 +1019,7 @@ void JSphCpuSingle::RunShifting(double dt){
   const int hdiv=(CellMode==CELLMODE_H? 2: 1);
   const unsigned *begincell = CellDivSingle->GetBeginCell();
 
-	JSphCpu::Interaction_Shifting(Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,Codec,ShiftPosc,Divr,TensileN,TensileR);
+	JSphCpu::Interaction_Shifting(Np,Npb,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,Codec,dWxCorrShiftPos,dWzCorrTensile,Divr,TensileN,TensileR);
 	
   JSphCpu::RunShifting(dt);
 
@@ -1038,7 +1027,5 @@ void JSphCpuSingle::RunShifting(double dt){
 
   ArraysCpu->Free(PosPrec);			PosPrec=NULL;
   ArraysCpu->Free(VelrhopPrec);	VelrhopPrec=NULL;
-	ArraysCpu->Free(ShiftPosc);   ShiftPosc=NULL;
-	ArraysCpu->Free(SumTensile);	SumTensile=NULL;
 	ArraysCpu->Free(Divr);				Divr=NULL;
 }

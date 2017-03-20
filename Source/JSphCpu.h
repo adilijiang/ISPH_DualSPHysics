@@ -75,9 +75,6 @@ protected:
   StFtoForces *FtoForces; //-Almacena fuerzas de floatings [FtCount].
 
   tfloat3 *Acec;      //-Sum of interaction forces / Acumula fuerzas de interaccion
-  float *Deltac;      //-Adjusted sum with Delta-SPH with DELTA_DynamicExt / Acumula ajuste de Delta-SPH con DELTA_DynamicExt
-
-  tfloat3 *ShiftPosc;    //-Particle displacement using Shifting.
 
   double VelMax;      ///<Maximum value of Vel[] sqrt(vel.x^2 + vel.y^2 + vel.z^2) computed in PreInteraction_Forces().
   double AceMax;      ///<Maximum value of Ace[] sqrt(ace.x^2 + ace.y^2 + ace.z^2) computed in Interaction_Forces().
@@ -131,7 +128,6 @@ protected:
 
   void PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb);
   void PreInteraction_Forces(TpInter tinter);
-  void PosInteraction_Forces(TpInter tinter);
 
   inline void GetKernel(float rr2,float drx,float dry,float drz,float &frx,float &fry,float &frz)const;
   inline float GetKernelWab(float rr2)const;
@@ -199,11 +195,9 @@ protected:
 	unsigned *MirrorCell;
 	tdouble3 *MirrorPosc;
   tfloat3 *dWxCorrShiftPos; //Kernel correction in the x direction
-  tfloat3 *dWyCorrTensile; //Kernel correction in the y direction
-  tfloat3 *dWzCorr; //Kernel correction in the z direction
+  tfloat3 *dWyCorr; //Kernel correction in the y direction
+  tfloat3 *dWzCorrTensile; //Kernel correction in the z direction
 	tfloat4 *MLS;
-
-	tfloat3 *SumTensile;
   float *Divr; //Divergence of position
 
   //matrix variables for CULA
@@ -223,9 +217,9 @@ protected:
   
 	void MirrorDCell(unsigned npb,const word *code,const tdouble3 *mirrorPos,unsigned *mirrorCell,unsigned *idpc);
   
-	void InverseCorrection(unsigned n, unsigned pinit,tfloat3 *dwxcorr,tfloat3 *dwzcorr,const word *code)const;
+	void InverseCorrection(unsigned np, unsigned npb,tfloat3 *dwxcorr,tfloat3 *dwzcorr,const word *code)const;
   
-	void InverseCorrection3D(unsigned n, unsigned pinit,tfloat3 *dwxcorr,tfloat3 *dwycorr,tfloat3 *dwzcorr,const word *code)const;
+	void InverseCorrection3D(unsigned np, unsigned npb,tfloat3 *dwxcorr,tfloat3 *dwycorr,tfloat3 *dwzcorr,const word *code)const;
   
 	void MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code,unsigned *Physrelation)const;
 
@@ -235,7 +229,7 @@ protected:
   
 	void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim,unsigned &nnz,int *row,const float *divr,const float freeSurface)const;
   
-	void PopulateMatrixAFluid(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
+	void PopulateMatrixAFluid(unsigned np,unsigned npb,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwycorr,tfloat3 *dwzcorr,float *divr,double *matrixInd,int *row,int *col,
   double *matrixb,const unsigned *idpc,const word *code,const float freesurface,tfloat3 gravity,const double rhoZero,const tdouble3 *mirrorPos,const unsigned matOrder,const double dt)const;
   
@@ -251,16 +245,16 @@ protected:
   
 	void FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,double *matrixInd,double *matrixb,int *row,const unsigned *idpc,const word *code,const float shiftoffset,const unsigned matOrder,const float freeSurface)const;
 
-  void Interaction_Shifting(unsigned np,unsigned npb,unsigned npbok
+  void Interaction_Shifting(unsigned np,unsigned npb
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idp,const word *code
-    ,tfloat3 *shiftpos,float *divr,const float tensileN,const float tensileR)const;
+    ,tfloat3 *shiftpos,tfloat3 *tensile,float *divr,const float tensileN,const float tensileR)const;
 
   template<TpFtMode ftmode> void InteractionForcesShifting
-  (unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,float visco
+  (unsigned np,unsigned npb,tint4 nc,int hdiv,unsigned cellinitial,float visco
   ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
   ,const tdouble3 *pos,tfloat4 *velrhop,const word *code,const unsigned *idp
-  ,TpShifting tshifting,tfloat3 *shiftpos,float *divr,const float tensileN,const float tensileR)const;
+  ,TpShifting tshifting,tfloat3 *shiftpos,tfloat3 *tensile,float *divr,const float tensileN,const float tensileR)const;
 
 	void MLSBoundary2D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
   const tdouble3 *pos,const tfloat4 *velrhop,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,const unsigned *mirrorCell,tfloat4 *mls)const;

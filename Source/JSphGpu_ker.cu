@@ -2979,9 +2979,6 @@ __global__ void KerPopulateMatrixAFluid
       unsigned index=diag+1;
 			double divU=0;
 			double Neumann=0;
-			float3 dwx=dwxCorr[p1]; //  dwx.x   dwx.y   dwx.z
-			float3 dwy=dwyCorr[p1]; //  dwy.x   dwy.y   dwy.z
-			float3 dwz=dwzCorr[p1]; //  dwz.x   dwz.y   dwz.z
       if(divr[p1]>freesurface){
         //-Obtiene datos basicos de particula p1.
   	    //-Obtains basic data of particle p1.
@@ -3006,7 +3003,7 @@ __global__ void KerPopulateMatrixAFluid
 								}
 							}
 							if(pfin){
-								KerMatrixAFluid (fluid,matOrder,pini,pfin,npb,npbok,posxy,posz,posdp1,velp1,velrhop,dwx,dwy,dwz,gravity,CTE.massf,CTE.rhopzero,code,idp,index,col,matrixInd,matrixb,diag,mirrorPos,oi,divU,Neumann);
+								KerMatrixAFluid (fluid,matOrder,pini,pfin,npb,npbok,posxy,posz,posdp1,velp1,velrhop,dwxCorr[p1],dwyCorr[p1],dwzCorr[p1],gravity,CTE.massf,CTE.rhopzero,code,idp,index,col,matrixInd,matrixb,diag,mirrorPos,oi,divU,Neumann);
 							}
 						}
 					}
@@ -3106,7 +3103,7 @@ void PopulateMatrix(TpCellMode cellmode,const unsigned bsbound,const unsigned bs
     dim3 sgridf=GetGridSize(npf,bsfluid);
     dim3 sgridb=GetGridSize(npbok,bsbound);
 		const unsigned matOrder=npb-npbok;
-		//MERGE INTO ONE GLOBAL LATER
+
 		KerPopulateMatrixAFluid <<<sgridf,bsfluid>>> (npf,npb,npb,npbok,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos,dt,matOrder); 
 		KerPopulateMatrixABound<<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder);
 	}

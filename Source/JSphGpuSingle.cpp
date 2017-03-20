@@ -784,13 +784,13 @@ void JSphGpuSingle::SolvePPE(double dt){
 
   cusph::PopulateMatrix(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,ag,bg,rowIndg,colIndg,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLSg,dt);
 	
-	/*unsigned *rowInd=new unsigned[PPEDim]; cudaMemcpy(rowInd,rowIndg,sizeof(unsigned)*PPEDim,cudaMemcpyDeviceToHost);
+	unsigned *rowInd=new unsigned[PPEDim]; cudaMemcpy(rowInd,rowIndg,sizeof(unsigned)*PPEDim,cudaMemcpyDeviceToHost);
 	unsigned *colInd=new unsigned[Nnz]; cudaMemcpy(colInd,colIndg,sizeof(unsigned)*Nnz,cudaMemcpyDeviceToHost);
 	double *b=new double[PPEDim]; cudaMemcpy(b,bg,sizeof(double)*PPEDim,cudaMemcpyDeviceToHost);
 	double *a=new double[Nnz]; cudaMemcpy(a,ag,sizeof(double)*Nnz,cudaMemcpyDeviceToHost);
 	unsigned *Idpc=new unsigned[Np]; cudaMemcpy(Idpc,Idpg,sizeof(unsigned)*Np,cudaMemcpyDeviceToHost);
 
-		ofstream FileOutput;
+		/*ofstream FileOutput;
     string TimeFile;
 		unsigned count=1;
     ostringstream TimeNum;
