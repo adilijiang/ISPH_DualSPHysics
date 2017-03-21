@@ -231,11 +231,11 @@ protected:
   
 	void PopulateMatrixAFluid(unsigned np,unsigned npb,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwycorr,tfloat3 *dwzcorr,float *divr,double *matrixInd,int *row,int *col,
-  double *matrixb,const unsigned *idpc,const word *code,const float freesurface,tfloat3 gravity,const double rhoZero,const tdouble3 *mirrorPos,const unsigned matOrder,const double dt)const;
+  double *matrixb,const unsigned *idpc,const word *code,const float freesurface,const double rhoZero,const unsigned matOrder,const double dt)const;
   
 	void PopulateMatrixABound(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-  const tdouble3 *pos,double *matrixInd,int *row,int *col,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,
-	const unsigned *mirrorCell,tfloat4 *mls)const;
+  const tdouble3 *pos,double *matrixInd,int *row,int *col,double *matrixb,float *divr,const float freesurface,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,
+	const unsigned *mirrorCell,tfloat4 *mls,tfloat3 gravity)const;
 	
 	void PopulatePeriodic(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
   const tdouble3 *pos,double *matrixInd,int *row,int *col,const unsigned *idpc,const word *code,const unsigned *dCell)const;

@@ -2018,7 +2018,7 @@ void JSphCpu::MatrixASetup(const unsigned np,const unsigned npb,const unsigned n
 //===============================================================================
 void JSphCpu::PopulateMatrixAFluid(unsigned np,unsigned npb,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwycorr,tfloat3 *dwzcorr,float *divr,double *matrixInd,int *row,int *col,
-  double *matrixb,const unsigned *idpc,const word *code,const float freesurface,tfloat3 gravity,const double rhoZero,const tdouble3 *mirrorPos,const unsigned matOrder,const double dt)const{
+  double *matrixb,const unsigned *idpc,const word *code,const float freesurface,const double rhoZero,const unsigned matOrder,const double dt)const{
 
 	#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
@@ -2033,7 +2033,6 @@ void JSphCpu::PopulateMatrixAFluid(unsigned np,unsigned npb,tint4 nc,int hdiv,un
 		col[diag]=oi;
 		unsigned index=diag+1;
 		double divU=0;
-		double Neumann=0;
 		const unsigned Correctp1=p1-npb;
 		tfloat3 dwx=dwxcorr[Correctp1]; //  dwx.x   dwx.y   dwx.z
     tfloat3 dwy=dwycorr[Correctp1]; //  dwy.x   dwy.y   dwy.z
@@ -2087,13 +2086,6 @@ void JSphCpu::PopulateMatrixAFluid(unsigned np,unsigned npb,tint4 nc,int hdiv,un
 								const float temp_z=frx*dwx.z+fry*dwy.z+frz*dwz.z;
 								const double tempDivU=double(dvx*temp_x+dvy*temp_y+dvz*temp_z);
 								divU-=double(volume*tempDivU);
-
-								//=====dp/dn=====
-								if(!fluid){
-									double dist = mirrorPos[idpc[p2]].z-pos[p2].z;
-									temp = temp* RhopZero * float(abs(Gravity.z) * dist);
-									Neumann+=double(volume*temp); 
-								}
 							}  
 						}
 					}
@@ -2102,13 +2094,13 @@ void JSphCpu::PopulateMatrixAFluid(unsigned np,unsigned npb,tint4 nc,int hdiv,un
 	  }
     else matrixInd[diag]=1.0;
 
-		matrixb[oi]+=Neumann+(divU/dt);
+		matrixb[oi]=divU/dt;
   }
 }
 
 void JSphCpu::PopulateMatrixABound(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-  const tdouble3 *pos,double *matrixInd,int *row,int *col,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,
-	const unsigned *mirrorCell,tfloat4 *mls)const{
+  const tdouble3 *pos,double *matrixInd,int *row,int *col,double *matrixb,float *divr,const float freesurface,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,
+	const unsigned *mirrorCell,tfloat4 *mls,tfloat3 gravity)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
   const int pfin=int(pinit+n);
@@ -2127,7 +2119,7 @@ void JSphCpu::PopulateMatrixABound(unsigned n,unsigned pinit,tint4 nc,int hdiv,u
 		const unsigned diag=row[oi];
 		col[diag]=oi;
 		unsigned index=diag+1;
-	  if(row[oi+1]-row[oi]>1){  
+	  if(divr[p1]>freesurface){  
 			matrixInd[diag]=1.0;
       //FLUID INTERACTION
       //-Obtain interaction limits / Obtiene limites de interaccion
@@ -2169,6 +2161,10 @@ void JSphCpu::PopulateMatrixABound(unsigned n,unsigned pinit,tint4 nc,int hdiv,u
           }	
         }
 	    }
+
+			double dist = posp1.z-pos[p1].z;
+			double temp = RhopZero * abs(gravity.z) * dist;
+			matrixb[oi]=temp;
 	  }
     else matrixInd[diag]=1.0;
   }

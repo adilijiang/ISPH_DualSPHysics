@@ -941,8 +941,8 @@ void JSphCpuSingle::SolvePPE(double dt){
   memset(colInd,0,sizeof(int)*Nnz);
   memset(a,0,sizeof(double)*Nnz);
   //LHS
-  PopulateMatrixAFluid(np,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorrShiftPos,dWyCorr,dWzCorrTensile,Divr,a,rowInd,colInd,b,Idpc,Codec,FreeSurface,Gravity,RhopZero,MirrorPosc,matOrder,dt);//-Fluid-Fluid
-	PopulateMatrixABound(npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,MirrorPosc,MirrorCell,MLS);
+  PopulateMatrixAFluid(np,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorrShiftPos,dWyCorr,dWzCorrTensile,Divr,a,rowInd,colInd,b,Idpc,Codec,FreeSurface,RhopZero,matOrder,dt);//-Fluid-Fluid
+	PopulateMatrixABound(npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Posc,a,rowInd,colInd,b,Divr,FreeSurface,Idpc,Codec,MirrorPosc,MirrorCell,MLS,Gravity);
 
 	if(PeriActive){
 		PopulatePeriodic(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,Dcellc);
