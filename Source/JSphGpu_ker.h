@@ -82,7 +82,7 @@ float ReduMaxFloat_w(unsigned ndata,unsigned inidata,float4* data,float* resu);
 
 void CteInteractionUp(const StCteInteraction *cte);
 void InitArray(unsigned n,float3 *v,tfloat3 value);
-void Resety(unsigned n,unsigned ini,float3 *v);
+void ResetAcey(unsigned npf,float3 *v);
 void ResetBoundVel(const unsigned npbok,const unsigned bsbound,float4 *vel,float4 *velpre);
 void ResetrowIndg(const unsigned npplus,unsigned *row,const unsigned npb);
 void ComputeAceMod(unsigned n,const float3 *ace,float *acemod);

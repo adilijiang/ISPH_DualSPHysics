@@ -138,8 +138,6 @@ protected:
   //float *ViscDtg;
   float3 *Aceg;      ///<ES: Acumula fuerzas de interaccion EN: Accumulates acceleration of the particles
 
-  float3 *ShiftPosg;    ///<Particle displacement using Shifting.
-
   double VelMax;      ///<Maximum value of Vel[] sqrt(vel.x^2 + vel.y^2 + vel.z^2) computed in PreInteraction_Forces().
   double AceMax;      ///<Maximum value of Ace[] (ace.x^2 + ace.y^2 + ace.z^2) computed in Interaction_Forces().
   float ViscDtMax;    ///<ES: Valor maximo de ViscDt calculado en Interaction_Forces(). EN: Maximum value of ViscDt computed in Interaction_Forces()
@@ -199,7 +197,6 @@ protected:
 
   void PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb);
   void PreInteraction_Forces(TpInter tinter,double dt);
-  void PosInteraction_Forces(TpInter tinter);
   
   void ComputeSymplecticPre(double dt);
   void ComputeSymplecticCorr(double dt);
@@ -222,12 +219,11 @@ protected:
   ///////////////////////////////////////////////
   unsigned *MirrorCellg;
 	double3 *MirrorPosg;
-  float3 *dWxCorrg; //Kernel correction in the x direction
+  float3 *dWxCorrgShiftPos; //Kernel correction in the x direction
   float3 *dWyCorrg; //Kernel correction in the y direction
-  float3 *dWzCorrg; //Kernel correction in the z direction
+  float3 *dWzCorrgTensile; //Kernel correction in the z direction
   float4 *MLSg;
 
-	float3 *SumTensileg;
 	float *Divrg; //Divergence of position
 	
   //matrix variables 

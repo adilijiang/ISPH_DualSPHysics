@@ -136,25 +136,25 @@ void JSphCpu::AllocCpuMemoryFixed(){
 	const unsigned np=Np;
 	const unsigned npb=Npb;
 	const unsigned npf=np-npb;
-	unsigned matrixMemory; //Predicts max number of neighbours per particle dependant on kernel support size
+	unsigned PPEMem; //Predicts max number of neighbours per particle dependant on kernel support size
 
 	if(H/Dp<1.5){
-    if(Simulate2D) matrixMemory=80;
-    else matrixMemory=400;
+    if(Simulate2D) PPEMem=70;
+    else PPEMem=400;
   }
 	else RunException("AllocMemoryFixed","H/Dp too high for Quintic");
 
-	matrixMemory=matrixMemory*Np;
+	PPEMem=PPEMem*Np;
 
   try{
 		MirrorPosc=new tdouble3[npb];				MemCpuFixed+=(sizeof(tdouble3)*npb);
 		MirrorCell=new unsigned[npb];				MemCpuFixed+=(sizeof(unsigned)*npb);
 		MLS=new tfloat4[npb];								MemCpuFixed+=(sizeof(tfloat4)*npb);
 		rowInd=new int[np+1];								MemCpuFixed+=(sizeof(int)*(np+1));
-		a=new double[matrixMemory];					MemCpuFixed+=(sizeof(double)*(matrixMemory));
-		colInd=new int[matrixMemory];				MemCpuFixed+=(sizeof(int)*matrixMemory);
+		a=new double[PPEMem];								MemCpuFixed+=(sizeof(double)*(PPEMem));
+		colInd=new int[PPEMem];							MemCpuFixed+=(sizeof(int)*PPEMem);
 		Acec=new tfloat3[npf];							MemCpuFixed+=(sizeof(tfloat3)*npf);
-		dWxCorrShiftPos=new tfloat3[npf];	MemCpuFixed+=(sizeof(tfloat3)*npf);
+		dWxCorrShiftPos=new tfloat3[npf];		MemCpuFixed+=(sizeof(tfloat3)*npf);
 		dWzCorrTensile=new tfloat3[npf];		MemCpuFixed+=(sizeof(tfloat3)*npf);
     //-Allocates memory for moving objects.
     if(CaseNmoving){
@@ -193,14 +193,12 @@ void JSphCpu::AllocCpuMemoryParticles(unsigned np,float over){
   CpuParticlesSize=np2;
   //-Calculate which arrays / Calcula cuantos arrays.
   ArraysCpu->SetArraySize(np2);
-  ArraysCpu->AddArrayCount(JArraysCpu::SIZE_2B,2);  ///<-code
-  ArraysCpu->AddArrayCount(JArraysCpu::SIZE_4B,5);  ///<-idp,dcell,divr
+  ArraysCpu->AddArrayCount(JArraysCpu::SIZE_2B,2);  ///<-code*2
+  ArraysCpu->AddArrayCount(JArraysCpu::SIZE_4B,5);  ///<-idp*2,dcell*2,divr+npfout
 	ArraysCpu->AddArrayCount(JArraysCpu::SIZE_8B,2); ///<-b,x
 	ArraysCpu->AddArrayCount(JArraysCpu::SIZE_12B,1); ///<-Saving/dWyCorr
-  ArraysCpu->AddArrayCount(JArraysCpu::SIZE_16B,1); ///<-velrhop
-  ArraysCpu->AddArrayCount(JArraysCpu::SIZE_24B,2); ///<-pos
-  ArraysCpu->AddArrayCount(JArraysCpu::SIZE_24B,1); ///<-pospre
-  ArraysCpu->AddArrayCount(JArraysCpu::SIZE_16B,1); ///<-velrhoppre
+  ArraysCpu->AddArrayCount(JArraysCpu::SIZE_16B,2); ///<-velrhop,velrhoppre
+  ArraysCpu->AddArrayCount(JArraysCpu::SIZE_24B,3); ///<-pos*2, pospre+npfout
   //-Show reserved memory / Muestra la memoria reservada.
   MemCpuParticles=ArraysCpu->GetAllocMemoryCpu();
   PrintSizeNp(np2,MemCpuParticles);
@@ -1293,7 +1291,7 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
       Velrhopc[p].y-=float((Acec[correctp1].y-Gravity.y)*dt);  
       Velrhopc[p].z-=float((Acec[correctp1].z-Gravity.z)*dt);
 
-			if(rowInd[p]!=npb) CorrectVelocity(p,rowInd[p],Posc,Velrhopc,Idpc,MirrorPosc);
+			//if(rowInd[p]!=npb) CorrectVelocity(p,rowInd[p],Posc,Velrhopc,Idpc,MirrorPosc);
 
       //-Calculate displacement and update position / Calcula desplazamiento y actualiza posicion.
       double dx=(double(VelrhopPrec[p].x)+double(Velrhopc[p].x))*dt05; 
