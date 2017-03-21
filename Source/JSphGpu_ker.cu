@@ -660,7 +660,7 @@ __global__ void KerInverseKernelCor3D(unsigned n,unsigned pinit,float3 *dwxcorrg
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
     
 		double3 dwx; dwx.x=dwxcorrg[p1].x; dwx.y=dwxcorrg[p1].y; dwx.z=dwxcorrg[p1].z; //  dwx.x   dwx.y   dwx.z
-		double3 dwy; dwy.x=dwzcorrg[p1].x; dwy.y=dwzcorrg[p1].y; dwy.z=dwzcorrg[p1].z; //  dwy.x   dwy.y   dwy.z
+		double3 dwy; dwy.x=dwycorrg[p1].x; dwy.y=dwycorrg[p1].y; dwy.z=dwycorrg[p1].z; //  dwy.x   dwy.y   dwy.z
 		double3 dwz; dwz.x=dwzcorrg[p1].x; dwz.y=dwzcorrg[p1].y; dwz.z=dwzcorrg[p1].z; //  dwz.x   dwz.y   dwz.z
 
 		const double det=(dwx.x*dwy.y*dwz.z+dwx.y*dwy.z*dwz.x+dwy.x*dwz.y*dwx.z)-(dwz.x*dwy.y*dwx.z+dwy.x*dwx.y*dwz.z+dwy.z*dwz.y*dwx.x);
@@ -2921,7 +2921,7 @@ void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,cons
 ///Matrix A Population
 //==============================================================================
 __device__ void KerMatrixAFluid
-  (const bool fluid,const unsigned matOrder,const unsigned &pini,const unsigned &pfin,unsigned npb,unsigned npbok,const double2 *posxy,const double *posz,double3 posdp1
+  (const bool fluid,const unsigned matOrder,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz,double3 posdp1
 	,const float3 velp1,const float4 *velrhop,const float3 dwx,const float3 dwy,const float3 dwz,tfloat3 gravity,const float massp2,const float RhopZero,const word *code,const unsigned *idp,unsigned &index
 	,unsigned int *col,double *matrixInd,double *matrixb,const int diag,const double3 *mirrorPos,const unsigned oi,double &divU,double &Neumann)
 {
@@ -2965,7 +2965,7 @@ __device__ void KerMatrixAFluid
 }
 
 __global__ void KerPopulateMatrixAFluid
-  (unsigned n,unsigned pinit,unsigned npb,unsigned npbok,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero,const unsigned *dcell,tfloat3 gravity
+  (unsigned n,unsigned pinit,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero,const unsigned *dcell,tfloat3 gravity
   ,const double2 *posxy,const double *posz,const float4 *velrhop,const float3 *dwxCorr,const float3 *dwyCorr,const float3 *dwzCorr,const float *divr,const word *code
   ,const unsigned *idp,unsigned int *row,unsigned int *col,double *matrixInd,double *matrixb,const float freesurface,const double3 *mirrorPos,const double dt,const unsigned matOrder)
 {
@@ -3003,7 +3003,7 @@ __global__ void KerPopulateMatrixAFluid
 								}
 							}
 							if(pfin){
-								KerMatrixAFluid (fluid,matOrder,pini,pfin,npb,npbok,posxy,posz,posdp1,velp1,velrhop,dwxCorr[p1],dwyCorr[p1],dwzCorr[p1],gravity,CTE.massf,CTE.rhopzero,code,idp,index,col,matrixInd,matrixb,diag,mirrorPos,oi,divU,Neumann);
+								KerMatrixAFluid (fluid,matOrder,pini,pfin,posxy,posz,posdp1,velp1,velrhop,dwxCorr[p1],dwyCorr[p1],dwzCorr[p1],gravity,CTE.massf,CTE.rhopzero,code,idp,index,col,matrixInd,matrixb,diag,mirrorPos,oi,divU,Neumann);
 							}
 						}
 					}
@@ -3011,7 +3011,7 @@ __global__ void KerPopulateMatrixAFluid
       }
       else matrixInd[diag]=1.0;
 
-			matrixb[oi]+=Neumann+(divU/dt);
+			matrixb[oi]=Neumann+(divU/dt);
     }
   }
 }
@@ -3104,7 +3104,7 @@ void PopulateMatrix(TpCellMode cellmode,const unsigned bsbound,const unsigned bs
     dim3 sgridb=GetGridSize(npbok,bsbound);
 		const unsigned matOrder=npb-npbok;
 
-		KerPopulateMatrixAFluid <<<sgridf,bsfluid>>> (npf,npb,npb,npbok,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos,dt,matOrder); 
+		KerPopulateMatrixAFluid <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos,dt,matOrder); 
 		KerPopulateMatrixABound<<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder);
 	}
 }
