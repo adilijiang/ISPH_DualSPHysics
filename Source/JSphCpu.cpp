@@ -1291,7 +1291,7 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
       Velrhopc[p].y-=float((Acec[correctp1].y-Gravity.y)*dt);  
       Velrhopc[p].z-=float((Acec[correctp1].z-Gravity.z)*dt);
 
-			//if(rowInd[p]!=npb) CorrectVelocity(p,rowInd[p],Posc,Velrhopc,Idpc,MirrorPosc);
+			if(rowInd[p]!=npb) CorrectVelocity(p,rowInd[p],Posc,Velrhopc,Idpc,MirrorPosc);
 
       //-Calculate displacement and update position / Calcula desplazamiento y actualiza posicion.
       double dx=(double(VelrhopPrec[p].x)+double(Velrhopc[p].x))*dt05; 
@@ -2031,6 +2031,7 @@ void JSphCpu::PopulateMatrixAFluid(unsigned np,unsigned npb,tint4 nc,int hdiv,un
 		col[diag]=oi;
 		unsigned index=diag+1;
 		double divU=0;
+		double Neumann=0;
 		const unsigned Correctp1=p1-npb;
 		tfloat3 dwx=dwxcorr[Correctp1]; //  dwx.x   dwx.y   dwx.z
     tfloat3 dwy=dwycorr[Correctp1]; //  dwy.x   dwy.y   dwy.z
@@ -2084,6 +2085,12 @@ void JSphCpu::PopulateMatrixAFluid(unsigned np,unsigned npb,tint4 nc,int hdiv,un
 								const float temp_z=frx*dwx.z+fry*dwy.z+frz*dwz.z;
 								const double tempDivU=double(dvx*temp_x+dvy*temp_y+dvz*temp_z);
 								divU-=double(volume*tempDivU);
+
+								if(!fluid){
+									double dist=pos[p2].z-MirrorPosc[idpc[p2]].z;
+									double temp2=temp*RhopZero*Gravity.z*dist;
+									Neumann+=double(temp2*volume);
+								}
 							}  
 						}
 					}
@@ -2092,7 +2099,7 @@ void JSphCpu::PopulateMatrixAFluid(unsigned np,unsigned npb,tint4 nc,int hdiv,un
 	  }
     else matrixInd[diag]=1.0;
 
-		matrixb[oi]=divU/dt;
+		matrixb[oi]=Neumann+divU/dt;
   }
 }
 
@@ -2159,10 +2166,6 @@ void JSphCpu::PopulateMatrixABound(unsigned n,unsigned pinit,tint4 nc,int hdiv,u
           }	
         }
 	    }
-
-			double dist = posp1.z-pos[p1].z;
-			double temp = RhopZero * abs(gravity.z) * dist;
-			matrixb[oi]=temp;
 	  }
     else matrixInd[diag]=1.0;
   }
