@@ -2924,7 +2924,7 @@ __device__ void KerMatrixAFluid
 
 			//=====dp/dn=====
 			if(!fluid){
-				double dist = mirrorPos[idp[p2]].z-posz[p2];
+				double dist = posz[p2]-mirrorPos[idp[p2]].z;
 			  double temp2=temp*RhopZero*gravity.z*dist;
 			  Neumann+=double(volumep2*temp2); 
 			}
