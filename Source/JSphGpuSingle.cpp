@@ -778,6 +778,7 @@ void JSphGpuSingle::SolvePPE(double dt){
 
   TmgStart(Timers,TMG_Nnz);
   unsigned Nnz=MatrixASetup(np,npb,npbok,PPEDim,rowIndg,Divrg,FreeSurface);	
+	if(Nnz>MatrixMemory*np) RunException(met,fun::PrintStr("MatrixMemory too small"));
 	CheckCudaError(met,"Nnz");
   TmgStop(Timers,TMG_Nnz);
   cudaMemset(colIndg,0,sizeof(int)*Nnz);
@@ -828,7 +829,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   TmgStop(Timers,TMG_SetupPPE);
 	
 	TmgStart(Timers,TMG_SolvePPE);
-  cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Xg,bg,rowIndg,colIndg,Nnz,PPEDim); 
+  cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Xg,bg,rowIndg,colIndg,Nnz,PPEDim); 
   CheckCudaError(met,"Matrix Solve");
   TmgStop(Timers,TMG_SolvePPE);
 

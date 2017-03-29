@@ -136,15 +136,7 @@ void JSphCpu::AllocCpuMemoryFixed(){
 	const unsigned np=Np;
 	const unsigned npb=Npb;
 	const unsigned npf=np-npb;
-	unsigned PPEMem; //Predicts max number of neighbours per particle dependant on kernel support size
-
-	if(H/Dp<1.5){
-    if(Simulate2D) PPEMem=70;
-    else PPEMem=400;
-  }
-	else RunException("AllocMemoryFixed","H/Dp too high for Quintic");
-
-	PPEMem=PPEMem*Np;
+  unsigned PPEMem=MatrixMemory*np; //Predicts max number of neighbours per particle dependant on kernel support size
 
   try{
 		MirrorPosc=new tdouble3[npb];				MemCpuFixed+=(sizeof(tdouble3)*npb);
@@ -2347,7 +2339,7 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
 					viennacl::context target_ctx = viennacl::traits::context(vcl_compressed_matrix);
 
 					viennacl::linalg::amg_tag amg_tag_agg_pmis;
-					amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_AGGREGATION);
+					amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_MIS2_AGGREGATION);
 					if(tamginter==AMGINTER_AG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION); Log->Printf("INTERPOLATION: AGGREGATION ");}
 					else if(tamginter==AMGINTER_SAG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_SMOOTHED_AGGREGATION); Log->Printf("INTERPOLATION: SMOOTHED AGGREGATION");}
 					amg_tag_agg_pmis.set_strong_connection_threshold(strongconnection);

@@ -429,6 +429,8 @@ void JSph::LoadCaseConfig(){
 
   Tolerance=eparms.GetValueDouble("Solver Tolerance",true,1e-5f);
   Iterations=eparms.GetValueInt("Max Iterations",true,100);
+	Restart=eparms.GetValueInt("Restart",true,50);
+	MatrixMemory=eparms.GetValueInt("MatrixMemory",true,80);
 
   switch(eparms.GetValueInt("Preconditioner",true,0)){
     case 0:  TPrecond=PRECOND_Jacobi;   break;

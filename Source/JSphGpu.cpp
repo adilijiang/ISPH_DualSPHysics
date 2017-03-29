@@ -157,14 +157,7 @@ void JSphGpu::AllocGpuMemoryFixed(){
 	const unsigned np=Np;
 	const unsigned npb=Npb;
 	const unsigned npf=np-npb;
-  unsigned PPEMem; //Predicts max number of neighbours per particle dependant on kernel support size
-
-  if(H/Dp<1.5){
-    if(Simulate2D) PPEMem=70;
-    else PPEMem=400;
-  }
-	else RunException(met,fun::PrintStr("H/Dp too high for Quintic %f",H/Dp));
-	PPEMem=PPEMem*np;
+  unsigned PPEMem=MatrixMemory*np; //Predicts max number of neighbours per particle dependant on kernel support size
 
   size_t m;
 	

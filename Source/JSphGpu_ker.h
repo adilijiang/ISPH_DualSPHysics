@@ -196,7 +196,7 @@ void InitArrayPOrder(unsigned n,unsigned *v,unsigned value);
 void InitArrayCol(unsigned n,unsigned int *v,int value);
 
 //# Kernels for solving with ViennaCL
-void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,int coarselevels,double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned nnz,const unsigned ppedim);
+void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,int restart,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,int coarselevels,double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned nnz,const unsigned ppedim);
 
 //Kernels for shifting
 void Interaction_Shifting(bool floating,bool usedem,TpCellMode cellmode

@@ -3295,7 +3295,7 @@ void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag cons
   viennacl::copy(result,vcl_result);
 }
 
-void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,int coarselevels,double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned nnz,const unsigned ppedim){
+void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,int restart,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,int coarselevels,double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned nnz,const unsigned ppedim){
   viennacl::context CudaCtx(viennacl::CUDA_MEMORY);
   typedef double       ScalarType;
 
@@ -3304,7 +3304,7 @@ void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int it
   viennacl::vector<ScalarType> vcl_vec(matrixb, viennacl::CUDA_MEMORY, ppedim);
   viennacl::vector<ScalarType> vcl_result(matrixx, viennacl::CUDA_MEMORY, ppedim);
 
-  viennacl::linalg::bicgstab_tag bicgstab(tolerance,iterations);
+  viennacl::linalg::bicgstab_tag bicgstab(tolerance,iterations,restart);
 
 	if(viennacl::linalg::norm_2(vcl_vec)){
 		if(tprecond==PRECOND_Jacobi){

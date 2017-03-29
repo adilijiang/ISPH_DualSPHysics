@@ -918,6 +918,7 @@ void JSphCpuSingle::FinishRun(bool stop){
 #include <sstream>
 #include <iomanip>
 void JSphCpuSingle::SolvePPE(double dt){ 
+	const char* met="SolvePPE";
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
   tuint3 ncells=CellDivSingle->GetNcells();
   const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
@@ -938,6 +939,7 @@ void JSphCpuSingle::SolvePPE(double dt){
 	const unsigned matOrder=npb-npbok;
 
 	MatrixASetup(np,npb,npbok,PPEDim,Nnz,rowInd,Divr,FreeSurface);
+	if(Nnz>MatrixMemory*np) RunException(met,fun::PrintStr("MatrixMemory too small"));
   memset(colInd,0,sizeof(int)*Nnz);
   memset(a,0,sizeof(double)*Nnz);
   //LHS

@@ -171,7 +171,9 @@ protected:
   
   TpPrecond TPrecond;
   TpAMGInter TAMGInter;
-  int Iterations;
+	unsigned MatrixMemory;
+	int Iterations;
+	int Restart;
   double Tolerance;
   float StrongConnection;
   float JacobiWeight;
