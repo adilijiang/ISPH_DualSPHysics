@@ -124,7 +124,7 @@ typedef enum{
 ///Types of kernel function.
 typedef enum{ 
   KERNEL_Wendland=1,         ///<Wendland kernel.
-  KERNEL_None=0 
+  KERNEL_Quintic=0 
 }TpKernel;                  
 
 ///Types of viscosity treatment.

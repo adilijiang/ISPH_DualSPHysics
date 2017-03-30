@@ -54,7 +54,7 @@ void JCfgRun::Reset(){
   DomainParticlesPrcMin=DomainParticlesPrcMax=TDouble3(0);
   DomainFixedMin=DomainFixedMax=TDouble3(0);
   TStep=STEP_None; VerletSteps=-1;
-  TKernel=KERNEL_None;
+  TKernel=KERNEL_Quintic;
   TVisco=VISCO_None; Visco=0; ViscoBoundFactor=-1;
   DeltaSph=-1;
   Shifting=-1;

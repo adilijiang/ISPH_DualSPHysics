@@ -97,7 +97,7 @@ void PreInteractionSimple(unsigned np,const double2 *posxy,const double *posz
 
 //# Kernels para calculo de fuerzas.
 //# Kernels for the force calculation.
-void Interaction_Forces(bool floating,bool usedem,TpSlipCond tslipcond,TpCellMode cellmode
+void Interaction_Forces(TpKernel tkernel,bool floating,bool usedem,TpSlipCond tslipcond,TpCellMode cellmode
   ,float viscob,float viscof,unsigned bsbound,unsigned bsfluid
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
@@ -182,7 +182,7 @@ void FreeSurfaceMark(const unsigned bsbound,const unsigned bsfluid,unsigned np,u
   ,double *matrixInd,double *matrixb,unsigned int *row,const word *code,const double pi,const float freesurface,const float shiftoffset);
 
 //# Kernels for Populating matrix A
-void PopulateMatrix(TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
+void PopulateMatrix(TpKernel tkernel,TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
 	,const unsigned *dcell,tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *velrhop,const float3 *dwxCorr,const float3 *dwyCorr,const float3 *dwzCorr,double *matrixInd,double *matrixb
   ,unsigned int *row,unsigned int *col,const unsigned *idp,const float *divr,const word *code,const float freesurface,const double3 *mirrorPos,const unsigned *mirrorCell,const float4 *mls,const double dt);
 
@@ -199,7 +199,7 @@ void InitArrayCol(unsigned n,unsigned int *v,int value);
 void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,int restart,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,int coarselevels,double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned nnz,const unsigned ppedim);
 
 //Kernels for shifting
-void Interaction_Shifting(bool floating,bool usedem,TpCellMode cellmode
+void Interaction_Shifting(TpKernel tkernel,bool floating,bool usedem,TpCellMode cellmode
   ,float viscob,float viscof,unsigned bsfluid
   ,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell

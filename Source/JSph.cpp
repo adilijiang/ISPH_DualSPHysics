@@ -390,7 +390,13 @@ void JSph::LoadCaseConfig(){
     case 2:  TStep=STEP_Symplectic;  break;
     default: RunException(met,"Step algorithm is not valid.");
   }
-  if(eparms.GetValueInt("Kernel",true,1)!=1)RunException(met,"Kernel choice is not valid. Only Wendland is valid.");
+
+	switch(eparms.GetValueInt("Kernel",true,0)){
+    case 0:  TKernel=KERNEL_Quintic;  break;
+		case 1:  TKernel=KERNEL_Wendland;  break;
+    default: RunException(met,"Kernel choice is not valid.");
+  }
+
   switch(eparms.GetValueInt("ViscoTreatment",true,1)){
     case 1:  TVisco=VISCO_Artificial;  break;
     default: RunException(met,"Viscosity treatment is not valid.");
@@ -785,28 +791,33 @@ void JSph::ConfigConstants(bool simulate2d){
   if(!DtMin)DtMin=(h/Cs0)*CoefDtMin; 
   Eta2=float((h*1.0e-5)*(h*1.0e-5));
   H2=float(h*h);
-  //WENDLAND KERNEL
-  /*Dosh=float(h*2); 
-  Fourh2=float(h*h*4.0f); 
-  if(simulate2d){
-    Awen=float(7.0/(4.0*PI*h*h)); 
-    Bwen=-float(35.0/(4.0*PI*h*h*h));
-  }
-  else{
-    Awen=float(0.41778/(h*h*h));
-    Bwen=-float(2.08891/(h*h*h*h));
-  }*/
-  //QUINTIC SPLINE
-  Dosh=float(h*3); 
-  Fourh2=float(h*h*9.0f); 
-  if(simulate2d){
-    Awen=float(7.0/(478.0*PI*h*h)); 
-    Bwen=float(7.0/(478.0*PI*h*h*h));
-  }
-  else{
-    Awen=float(1.0/(120.0*PI*h*h*h)); 
-    Bwen=float(1.0/(120.0*PI*h*h*h*h));
-  }
+	
+	if(TKernel==KERNEL_Quintic){
+		//QUINTIC SPLINE
+		Dosh=float(h*3); 
+		Fourh2=float(h*h*9.0f); 
+		if(simulate2d){
+			Awen=float(7.0/(478.0*PI*h*h)); 
+			Bwen=float(7.0/(478.0*PI*h*h*h));
+		}
+		else{
+			Awen=float(1.0/(120.0*PI*h*h*h)); 
+			Bwen=float(1.0/(120.0*PI*h*h*h*h));
+		}
+	}
+	else if(TKernel==KERNEL_Wendland){
+		//WENDLAND KERNEL
+		Dosh=float(h*2); 
+		Fourh2=float(h*h*4.0f); 
+		if(simulate2d){
+			Awen=float(7.0/(4.0*PI*h*h)); 
+			Bwen=-float(35.0/(4.0*PI*h*h*h));
+		}
+		else{
+			Awen=float(0.41778/(h*h*h));
+			Bwen=-float(2.08891/(h*h*h*h));
+		}
+	}
 
   VisuConfig();
 }
@@ -1499,7 +1510,8 @@ std::string JSph::GetStepName(TpStep tstep){
 //==============================================================================
 std::string JSph::GetKernelName(TpKernel tkernel){
   string tx;
-  if(tkernel==KERNEL_Wendland)tx="Wendland";
+	if(tkernel==KERNEL_Quintic)tx="Quintic";
+  else if(tkernel==KERNEL_Wendland)tx="Wendland";
   else tx="???";
   return(tx);
 }
