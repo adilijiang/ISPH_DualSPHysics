@@ -40,17 +40,17 @@ OBJECTS=$(OBJ_BASIC) $(OBJ_CPU_SINGLE) $(OBJ_GPU) $(OBJ_CUDA) $(OBJ_GPU_SINGLE) 
 
 #=============== Select GPU architectures ===============
 GENCODE:=$(GENCODE) -gencode=arch=compute_20,code=\"sm_20,compute_20\"
-GENCODE:=$(GENCODE) -gencode=arch=compute_30,code=\"sm_30,compute_30\"
-GENCODE:=$(GENCODE) -gencode=arch=compute_35,code=\"sm_35,compute_35\"
-GENCODE:=$(GENCODE) -gencode=arch=compute_37,code=\"sm_37,compute_37\"
-GENCODE:=$(GENCODE) -gencode=arch=compute_50,code=\"sm_50,compute_50\"
-GENCODE:=$(GENCODE) -gencode=arch=compute_52,code=\"sm_52,compute_52\"
+##GENCODE:=$(GENCODE) -gencode=arch=compute_30,code=\"sm_30,compute_30\"
+##GENCODE:=$(GENCODE) -gencode=arch=compute_35,code=\"sm_35,compute_35\"
+##GENCODE:=$(GENCODE) -gencode=arch=compute_37,code=\"sm_37,compute_37\"
+##GENCODE:=$(GENCODE) -gencode=arch=compute_50,code=\"sm_50,compute_50\"
+##GENCODE:=$(GENCODE) -gencode=arch=compute_52,code=\"sm_52,compute_52\"
 
 #=============== DualSPHysics libs to be included ===============
 JLIBS=-L./ -ljxml_64 -ljformatfiles2_64 -ljsphmotion_64 -ljwavegen_64
 
 #=============== GPU Code Compilation ===============
-CCFLAGS := $(CCFLAGS) -I./ -I$(DIRTOOLKIT)/include
+CCFLAGS := $(CCFLAGS) -I./ -I$(DIRTOOLKIT)/include -ViennaCLLibrary
 CCLINKFLAGS := $(CCLINKFLAGS) -L$(DIRTOOLKIT)/lib64 -lcudart
 NCC=nvcc
 ifeq ($(USE_DEBUG), NO)
@@ -85,9 +85,6 @@ JCellDivGpu_ker.o: JCellDivGpu_ker.cu
 
 JCellDivGpuSingle_ker.o: JCellDivGpuSingle_ker.cu
 	$(NCC) $(NCCFLAGS) JCellDivGpuSingle_ker.cu
-
-JPeriodicGpu_ker.o: JPeriodicGpu_ker.cu
-	$(NCC) $(NCCFLAGS) JPeriodicGpu_ker.cu
 
 clean:
 	rm -rf *.o DualSPHysics4_linux64 DualSPHysics4_linux64_debug

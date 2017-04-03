@@ -997,7 +997,7 @@ void JSphCpuSingle::SolvePPE(double dt){
 	ArraysCpu->Free(Divr);	 Divr=NULL;
   ArraysCpu->Free(b);      b=NULL;
   ArraysCpu->Free(x);      x=NULL;
-	TmcStart(Timers,TMC_Stage2b);
+	TmcStop(Timers,TMC_Stage2b);
 }
 
 //==============================================================================
