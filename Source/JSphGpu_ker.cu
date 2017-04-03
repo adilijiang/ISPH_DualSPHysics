@@ -783,7 +783,6 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesBoun
 		}
 
 		divr[p1]=divrp1;
-		//if(idpg1==50) divr[p1]=0;
 		row[p1]=rowCount;
 
 		if(tslipcond==SLIPCOND_Slip){

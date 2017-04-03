@@ -598,14 +598,11 @@ void JSphCpu::PreInteraction_Forces(TpInter tinter){
 /// Devuelve valores de kernel gradients: frx, fry y frz.
 /// Return values of kernel gradients: frx, fry and frz.
 //==============================================================================
-void JSphCpu::GetKernel(float rr2,float drx,float dry,float drz,float &frx,float &fry,float &frz)const{
+void JSphCpu::GetKernelQuintic(float rr2,float drx,float dry,float drz,float &frx,float &fry,float &frz)const{
   const float rad=sqrt(rr2);
   const float qq=rad/H;
-  //-Wendland kernel
- /* const float wqq1=1.f-0.5f*qq;
-  const float fac=Bwen*qq*wqq1*wqq1*wqq1/rad;*/
 
-  //-Quintic Spline
+	//-Quintic Spline
   float fac;
   if(qq<1.0f)fac=Bwen*(-5.0f*powf(3.0f-qq,4.0f)+30.0f*powf(2.0f-qq,4.0f)-75.0f*powf(1.0f-qq,4.0f));
   else if(qq<2.0f)fac=Bwen*(-5.0f*powf(3.0f-qq,4.0f)+30.0f*powf(2.0f-qq,4.0f));
@@ -616,19 +613,22 @@ void JSphCpu::GetKernel(float rr2,float drx,float dry,float drz,float &frx,float
   frx=fac*drx; fry=fac*dry; frz=fac*drz;
 }
 
+void JSphCpu::GetKernelWendland(float rr2,float drx,float dry,float drz,float &frx,float &fry,float &frz)const{
+  const float rad=sqrt(rr2);
+  const float qq=rad/H;
+  //-Wendland kernel
+  const float wqq1=1.f-0.5f*qq;
+  const float fac=Bwen*qq*wqq1*wqq1*wqq1/rad;
+
+  frx=fac*drx; fry=fac*dry; frz=fac*drz;
+}
+
 //==============================================================================
 /// Devuelve valores de kernel: Wab = W(q) con q=r/H.
 /// Return values of kernel: Wab = W(q) where q=r/H.
 //==============================================================================
-float JSphCpu::GetKernelWab(float rr2)const{
+float JSphCpu::GetKernelQuinticWab(float rr2)const{
   const float qq=sqrt(rr2)/H;
-  //-Wendland kernel.
-  /*const float wqq=2.f*qq+1.f;
-  const float wqq1=1.f-0.5f*qq;
-
-  const float wqq2=wqq1*wqq1;
-  return(Awen*wqq*wqq2*wqq2);*/
-
   //-Quintic Spline
   float wab;
  
@@ -637,6 +637,16 @@ float JSphCpu::GetKernelWab(float rr2)const{
   else if(qq<3.0f)wab=Awen*(powf(3.0f-qq,5.0f));
   else wab=0;
   return(wab);
+}
+
+float JSphCpu::GetKernelWendlandWab(float rr2)const{
+  const float qq=sqrt(rr2)/H;
+  //-Wendland kernel.
+  const float wqq=2.0f*qq+1.0f;
+  const float wqq1=1.0f-0.5f*qq;
+
+  const float wqq2=wqq1*wqq1;
+  return(Awen*wqq*wqq2*wqq2);
 }
 
 //==============================================================================
@@ -678,7 +688,7 @@ void JSphCpu::MirrorDCell(unsigned npb,const word *code,const tdouble3 *mirrorPo
 //=============================================================================
 /// Slip Conditions and Boundary interactions
 //=============================================================================
-void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
+template<TpKernel tker> void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,tfloat4 *velrhop,const word *code,float *divr,tdouble3 *mirrorPos,const unsigned *idp,const unsigned *mirrorCell,tfloat4 *mls,int *row)const{
 
   const int pfin=int(pinit+n);
@@ -718,13 +728,16 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 						if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
 							//-Wendland kernel.
 							float frx,fry,frz;
-							GetKernel(rr2,drx,dry,drz,frx,fry,frz);
+							if(tker==KERNEL_Quintic) GetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
+							else if(tker==KERNEL_Wendland) GetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 							const float rDivW=drx*frx+dry*fry+drz*frz;
 							divrp1-=volume*rDivW;
 							if(fluid){
 								const tfloat4 velrhop2=velrhop[p2];
-								const float W=GetKernelWab(rr2);
-								const float temp=(mlsp1.w+mlsp1.x*drx+mlsp1.y*dry+mlsp1.z*drz)*W;
+								float Wab;
+								if(tker==KERNEL_Quintic) Wab=GetKernelQuinticWab(rr2);
+								else if(tker==KERNEL_Wendland) Wab=GetKernelWendlandWab(rr2);
+								const float temp=(mlsp1.w+mlsp1.x*drx+mlsp1.y*dry+mlsp1.z*drz)*Wab;
 								Sum.x+=velrhop2.x*temp*volume;
 								Sum.y+=velrhop2.y*temp*volume;
 								Sum.z+=velrhop2.z*temp*volume;
@@ -737,7 +750,6 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 		}
 		
 		divr[p1]=divrp1;
-		//if(Idpc[p1]==50) divr[p1]=0;
 		row[p1]=rowCount;
 			
 		if(TSlipCond==SLIPCOND_Slip){
@@ -793,7 +805,7 @@ void JSphCpu::Boundary_Velocity(TpSlipCond TSlipCond,unsigned n,unsigned pinit,t
 /// Realiza interaccion entre particulas: Fluid/Float-Fluid/Float or Fluid/Float-Bound
 /// Perform interaction between particles: Fluid/Float-Fluid/Float or Fluid/Float-Bound
 //==============================================================================
-template<TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
+template<TpKernel tker,TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
   (TpInter tinter, unsigned npf,unsigned npb,tint4 nc,int hdiv,unsigned cellinitial,float visco
   ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
   ,const tdouble3 *pos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwycorr,tfloat3 *dwzcorr,const word *code,const unsigned *idp
@@ -854,7 +866,8 @@ template<TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
 
             //-Wendland kernel.
             float frx,fry,frz;
-            GetKernel(rr2,drx,dry,drz,frx,fry,frz);
+            if(tker==KERNEL_Quintic) GetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
+						else if(tker==KERNEL_Wendland) GetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 			
             //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
             float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
@@ -1104,7 +1117,7 @@ void JSphCpu::AssignPeriodic(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigne
 /// Seleccion de parametros template para Interaction_ForcesFluidT.
 /// Selection of template parameters for Interaction_ForcesFluidT.
 //==============================================================================
-template<TpFtMode ftmode> void JSphCpu::Interaction_ForcesT
+template<TpKernel tker,TpFtMode ftmode> void JSphCpu::Interaction_ForcesT
   (TpInter tinter, unsigned np,unsigned npb,unsigned npbok
   ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
   ,const tdouble3 *pos,tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwycorr,tfloat3 *dwzcorr,const word *code,const unsigned *idp
@@ -1118,16 +1131,16 @@ template<TpFtMode ftmode> void JSphCpu::Interaction_ForcesT
 	const unsigned matOrder=npb-npbok;
   if(npf){
 		if(tinter==1){
-			if(Simulate2D) MLSBoundary2D(NpbOk,0,nc,hdiv,cellfluid,begincell,cellzero,pos,velrhop,idp,code,mirrorPos,mirrorCell,mls);
-			else MLSBoundary3D(NpbOk,0,nc,hdiv,cellfluid,begincell,cellzero,pos,velrhop,idp,code,mirrorPos,mirrorCell,mls);
-			Boundary_Velocity(TSlipCond,NpbOk,0,nc,hdiv,cellfluid,begincell,cellzero,dcell,pos,velrhop,code,divr,mirrorPos,idp,mirrorCell,mls,row);
+			if(Simulate2D) MLSBoundary2D<tker> (NpbOk,0,nc,hdiv,cellfluid,begincell,cellzero,pos,velrhop,idp,code,mirrorPos,mirrorCell,mls);
+			else MLSBoundary3D<tker> (NpbOk,0,nc,hdiv,cellfluid,begincell,cellzero,pos,velrhop,idp,code,mirrorPos,mirrorCell,mls);
+			Boundary_Velocity<tker> (TSlipCond,NpbOk,0,nc,hdiv,cellfluid,begincell,cellzero,dcell,pos,velrhop,code,divr,mirrorPos,idp,mirrorCell,mls,row);
 		}
 
 		//-Interaction Fluid-Fluid / Interaccion Fluid-Fluid
-    InteractionForcesFluid<ftmode> (tinter,npf,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace,divr,row,matOrder);
+    InteractionForcesFluid<tker,ftmode> (tinter,npf,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace,divr,row,matOrder);
 
 	  //-Interaction Fluid-Bound / Interaccion Fluid-Bound
-    InteractionForcesFluid<ftmode> (tinter,npf,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace,divr,row,matOrder);
+    InteractionForcesFluid<tker,ftmode> (tinter,npf,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace,divr,row,matOrder);
 
     //-Interaction of DEM Floating-Bound & Floating-Floating / Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
     //if(USE_DEM)InteractionForcesDEM<psimple> (CaseNfloat,nc,hdiv,cellfluid,begincell,cellzero,dcell,FtRidp,DemObjs,pos,pspos,velrhop,code,idp,viscdt,ace);
@@ -1136,10 +1149,10 @@ template<TpFtMode ftmode> void JSphCpu::Interaction_ForcesT
 			else JSphCpu::InverseCorrection3D(np,npb,dWxCorrShiftPos,dWyCorr,dWzCorrTensile,code);
 		}
 
-		if(PeriActive){
+		/*if(PeriActive){
 			AssignPeriodic(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Posc,Idpc,Codec,Dcellc);
 			if(tinter==1)AssignPeriodic(npbok,0,nc,hdiv,0,begincell,cellzero,Posc,Idpc,Codec,Dcellc);
-		}
+		}*/
 	}
 }
 
@@ -1147,14 +1160,21 @@ template<TpFtMode ftmode> void JSphCpu::Interaction_ForcesT
 /// Seleccion de parametros template para Interaction_ForcesX.
 /// Selection of template parameters for Interaction_ForcesX.
 //==============================================================================
-void JSphCpu::Interaction_Forces(TpInter tinter,unsigned np,unsigned npb,unsigned npbok
+void JSphCpu::Interaction_Forces(TpInter tinter,TpKernel tkernel,unsigned np,unsigned npb,unsigned npbok
   ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
   ,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idp,tfloat3 *dwxcorr,tfloat3 *dwycorr,tfloat3 *dwzcorr,const word *code
   ,tfloat3 *ace,float *divr,tdouble3 *mirrorPos,const unsigned *mirrorCell,tfloat4 *mls,int *row)const
 {
-  if(!WithFloating) Interaction_ForcesT<FTMODE_None> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace,divr,mirrorPos,mirrorCell,mls,row);
-  else if(!UseDEM)  Interaction_ForcesT<FTMODE_Sph> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace,divr,mirrorPos,mirrorCell,mls,row);
-  else              Interaction_ForcesT<FTMODE_Dem> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace,divr,mirrorPos,mirrorCell,mls,row);
+	if(tkernel==KERNEL_Quintic){    const TpKernel tker=KERNEL_Quintic;
+		if(!WithFloating) Interaction_ForcesT<tker,FTMODE_None> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace,divr,mirrorPos,mirrorCell,mls,row);
+		else if(!UseDEM)  Interaction_ForcesT<tker,FTMODE_Sph> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace,divr,mirrorPos,mirrorCell,mls,row);
+		else              Interaction_ForcesT<tker,FTMODE_Dem> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace,divr,mirrorPos,mirrorCell,mls,row);
+	}
+	else if(tkernel==KERNEL_Wendland){    const TpKernel tker=KERNEL_Wendland;
+		if(!WithFloating) Interaction_ForcesT<tker,FTMODE_None> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace,divr,mirrorPos,mirrorCell,mls,row);
+		else if(!UseDEM)  Interaction_ForcesT<tker,FTMODE_Sph> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace,divr,mirrorPos,mirrorCell,mls,row);
+		else              Interaction_ForcesT<tker,FTMODE_Dem> (tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace,divr,mirrorPos,mirrorCell,mls,row);
+	}
 }
 
 //==============================================================================
@@ -1795,7 +1815,7 @@ void JSphCpu::mirrorTwoPoints(const unsigned p1,unsigned &Physparticle,const uns
 
 }
 
-void JSphCpu::MLSBoundary2D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+template<TpKernel tker> void JSphCpu::MLSBoundary2D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
   const tdouble3 *pos,const tfloat4 *velrhop,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,const unsigned *mirrorCell,tfloat4 *mls)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
@@ -1838,7 +1858,10 @@ void JSphCpu::MLSBoundary2D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned
 					const float drz=float(posp1.z-pos[p2].z);
 					const float rr2=drx*drx+dry*dry+drz*drz;
           if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-		        const double temp=GetKernelWab(rr2)*volume;
+						float Wab;
+						if(tker==KERNEL_Quintic) Wab=GetKernelQuinticWab(rr2);
+						else if(tker==KERNEL_Wendland) Wab=GetKernelWendlandWab(rr2);
+		        const double temp=Wab*volume;
 						b11+= temp;		b12+=drx*temp;			b13+=drz*temp;
 													b22+=drx*drx*temp;	b23+=drx*drz*temp;
 																							b33+=drz*drz*temp;
@@ -1860,7 +1883,7 @@ void JSphCpu::MLSBoundary2D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned
   }
 }
 
-void JSphCpu::MLSBoundary3D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+template<TpKernel tker> void JSphCpu::MLSBoundary3D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
   const tdouble3 *pos,const tfloat4 *velrhop,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,const unsigned *mirrorCell,tfloat4 *mls)const{
 
   const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
@@ -1904,7 +1927,10 @@ void JSphCpu::MLSBoundary3D(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned
 					const float drz=float(posp1.z-pos[p2].z);
 					const float rr2=drx*drx+dry*dry+drz*drz;
           if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-		        double temp=GetKernelWab(rr2)*volume;
+		        float Wab;
+						if(tker==KERNEL_Quintic) Wab=GetKernelQuinticWab(rr2);
+						else if(tker==KERNEL_Wendland) Wab=GetKernelWendlandWab(rr2);
+		        const double temp=Wab*volume;
 						b11+= temp;		b12+=drx*temp;			b13+=dry*temp;			b14+=drz*temp;			
 													b22+=drx*drx*temp;	b23+=drx*dry*temp;	b24+=drx*drz*temp;
 																							b33+=dry*dry*temp;  b34+=dry*drz*temp;
@@ -1982,11 +2008,14 @@ void JSphCpu::InverseCorrection3D(unsigned np,unsigned npb,tfloat3 *dwxcorr,tflo
 	}
 }
 
-void JSphCpu::MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim,unsigned &nnz,int *row,const float *divr,const float freeSurface)const{
+void JSphCpu::MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim,unsigned &nnz,int *row,const float *divr,const float freeSurface,unsigned &numfreesurface)const{
   const unsigned matOrder=npb-npbok;
 	
 	for(unsigned p1=0;p1<npbok;p1++){
-		if(divr[p1]<=freeSurface)row[p1]=0;
+		if(divr[p1]<=freeSurface){
+			row[p1]=0;
+			numfreesurface++;
+		}
     const unsigned nnzOld=nnz;
     nnz += row[p1]+1;
     row[p1] = nnzOld;
@@ -1994,7 +2023,10 @@ void JSphCpu::MatrixASetup(const unsigned np,const unsigned npb,const unsigned n
 
 	for(unsigned p1=npb;p1<np;p1++){
 		const unsigned oi=p1-matOrder;
-		if(divr[p1]<=freeSurface)row[oi]=0;
+		if(divr[p1]<=freeSurface){
+			row[oi]=0;
+			numfreesurface++;
+		}
     const unsigned nnzOld=nnz;
     nnz += row[oi]+1;
     row[oi] = nnzOld;
@@ -2006,7 +2038,7 @@ void JSphCpu::MatrixASetup(const unsigned np,const unsigned npb,const unsigned n
 //===============================================================================
 ///Populate matrix with values
 //===============================================================================
-void JSphCpu::PopulateMatrixAFluid(unsigned np,unsigned npb,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
+template<TpKernel tker> void JSphCpu::PopulateMatrixAFluid(unsigned np,unsigned npb,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwycorr,tfloat3 *dwzcorr,float *divr,double *matrixInd,int *row,int *col,
   double *matrixb,const unsigned *idpc,const word *code,const float freesurface,const double rhoZero,const unsigned matOrder,const double dt)const{
 
@@ -2059,7 +2091,8 @@ void JSphCpu::PopulateMatrixAFluid(unsigned np,unsigned npb,tint4 nc,int hdiv,un
 
 								//-Wendland kernel.
 								float frx,fry,frz;
-								GetKernel(rr2,drx,dry,drz,frx,fry,frz);
+								if(tker==KERNEL_Quintic) GetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
+								else if(tker==KERNEL_Wendland) GetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 			
 								//===== Laplacian operator =====
 								const float rDivW=drx*frx+dry*fry+drz*frz;
@@ -2095,7 +2128,7 @@ void JSphCpu::PopulateMatrixAFluid(unsigned np,unsigned npb,tint4 nc,int hdiv,un
   }
 }
 
-void JSphCpu::PopulateMatrixABound(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
+template<TpKernel tker> void JSphCpu::PopulateMatrixABound(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
   const tdouble3 *pos,double *matrixInd,int *row,int *col,double *matrixb,float *divr,const float freesurface,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,
 	const unsigned *mirrorCell,tfloat4 *mls,tfloat3 gravity)const{
 
@@ -2144,13 +2177,11 @@ void JSphCpu::PopulateMatrixABound(unsigned n,unsigned pinit,tint4 nc,int hdiv,u
 						const float rr2=drx*drx+dry*dry+drz*drz;
             if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
   	          unsigned oj=(p2-Npb)+NpbOk;
-							
-							//-Wendland kernel.
-							float frx,fry,frz;
-							GetKernel(rr2,drx,dry,drz,frx,fry,frz);
 			
-							const float W=GetKernelWab(rr2);
-							float temp=(mlsp1.w+mlsp1.x*drx+mlsp1.y*dry+mlsp1.z*drz)*W;
+							float Wab;
+							if(tker==KERNEL_Quintic) Wab=GetKernelQuinticWab(rr2);
+							else if(tker==KERNEL_Wendland) Wab=GetKernelWendlandWab(rr2);
+							const float temp=(mlsp1.w+mlsp1.x*drx+mlsp1.y*dry+mlsp1.z*drz)*Wab;
 							matrixInd[index]=double(-temp*volume);
               col[index]=oj;
 							index++;
@@ -2161,6 +2192,21 @@ void JSphCpu::PopulateMatrixABound(unsigned n,unsigned pinit,tint4 nc,int hdiv,u
 	  }
     else matrixInd[diag]=1.0;
   }
+}
+
+void JSphCpu::PopulateMatrix(TpKernel tkernel,unsigned np,unsigned npb,unsigned npbok,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
+  const tdouble3 *pos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwycorr,tfloat3 *dwzcorr,float *divr,double *matrixInd,int *row,int *col,
+  double *matrixb,const unsigned *idpc,const word *code,const float freesurface,const double rhoZero,const unsigned matOrder,const double dt,const tdouble3 *mirrorPos,
+	const unsigned *mirrorCell,tfloat4 *mls,tfloat3 gravity)const{
+ 
+	if(tkernel==KERNEL_Quintic){    const TpKernel tker=KERNEL_Quintic;
+		PopulateMatrixAFluid<tker> (np,npb,nc,hdiv,cellinitial,beginendcell,cellzero,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,divr,matrixInd,row,col,matrixb,idpc,code,freesurface,rhoZero,matOrder,dt);//-Fluid-Fluid
+		PopulateMatrixABound<tker> (npbok,0,nc,hdiv,cellinitial,beginendcell,cellzero,pos,matrixInd,row,colInd,matrixb,divr,freesurface,idpc,code,mirrorPos,mirrorCell,mls,gravity);
+	}
+	else if(tkernel==KERNEL_Wendland){    const TpKernel tker=KERNEL_Wendland;
+		PopulateMatrixAFluid<tker> (np,npb,nc,hdiv,cellinitial,beginendcell,cellzero,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,divr,matrixInd,row,col,matrixb,idpc,code,freesurface,rhoZero,matOrder,dt);//-Fluid-Fluid
+		PopulateMatrixABound<tker> (npbok,0,nc,hdiv,cellinitial,beginendcell,cellzero,pos,matrixInd,row,col,matrixb,divr,freesurface,idpc,code,mirrorPos,mirrorCell,mls,gravity);
+	}
 }
 
 void JSphCpu::PopulatePeriodic(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
@@ -2309,7 +2355,7 @@ void JSphCpu::run_solver(MatrixType const & matrix, VectorType const & rhs,Solve
 	}
 }
 
-void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,double *matrixa,double *matrixb,double *matrixx,int *row,int *col,const unsigned ppedim,const unsigned nnz){
+void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,double *matrixa,double *matrixb,double *matrixx,int *row,int *col,const unsigned ppedim,const unsigned nnz,const unsigned numfreesurface){
     viennacl::context ctx;
    
     typedef double ScalarType;
@@ -2346,7 +2392,7 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
 					amg_tag_agg_pmis.set_jacobi_weight(jacobiweight);
 					amg_tag_agg_pmis.set_presmooth_steps(presmooth);
 					amg_tag_agg_pmis.set_postsmooth_steps(postsmooth); 
-					amg_tag_agg_pmis.set_coarsening_cutoff(coarsecutoff); 
+					amg_tag_agg_pmis.set_coarsening_cutoff(numfreesurface); 
 					amg_tag_agg_pmis.set_setup_context(host_ctx);
 					amg_tag_agg_pmis.set_target_context(target_ctx); 
 					viennacl::linalg::amg_precond<viennacl::compressed_matrix<double> > vcl_AMG(vcl_compressed_matrix,amg_tag_agg_pmis);
@@ -2369,7 +2415,7 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
 /// Realiza interaccion entre particulas: Fluid/Float-Fluid/Float or Fluid/Float-Bound
 /// Perform interaction between particles: Fluid/Float-Fluid/Float or Fluid/Float-Bound
 //==============================================================================
-template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
+template <TpKernel tker,TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
   (unsigned np,unsigned npb,tint4 nc,int hdiv,unsigned cellinitial,float visco
   ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
   ,const tdouble3 *pos,tfloat4 *velrhop,const word *code,const unsigned *idp
@@ -2384,7 +2430,9 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
     #pragma omp parallel for schedule (guided)
   #endif
   for(int p1=int(npb);p1<int(np);p1++){
-		const float Wab1=GetKernelWab(float(Dp*Dp));
+		float Wab1;
+		if(tker==KERNEL_Quintic) Wab1=GetKernelQuinticWab(float(Dp*Dp));
+		else if(tker==KERNEL_Wendland) Wab1=GetKernelWendlandWab(float(Dp*Dp));
     tfloat3 shiftposp1=TFloat3(0);
     float divrp1=0;
 		tfloat3 sumtensile=TFloat3(0);
@@ -2425,7 +2473,8 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
           if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
             //-Wendland kernel.
             float frx,fry,frz;
-            GetKernel(rr2,drx,dry,drz,frx,fry,frz);
+            if(tker==KERNEL_Quintic) GetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
+						else if(tker==KERNEL_Wendland) GetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 			
             //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
             float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
@@ -2441,7 +2490,10 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
             }*/
 
             //-Shifting correction
-						const float tensile=tensileN*powf((GetKernelWab(rr2)/Wab1),tensileR);
+						float Wab;
+						if(tker==KERNEL_Quintic) Wab=GetKernelQuinticWab(rr2);
+						else if(tker==KERNEL_Wendland) Wab=GetKernelWendlandWab(rr2);
+						const float tensile=tensileN*powf((Wab/Wab1),tensileR);
             
 						shiftposp1.x+=volumep2*frx; //-For boundary do not use shifting / Con boundary anula shifting.
             shiftposp1.y+=volumep2*fry;
@@ -2462,7 +2514,7 @@ template <TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
 }
 
 void JSphCpu::Interaction_Shifting
-  (unsigned np,unsigned npb,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell,const tdouble3 *pos
+  (TpKernel tkernel,unsigned np,unsigned npb,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell,const tdouble3 *pos
   ,tfloat4 *velrhop,const unsigned *idp,const word *code
   ,tfloat3 *shiftpos,tfloat3 *tensile,float *divr,const float tensileN,const float tensileR)const
 {
@@ -2473,22 +2525,30 @@ void JSphCpu::Interaction_Shifting
   const int hdiv=(CellMode==CELLMODE_H? 2: 1);
 
   if(npf){
-    if(!WithFloating){                   const TpFtMode ftmode=FTMODE_None;
-      //-Interaction Fluid-Fluid / Interaccion Fluid-Fluid
-      InteractionForcesShifting<ftmode>(np,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
-      //-Interaction Fluid-Fluid / Interaccion Fluid-Bound
-      InteractionForcesShifting<ftmode>(np,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
-    }else if(!UseDEM){                   const TpFtMode ftmode=FTMODE_Sph;
-      //-Interaction Fluid-Fluid / Interaccion Fluid-Fluid
-      InteractionForcesShifting<ftmode>(np,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
-      //-Interaction Fluid-Fluid / Interaccion Fluid-Bound
-      InteractionForcesShifting<ftmode>(np,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
-    }else{                               const TpFtMode ftmode=FTMODE_Dem; 
-      //-Interaction Fluid-Fluid / Interaccion Fluid-Fluid
-      InteractionForcesShifting<ftmode>(np,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
-      //-Interaction Fluid-Fluid / Interaccion Fluid-Bound
-      InteractionForcesShifting<ftmode>(np,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
-    }
+		if(tkernel==KERNEL_Quintic){    const TpKernel tker=KERNEL_Quintic;
+			if(!WithFloating){                   const TpFtMode ftmode=FTMODE_None;
+				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
+				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
+			}else if(!UseDEM){                   const TpFtMode ftmode=FTMODE_Sph;
+				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
+				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
+			}else{                               const TpFtMode ftmode=FTMODE_Dem; 
+				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
+				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
+			}
+		}
+		else if(tkernel==KERNEL_Wendland){    const TpKernel tker=KERNEL_Wendland;
+			if(!WithFloating){                   const TpFtMode ftmode=FTMODE_None;
+				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
+				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
+			}else if(!UseDEM){                   const TpFtMode ftmode=FTMODE_Sph;
+				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
+				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
+			}else{                               const TpFtMode ftmode=FTMODE_Dem; 
+				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
+				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
+			}
+		}
   }
 }
 
