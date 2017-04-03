@@ -234,11 +234,13 @@ protected:
   unsigned *rowIndg;
   double *Xg;
 
-  unsigned *counterGPU;
-  unsigned *counterCPU;
-	
-  unsigned MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,
-		const unsigned ppedim,unsigned int *rowGpu,const float *divr,const float freesurface);
+  unsigned *counterNnzGPU;
+  unsigned *counterNnzCPU;
+	unsigned *NumFreeSurfaceGPU;
+	unsigned *NumFreeSurfaceCPU;
+
+  void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,
+		const unsigned ppedim,unsigned int *rowGpu,const float *divr,const float freesurface,unsigned &nnz,unsigned &numFreeSurface);
 
   void Shift(double dt,const unsigned bsfluid);
 public:

@@ -451,9 +451,9 @@ void JSph::LoadCaseConfig(){
       default: RunException(met,"AMG Interpolation is not valid.");
   }
     StrongConnection=eparms.GetValueFloat("Strong Connection Threshold",true,0.3f);
-    JacobiWeight=eparms.GetValueFloat("Jacobi Weight",true,0.7f);
-    Presmooth=eparms.GetValueInt("Presmooth Steps",true,1);
-    Postsmooth=eparms.GetValueInt("Postsmooth Steps",true,1);
+    JacobiWeight=eparms.GetValueFloat("Jacobi Weight",true,0.9999999f);
+    Presmooth=eparms.GetValueInt("Presmooth Steps",true,0);
+    Postsmooth=eparms.GetValueInt("Postsmooth Steps",true,0);
     CoarseCutoff=eparms.GetValueInt("Coarsening Cutoff",true,2500);
     CoarseLevels=eparms.GetValueInt("Coarse Levels",true,0);
   }

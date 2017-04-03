@@ -476,6 +476,7 @@ double JSphGpuSingle::ComputeStep_Sym(){
   const double dt=DtPre;
   //-Predictor
   //----------- 
+	TmgStart(Timers,TMG_Stage1);
   InitAdvection(dt);
 	RunCellDivide(true);
 	if(CaseNmoving)CellDivSingle->MirrorDCellSingle(BlockSizes.forcesbound,Npb,Codeg,Idpg,MirrorPosg,MirrorCellg,DomRealPosMin,DomRealPosMax,DomPosMin,Scell,DomCellCode);
@@ -483,14 +484,19 @@ double JSphGpuSingle::ComputeStep_Sym(){
 	ComputeSymplecticPre(dt);                   //-Applies Symplectic-Predictor to the particles
 	//-Pressure Poisson equation
   //-----------
+	TmgStop(Timers,TMG_Stage1);
 	SolvePPE(dt);                               //-Solve pressure Poisson equation
   //-Corrector
   //-----------
+	TmgStart(Timers,TMG_Stage3);
   Interaction_Forces(INTER_ForcesCorr,dt);    //-Interaccion //-interaction
   ComputeSymplecticCorr(dt);                  //Applies Symplectic-Corrector to the particles
+	TmgStop(Timers,TMG_Stage3);
 	//-Shifting
 	//-----------
+	TmgStart(Timers,TMG_Stage4);
   if(TShifting)RunShifting(dt);               //-Shifting
+	TmgStop(Timers,TMG_Stage4);
   return(dt);
 }
 
@@ -724,7 +730,6 @@ void JSphGpuSingle::MirrorBoundary(){
 //==============================================================================
 void JSphGpuSingle::InitAdvection(double dt){
     const char met[]="SolvePPE";
-    TmgStart(Timers,TMG_InitAdvection);
     PosxyPreg=ArraysGpu->ReserveDouble2();
     PoszPreg=ArraysGpu->ReserveDouble();
     VelrhopPreg=ArraysGpu->ReserveFloat4();
@@ -746,7 +751,6 @@ void JSphGpuSingle::InitAdvection(double dt){
 
     ArraysGpu->Free(movxyg);   movxyg=NULL;
     ArraysGpu->Free(movzg);    movzg=NULL; 
-    TmgStop(Timers,TMG_InitAdvection);
     CheckCudaError(met,"Initial Advection");
 }
 
@@ -758,7 +762,7 @@ void JSphGpuSingle::InitAdvection(double dt){
 #include <iomanip>
 void JSphGpuSingle::SolvePPE(double dt){ 
   const char met[]="SolvePPE";
-  TmgStart(Timers,TMG_SetupPPE);
+	TmgStart(Timers,TMG_Stage2a);
   tuint3 ncells=CellDivSingle->GetNcells();
   const int2 *begincell=CellDivSingle->GetBeginCell();
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
@@ -771,16 +775,18 @@ void JSphGpuSingle::SolvePPE(double dt){
 	const unsigned PPEDim=npbok+npf;
   const unsigned bsbound=BlockSizes.forcesbound;
   const unsigned bsfluid=BlockSizes.forcesfluid;
+	unsigned Nnz=0;
+	unsigned Numfreesurface=0;
 
 	//Create matrix
   bg=ArraysGpu->ReserveDouble(); cudaMemset(bg,0,sizeof(double)*PPEDim);
 	Xg=ArraysGpu->ReserveDouble(); cudaMemset(Xg,0,sizeof(double)*PPEDim);
 
-  TmgStart(Timers,TMG_Nnz);
-  unsigned Nnz=MatrixASetup(np,npb,npbok,PPEDim,rowIndg,Divrg,FreeSurface);	
+  MatrixASetup(np,npb,npbok,PPEDim,rowIndg,Divrg,FreeSurface,Nnz,Numfreesurface);	
+
 	if(Nnz>MatrixMemory*np) RunException(met,fun::PrintStr("MatrixMemory too small"));
 	CheckCudaError(met,"Nnz");
-  TmgStop(Timers,TMG_Nnz);
+
   cudaMemset(colIndg,0,sizeof(int)*Nnz);
 	cudaMemset(ag,0,sizeof(double)*Nnz);
 
@@ -825,22 +831,18 @@ void JSphGpuSingle::SolvePPE(double dt){
 
 	cusph::FreeSurfaceMark(bsbound,bsfluid,np,npb,npbok,Divrg,ag,bg,rowIndg,Codeg,PI,FreeSurface,ShiftOffset);
   CheckCudaError(met,"FreeSurfaceMark");
-
-  TmgStop(Timers,TMG_SetupPPE);
-	
-	TmgStart(Timers,TMG_SolvePPE);
-  cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Xg,bg,rowIndg,colIndg,Nnz,PPEDim); 
+	TmgStop(Timers,TMG_Stage2a);
+	TmgStart(Timers,TMG_Stage2b);
+  cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Xg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
   CheckCudaError(met,"Matrix Solve");
-  TmgStop(Timers,TMG_SolvePPE);
 
-  TmgStart(Timers,TMG_PressureAssign);
   cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Poszg,Velrhopg,Xg,Idpg,Codeg,NegativePressureBound,MirrorPosg);
-  TmgStop(Timers,TMG_PressureAssign);
 
   CheckCudaError(met,"Pressure assign");
   ArraysGpu->Free(Divrg);		      Divrg=NULL;
   ArraysGpu->Free(bg);             bg=NULL;
   ArraysGpu->Free(Xg);             Xg=NULL;
+	TmgStop(Timers,TMG_Stage2b);
 }
 
 //==============================================================================

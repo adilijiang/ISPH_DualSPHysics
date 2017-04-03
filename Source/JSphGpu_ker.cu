@@ -2872,12 +2872,15 @@ void MirrorBoundary(const bool simulate2d,const unsigned bsbound,unsigned npb,co
 //==============================================================================
 ///Matrix A Setup
 //==============================================================================
-__global__ void kerMatrixASetup(const unsigned end,const unsigned start,const unsigned matOrder,const unsigned ppedim,unsigned int*row,unsigned *nnz,const float *divr,const float freesurface){
+__global__ void kerMatrixASetup(const unsigned end,const unsigned start,const unsigned matOrder,const unsigned ppedim,unsigned int *row,unsigned *nnz,unsigned *numfreesurface,const float *divr,const float freesurface){
    unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
    if(p==0){
 	   for(int p1=int(start);p1<int(end);p1++){
 			 const unsigned oi=p1-matOrder;
-			 if(divr[p1]<=freesurface)row[oi]=0;
+			 if(divr[p1]<=freesurface){
+				 row[oi]=0;
+				 numfreesurface[0]++;
+			 }
        unsigned nnzOld=nnz[0];
        nnz[0] +=row[oi]+1;
        row[oi]=nnzOld;  
@@ -2886,12 +2889,12 @@ __global__ void kerMatrixASetup(const unsigned end,const unsigned start,const un
    }
 }
 
-void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim,unsigned int*row,unsigned *nnz,const float *divr,const float freesurface){
+void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim,unsigned int*row,unsigned *nnz,unsigned *numfreesurface,const float *divr,const float freesurface){
   const unsigned npf=np-npb;
 	const unsigned matOrder=npb-npbok;
 	if(npf){
-    kerMatrixASetup <<<1,1>>> (npbok,0,0,ppedim,row,nnz,divr,freesurface);
-		kerMatrixASetup <<<1,1>>> (np,npb,matOrder,ppedim,row,nnz,divr,freesurface);
+    kerMatrixASetup <<<1,1>>> (npbok,0,0,ppedim,row,nnz,numfreesurface,divr,freesurface);
+		kerMatrixASetup <<<1,1>>> (np,npb,matOrder,ppedim,row,nnz,numfreesurface,divr,freesurface);
   }
 }
 
@@ -3312,7 +3315,7 @@ void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag cons
   viennacl::copy(result,vcl_result);
 }
 
-void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,int restart,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,int coarselevels,double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned nnz,const unsigned ppedim){
+void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,int restart,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,int coarselevels,double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned nnz,const unsigned ppedim,const unsigned numfreesurface){
   viennacl::context CudaCtx(viennacl::CUDA_MEMORY);
   typedef double       ScalarType;
 
@@ -3341,7 +3344,7 @@ void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int it
 			amg_tag_agg_pmis.set_jacobi_weight(jacobiweight);
 			amg_tag_agg_pmis.set_presmooth_steps(presmooth);
 			amg_tag_agg_pmis.set_postsmooth_steps(postsmooth);
-			amg_tag_agg_pmis.set_coarsening_cutoff(coarsecutoff); 
+			amg_tag_agg_pmis.set_coarsening_cutoff(numfreesurface); 
       amg_tag_agg_pmis.set_coarse_levels(coarselevels); 
 			viennacl::linalg::amg_precond<viennacl::compressed_matrix<double> > vcl_AMG(vcl_A_cuda, amg_tag_agg_pmis);
 			std::cout << " * Setup phase (ViennaCL types)..." << std::endl;

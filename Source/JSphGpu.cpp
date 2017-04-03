@@ -40,7 +40,8 @@ using namespace std;
 //==============================================================================
 JSphGpu::JSphGpu(bool withmpi):JSph(false,withmpi){
   ClassName="JSphGpu";
-  counterCPU=NULL;
+  counterNnzCPU=NULL;
+	NumFreeSurfaceCPU=NULL;
   Idp=NULL; Code=NULL; Dcell=NULL; Posxy=NULL; Posz=NULL; Velrhop=NULL; 
   AuxPos=NULL; AuxVel=NULL; AuxRhop=NULL;
   FtoForces=NULL; FtoCenter=NULL;   //-Floatings.
@@ -86,7 +87,8 @@ void JSphGpu::InitVars(){
 	PPEDim=0;
   colIndg=NULL;
   rowIndg=NULL;
-  counterGPU=NULL;
+  counterNnzGPU=NULL;
+	NumFreeSurfaceGPU=NULL;
   Xg=NULL;
   dWxCorrgShiftPos=NULL; dWyCorrg=NULL; dWzCorrgTensile=NULL;
 	MLSg=NULL;
@@ -132,7 +134,8 @@ void JSphGpu::FreeGpuMemoryFixed(){
 	if(MirrorCellg)cudaFree(MirrorCellg);						MirrorCellg=NULL;
 	if(ag)cudaFree(ag);															ag=NULL;
   if(colIndg)cudaFree(colIndg);										colIndg=NULL;
-  if(counterGPU)cudaFree(counterGPU);							counterGPU=NULL;
+  if(counterNnzGPU)cudaFree(counterNnzGPU);				counterNnzGPU=NULL;
+	if(NumFreeSurfaceGPU)cudaFree(NumFreeSurfaceGPU);	NumFreeSurfaceGPU=NULL;
 	if(MLSg)cudaFree(MLSg);													MLSg=NULL;
 	if(Aceg)cudaFree(Aceg);													Aceg=NULL;
 	if(dWxCorrgShiftPos)cudaFree(dWxCorrgShiftPos);	dWxCorrgShiftPos=NULL;
@@ -170,8 +173,8 @@ void JSphGpu::AllocGpuMemoryFixed(){
 	m=sizeof(float3)*npf;				cudaMalloc((void**)&Aceg,m);							MemGpuFixed+=m;
 															cudaMalloc((void**)&dWxCorrgShiftPos,m);	MemGpuFixed+=m;
 															cudaMalloc((void**)&dWzCorrgTensile,m);		MemGpuFixed+=m;
-  m=sizeof(unsigned);					cudaMalloc((void**)&counterGPU,m);				MemGpuFixed+=m;
-	
+  m=sizeof(unsigned);					cudaMalloc((void**)&counterNnzGPU,m);				MemGpuFixed+=m;
+															cudaMalloc((void**)&NumFreeSurfaceGPU,m);				MemGpuFixed+=m;
   //-Allocates memory for moving objects.
   if(CaseNmoving){
     m=sizeof(unsigned)*CaseNmoving;
@@ -207,7 +210,8 @@ void JSphGpu::AllocGpuMemoryFixed(){
 void JSphGpu::FreeCpuMemoryParticles(){
   CpuParticlesSize=0;
   MemCpuParticles=0;
-  delete[] counterCPU; counterCPU=NULL;
+  delete[] counterNnzCPU; counterNnzCPU=NULL;
+	delete[] NumFreeSurfaceCPU; NumFreeSurfaceCPU=NULL;
   delete[] Idp;        Idp=NULL;
   delete[] Code;       Code=NULL;
   delete[] Dcell;      Dcell=NULL;
@@ -231,16 +235,17 @@ void JSphGpu::AllocCpuMemoryParticles(unsigned np){
   CpuParticlesSize=np;
   if(np>0){
     try{
-      counterCPU=new unsigned[1];MemCpuParticles+=sizeof(unsigned);
-      Idp=new unsigned[np];      MemCpuParticles+=sizeof(unsigned)*np;
-      Code=new word[np];         MemCpuParticles+=sizeof(word)*np;
-      Dcell=new unsigned[np];    MemCpuParticles+=sizeof(unsigned)*np;
-      Posxy=new tdouble2[np];    MemCpuParticles+=sizeof(tdouble2)*np;
-      Posz=new double[np];       MemCpuParticles+=sizeof(double)*np;
-      Velrhop=new tfloat4[np];   MemCpuParticles+=sizeof(tfloat4)*np;
-      AuxPos=new tdouble3[np];   MemCpuParticles+=sizeof(tdouble3)*np; 
-      AuxVel=new tfloat3[np];    MemCpuParticles+=sizeof(tfloat3)*np;
-      AuxRhop=new float[np];     MemCpuParticles+=sizeof(float)*np;
+      counterNnzCPU=new unsigned[1];MemCpuParticles+=sizeof(unsigned);
+			NumFreeSurfaceCPU=new unsigned[1];	MemCpuParticles+=sizeof(unsigned);
+      Idp=new unsigned[np];					MemCpuParticles+=sizeof(unsigned)*np;
+      Code=new word[np];						MemCpuParticles+=sizeof(word)*np;
+      Dcell=new unsigned[np];				MemCpuParticles+=sizeof(unsigned)*np;
+      Posxy=new tdouble2[np];				MemCpuParticles+=sizeof(tdouble2)*np;
+      Posz=new double[np];					MemCpuParticles+=sizeof(double)*np;
+      Velrhop=new tfloat4[np];			MemCpuParticles+=sizeof(tfloat4)*np;
+      AuxPos=new tdouble3[np];			MemCpuParticles+=sizeof(tdouble3)*np; 
+      AuxVel=new tfloat3[np];				MemCpuParticles+=sizeof(tfloat3)*np;
+      AuxRhop=new float[np];				MemCpuParticles+=sizeof(float)*np;
       //-Memoria auxiliar para floatings.
 	  //-Auxiliary memory for floating bodies.
       FtoForces=new StFtoForces[FtCount];  MemCpuParticles+=sizeof(StFtoForces)*FtCount;
@@ -1043,16 +1048,19 @@ void JSphGpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
 //===============================================================================
 ///Matrix storage
 //===============================================================================
-unsigned JSphGpu::MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,
-		const unsigned ppedim,unsigned int *rowGpu,const float *divr,const float freesurface){
+void JSphGpu::MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,
+		const unsigned ppedim,unsigned int *row,const float *divr,const float freesurface,unsigned &nnz,unsigned &numFreeSurface){
  
-  cudaMemset(counterGPU, 0, sizeof(unsigned));
+  cudaMemset(counterNnzGPU, 0, sizeof(unsigned));
+	cudaMemset(NumFreeSurfaceGPU, 0, sizeof(unsigned));
 
-  cusph::MatrixASetup(np,npb,npbok,ppedim,rowGpu,counterGPU,divr,freesurface);
+  cusph::MatrixASetup(np,npb,npbok,ppedim,row,counterNnzGPU,NumFreeSurfaceGPU,divr,freesurface);
 	
-	cudaMemcpy(counterCPU,counterGPU,sizeof(unsigned),cudaMemcpyDeviceToHost);
+	cudaMemcpy(counterNnzCPU,counterNnzGPU,sizeof(unsigned),cudaMemcpyDeviceToHost);
+	cudaMemcpy(NumFreeSurfaceCPU,NumFreeSurfaceGPU,sizeof(unsigned),cudaMemcpyDeviceToHost);
 
-  return counterCPU[0];
+  nnz=counterNnzCPU[0];
+	numFreeSurface=NumFreeSurfaceCPU[0];
 }
 
 //===============================================================================
