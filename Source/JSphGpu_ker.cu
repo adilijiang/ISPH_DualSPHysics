@@ -3299,18 +3299,18 @@ void InitArrayCol(unsigned n,unsigned int *v,int value){
 template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag,typename ScalarType>
 void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,viennacl::vector<ScalarType> & vcl_result){ 
   VectorType result(rhs);
-  VectorType residual(rhs);
+  //VectorType residual(rhs);
   viennacl::tools::timer timer;
   timer.start();
   result = viennacl::linalg::solve(matrix, rhs, solver, precond);   
   viennacl::backend::finish();  
-  std::cout << "  > Solver time: " << timer.get() << std::endl;   
-  residual -= viennacl::linalg::prod(matrix, result); 
-	double normResidual=viennacl::linalg::norm_2(residual);
-  if(normResidual){
-		std::cout << "  > Relative residual: " << normResidual / viennacl::linalg::norm_2(rhs) << std::endl;  
-		std::cout << "  > Iterations: " << solver.iters() << std::endl;
-	}
+  //std::cout << "  > Solver time: " << timer.get() << std::endl;   
+  //residual -= viennacl::linalg::prod(matrix, result); 
+	//double normResidual=viennacl::linalg::norm_2(residual);
+  //if(normResidual){
+		//std::cout << "  > Relative residual: " << normResidual / viennacl::linalg::norm_2(rhs) << std::endl;  
+		//std::cout << "  > Iterations: " << solver.iters() << std::endl;
+	//}
   viennacl::copy(result,vcl_result);
 }
 
@@ -3323,37 +3323,37 @@ void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int it
   viennacl::vector<ScalarType> vcl_vec(matrixb, viennacl::CUDA_MEMORY, ppedim);
   viennacl::vector<ScalarType> vcl_result(matrixx, viennacl::CUDA_MEMORY, ppedim);
 
-  viennacl::linalg::bicgstab_tag bicgstab(tolerance,iterations,restart);
+  viennacl::linalg::bicgstab_tag bicgstab(tolerance,iterations);
 
 	if(viennacl::linalg::norm_2(vcl_vec)){
 		if(tprecond==PRECOND_Jacobi){
-			std::cout<<"JACOBI PRECOND" <<std::endl;
+			//std::cout<<"JACOBI PRECOND" <<std::endl;
 			viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_A_cuda,viennacl::linalg::jacobi_tag());
 			run_solver(vcl_A_cuda,vcl_vec,bicgstab,vcl_jacobi,vcl_result);
 		}
 		else if(tprecond==PRECOND_AMG){
-			std::cout<<"AMG PRECOND"<<std::endl;
+			//std::cout<<"AMG PRECOND"<<std::endl;
 
 			viennacl::linalg::amg_tag amg_tag_agg_pmis;
-			amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_MIS2_AGGREGATION); std::cout<<"COARSENING: MIS2 AGGREGATION"<<std::endl;
-			if(tamginter==AMGINTER_AG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION); std::cout<<"INTERPOLATION: AGGREGATION "<<std::endl; }
-			else if(tamginter==AMGINTER_SAG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_SMOOTHED_AGGREGATION); std::cout<<"INTERPOLATION: SMOOTHED AGGREGATION"<<std::endl; }
+			amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_MIS2_AGGREGATION); //std::cout<<"COARSENING: MIS2 AGGREGATION"<<std::endl;
+			if(tamginter==AMGINTER_AG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION);} //std::cout<<"INTERPOLATION: AGGREGATION "<<std::endl; }
+			else if(tamginter==AMGINTER_SAG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_SMOOTHED_AGGREGATION);} //std::cout<<"INTERPOLATION: SMOOTHED AGGREGATION"<<std::endl; }
     
 			amg_tag_agg_pmis.set_strong_connection_threshold(strongconnection);
 			amg_tag_agg_pmis.set_jacobi_weight(jacobiweight);
 			amg_tag_agg_pmis.set_presmooth_steps(presmooth);
 			amg_tag_agg_pmis.set_postsmooth_steps(postsmooth);
-			amg_tag_agg_pmis.set_coarsening_cutoff(numfreesurface); 
-      amg_tag_agg_pmis.set_coarse_levels(coarselevels); 
+			amg_tag_agg_pmis.set_coarsening_cutoff(numfreesurface);
+      //amg_tag_agg_pmis.set_coarse_levels(coarselevels); 
 			viennacl::linalg::amg_precond<viennacl::compressed_matrix<double> > vcl_AMG(vcl_A_cuda, amg_tag_agg_pmis);
-			std::cout << " * Setup phase (ViennaCL types)..." << std::endl;
+			//std::cout << " * Setup phase (ViennaCL types)..." << std::endl;
 			viennacl::tools::timer timer; 
 			timer.start();
 			vcl_AMG.setup();
-			std::cout << "levels = " << vcl_AMG.levels() << "\n";
-			for(int i =0; i< vcl_AMG.levels();i++) std::cout << "level " << i << "\t" << "size = " << vcl_AMG.size(i) << "\n";
+			//std::cout << "levels = " << vcl_AMG.levels() << "\n";
+			//for(int i =0; i< vcl_AMG.levels();i++) std::cout << "level " << i << "\t" << "size = " << vcl_AMG.size(i) << "\n";
 			viennacl::backend::finish();
-			std::cout << "  > Setup time: " << timer.get() << std::endl;
+			//std::cout << "  > Setup time: " << timer.get() << std::endl;
 			run_solver(vcl_A_cuda,vcl_vec,bicgstab,vcl_AMG,vcl_result);
 		}
 	}
