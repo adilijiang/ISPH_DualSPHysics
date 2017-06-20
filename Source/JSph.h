@@ -183,6 +183,9 @@ protected:
   int CoarseLevels;
 	bool NegativePressureBound; //Allow negative pressure in the boundary
 
+	double PistonPosX; //Starting x-position of piston for wave generation
+	double PistonPosZ; //Bottom of piston for wave generation
+
   float Visco;  
   float ViscoBoundFactor;     //-Para interaccion con contorno usa Visco*ViscoBoundFactor.						//-Forboundary interaction use Visco*ViscoBoundFactor.
   JSphVisco* ViscoTime;       //-Proporciona un valor de viscosidad en funcion del instante de la simulacion.	//-Provides a viscosity value as a function of simulation time.

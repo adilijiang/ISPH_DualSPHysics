@@ -544,6 +544,8 @@ void JSph::LoadCaseConfig(){
   //-Configuration of WaveGen.
   if(xml.GetNode("case.execution.special.wavepaddles",false)){
     WaveGen=new JWaveGen(Log,DirCase,&xml,"case.execution.special.wavepaddles");
+		PistonPosX=eparms.GetValueDouble("PistonPosX",true,0.0f)+0.5*Dp;
+		PistonPosZ=eparms.GetValueDouble("PistonPosZ",true,0.0f)+0.5*Dp;
   }
 
   //-Configuration of AccInput.

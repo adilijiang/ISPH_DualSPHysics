@@ -273,6 +273,8 @@ protected:
   
 	void Shift(double dt);
 
+	void PistonCorner(unsigned npb,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code,const double pistonx, const double pistonz)const;
+
 public:
   JSphCpu(bool withmpi);
   ~JSphCpu();

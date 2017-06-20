@@ -802,6 +802,7 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 
   //-Initialization of execution variables / Inicializacion de variables de ejecucion
   //-------------------------------------------
+
   InitRun();
   UpdateMaxValues();
   PrintAllocMemory(GetAllocMemoryCpu());
@@ -822,6 +823,7 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 	memset(MirrorPosc,0,sizeof(tdouble3)*Npb);
 	JSphCpu::MirrorBoundary(Npb,Posc,Idpc,MirrorPosc,Codec,MirrorCell);  
 	JSphCpu::MirrorDCell(Npb,Codec,MirrorPosc,MirrorCell,Idpc);
+
   while(TimeStep<TimeMax){
 		if(CaseNmoving)RunMotion(DtPre);
     double stepdt=ComputeStep_Sym();
