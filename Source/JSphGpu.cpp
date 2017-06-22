@@ -985,7 +985,7 @@ void JSphGpu::RunMotion(double stepdt){
           mvsimple=OrderCode(mvsimple);
           if(Simulate2D)mvsimple.y=0;
           const tfloat3 mvvel=ToTFloat3(mvsimple/TDouble3(stepdt));
-          cusph::MoveLinBound(PeriActive,TSlipCond,np,pini,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg,Idpg,MirrorPosg);
+          cusph::MoveLinBound(PeriActive,np,pini,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg,Idpg,MirrorPosg);
         }
         else{//-Movimiento con matriz //-Movement using a matrix
           const unsigned pini=MotionObjBegin[ref]-CaseNfixed,np=MotionObjBegin[ref+1]-MotionObjBegin[ref];
@@ -1001,6 +1001,7 @@ void JSphGpu::RunMotion(double stepdt){
   if(WaveGen){
     if(!nmove)cusph::CalcRidp(PeriActive!=0,Npb,0,CaseNfixed,CaseNfixed+CaseNmoving,Codeg,Idpg,RidpMoveg);
     BoundChanged=true;
+		double mvPistonX=0;
     //-Gestion de WaveGen.
 	//-Management of WaveGen.
     if(WaveGen)for(unsigned c=0;c<WaveGen->GetCount();c++){
@@ -1012,13 +1013,17 @@ void JSphGpu::RunMotion(double stepdt){
         mvsimple=OrderCode(mvsimple);
         if(Simulate2D)mvsimple.y=0;
         const tfloat3 mvvel=ToTFloat3(mvsimple/TDouble3(stepdt));
-        //cusph::MoveLinBound(PeriActive,nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
+				mvPistonX=mvsimple.x;
+        cusph::MoveLinBound(PeriActive,nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg,Idpg,MirrorPosg);
       }
       else{
         mvmatrix=OrderCode(mvmatrix);
         cusph::MoveMatBound(PeriActive,Simulate2D,nparts,idbegin-CaseNfixed,mvmatrix,stepdt,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
       }
     }
+
+		PistonPosX+=mvPistonX;
+		cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Poszg,Idpg,MirrorPosg,Codeg,PistonPosX,PistonPosZ);
   }
   TmgStop(Timers,TMG_SuMotion);
 }

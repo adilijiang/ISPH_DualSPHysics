@@ -110,6 +110,7 @@ void JSph::InitVars(){
   Iterations=0;
   Tolerance=0;
   StrongConnection=0; JacobiWeight=0; Presmooth=0; Postsmooth=0; CoarseCutoff=0;
+	PistonPosX=0; PistonPosZ=0;
 	NegativePressureBound=true;
   Visco=0; ViscoBoundFactor=1;
   UseDEM=false;  //(DEM)

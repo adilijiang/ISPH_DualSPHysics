@@ -719,9 +719,10 @@ void JSphGpuSingle::FinishRun(bool stop){
 /// Irelation - Dummy particles' respective Wall particle
 //==============================================================================
 void JSphGpuSingle::MirrorBoundary(){
-	const char met[]="FindIrelation";
+	const char met[]="MirrorBoundary";
   const unsigned bsbound=BlockSizes.forcesbound;
-  cusph::MirrorBoundary(Simulate2D,bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,MirrorPosg,MirrorCellg);
+	const bool wavegen=(WaveGen? true:false);
+  cusph::MirrorBoundary(Simulate2D,bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,MirrorPosg,MirrorCellg,wavegen,PistonPosX);
   CheckCudaError(met,"findIrelation");
 }
 

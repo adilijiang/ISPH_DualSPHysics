@@ -138,8 +138,9 @@ void ComputeStepPos2(byte periactive,bool floating,unsigned np,unsigned npb,cons
 //# Kernels para Motion
 //# Kernels for Motion
 void CalcRidp(bool periactive,unsigned np,unsigned pini,unsigned idini,unsigned idfin,const word *code,const unsigned *idp,unsigned *ridp);
-void MoveLinBound(byte periactive,TpSlipCond tslip,unsigned np,unsigned ini,tdouble3 mvpos,tfloat3 mvvel,const unsigned *ridp,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code,const unsigned *idpg,double3 *mirrorPos);
+void MoveLinBound(byte periactive,unsigned np,unsigned ini,tdouble3 mvpos,tfloat3 mvvel,const unsigned *ridp,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code,const unsigned *idpg,double3 *mirrorPos);
 void MoveMatBound(byte periactive,bool simulate2d,unsigned np,unsigned ini,tmatrix4d m,double dt,const unsigned *ridpmv,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code);
+void PistonCorner(const unsigned bsbound,const unsigned npb,double2 *Posxyg,const double *Poszg,const unsigned *Idpg,double3 *MirrorPosg,word *Codeg,const double PistonPosX,const double PistonPosZ);
 
 //# Kernels para Floating bodies
 //# Kernels for Floating bodies
@@ -172,7 +173,7 @@ void ComputeRStar(bool floating,unsigned np,unsigned npb,const float4 *velrhoppr
 //# Kernels for finding a dummy particles corresponding wall particle
 void MirrorBoundary(const bool simulate2d,const unsigned bsbound,unsigned npbok
   ,const double2 *posxy,const double *posz
-  ,const word *code,const unsigned *idp,double3 *mirror,unsigned *Physrelation);
+  ,const word *code,const unsigned *idp,double3 *mirror,unsigned *Physrelation,const bool wavegen,const double pistonposx);
 
 //# Kernels for particle matrix order
 void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim,unsigned int*row,unsigned *nnz,unsigned *numfreesurface,const float *divr,const float freesurface);
