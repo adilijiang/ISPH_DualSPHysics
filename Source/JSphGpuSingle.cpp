@@ -840,7 +840,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Poszg,Velrhopg,Xg,Idpg,Codeg,NegativePressureBound,MirrorPosg);
 
   CheckCudaError(met,"Pressure assign");
-  ArraysGpu->Free(Divrg);		      Divrg=NULL;
+  
   ArraysGpu->Free(bg);             bg=NULL;
   ArraysGpu->Free(Xg);             Xg=NULL;
 	TmgStop(Timers,TMG_Stage2b);
@@ -862,7 +862,6 @@ void JSphGpuSingle::RunShifting(double dt){
 
   cudaMemset(dWxCorrgShiftPos,0,sizeof(float3)*npf);
 	cudaMemset(dWzCorrgTensile,0,sizeof(float3)*npf);
-	Divrg=ArraysGpu->ReserveFloat();				cudaMemset(Divrg,0,sizeof(float)*np);
   
   //-Cambia datos a variables Pre para calcular nuevos datos.
   //-Changes data of predictor variables for calculating the new data
@@ -881,7 +880,7 @@ void JSphGpuSingle::RunShifting(double dt){
   const unsigned bsbound=BlockSizes.forcesbound;
   const unsigned bsfluid=BlockSizes.forcesfluid;
 
-  cusph::Interaction_Shifting(TKernel,WithFloating,UseDEM,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,FtoMasspg,TShifting,dWxCorrgShiftPos,Divrg,TensileN,TensileR,dWzCorrgTensile);
+  cusph::Interaction_Shifting(TKernel,WithFloating,UseDEM,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,FtoMasspg,TShifting,dWxCorrgShiftPos,Divrg,TensileN,TensileR,dWzCorrgTensile,FreeSurface);
 
   CheckCudaError(met,"Failed in calculating concentration");
 
@@ -890,7 +889,8 @@ void JSphGpuSingle::RunShifting(double dt){
   CheckCudaError(met,"Failed in calculating shifting distance");
 
   Shift(dt,bsfluid);
-  
+
+  ArraysGpu->Free(Divrg);		      Divrg=NULL;
   ArraysGpu->Free(PosxyPreg);     PosxyPreg=NULL;
   ArraysGpu->Free(PoszPreg);      PoszPreg=NULL;
   ArraysGpu->Free(VelrhopPreg);   VelrhopPreg=NULL;
