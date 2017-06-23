@@ -1348,7 +1348,7 @@ void Interaction_ForcesDem(bool psimple,TpCellMode cellmode,unsigned bsize
 //------------------------------------------------------------------------------
 __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,double dt
   ,float shiftcoef,float freesurface,double coeftfs
-  ,float4 *velrhop,const float *divr,float3 *shiftpos,const double ShiftOffset,const double FactorNormShift,bool maxShift,float3 *sumtensile,const double beta)
+  ,float4 *velrhop,const float *divr,float3 *shiftpos,const double ShiftOffset,const double alphashift,bool maxShift,float3 *sumtensile,const double betashift)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
   if(p<n){
@@ -1408,10 +1408,10 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
       rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z);
     }
     else if(divrp1<=freesurface+ShiftOffset){ 
-			dcdn-=beta;
-      rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*FactorNormShift);
-      if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*FactorNormShift);
-      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*FactorNormShift);
+			dcdn-=betashift;
+      rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*alphashift);
+      if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*alphashift);
+      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*alphashift);
     }
 
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
@@ -3332,7 +3332,7 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesShif
   ,double3 posdp1,float3 velp1
   ,TpShifting tshifting,float3 &shiftposp1,float Wab1,const float tensilen, const float tensiler,float &divrp1,float3 &sumtensilep1,const float *divr,const float freesurface)
 {
-  for(int p2=pini;p2<pfin;p2++)if(!(boundp2&&divr[p2]<freesurface)){
+  for(int p2=pini;p2<pfin;p2++){
     float drx,dry,drz;
     KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
     float rr2=drx*drx+dry*dry+drz*drz;

@@ -1436,9 +1436,9 @@ void JSphCpu::RunShifting(double dt){
 			rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z);
     }
     else if(divrp1<=FreeSurface+ShiftOffset){ 
-			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*FactorNormShift);
-			rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*FactorNormShift);
-			rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*FactorNormShift);
+			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*AlphaShift);
+			rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*AlphaShift);
+			rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*AlphaShift);
     }
 
     rshiftpos.x=float(double(rshiftpos.x)*umagn);

@@ -958,7 +958,7 @@ void JSphGpu::RunShifting(double dt){
   const double coeftfs=(Simulate2D? 2.0: 3.0)-FreeSurface;
 	bool maxShift=false;
 	if(TShifting==SHIFT_Max) maxShift=true;
-  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,coeftfs,Velrhopg,Divrg,dWxCorrgShiftPos,maxShift,dWzCorrgTensile,FactorNormShift,Beta);
+  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,coeftfs,Velrhopg,Divrg,dWxCorrgShiftPos,maxShift,dWzCorrgTensile,AlphaShift,BetaShift);
 }
 
 //==============================================================================
