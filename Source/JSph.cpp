@@ -551,6 +551,8 @@ void JSph::LoadCaseConfig(){
 		PistonPosZ=eparms.GetValueDouble("PistonPosZ",true,0.0f)+0.5*Dp;
 		PistonYmin=eparms.GetValueDouble("PistonYmin",true,0.0f)+0.5*Dp;
 		PistonYmax=eparms.GetValueDouble("PistonYmax",true,0.0f)-0.5*Dp;
+		DampingPointX=eparms.GetValueDouble("DampingPointX",true,0.0f);
+		DampingLengthX=eparms.GetValueDouble("DampingLengthX",true,0.0f);
   }
 
   //-Configuration of AccInput.

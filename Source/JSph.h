@@ -188,6 +188,8 @@ protected:
 	double PistonPosZ; //Bottom of piston for wave generation
 	double PistonYmin; //Min y-position of piston for wave generation
 	double PistonYmax; //Max y-position of piston for wave generation
+	double DampingPointX; //Start of dampingZone
+	double DampingLengthX; //Length of dampingZone
 
   float Visco;  
   float ViscoBoundFactor;     //-Para interaccion con contorno usa Visco*ViscoBoundFactor.						//-Forboundary interaction use Visco*ViscoBoundFactor.
