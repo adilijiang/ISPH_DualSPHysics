@@ -166,6 +166,7 @@ protected:
 	double FactorNormShift;//-Coefficient for amount of allowable shifting to the normal of the free-surface
   float TensileN;       //-Tensile Instability Coefficient
   float TensileR;       //-Tensile Instability Coefficient
+	double Beta;					//-Beta value for near free-surface shifting
 
   TpSlipCond TSlipCond;
   
@@ -185,6 +186,8 @@ protected:
 
 	double PistonPosX; //Starting x-position of piston for wave generation
 	double PistonPosZ; //Bottom of piston for wave generation
+	double PistonYmin; //Min y-position of piston for wave generation
+	double PistonYmax; //Max y-position of piston for wave generation
 
   float Visco;  
   float ViscoBoundFactor;     //-Para interaccion con contorno usa Visco*ViscoBoundFactor.						//-Forboundary interaction use Visco*ViscoBoundFactor.

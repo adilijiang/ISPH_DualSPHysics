@@ -1348,7 +1348,7 @@ void Interaction_ForcesDem(bool psimple,TpCellMode cellmode,unsigned bsize
 //------------------------------------------------------------------------------
 __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,double dt
   ,float shiftcoef,float freesurface,double coeftfs
-  ,float4 *velrhop,const float *divr,float3 *shiftpos,const double ShiftOffset,const double FactorNormShift,bool maxShift,float3 *sumtensile)
+  ,float4 *velrhop,const float *divr,float3 *shiftpos,const double ShiftOffset,const double FactorNormShift,bool maxShift,float3 *sumtensile,const double beta)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
   if(p<n){
@@ -1404,17 +1404,18 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 
     if(divrp1<freesurface){
       rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x);
-      rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y);
+      if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y);
       rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z);
     }
     else if(divrp1<=freesurface+ShiftOffset){ 
-      rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*FactorNormShift);
-      rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*FactorNormShift);
-      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*FactorNormShift);
+			dcdn-=beta;
+      rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*FactorNormShift);
+      if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*FactorNormShift);
+      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*FactorNormShift);
     }
 
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
-    rshiftpos.y=float(double(rshiftpos.y)*umagn);
+    if(!simulate2d) rshiftpos.y=float(double(rshiftpos.y)*umagn);
     rshiftpos.z=float(double(rshiftpos.z)*umagn);
 
     //Max Shifting
@@ -1435,12 +1436,12 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 //==============================================================================
 void RunShifting(const bool simulate2d,unsigned np,unsigned npb,double dt
   ,double shiftcoef,float freesurface,double coeftfs
-  ,float4 *velrhop,const float *divr,float3 *shiftpos,bool maxShift,float3 *sumtensile,const double FactorNormShift){
+  ,float4 *velrhop,const float *divr,float3 *shiftpos,bool maxShift,float3 *sumtensile,const double FactorNormShift,const double beta){
   const unsigned npf=np-npb;
   const double ShiftOffset=0.2;
   if(npf){
     dim3 sgrid=GetGridSize(npf,SPHBSIZE);
-    KerRunShifting <<<sgrid,SPHBSIZE>>> (simulate2d,npf,npb,dt,shiftcoef,freesurface,coeftfs,velrhop,divr,shiftpos,ShiftOffset,FactorNormShift,maxShift,sumtensile);
+    KerRunShifting <<<sgrid,SPHBSIZE>>> (simulate2d,npf,npb,dt,shiftcoef,freesurface,coeftfs,velrhop,divr,shiftpos,ShiftOffset,FactorNormShift,maxShift,sumtensile,beta);
   }
 }
 
@@ -1939,21 +1940,23 @@ void MoveMatBound(byte periactive,bool simulate2d,unsigned np,unsigned ini,tmatr
   }
 }
 
-__global__ void KerPistonCorner(const unsigned npb,double2 *posxy,const double *posz,const unsigned *idp,double3 *mirrorpos,word *code,const double pistonposX,const double pistonposZ)
+__global__ void KerPistonCorner(const unsigned npb,double2 *posxy,const double *posz,const unsigned *idp,double3 *mirrorpos,word *code,const double pistonposX,const double pistonposZ,const double pistonYmin,const double pistonYmax,const bool simulate2d)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
 		if(CODE_GetType(code[p1])!=CODE_TYPE_MOVING){
+			const unsigned idp1=idp[p1];
 			double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
-			if(posdp1.x<pistonposX&&posdp1.z<=pistonposZ){
-				const double drx=pistonposX-posdp1.x;
-				const double drz=pistonposZ-posdp1.z;
-				const double rr2=drx*drx+drz*drz;
-				if(rr2<=2.0*CTE.fourh2){ //if fixed boundary particle is near corner of piston
-					unsigned idp1=idp[p1];
-					mirrorpos[idp1].x=2.0*pistonposX-posxy[p1].x;
-					mirrorpos[idp1].y=posxy[p1].y;
-					mirrorpos[idp1].z=2.0*pistonposZ-posz[p1];
+			if(posdp1.x<pistonposX){
+				mirrorpos[idp1].x=2.0*pistonposX-posxy[p1].x;
+
+				if(posdp1.z<pistonposZ) mirrorpos[idp1].z=2.0*pistonposZ-posz[p1];
+				else mirrorpos[idp1].z=posz[p1];
+
+				if(!simulate2d){
+					if(posdp1.y<pistonYmin) mirrorpos[idp1].y=2.0*pistonYmin-posxy[p1].y;
+					else if(posdp1.y<pistonYmax) mirrorpos[idp1].y=posxy[p1].y;
+					else mirrorpos[idp1].y=2.0*pistonYmax-posxy[p1].y;
 				}
 			}
 		}
@@ -1963,10 +1966,10 @@ __global__ void KerPistonCorner(const unsigned npb,double2 *posxy,const double *
 //==============================================================================
 /// Recalculate mirror points for wavegen boudary
 //==============================================================================
-void PistonCorner(const unsigned bsbound,const unsigned npb,double2 *posxy,const double *posz,const unsigned *idp,double3 *mirrorpos,word *code,const double pistonposX,const double pistonposZ)
+void PistonCorner(const unsigned bsbound,const unsigned npb,double2 *posxy,const double *posz,const unsigned *idp,double3 *mirrorpos,word *code,const double pistonposX,const double pistonposZ,const double pistonYmin,const double pistonYmax,const bool simulate2d)
 {
 	dim3 sgridb=GetGridSize(npb,bsbound);
-	KerPistonCorner <<<sgridb,bsbound>>> (npb,posxy,posz,idp,mirrorpos,code,pistonposX,pistonposZ);
+	KerPistonCorner <<<sgridb,bsbound>>> (npb,posxy,posz,idp,mirrorpos,code,pistonposX,pistonposZ,pistonYmin,pistonYmax,simulate2d);
 }
 //##############################################################################
 //# Kernels for Floating bodies.

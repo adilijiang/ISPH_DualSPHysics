@@ -958,7 +958,7 @@ void JSphGpu::RunShifting(double dt){
   const double coeftfs=(Simulate2D? 2.0: 3.0)-FreeSurface;
 	bool maxShift=false;
 	if(TShifting==SHIFT_Max) maxShift=true;
-  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,coeftfs,Velrhopg,Divrg,dWxCorrgShiftPos,maxShift,dWzCorrgTensile,FactorNormShift);
+  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,coeftfs,Velrhopg,Divrg,dWxCorrgShiftPos,maxShift,dWzCorrgTensile,FactorNormShift,Beta);
 }
 
 //==============================================================================
@@ -1023,7 +1023,7 @@ void JSphGpu::RunMotion(double stepdt){
     }
 
 		PistonPosX+=mvPistonX;
-		cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Poszg,Idpg,MirrorPosg,Codeg,PistonPosX,PistonPosZ);
+		cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Poszg,Idpg,MirrorPosg,Codeg,PistonPosX,PistonPosZ,PistonYmin,PistonYmax,Simulate2D);
   }
   TmgStop(Timers,TMG_SuMotion);
 }
