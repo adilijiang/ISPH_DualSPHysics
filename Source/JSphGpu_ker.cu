@@ -1068,6 +1068,137 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesFlui
   }
 }
 
+template<TpKernel tker,TpFtMode ftmode> __device__ void KerViscousSchwaigerCalc
+  (bool boundp2,unsigned p1,const unsigned &pini,const unsigned &pfin
+  ,const float *ftomassp,const double2 *posxy,const double *posz,const float4 *velrhop,const word *code,const unsigned *idp
+  ,float massp2,float ftmassp1,bool ftp1
+  ,double3 posdp1,float3 velp1,float3 &sumfr,float3 &dud,float3 &dvd,float3 &dwd,float3 dwxp1,float3 dwyp1,float3 dwzp1)
+{
+	const float volume=massp2/CTE.rhopzero; //Volume of particle j 
+
+  for(int p2=pini;p2<pfin;p2++){
+    float drx,dry,drz;
+    KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+    float rr2=drx*drx+dry*dry+drz*drz;
+    if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
+      //-Wendland kernel.
+      float frx,fry,frz;
+      if(tker==KERNEL_Quintic) KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
+			else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
+	  
+			sumfr.x+=volume*frx; sumfr.y+=volume*fry; sumfr.z+=volume*frz;
+      //-Obtiene masa de particula p2 en caso de existir floatings.
+			//-Obtains mass of particle p2 if any floating bodies exist.
+      //bool ftp2;         //-Indica si es floating. //-indicates if it is floating.
+      //float ftmassp2;    //-Contiene masa de particula floating o massp2 si es bound o fluid. //-Contains mass of floating body or massf if fluid.
+      /*if(USE_FLOATING){
+        const word cod=code[p2];
+        ftp2=(CODE_GetType(cod)==CODE_TYPE_FLOATING);
+        ftmassp2=(ftp2? ftomassp[CODE_GetTypeValue(cod)]: massp2);
+        if(ftp2 && (tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt))deltap1=FLT_MAX;
+        if(ftp2 && shift && tshifting==SHIFT_NoBound)shiftposp1.x=FLT_MAX; //-Con floatings anula shifting. //-Cancels shifting with floating bodies
+        compute=!(USE_DEM && ftp1 && (boundp2 || ftp2)); //-Se desactiva cuando se usa DEM y es float-float o float-bound. //-Deactivated when DEM is used and is float-float or float-bound.
+      }*/
+			
+      const float4 velrhop2=velrhop[p2];
+	    const float dvx=velp1.x-velrhop2.x, dvy=velp1.y-velrhop2.y, dvz=velp1.z-velrhop2.z;
+
+			float temp_x=frx*dwxp1.x+fry*dwyp1.x+frz*dwzp1.x; temp_x=temp_x*volume;
+      float temp_y=frx*dwxp1.y+fry*dwyp1.y+frz*dwzp1.y; temp_y=temp_y*volume;
+		  float temp_z=frx*dwxp1.z+fry*dwyp1.z+frz*dwzp1.z; temp_z=temp_z*volume;
+			
+			dud.x+=dvx*temp_x; dud.y+=dvx*temp_y; dud.z+=dvx*temp_z;
+			dvd.x+=dvy*temp_x; dvd.y+=dvy*temp_y; dvd.z+=dvy*temp_z;
+			dwd.x+=dvz*temp_x; dwd.y+=dvz*temp_y; dwd.z+=dvz*temp_z;
+		}
+  }
+}
+
+template<TpKernel tker,TpFtMode ftmode> __global__ void KerViscousSchwaiger
+  (unsigned npf,unsigned npb,int hdiv,uint4 nc,unsigned cellfluid,float viscob,float viscof
+  ,const int2 *begincell,int3 cellzero,const unsigned *dcell
+  ,const float *ftomassp,const double2 *posxy,const double *posz,const float4 *velrhop,const word *code,const unsigned *idp
+  ,float3 *dwxcorrg,float3 *dwycorrg,float3 *dwzcorrg,float3 *ace)
+{
+  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<npf){
+    unsigned p1=p+npb;      //-Nº de particula. //-NI of particle
+		const unsigned Correctp1=p;
+		float3 sumfr=make_float3(0,0,0);
+    float3 dud=make_float3(0,0,0);
+		float3 dvd=make_float3(0,0,0);
+		float3 dwd=make_float3(0,0,0);
+		float3 dwxp1=dwxcorrg[Correctp1];
+		float3 dwyp1=dwycorrg[Correctp1];
+		float3 dwzp1=dwzcorrg[Correctp1];
+		//-Obtiene datos de particula p1 en caso de existir floatings.
+	//-Obtains data of particle p1 in case there are floating bodies.
+    bool ftp1;       //-Indica si es floating. //-Indicates if it is floating.
+    float ftmassp1;  //-Contiene masa de particula floating o 1.0f si es fluid. //-Contains floating particle mass or 1.0f if it is fluid.
+    if(USE_FLOATING){
+      const word cod=code[p1];
+      ftp1=(CODE_GetType(cod)==CODE_TYPE_FLOATING);
+      ftmassp1=(ftp1? ftomassp[CODE_GetTypeValue(cod)]: 1.f);
+      //if(ftp1 && (tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt))deltap1=FLT_MAX;
+      //if(ftp1 && shift)shiftposp1.x=FLT_MAX;  //-Para floatings no se calcula shifting. //-Shifting is not calculated for floating bodies.
+    }
+
+    //-Obtiene datos basicos de particula p1.
+	//-Obtains basic data of particle p1.
+    double3 posdp1;
+    float3 velp1;
+    KerGetParticleData(p1,posxy,posz,velrhop,velp1,posdp1);
+    //-Obtiene limites de interaccion
+	//-Obtains interaction limits
+    int cxini,cxfin,yini,yfin,zini,zfin;
+    KerGetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+
+    //-Interaccion con Fluidas.
+	//-Interaction with fluids.
+    for(int z=zini;z<zfin;z++){
+      int zmod=(nc.w)*z+cellfluid; //-Le suma donde empiezan las celdas de fluido. //-The sum showing where fluid cells start
+      for(int y=yini;y<yfin;y++){
+        int ymod=zmod+nc.x*y;
+        unsigned pini,pfin=0;
+        for(int x=cxini;x<cxfin;x++){
+          int2 cbeg=begincell[x+ymod];
+          if(cbeg.y){
+            if(!pfin)pini=cbeg.x;
+            pfin=cbeg.y;
+          }
+        }
+        if(pfin) KerViscousSchwaigerCalc<tker,ftmode> (false,p1,pini,pfin,ftomassp,posxy,posz,velrhop,code,idp,CTE.massf,ftmassp1,ftp1,posdp1,velp1,sumfr,dud,dvd,dwd,dwxp1,dwyp1,dwzp1);
+			}
+    }
+
+    //-Interaccion con contorno.
+		//-Interaction with boundaries.
+    for(int z=zini;z<zfin;z++){
+      int zmod=(nc.w)*z;
+      for(int y=yini;y<yfin;y++){
+        int ymod=zmod+nc.x*y;
+        unsigned pini,pfin=0;
+        for(int x=cxini;x<cxfin;x++){
+          int2 cbeg=begincell[x+ymod];
+          if(cbeg.y){
+            if(!pfin)pini=cbeg.x;
+            pfin=cbeg.y;
+          }
+        }
+        if(pfin) KerViscousSchwaigerCalc<tker,ftmode> (true,p1,pini,pfin,ftomassp,posxy,posz,velrhop,code,idp,CTE.massf,ftmassp1,ftp1,posdp1,velp1,sumfr,dud,dvd,dwd,dwxp1,dwyp1,dwzp1);
+      }
+    }
+    //-Almacena resultados.
+	//-Stores results.
+		float mu2=2.0*viscof;
+    float3 r=ace[Correctp1]; 
+    r.x-=mu2*(dud.x*sumfr.x+dud.y*sumfr.y+dud.z*sumfr.z); 
+		r.y-=mu2*(dvd.x*sumfr.x+dvd.y*sumfr.y+dvd.z*sumfr.z); 
+		r.z-=mu2*(dwd.x*sumfr.x+dwd.y*sumfr.y+dwd.z*sumfr.z); 
+    ace[Correctp1].x=r.x/CTE.rhopzero; ace[Correctp1].y=r.y/CTE.rhopzero; ace[Correctp1].z=r.z/CTE.rhopzero;
+  }
+}
+
 //==============================================================================
 /// Collects kernel information.
 //==============================================================================
@@ -1106,7 +1237,7 @@ template<TpKernel tker,TpFtMode ftmode> void Interaction_ForcesT_KerInfo(StKerIn
 /// Interaccion para el calculo de fuerzas.
 /// Interaction for the force computation.
 //==============================================================================
-template<TpKernel tker,TpFtMode ftmode> void Interaction_ForcesT
+template<TpKernel tker,TpFtMode ftmode,bool schwaiger> void Interaction_ForcesT
   (TpSlipCond tslipcond,TpCellMode cellmode,float viscob,float viscof,unsigned bsbound,unsigned bsfluid
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
@@ -1141,10 +1272,12 @@ template<TpKernel tker,TpFtMode ftmode> void Interaction_ForcesT
 			if(simulate2d) KerInverseKernelCor2D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwzcorrg,code);
 			else KerInverseKernelCor3D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwycorrg,dwzcorrg,code);
 		}
+
+		if(schwaiger&&tinter==1) KerViscousSchwaiger<tker,ftmode> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ace);
 	}
 }
 //==============================================================================
-void Interaction_Forces(TpKernel tkernel,bool floating,bool usedem,TpSlipCond tslipcond,TpCellMode cellmode
+void Interaction_Forces(TpKernel tkernel,bool floating,bool usedem,TpSlipCond tslipcond,bool schwaiger,TpCellMode cellmode
   ,float viscob,float viscof,unsigned bsbound,unsigned bsfluid
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
@@ -1152,14 +1285,26 @@ void Interaction_Forces(TpKernel tkernel,bool floating,bool usedem,TpSlipCond ts
   ,const float *ftomassp,float3 *ace,bool simulate2d,float *divr,const double3 *mirrorPos,const unsigned *mirrorCell,float4 *mls,unsigned *row,StKerInfo *kerinfo,JBlockSizeAuto *bsauto)
 {
 	if(tkernel==KERNEL_Quintic){    const TpKernel tker=KERNEL_Quintic;
-		if(!floating)   Interaction_ForcesT<tker,FTMODE_None> (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,mls,row,kerinfo,bsauto);
-		else if(!usedem)Interaction_ForcesT<tker,FTMODE_Sph>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,mls,row,kerinfo,bsauto);
-		else            Interaction_ForcesT<tker,FTMODE_Dem>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,mls,row,kerinfo,bsauto);
+		if(!schwaiger){
+			if(!floating)   Interaction_ForcesT<tker,FTMODE_None,false> (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,mls,row,kerinfo,bsauto);
+			else if(!usedem)Interaction_ForcesT<tker,FTMODE_Sph,false>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,mls,row,kerinfo,bsauto);
+			else            Interaction_ForcesT<tker,FTMODE_Dem,false>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,mls,row,kerinfo,bsauto);
+		}else{
+			if(!floating)   Interaction_ForcesT<tker,FTMODE_None,true> (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,mls,row,kerinfo,bsauto);
+			else if(!usedem)Interaction_ForcesT<tker,FTMODE_Sph,true>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,mls,row,kerinfo,bsauto);
+			else            Interaction_ForcesT<tker,FTMODE_Dem,true>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,mls,row,kerinfo,bsauto);	
+		}
 	}
 	else if(tkernel==KERNEL_Wendland){    const TpKernel tker=KERNEL_Wendland;
-		if(!floating)   Interaction_ForcesT<tker,FTMODE_None> (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,mls,row,kerinfo,bsauto);
-		else if(!usedem)Interaction_ForcesT<tker,FTMODE_Sph>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,mls,row,kerinfo,bsauto);
-		else            Interaction_ForcesT<tker,FTMODE_Dem>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,mls,row,kerinfo,bsauto);
+		if(!schwaiger){
+			if(!floating)   Interaction_ForcesT<tker,FTMODE_None,false> (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,mls,row,kerinfo,bsauto);
+			else if(!usedem)Interaction_ForcesT<tker,FTMODE_Sph,false>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,mls,row,kerinfo,bsauto);
+			else            Interaction_ForcesT<tker,FTMODE_Dem,false>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,mls,row,kerinfo,bsauto);
+		}else{
+			if(!floating)   Interaction_ForcesT<tker,FTMODE_None,true> (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,mls,row,kerinfo,bsauto);
+			else if(!usedem)Interaction_ForcesT<tker,FTMODE_Sph,true>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,mls,row,kerinfo,bsauto);
+			else            Interaction_ForcesT<tker,FTMODE_Dem,true>  (tslipcond,cellmode,viscob,viscof,bsbound,bsfluid,tinter,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ftomassp,ace,simulate2d,divr,mirrorPos,mirrorCell,mls,row,kerinfo,bsauto);
+		}
 	}
 }
 

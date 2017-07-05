@@ -97,7 +97,7 @@ void PreInteractionSimple(unsigned np,const double2 *posxy,const double *posz
 
 //# Kernels para calculo de fuerzas.
 //# Kernels for the force calculation.
-void Interaction_Forces(TpKernel tkernel,bool floating,bool usedem,TpSlipCond tslipcond,TpCellMode cellmode
+void Interaction_Forces(TpKernel tkernel,bool floating,bool usedem,TpSlipCond tslipcond,bool schwagier,TpCellMode cellmode
   ,float viscob,float viscof,unsigned bsbound,unsigned bsfluid
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell

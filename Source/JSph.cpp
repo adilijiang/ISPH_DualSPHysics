@@ -99,6 +99,7 @@ void JSph::InitVars(){
   CaseName=""; DirCase=""; DirOut=""; RunName="";
   TStep=STEP_None;
   TKernel=KERNEL_Wendland;
+	Schwaiger=false;
   Awen=Bwen=0;
   TVisco=VISCO_None;
   TShifting=SHIFT_None; ShiftCoef=0;
@@ -396,6 +397,12 @@ void JSph::LoadCaseConfig(){
     case 0:  TKernel=KERNEL_Quintic;  break;
 		case 1:  TKernel=KERNEL_Wendland;  break;
     default: RunException(met,"Kernel choice is not valid.");
+  }
+
+	switch(eparms.GetValueInt("LaplacianOperator",true,0)){
+    case 0:  Schwaiger=false;  break;
+		case 1:  Schwaiger=true;  break;
+    default: RunException(met,"Laplacian operator choice is not valid.");
   }
 
   switch(eparms.GetValueInt("ViscoTreatment",true,1)){

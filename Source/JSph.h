@@ -169,6 +169,8 @@ protected:
 	double BetaShift;			//-Beta value for near free-surface shifting
 
   TpSlipCond TSlipCond;
+
+	bool Schwaiger;
   
   TpPrecond TPrecond;
   TpAMGInter TAMGInter;
