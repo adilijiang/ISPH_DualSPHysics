@@ -427,7 +427,7 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   const unsigned bsbound=BlockSizes.forcesbound;
 	CheckCudaError(met,"Failed checkin.");
   //-Interaccion Fluid-Fluid/Bound & Bound-Fluid.
-  cusph::Interaction_Forces(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,Idpg,dWxCorrgShiftPos,dWyCorrg,dWzCorrgTensile,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,NULL,NULL);	
+  cusph::Interaction_Forces(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,Idpg,dWxCorrgShiftPos,dWyCorrg,dWzCorrgTensile,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,BoundaryFS,NULL,NULL);	
 	if(TSlipCond&&tinter==2){
 		cusph::ResetBoundVel(Npb,bsbound,Velrhopg,VelrhopPreg);
 		ArraysGpu->Free(dWyCorrg);	    dWyCorrg=NULL;
@@ -791,7 +791,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   cudaMemset(colIndg,0,sizeof(int)*Nnz);
 	cudaMemset(ag,0,sizeof(double)*Nnz);
 	
-  cusph::PopulateMatrix(TKernel,Schwaiger,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velrhopg,dWxCorrgShiftPos,dWyCorrg,dWzCorrgTensile,ag,bg,rowIndg,colIndg,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLSg,dt,sumFrg);
+  cusph::PopulateMatrix(TKernel,Schwaiger,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velrhopg,dWxCorrgShiftPos,dWyCorrg,dWzCorrgTensile,ag,bg,rowIndg,colIndg,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLSg,dt,sumFrg,BoundaryFS);
 	
 	/*unsigned *rowInd=new unsigned[PPEDim]; cudaMemcpy(rowInd,rowIndg,sizeof(unsigned)*PPEDim,cudaMemcpyDeviceToHost);
 	unsigned *colInd=new unsigned[Nnz]; cudaMemcpy(colInd,colIndg,sizeof(unsigned)*Nnz,cudaMemcpyDeviceToHost);
@@ -880,7 +880,7 @@ void JSphGpuSingle::RunShifting(double dt){
   const unsigned bsbound=BlockSizes.forcesbound;
   const unsigned bsfluid=BlockSizes.forcesfluid;
 
-  cusph::Interaction_Shifting(TKernel,WithFloating,UseDEM,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,FtoMasspg,TShifting,dWxCorrgShiftPos,Divrg,TensileN,TensileR,dWzCorrgTensile,FreeSurface);
+  cusph::Interaction_Shifting(TKernel,WithFloating,UseDEM,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,FtoMasspg,TShifting,dWxCorrgShiftPos,Divrg,TensileN,TensileR,dWzCorrgTensile,FreeSurface,BoundaryFS);
 
   CheckCudaError(met,"Failed in calculating concentration");
 

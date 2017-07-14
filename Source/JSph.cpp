@@ -436,12 +436,13 @@ void JSph::LoadCaseConfig(){
     ShiftOffset=eparms.GetValueFloat("ShiftOffset",true,0.2f);
     TensileN=eparms.GetValueFloat("TensileN",true,0.1f);
     TensileR=eparms.GetValueFloat("TensileR",true,3.0f);
-		BetaShift=eparms.GetValueFloat("BetaShift",true,45.0f);
+		BetaShift0=eparms.GetValueFloat("BetaShift0",true,-41.0f);
+		BetaShift1=eparms.GetValueFloat("BetaShift1",true,-10.0f);
 		AlphaShift=eparms.GetValueDouble("AlphaShift",true,0.0f);
   }
 
   FreeSurface=eparms.GetValueFloat("FreeSurface",true,1.6f);
-	
+	BoundaryFS=eparms.GetValueFloat("BoundaryFS",true,1.4f);
 
   Tolerance=eparms.GetValueDouble("Solver Tolerance",true,1e-5f);
   Iterations=eparms.GetValueInt("Max Iterations",true,100);

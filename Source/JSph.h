@@ -166,7 +166,9 @@ protected:
 	double AlphaShift;		//-Coefficient for amount of allowable shifting to the normal of the free-surface
   float TensileN;       //-Tensile Instability Coefficient
   float TensileR;       //-Tensile Instability Coefficient
-	double BetaShift;			//-Beta value for near free-surface shifting
+	double BetaShift0;			//-Beta value for free-surface shifting
+	double BetaShift1;			//-Beta value for near free-surface shifting
+	float BoundaryFS; 
 
   TpSlipCond TSlipCond;
 
