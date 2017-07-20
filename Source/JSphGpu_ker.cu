@@ -1610,19 +1610,17 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 	  float dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
 
     if(divrp1<freesurface){
-			dcdn=0;
-      //dcdn-=beta0;
-      rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*alphashift);
-      if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*alphashift);
-      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*alphashift);
+			double factorNormShift=0;
+      rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*factorNormShift);
+      if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift);
+      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*factorNormShift);
     }
     else if(divrp1<=freesurface+ShiftOffset){ 
-			//dcdn-=beta1;
-			alphashift=0.5*(1.0-cos(3.141592*(divrp1-freesurface)/ShiftOffset));
-			//alphashift=-3.0*pow(((divrp1-freesurface)/ShiftOffset),4.0) + 4*pow(((divrp1-freesurface)/ShiftOffset),3.0);
-			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*alphashift);
-      if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*alphashift);
-      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*alphashift);
+			double factorNormShift=0;
+			if(alphashift) factorNormShift=0.5*(1.0-cos(3.141592*(divrp1-freesurface)/ShiftOffset));
+			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*factorNormShift);
+      if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift);
+      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*factorNormShift);
     }
 
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
@@ -1647,7 +1645,7 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 //==============================================================================
 void RunShifting(const bool simulate2d,unsigned np,unsigned npb,double dt
   ,double shiftcoef,float freesurface,double coeftfs
-  ,float4 *velrhop,const float *divr,float3 *shiftpos,bool maxShift,float3 *sumtensile,const float shiftoffset,const double alphashift,const double betashift0,const double betashift1){
+  ,float4 *velrhop,const float *divr,float3 *shiftpos,bool maxShift,float3 *sumtensile,const float shiftoffset,const bool alphashift,const double betashift0,const double betashift1){
   const unsigned npf=np-npb;
   if(npf){
     dim3 sgrid=GetGridSize(npf,SPHBSIZE);
