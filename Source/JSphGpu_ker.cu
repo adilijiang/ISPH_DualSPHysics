@@ -834,6 +834,65 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesBoun
 	}
 }
 
+template<TpKernel tker> __device__ void KerCorrectDivr
+   (const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
+ 	,const float mass,const float rhop,double3 posdp1,float &divrp1,const float *divr,const float boundaryfs)
+ {
+ 	const float volume=mass/rhop;
+ 	for(int p2=pini;p2<pfin;p2++)if(divr[p2]<boundaryfs){
+     float drx,dry,drz;
+     KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+     float rr2=drx*drx+dry*dry+drz*drz;
+     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
+ 			//-Wendland kernel
+       float frx,fry,frz;
+       if(tker==KERNEL_Quintic) KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
+ 			else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
+ 			const float rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
+ 			divrp1+=volume*rDivW;
+ 		}
+ 	}
+ }
+ 
+ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionCorrectBoundDivr
+   (bool simulate2d,unsigned n,int hdiv,uint4 nc,const int2 *begincell,int3 cellzero,const unsigned *dcell,
+ 	const float *ftomassp,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,
+ 	float *divr,const double3 *mirrorPos,const unsigned *mirrorCell,const float boundaryfs)
+ {
+   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
+   if(p1<n){
+ 		//-Carga datos de particula p1.
+ 		//-Loads particle p1 data.
+     double3 posdp1;
+     float3 velp1;
+     KerGetParticleData(p1,posxy,posz,velrhop,velp1,posdp1);
+     unsigned idpg1=idp[p1];
+ 		float divrp1=divr[p1];
+ 		const double3 posmp1=make_double3(mirrorPos[idpg1].x,mirrorPos[idpg1].y,mirrorPos[idpg1].z);
+ 			
+ 		int cxini,cxfin,yini,yfin,zini,zfin;
+ 		KerGetInteractionCells(mirrorCell[idpg1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+ 				
+ 		for(int z=zini;z<zfin;z++){
+ 			int zmod=(nc.w)*z;	
+ 			for(int y=yini;y<yfin;y++){
+ 				int ymod=zmod+nc.x*y;
+ 				unsigned pini,pfin=0;
+ 				for(int x=cxini;x<cxfin;x++){
+ 					int2 cbeg=begincell[x+ymod];
+ 					if(cbeg.y){
+ 						if(!pfin)pini=cbeg.x;
+ 						pfin=cbeg.y;
+ 					}
+ 				}
+ 				if(pfin) KerCorrectDivr<tker> (pini,pfin,posxy,posz,CTE.massb,CTE.rhopzero,posmp1,divrp1,divr,boundaryfs);
+ 			}
+ 		}
+ 
+ 		divr[p1]=divrp1;
+ 	}
+ }
+
 //------------------------------------------------------------------------------
 /// Realiza la interaccion de una particula con un conjunto de ellas. (Fluid/Float-Fluid/Float/Bound)
 /// Interaction of a particle with a set of particles. (Fluid/Float-Fluid/Float/Bound)
@@ -1262,6 +1321,7 @@ template<TpKernel tker,TpFtMode ftmode,bool schwaiger> void Interaction_ForcesT
 			if(simulate2d) KerMLSBoundary2D<tker> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,code,idp,mirrorPos,mirrorCell,mls);
 			else KerMLSBoundary3D<tker> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,code,idp,mirrorPos,mirrorCell,mls);
 			KerInteractionForcesBound<tker,ftmode> <<<sgridb,bsbound>>> (simulate2d,tslipcond,npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,divr,mirrorPos,mirrorCell,mls,row);
+			KerInteractionCorrectBoundDivr<tker,ftmode> <<<sgridb,bsbound>>> (simulate2d,npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,divr,mirrorPos,mirrorCell,boundaryfs);
 		}
 		//-Interaccion Fluid-Fluid & Fluid-Bound
 		//-Interaction Fluid-Fluid & Fluid-Bound
@@ -1494,7 +1554,7 @@ void Interaction_ForcesDem(bool psimple,TpCellMode cellmode,unsigned bsize
 //------------------------------------------------------------------------------
 __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,double dt
   ,float shiftcoef,float freesurface,double coeftfs
-  ,float4 *velrhop,const float *divr,float3 *shiftpos,const double ShiftOffset,const double alphashift,bool maxShift,float3 *sumtensile,const double beta0,const double beta1)
+  ,float4 *velrhop,const float *divr,float3 *shiftpos,const float ShiftOffset,const bool alphashift,const bool maxShift,float3 *sumtensile,const double beta0,const double beta1)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
   if(p<n){
@@ -1550,14 +1610,17 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 	  float dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
 
     if(divrp1<freesurface){
-      dcdn-=beta0;
+			dcdn=0;
+      //dcdn-=beta0;
       rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*alphashift);
       if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*alphashift);
       rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*alphashift);
     }
     else if(divrp1<=freesurface+ShiftOffset){ 
-			dcdn-=beta1;
-      rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*alphashift);
+			//dcdn-=beta1;
+			alphashift=0.5*(1.0-cos(3.141592*(divrp1-freesurface)/ShiftOffset));
+			//alphashift=-3.0*pow(((divrp1-freesurface)/ShiftOffset),4.0) + 4*pow(((divrp1-freesurface)/ShiftOffset),3.0);
+			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*alphashift);
       if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*alphashift);
       rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*alphashift);
     }
@@ -1584,12 +1647,11 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 //==============================================================================
 void RunShifting(const bool simulate2d,unsigned np,unsigned npb,double dt
   ,double shiftcoef,float freesurface,double coeftfs
-  ,float4 *velrhop,const float *divr,float3 *shiftpos,bool maxShift,float3 *sumtensile,const double FactorNormShift,const double betashift0,const double betashift1){
+  ,float4 *velrhop,const float *divr,float3 *shiftpos,bool maxShift,float3 *sumtensile,const float shiftoffset,const double alphashift,const double betashift0,const double betashift1){
   const unsigned npf=np-npb;
-  const double ShiftOffset=0.2;
   if(npf){
     dim3 sgrid=GetGridSize(npf,SPHBSIZE);
-    KerRunShifting <<<sgrid,SPHBSIZE>>> (simulate2d,npf,npb,dt,shiftcoef,freesurface,coeftfs,velrhop,divr,shiftpos,ShiftOffset,FactorNormShift,maxShift,sumtensile,betashift0,betashift1);
+    KerRunShifting <<<sgrid,SPHBSIZE>>> (simulate2d,npf,npb,dt,shiftcoef,freesurface,coeftfs,velrhop,divr,shiftpos,shiftoffset,alphashift,maxShift,sumtensile,betashift0,betashift1);
   }
 }
 

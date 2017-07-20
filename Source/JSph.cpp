@@ -438,7 +438,11 @@ void JSph::LoadCaseConfig(){
     TensileR=eparms.GetValueFloat("TensileR",true,3.0f);
 		BetaShift0=eparms.GetValueFloat("BetaShift0",true,-41.0f);
 		BetaShift1=eparms.GetValueFloat("BetaShift1",true,-10.0f);
-		AlphaShift=eparms.GetValueDouble("AlphaShift",true,0.0f);
+		switch(eparms.GetValueInt("AlphaShift",true,0)){
+			case 0:  AlphaShift=false;  break;
+			case 1:  AlphaShift=true;  break;
+			default: RunException(met,"AlphaShift is not valid.");
+		}
   }
 
   FreeSurface=eparms.GetValueFloat("FreeSurface",true,1.6f);
