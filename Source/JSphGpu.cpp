@@ -90,7 +90,8 @@ void JSphGpu::InitVars(){
   counterNnzGPU=NULL;
 	NumFreeSurfaceGPU=NULL;
   Xg=NULL;
-  dWxCorrgShiftPos=NULL; dWyCorrg=NULL; dWzCorrgTensile=NULL;
+  dWxCorrg=NULL; dWyCorrg=NULL; dWzCorrg=NULL;
+	ShiftPosg=NULL; Tensileg=NULL;
 	MLSg=NULL;
 	sumFrg=NULL;
   Divrg=NULL;
@@ -140,8 +141,10 @@ void JSphGpu::FreeGpuMemoryFixed(){
 	if(MLSg)cudaFree(MLSg);													MLSg=NULL;
 	if(sumFrg) cudaFree(sumFrg);										sumFrg=NULL;
 	if(Aceg)cudaFree(Aceg);													Aceg=NULL;
-	if(dWxCorrgShiftPos)cudaFree(dWxCorrgShiftPos);	dWxCorrgShiftPos=NULL;
-	if(dWzCorrgTensile)cudaFree(dWzCorrgTensile);		dWzCorrgTensile=NULL;
+	if(dWxCorrg)cudaFree(dWxCorrg);									dWxCorrg=NULL;
+	if(dWzCorrg)cudaFree(dWzCorrg);									dWzCorrg=NULL;
+	if(ShiftPosg)cudaFree(ShiftPosg);								ShiftPosg=NULL;
+	if(Tensileg)cudaFree(Tensileg);								Tensileg=NULL;
   if(RidpMoveg)cudaFree(RidpMoveg);								RidpMoveg=NULL;
   if(FtRidpg)cudaFree(FtRidpg);										FtRidpg=NULL;
   if(FtoMasspg)cudaFree(FtoMasspg);								FtoMasspg=NULL;
@@ -173,8 +176,10 @@ void JSphGpu::AllocGpuMemoryFixed(){
  	m=sizeof(double)*PPEMem;		cudaMalloc((void**)&ag,m);								MemGpuFixed+=m;
   m=sizeof(unsigned)*PPEMem;	cudaMalloc((void**)&colIndg,m);						MemGpuFixed+=m;
 	m=sizeof(float3)*npf;				cudaMalloc((void**)&Aceg,m);							MemGpuFixed+=m;
-															cudaMalloc((void**)&dWxCorrgShiftPos,m);	MemGpuFixed+=m;
-															cudaMalloc((void**)&dWzCorrgTensile,m);		MemGpuFixed+=m;
+															cudaMalloc((void**)&dWxCorrg,m);					MemGpuFixed+=m;
+															cudaMalloc((void**)&dWzCorrg,m);					MemGpuFixed+=m;
+															cudaMalloc((void**)&ShiftPosg,m);					MemGpuFixed+=m;
+															cudaMalloc((void**)&Tensileg,m);					MemGpuFixed+=m;
 															if(Schwaiger) cudaMalloc((void**)&sumFrg,m);						MemGpuFixed+=m;
   m=sizeof(unsigned);					cudaMalloc((void**)&counterNnzGPU,m);				MemGpuFixed+=m;
 															cudaMalloc((void**)&NumFreeSurfaceGPU,m);				MemGpuFixed+=m;
@@ -859,9 +864,9 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
   //-Asigna memoria.ddd
   //-Allocates memory.
   if(tinter==1){
-		cudaMemset(dWxCorrgShiftPos,0,sizeof(float3)*npf);
+		cudaMemset(dWxCorrg,0,sizeof(float3)*npf);
 		dWyCorrg=ArraysGpu->ReserveFloat3();	cudaMemset(dWyCorrg,0,sizeof(float3)*npf); 
-		cudaMemset(dWzCorrgTensile,0,sizeof(float3)*npf);
+		cudaMemset(dWzCorrg,0,sizeof(float3)*npf);
 		Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
 		cudaMemset(MLSg,0,sizeof(float4)*npb);
 		cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
@@ -934,6 +939,7 @@ void JSphGpu::ComputeSymplecticCorr(double dt){
   ArraysGpu->Free(PosxyPreg);    PosxyPreg=NULL;
   ArraysGpu->Free(PoszPreg);     PoszPreg=NULL;
   ArraysGpu->Free(VelrhopPreg);  VelrhopPreg=NULL;
+	ArraysGpu->Free(Divrg);         Divrg=NULL;
   TmgStop(Timers,TMG_SuComputeStep);
 }
 
@@ -963,7 +969,7 @@ void JSphGpu::RunShifting(double dt){
   const double coeftfs=(Simulate2D? 2.0: 3.0)-FreeSurface;
 	bool maxShift=false;
 	if(TShifting==SHIFT_Max) maxShift=true;
-  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,coeftfs,Velrhopg,Divrg,dWxCorrgShiftPos,maxShift,dWzCorrgTensile,ShiftOffset,AlphaShift,BetaShift0,BetaShift1);
+  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,coeftfs,Velrhopg,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift,BetaShift0,BetaShift1);
 }
 
 //==============================================================================
@@ -1086,7 +1092,7 @@ void JSphGpu::Shift(double dt,const unsigned bsfluid){
   //-Calcula desplazamiento, velocidad y densidad.
   //-Computes displacement, velocity and density.
   const double dt05=dt*.5;
-  cusph::ComputeShift(WithFloating,bsfluid,Np,Npb,dWxCorrgShiftPos,Codeg,movxyg,movzg);
+  cusph::ComputeShift(WithFloating,bsfluid,Np,Npb,ShiftPosg,Codeg,movxyg,movzg);
   //-Aplica desplazamiento a las particulas fluid no periodicas.
   //-Applies displacement to non-periodic fluid particles.
   cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
