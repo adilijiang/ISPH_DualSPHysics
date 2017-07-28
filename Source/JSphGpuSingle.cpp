@@ -867,7 +867,8 @@ void JSphGpuSingle::RunShifting(double dt){
 	dWyCorrg=ArraysGpu->ReserveFloat3();	cudaMemset(dWyCorrg,0,sizeof(float3)*npf); 
 	cudaMemset(dWzCorrg,0,sizeof(float3)*npf);
 	cudaMemset(MLSg,0,sizeof(float4)*npb);
-  
+  cudaMemset(Aceg,0,sizeof(float3)*npf);
+
   //-Cambia datos a variables Pre para calcular nuevos datos.
   //-Changes data of predictor variables for calculating the new data
   cudaMemcpy(PosxyPreg,Posxyg,sizeof(double2)*np,cudaMemcpyDeviceToDevice);     //Es decir... PosxyPre[] <= Posxy[] //i.e. PosxyPre[] <= Posxy[]
@@ -892,8 +893,8 @@ void JSphGpuSingle::RunShifting(double dt){
   JSphGpu::RunShifting(dt);
   TmgStop(Timers,TMG_SuShifting);
   CheckCudaError(met,"Failed in calculating shifting distance");
-  Shift(dt,bsfluid);
-	cusph::CorrectShiftVelocity(TKernel,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,Idpg,Divrg,Codeg,BoundaryFS,ShiftPosg);
+	cusph::CorrectShiftVelocity(TKernel,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,Idpg,Divrg,Codeg,BoundaryFS,ShiftPosg,Aceg);
+	Shift(dt,bsfluid);
 	cusph::ResetBoundVel(Npb,bsbound,Velrhopg,VelrhopPreg);
   ArraysGpu->Free(PosxyPreg);     PosxyPreg=NULL;
   ArraysGpu->Free(PoszPreg);      PoszPreg=NULL;

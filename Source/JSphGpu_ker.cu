@@ -1562,10 +1562,10 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 		const unsigned Correctp1=p;
     float3 rshiftpos=shiftpos[Correctp1];
     float divrp1=divr[p1];
-
+		double h=double(CTE.h);
+		double dp=double(CTE.dp);
     //double umagn=-double(shiftcoef)*double(CTE.h)*dt*sqrt(velrhop[p1].x*velrhop[p1].x+velrhop[p1].y*velrhop[p1].y+velrhop[p1].z*velrhop[p1].z);
-		double umagn=-double(shiftcoef)*double(CTE.h)*double(CTE.h);
-    float dp=CTE.dp;
+		double umagn=-double(shiftcoef)*h*h;
 
  	  float3 norm=make_float3(-rshiftpos.x,-rshiftpos.y,-rshiftpos.z);
 	  float3 tang=make_float3(0,0,0);
@@ -1610,6 +1610,7 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 	  float dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
 
     if(divrp1<freesurface){
+			dcdn-=beta0;
 			double factorNormShift=0.0;
       rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*factorNormShift);
       if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift);
@@ -1617,7 +1618,7 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
     }
     else if(divrp1<=freesurface+ShiftOffset){ 
 			dcdn-=beta1;
-			double factorNormShift=0;
+			double factorNormShift=0.1;
 			if(alphashift) factorNormShift=0.5*(1.0-cos(3.141592*(divrp1-freesurface)/ShiftOffset));
 			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*factorNormShift);
       if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift);
@@ -3837,7 +3838,7 @@ template<TpKernel tker> __device__ void KerCalcShiftVelocity
 template<TpKernel tker> __global__ void KerFindShiftVelocity
   (unsigned n,unsigned pinit,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero,const unsigned *dcell
   ,const double2 *posxy,const double *posz,float4 *velrhop,const float3 *dwxCorr,const float3 *dwyCorr,const float3 *dwzCorr,const float *divr,const word *code
-  ,const unsigned *idp,const float boundaryfs,float3 *shiftpos)
+  ,const unsigned *idp,const float boundaryfs,float3 *shiftpos,float3 *shiftvel)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
@@ -3877,28 +3878,28 @@ template<TpKernel tker> __global__ void KerFindShiftVelocity
 			}
 		}
 
-		shiftpos[Correctp1].x=velp1.x+gradvx.x*shift.x+gradvx.y*shift.y+gradvx.z*shift.z;
-		shiftpos[Correctp1].y=velp1.y+gradvy.x*shift.x+gradvy.y*shift.y+gradvy.z*shift.z;
-		shiftpos[Correctp1].z=velp1.z+gradvz.x*shift.x+gradvz.y*shift.y+gradvz.z*shift.z;
+		shiftvel[Correctp1].x=velp1.x+gradvx.x*shift.x+gradvx.y*shift.y+gradvx.z*shift.z;
+		shiftvel[Correctp1].y=velp1.y+gradvy.x*shift.x+gradvy.y*shift.y+gradvy.z*shift.z;
+		shiftvel[Correctp1].z=velp1.z+gradvz.x*shift.x+gradvz.y*shift.y+gradvz.z*shift.z;
   }
 }
 
 __global__ void KerCorrectShiftVelocity
-  (unsigned n,unsigned pinit,float4 *velrhop,float3 *shiftpos)
+  (unsigned n,unsigned pinit,float4 *velrhop,float3 *shiftvel)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
 		const unsigned Correctp1=p;
-		velrhop[p1].x=shiftpos[Correctp1].x;
-		velrhop[p1].y=shiftpos[Correctp1].y;
-		velrhop[p1].z=shiftpos[Correctp1].z;
+		velrhop[p1].x=shiftvel[Correctp1].x;
+		velrhop[p1].y=shiftvel[Correctp1].y;
+		velrhop[p1].z=shiftvel[Correctp1].z;
   }
 }
 
 void CorrectShiftVelocity(TpKernel tkernel,TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
 	,const unsigned *dcell,const double2 *posxy,const double *posz,float4 *velrhop,const float3 *dwxCorr,const float3 *dwyCorr,const float3 *dwzCorr
-  ,const unsigned *idp,const float *divr,const word *code,const float boundaryfs,float3 *shiftpos){
+  ,const unsigned *idp,const float *divr,const word *code,const float boundaryfs,float3 *shiftpos,float3 *shiftvel){
   const unsigned npf=np-npb;
   const int hdiv=(cellmode==CELLMODE_H? 2: 1);
   const uint4 nc=make_uint4(ncells.x,ncells.y,ncells.z,ncells.x*ncells.y);
@@ -3910,13 +3911,13 @@ void CorrectShiftVelocity(TpKernel tkernel,TpCellMode cellmode,const unsigned bs
     dim3 sgridf=GetGridSize(npf,bsfluid);
 
 		if(tkernel==KERNEL_Quintic){    const TpKernel tker=KERNEL_Quintic;
-			KerFindShiftVelocity<tker> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,boundaryfs,shiftpos);
+			KerFindShiftVelocity<tker> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,boundaryfs,shiftpos,shiftvel);
 		}
 		else if(tkernel==KERNEL_Wendland){    const TpKernel tker=KERNEL_Wendland;
-			KerFindShiftVelocity<tker> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,boundaryfs,shiftpos);
+			KerFindShiftVelocity<tker> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,boundaryfs,shiftpos,shiftvel);
 		}
 
-		KerCorrectShiftVelocity <<<sgridf,bsfluid>>> (npf,npb,velrhop,shiftpos);
+		KerCorrectShiftVelocity <<<sgridf,bsfluid>>> (npf,npb,velrhop,shiftvel);
 	}
 }
 
