@@ -245,6 +245,8 @@ protected:
 		const unsigned ppedim,unsigned int *rowGpu,const float *divr,const float freesurface,unsigned &nnz,unsigned &numFreeSurface);
 
   void Shift(double dt,const unsigned bsfluid);
+	double ComputeVariable();
+
 public:
   JSphGpu(bool withmpi);
   ~JSphGpu();

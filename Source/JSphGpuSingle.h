@@ -47,7 +47,7 @@ protected:
   void Interaction_Forces(TpInter tinter,double dt);
   double ComputeAceMax(float *auxmem);
 
-  double ComputeStep_Sym();
+  double ComputeStep_Sym(double dt);
 
   void RunFloating(double dt,bool predictor);
 

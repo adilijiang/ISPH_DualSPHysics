@@ -110,6 +110,7 @@ void JSph::InitVars(){
   TAMGInter=AMGINTER_AG;
   Iterations=0;
   Tolerance=0;
+	VariableTimestep=false;
   StrongConnection=0; JacobiWeight=0; Presmooth=0; Postsmooth=0; CoarseCutoff=0;
 	PistonPosX=0; PistonPosZ=0;
 	NegativePressureBound=true;
@@ -457,6 +458,12 @@ void JSph::LoadCaseConfig(){
     case 0:  TPrecond=PRECOND_Jacobi;   break;
     case 1:  TPrecond=PRECOND_AMG;      break;
     default: RunException(met,"Preconditioner is not valid.");
+  }
+
+	switch(eparms.GetValueInt("VariableTimestep",true,0)){
+    case 0:  VariableTimestep=false;   break;
+    case 1:  VariableTimestep=true;    break;
+    default: RunException(met,"VariableTimestep is not valid.");
   }
 
   if(TPrecond==PRECOND_AMG){   
@@ -831,12 +838,12 @@ void JSph::ConfigConstants(bool simulate2d){
 		Dosh=float(h*2); 
 		Fourh2=float(h*h*4.0f); 
 		if(simulate2d){
-			Awen=float(7.0/(4.0*PI*h*h)); 
-			Bwen=-float(35.0/(4.0*PI*h*h*h));
+			Awen=float(0.577/(h*h)); 
+			Bwen=float(-2.7852/(h*h*h));
 		}
 		else{
 			Awen=float(0.41778/(h*h*h));
-			Bwen=-float(2.08891/(h*h*h*h));
+			Bwen=float(-2.08891/(h*h*h*h));
 		}
 	}
 

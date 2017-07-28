@@ -187,6 +187,7 @@ protected:
   int CoarseCutoff;
   int CoarseLevels;
 	bool NegativePressureBound; //Allow negative pressure in the boundary
+	bool VariableTimestep;
 
 	double PistonPosX; //Starting x-position of piston for wave generation
 	double PistonPosZ; //Bottom of piston for wave generation

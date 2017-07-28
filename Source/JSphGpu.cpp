@@ -1102,3 +1102,15 @@ void JSphGpu::Shift(double dt,const unsigned bsfluid){
   ArraysGpu->Free(movzg);    movzg=NULL;
   TmgStop(Timers,TMG_SuComputeStep);
 }
+
+//==============================================================================
+/// Variable timestep
+//==============================================================================
+double JSphGpu::ComputeVariable(){
+  const char met[]="VariableTimestep";
+  cusph::ComputeVelMod(Np-Npb,Velrhopg+Npb,Divrg); //Divrg is used to store the velocity magnitudes here
+  float velmax=cusph::ReduMaxFloat(Np-Npb,0,Divrg,CellDiv->GetAuxMem(cusph::ReduMaxFloatSize(Np-Npb)));
+  VelMax=sqrt(velmax);
+	std::cout<<VelMax<<"\n";
+	return(CFLnumber*H/VelMax);
+}

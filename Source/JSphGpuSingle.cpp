@@ -439,14 +439,7 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   //-For 2D simulations always overrides the 2nd component (Y axis)
   if(Simulate2D)cusph::ResetAcey(Np-Npb,Aceg);
   TmgStop(Timers,TMG_CfForces);
-  //if(Deltag)cusph::AddDelta(Np-Npb,Deltag+Npb,Arg+Npb);//-Añade correccion de Delta-SPH a Arg[]. //-Adds the Delta-SPH correction for the density
   CheckCudaError(met,"Failed while executing kernels of interaction.");
-
-  //-Calculates maximum value of ViscDt.
-  //if(Np)ViscDtMax=cusph::ReduMaxFloat(Np,0,ViscDtg,CellDivSingle->GetAuxMem(cusph::ReduMaxFloatSize(Np)));
-  //-Calculates maximum value of Ace.
-  //AceMax=ComputeAceMax(ViscDtg); 
-  CheckCudaError(met,"Failed in reduction of viscdt.");
 }
 
 //==============================================================================
@@ -471,9 +464,8 @@ double JSphGpuSingle::ComputeAceMax(float *auxmem){
 /// Particle interaction and update of particle data according to
 /// the computed forces using the Symplectic time stepping scheme
 //==============================================================================
-double JSphGpuSingle::ComputeStep_Sym(){
+double JSphGpuSingle::ComputeStep_Sym(double dt){
   //SaveVtkData("InitSymplectic.vtk",Nstep,Np,Posxyg,Poszg,Idpg,Velrhopg);
-  const double dt=DtPre;
   //-Predictor
   //----------- 
 	TmgStart(Timers,TMG_Stage1);
@@ -497,6 +489,7 @@ double JSphGpuSingle::ComputeStep_Sym(){
 	TmgStart(Timers,TMG_Stage4);
   if(TShifting)RunShifting(dt);               //-Shifting
 	TmgStop(Timers,TMG_Stage4);
+	if(VariableTimestep) dt=ComputeVariable();
   return(dt);
 }
 
@@ -562,6 +555,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   //-Main Loop
   //------------------
   bool partoutstop=false;
+	double stepdt=DtPre;
   TimerSim.Start();
   TimerPart.Start();
   Log->Print(string("\n[Initialising simulation (")+RunCode+")  "+fun::GetDateTime()+"]");
@@ -570,8 +564,8 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 	MirrorBoundary();
 	CellDivSingle->MirrorDCellSingle(BlockSizes.forcesbound,Npb,Codeg,Idpg,MirrorPosg,MirrorCellg,DomRealPosMin,DomRealPosMax,DomPosMin,Scell,DomCellCode);
   while(TimeStep<TimeMax){
-		if(CaseNmoving)RunMotion(DtPre);
-    double stepdt=ComputeStep_Sym();
+		if(CaseNmoving)RunMotion(stepdt);
+    stepdt=ComputeStep_Sym(stepdt);
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
     TimeStep+=stepdt;
     partoutstop=(Np<NpMinimum || !Np);

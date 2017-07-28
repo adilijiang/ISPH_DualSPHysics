@@ -1567,18 +1567,22 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
     //double umagn=-double(shiftcoef)*double(CTE.h)*dt*sqrt(velrhop[p1].x*velrhop[p1].x+velrhop[p1].y*velrhop[p1].y+velrhop[p1].z*velrhop[p1].z);
 		double umagn=-double(shiftcoef)*h*h;
 
- 	  float3 norm=make_float3(-rshiftpos.x,-rshiftpos.y,-rshiftpos.z);
+		float3 norm=make_float3(-rshiftpos.x,-rshiftpos.y,-rshiftpos.z);
+		if(simulate2d) norm.y=0;
 	  float3 tang=make_float3(0,0,0);
 	  float3 bitang=make_float3(0,0,0);
 		rshiftpos.x+=sumtensile[Correctp1].x; rshiftpos.y+=sumtensile[Correctp1].y; rshiftpos.z+=sumtensile[Correctp1].z;
+		if(simulate2d)  rshiftpos.y=0;
 
 	  //-tangent and bitangent calculation
 	  tang.x=norm.z+norm.y;		
 	  if(!simulate2d)tang.y=-(norm.x+norm.z);	
 	  tang.z=-norm.x+norm.y;
-	  bitang.x=tang.y*norm.z-norm.y*tang.z;
-	  if(!simulate2d)bitang.y=norm.x*tang.z-tang.x*norm.z;
-	  bitang.z=tang.x*norm.y-norm.x*tang.y;
+		if(!simulate2d){
+			bitang.x=tang.y*norm.z-norm.y*tang.z;
+			bitang.y=norm.x*tang.z-tang.x*norm.z;
+			bitang.z=tang.x*norm.y-norm.x*tang.y;
+		}
 
 	  //-unit normal vector
 	  float temp=norm.x*norm.x+norm.y*norm.y+norm.z*norm.z;
@@ -1597,12 +1601,14 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
     else {tang.x=0.f; tang.y=0.f; tang.z=0.f;}
 
 	  //-unit bitangent vector
-	  temp=bitang.x*bitang.x+bitang.y*bitang.y+bitang.z*bitang.z;
-	  if(temp){
-      temp=sqrt(temp);
-	    bitang.x=bitang.x/temp; bitang.y=bitang.y/temp; bitang.z=bitang.z/temp;
-    }
-    else {bitang.x=0.f; bitang.y=0.f; bitang.z=0.f;}
+		if(!simulate2d){
+			temp=bitang.x*bitang.x+bitang.y*bitang.y+bitang.z*bitang.z;
+			if(temp){
+				temp=sqrt(temp);
+				bitang.x=bitang.x/temp; bitang.y=bitang.y/temp; bitang.z=bitang.z/temp;
+			}
+			else {bitang.x=0.f; bitang.y=0.f; bitang.z=0.f;}
+		}
 
 	  //-gradient calculation
 	  float dcds=tang.x*rshiftpos.x+tang.z*rshiftpos.z+tang.y*rshiftpos.y;
@@ -1619,10 +1625,9 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
     else if(divrp1<=freesurface+ShiftOffset){ 
 			dcdn-=beta1;
 			double factorNormShift=0.1;
-			if(alphashift) factorNormShift=0.5*(1.0-cos(3.141592*(divrp1-freesurface)/ShiftOffset));
-			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*factorNormShift);
+			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*factorNormShift);
       if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift);
-      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*factorNormShift);
+      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*factorNormShift);
     }
 
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
@@ -3583,20 +3588,20 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesShif
 	  
       //-Obtiene masa de particula p2 en caso de existir floatings.
 	  //-Obtains mass of particle p2 if any floating bodies exist.
-      bool ftp2;         //-Indica si es floating. //-indicates if it is floating.
-      float ftmassp2;    //-Contiene masa de particula floating o massp2 si es bound o fluid. //-Contains mass of floating body or massf if fluid.
+     // bool ftp2;         //-Indica si es floating. //-indicates if it is floating.
+      //float ftmassp2;    //-Contiene masa de particula floating o massp2 si es bound o fluid. //-Contains mass of floating body or massf if fluid.
      // bool compute=true; //-Se desactiva cuando se usa DEM y es float-float o float-bound. //-Deactivated when DEM is used and is float-float or float-bound.
-      if(USE_FLOATING){
+      /*if(USE_FLOATING){
         const word cod=code[p2];
         ftp2=(CODE_GetType(cod)==CODE_TYPE_FLOATING);
         ftmassp2=(ftp2? ftomassp[CODE_GetTypeValue(cod)]: massp2);
         //if(ftp2 && (tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt))deltap1=FLT_MAX;
 				//if(ftp2 && tshifting==SHIFT_NoBound)shiftposp1.x=FLT_MAX; //-Con floatings anula shifting. //-Cancels shifting with floating bodies
         //compute=!(USE_DEM && ftp1 && (boundp2 || ftp2)); //-Se desactiva cuando se usa DEM y es float-float o float-bound. //-Deactivated when DEM is used and is float-float or float-bound.
-      }
+      }*/
 
       //-Shifting correction
-      const float volume=(USE_FLOATING? ftmassp2: massp2)/CTE.rhopzero;
+      const float volume=massp2/CTE.rhopzero;
       const float tensile=tensilen*powf(Wab/Wab1,tensiler);
       shiftposp1.x+=volume*frx; //-For boundary do not use shifting / Con boundary anula shifting.
       shiftposp1.y+=volume*fry;
@@ -3676,16 +3681,12 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesShif
     }
 
     if(shiftposp1.x||shiftposp1.y||shiftposp1.z||divrp1){
-      float3 s=shiftpos[Correctp1];
-      s.x+=shiftposp1.x; s.y+=shiftposp1.y; s.z+=shiftposp1.z;
-      shiftpos[Correctp1]=s;
+      shiftpos[Correctp1].x+=shiftposp1.x; shiftpos[Correctp1].y+=shiftposp1.y; shiftpos[Correctp1].z+=shiftposp1.z;
       shiftposp1=make_float3(0,0,0);
-      divr[p1]=divrp1;
-			s=sumtensile[Correctp1];
-			s.x+=sumtensilep1.x; s.y+=sumtensilep1.y; s.z+=sumtensilep1.z;
-			sumtensile[Correctp1]=s;
+      divr[p1]+=divrp1;
+			divrp1=0;
+			sumtensile[Correctp1].x=sumtensilep1.x; sumtensile[Correctp1].y=sumtensilep1.y; sumtensile[Correctp1].z=sumtensilep1.z;
 			sumtensilep1=make_float3(0,0,0);
-      divrp1=0;
 			dwxcorrg[Correctp1].x+=float(dwxp1.x); dwxcorrg[Correctp1].y+=float(dwxp1.y); dwxcorrg[Correctp1].z+=float(dwxp1.z); 
 			dwycorrg[Correctp1].x+=float(dwyp1.x); dwycorrg[Correctp1].y+=float(dwyp1.y); dwycorrg[Correctp1].z+=float(dwyp1.z); 
 			dwzcorrg[Correctp1].x+=float(dwzp1.x); dwzcorrg[Correctp1].y+=float(dwzp1.y); dwzcorrg[Correctp1].z+=float(dwzp1.z); 
@@ -3713,17 +3714,12 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesShif
     }
     
     if(shiftposp1.x||shiftposp1.y||shiftposp1.z||divrp1){
-      float3 s=shiftpos[Correctp1];
-      s.x+=shiftposp1.x; s.y+=shiftposp1.y; s.z+=shiftposp1.z;
-      shiftpos[Correctp1]=s;
+			shiftpos[Correctp1].x+=shiftposp1.x; shiftpos[Correctp1].y+=shiftposp1.y; shiftpos[Correctp1].z+=shiftposp1.z;
       divr[p1]+=divrp1;
-			s=sumtensile[Correctp1];
-			s.x+=sumtensilep1.x; s.y+=sumtensilep1.y; s.z+=sumtensilep1.z;
-			sumtensile[Correctp1]=s;
+			sumtensile[Correctp1].x=sumtensilep1.x; sumtensile[Correctp1].y=sumtensilep1.y; sumtensile[Correctp1].z=sumtensilep1.z;
 			dwxcorrg[Correctp1].x+=float(dwxp1.x); dwxcorrg[Correctp1].y+=float(dwxp1.y); dwxcorrg[Correctp1].z+=float(dwxp1.z); 
 			dwycorrg[Correctp1].x+=float(dwyp1.x); dwycorrg[Correctp1].y+=float(dwyp1.y); dwycorrg[Correctp1].z+=float(dwyp1.z); 
-			dwzcorrg[Correctp1].x+=float(dwzp1.x); dwzcorrg[Correctp1].y+=float(dwzp1.y); dwzcorrg[Correctp1].z+=float(dwzp1.z);
-			dwxp1=make_double3(0,0,0); dwyp1=make_double3(0,0,0); dwzp1=make_double3(0,0,0);
+			dwzcorrg[Correctp1].x+=float(dwzp1.x); dwzcorrg[Correctp1].y+=float(dwzp1.y); dwzcorrg[Correctp1].z+=float(dwzp1.z); 
 		}
   }
 }
