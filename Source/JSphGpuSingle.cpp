@@ -887,7 +887,7 @@ void JSphGpuSingle::RunShifting(double dt){
   JSphGpu::RunShifting(dt);
   TmgStop(Timers,TMG_SuShifting);
   CheckCudaError(met,"Failed in calculating shifting distance");
-	cusph::CorrectShiftVelocity(TKernel,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,Idpg,Divrg,Codeg,BoundaryFS,ShiftPosg,Aceg);
+	//cusph::CorrectShiftVelocity(TKernel,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,Idpg,Divrg,Codeg,BoundaryFS,ShiftPosg,Aceg);
 	Shift(dt,bsfluid);
 	cusph::ResetBoundVel(Npb,bsbound,Velrhopg,VelrhopPreg);
   ArraysGpu->Free(PosxyPreg);     PosxyPreg=NULL;

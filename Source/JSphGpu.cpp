@@ -966,10 +966,9 @@ double JSphGpu::DtVariable(bool final){
 /// Computes final shifting distance for the particle position.
 //==============================================================================
 void JSphGpu::RunShifting(double dt){
-  const double coeftfs=(Simulate2D? 2.0: 3.0)-FreeSurface;
 	bool maxShift=false;
 	if(TShifting==SHIFT_Max) maxShift=true;
-  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,coeftfs,Velrhopg,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift,BetaShift0,BetaShift1);
+  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velrhopg,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift,BetaShift0,BetaShift1);
 }
 
 //==============================================================================

@@ -433,17 +433,13 @@ void JSph::LoadCaseConfig(){
   }
 
   if(TShifting!=SHIFT_None){
-    ShiftCoef=eparms.GetValueFloat("ShiftCoef",true,0.1f);
+    ShiftCoef=eparms.GetValueFloat("ShiftCoef",true,0.5f);
     ShiftOffset=eparms.GetValueFloat("ShiftOffset",true,0.2f);
-    TensileN=eparms.GetValueFloat("TensileN",true,0.1f);
-    TensileR=eparms.GetValueFloat("TensileR",true,3.0f);
-		BetaShift0=eparms.GetValueFloat("BetaShift0",true,-41.0f);
-		BetaShift1=eparms.GetValueFloat("BetaShift1",true,-10.0f);
-		switch(eparms.GetValueInt("AlphaShift",true,0)){
-			case 0:  AlphaShift=false;  break;
-			case 1:  AlphaShift=true;  break;
-			default: RunException(met,"AlphaShift is not valid.");
-		}
+    TensileN=eparms.GetValueFloat("TensileN",true,4.0f);
+    TensileR=eparms.GetValueFloat("TensileR",true,0.2f);
+		BetaShift0=eparms.GetValueDouble("BetaShift0",true,0.0f);
+		BetaShift1=eparms.GetValueDouble("BetaShift1",true,0.0f);
+		AlphaShift=eparms.GetValueDouble("BetaShift1",true,0.0f);
   }
 
   FreeSurface=eparms.GetValueFloat("FreeSurface",true,1.6f);
