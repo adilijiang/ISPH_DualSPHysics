@@ -669,8 +669,8 @@ __global__ void KerInverseKernelCor2D(unsigned n,unsigned pinit,float3 *dwxcorrg
     if(det){
       dwxcorrg[p].x=float(dwz.z*det);
 	    dwxcorrg[p].z=-float(dwx.z*det); 
-	    dwzcorrg[p].x=-dwz.x*det;
-	    dwzcorrg[p].z=dwx.x*det;
+	    dwzcorrg[p].x=-float(dwz.x*det);
+	    dwzcorrg[p].z=float(dwx.x*det);
 	  }
   }
 }
@@ -684,15 +684,15 @@ __global__ void KerInverseKernelCor3D(unsigned n,unsigned pinit,float3 *dwxcorrg
 		double3 dwz; dwz.x=dwzcorrg[p].x; dwz.y=dwzcorrg[p].y; dwz.z=dwzcorrg[p].z; //  dwz.x   dwz.y   dwz.z
 
 		const double det=(dwx.x*dwy.y*dwz.z+dwx.y*dwy.z*dwz.x+dwy.x*dwz.y*dwx.z)-(dwz.x*dwy.y*dwx.z+dwy.x*dwx.y*dwz.z+dwy.z*dwz.y*dwx.x);
-		dwxcorrg[p].x=(dwy.y*dwz.z-dwy.z*dwz.y)/det;
-		dwxcorrg[p].y=-(dwx.y*dwz.z-dwx.z*dwz.y)/det;
-		dwxcorrg[p].z=(dwx.y*dwy.z-dwx.z*dwy.y)/det;
-		dwycorrg[p].x=-(dwy.x*dwz.z-dwy.z*dwz.x)/det;
-		dwycorrg[p].y=(dwx.x*dwz.z-dwx.z*dwz.x)/det;
-		dwycorrg[p].z=-(dwx.x*dwy.z-dwx.z*dwy.x)/det;
-		dwzcorrg[p].x=(dwy.x*dwz.y-dwy.y*dwz.x)/det;
-		dwzcorrg[p].y=-(dwx.x*dwz.y-dwx.y*dwz.x)/det;
-		dwzcorrg[p].z=(dwx.x*dwy.y-dwx.y*dwy.x)/det;
+		dwxcorrg[p].x=float((dwy.y*dwz.z-dwy.z*dwz.y)/det);
+		dwxcorrg[p].y=-float((dwx.y*dwz.z-dwx.z*dwz.y)/det);
+		dwxcorrg[p].z=float((dwx.y*dwy.z-dwx.z*dwy.y)/det);
+		dwycorrg[p].x=-float((dwy.x*dwz.z-dwy.z*dwz.x)/det);
+		dwycorrg[p].y=float((dwx.x*dwz.z-dwx.z*dwz.x)/det);
+		dwycorrg[p].z=-float((dwx.x*dwy.z-dwx.z*dwy.x)/det);
+		dwzcorrg[p].x=float((dwy.x*dwz.y-dwy.y*dwz.x)/det);
+		dwzcorrg[p].y=-float((dwx.x*dwz.y-dwx.y*dwz.x)/det);
+		dwzcorrg[p].z=float((dwx.x*dwy.y-dwx.y*dwy.x)/det);
   }
 }
 
