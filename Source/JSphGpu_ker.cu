@@ -1930,53 +1930,6 @@ __device__ double3 KerUpdatePeriodicPos(double3 ps)
 /// Actualizacion de posicion de particulas segun desplazamiento.
 /// Updates particle position according to displacement.
 //------------------------------------------------------------------------------
-template<bool periactive,bool floating> __global__ void KerComputeStepPos(unsigned n,unsigned pini
-  ,const double2 *movxy,const double *movz
-  ,double2 *posxy,double *posz,unsigned *dcell,word *code)
-{
-  unsigned pt=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula
-  if(pt<n){
-    unsigned p=pt+pini;
-    const word rcode=code[p];
-    const bool outrhop=(CODE_GetSpecialValue(rcode)==CODE_OUTRHOP);
-    const bool fluid=(!floating || CODE_GetType(rcode)==CODE_TYPE_FLUID);
-    const bool normal=(!periactive || outrhop || CODE_GetSpecialValue(rcode)==CODE_NORMAL);
-    if(normal && fluid){//-No se aplica a particulas periodicas o floating. //-Does not apply to periodic or floating particles.
-      const double2 rmovxy=movxy[p];
-      KerUpdatePos<periactive>(posxy[p],posz[p],rmovxy.x,rmovxy.y,movz[p],outrhop,p,posxy,posz,dcell,code);
-    }
-    //-En caso de floating mantiene la posicion original.
-	//-In case of floating maintains the original position.
-  }
-}
-
-//==============================================================================
-/// Actualizacion de posicion de particulas segun desplazamiento.
-/// Updates particle position according to displacement.
-//==============================================================================
-void ComputeStepPos(byte periactive,bool floating,unsigned np,unsigned npb
-  ,const double2 *movxy,const double *movz
-  ,double2 *posxy,double *posz,unsigned *dcell,word *code)
-{
-  const unsigned pini=npb;
-  const unsigned npf=np-pini;
-  if(npf){
-    dim3 sgrid=GetGridSize(npf,SPHBSIZE);
-    if(periactive){ const bool peri=true;
-      if(floating)KerComputeStepPos<peri,true>  <<<sgrid,SPHBSIZE>>> (npf,pini,movxy,movz,posxy,posz,dcell,code);
-      else        KerComputeStepPos<peri,false> <<<sgrid,SPHBSIZE>>> (npf,pini,movxy,movz,posxy,posz,dcell,code);
-    }
-    else{ const bool peri=false;
-      if(floating)KerComputeStepPos<peri,true>  <<<sgrid,SPHBSIZE>>> (npf,pini,movxy,movz,posxy,posz,dcell,code);
-      else        KerComputeStepPos<peri,false> <<<sgrid,SPHBSIZE>>> (npf,pini,movxy,movz,posxy,posz,dcell,code);
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-/// Actualizacion de posicion de particulas segun desplazamiento.
-/// Updates particle position according to displacement.
-//------------------------------------------------------------------------------
 template<bool periactive,bool floating> __global__ void KerComputeStepPos2(unsigned n,unsigned pini
   ,const double2 *posxypre,const double *poszpre,const double2 *movxy,const double *movz
   ,double2 *posxy,double *posz,unsigned *dcell,word *code)
@@ -2084,22 +2037,28 @@ void CalcRidp(bool periactive,unsigned np,unsigned pini,unsigned idini,unsigned 
 /// Applies a linear movement to a set of particles.
 //------------------------------------------------------------------------------
 template<bool periactive> __global__ void KerMoveLinBound(unsigned n,unsigned ini,double3 mvpos,float3 mvvel
-  ,const unsigned *ridpmv,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code,const unsigned *idpg,double3 *mirrorPos)
+  ,const unsigned *ridpmv,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code,const unsigned *idpg,double3 *mirrorPos,unsigned *mirrorCell)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
     int pid=ridpmv[p+ini];
     if(pid>=0){
-			unsigned idp1=idpg[pid];
-			mirrorPos[idp1].x+=mvpos.x;
-			mirrorPos[idp1].y+=mvpos.y;
-			mirrorPos[idp1].z+=mvpos.z;
       //-Calcula desplazamiento y actualiza posicion.
 	  //-Computes displacement and updates position.
       KerUpdatePos<periactive>(posxy[pid],posz[pid],mvpos.x,mvpos.y,mvpos.z,false,pid,posxy,posz,dcell,code);
       //-Calcula velocidad.
 	  //-Computes velocity.
       velrhop[pid]=make_float4(mvvel.x,mvvel.y,mvvel.z,velrhop[pid].w);
+
+			unsigned idp1=idpg[pid];
+			mirrorPos[idp1].x+=mvpos.x;
+			mirrorPos[idp1].y+=mvpos.y;
+			mirrorPos[idp1].z+=mvpos.z;
+			double dx=mirrorPos[idp1].x-CTE.maprealposminx;
+			double dy=mirrorPos[idp1].y-CTE.maprealposminy;
+			double dz=mirrorPos[idp1].z-CTE.maprealposminz;
+			unsigned cx=unsigned(dx/CTE.scell),cy=unsigned(dy/CTE.scell),cz=unsigned(dz/CTE.scell);
+			mirrorCell[idp1]=PC__Cell(CTE.cellcode,cx,cy,cz);
     }
   }
 }
@@ -2109,11 +2068,11 @@ template<bool periactive> __global__ void KerMoveLinBound(unsigned n,unsigned in
 /// Applies a linear movement to a set of particles.
 //==============================================================================
 void MoveLinBound(byte periactive,unsigned np,unsigned ini,tdouble3 mvpos,tfloat3 mvvel
-  ,const unsigned *ridp,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code,const unsigned *idpg,double3 *mirrorPos)
+  ,const unsigned *ridp,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code,const unsigned *idpg,double3 *mirrorPos,unsigned *mirrorCell)
 {
   dim3 sgrid=GetGridSize(np,SPHBSIZE);
-  if(periactive)KerMoveLinBound<true>  <<<sgrid,SPHBSIZE>>> (np,ini,Double3(mvpos),Float3(mvvel),ridp,posxy,posz,dcell,velrhop,code,idpg,mirrorPos);
-  else          KerMoveLinBound<false> <<<sgrid,SPHBSIZE>>> (np,ini,Double3(mvpos),Float3(mvvel),ridp,posxy,posz,dcell,velrhop,code,idpg,mirrorPos);
+  if(periactive)KerMoveLinBound<true>  <<<sgrid,SPHBSIZE>>> (np,ini,Double3(mvpos),Float3(mvvel),ridp,posxy,posz,dcell,velrhop,code,idpg,mirrorPos,mirrorCell);
+  else          KerMoveLinBound<false> <<<sgrid,SPHBSIZE>>> (np,ini,Double3(mvpos),Float3(mvvel),ridp,posxy,posz,dcell,velrhop,code,idpg,mirrorPos,mirrorCell);
 }
 
 
@@ -2850,6 +2809,19 @@ __global__ void KerWaveGenBoundary
 		}
 	}
 }
+__global__ void KerMirrorCell
+  (unsigned npb,const unsigned *idp,double3 *mirrorPos,unsigned *mirrorCell)
+{
+	unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
+  if(p1<npb){
+			const unsigned idp1=idp[p1];
+			double dx=mirrorPos[idp1].x-CTE.maprealposminx;
+			double dy=mirrorPos[idp1].y-CTE.maprealposminy;
+			double dz=mirrorPos[idp1].z-CTE.maprealposminz;
+			unsigned cx=unsigned(dx/CTE.scell),cy=unsigned(dy/CTE.scell),cz=unsigned(dz/CTE.scell);
+			mirrorCell[idp1]=PC__Cell(CTE.cellcode,cx,cy,cz);
+	}
+}
 
 __global__ void KerCreateMirrorsCodeZero
   (unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,unsigned *Physrelation,const bool wavegen)
@@ -3056,6 +3028,7 @@ void MirrorBoundary(const bool simulate2d,const unsigned bsbound,unsigned npb,co
     KerCreateMirrorsCodeNonZero <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,Physrelation,wavegen);
 		KerCreateMirrorsCodeZero <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,Physrelation,wavegen);
 		if(wavegen) KerWaveGenBoundary <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,pistonposx);
+		KerMirrorCell <<<sgridb,bsbound>>> (npb,idp,mirrorPos,Physrelation);
 	}
 }
 
