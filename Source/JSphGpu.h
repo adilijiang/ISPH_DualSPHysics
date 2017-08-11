@@ -227,6 +227,7 @@ protected:
 	float *Divrg; //Divergence of position
 	float3 *ShiftPosg;
 	float3 *Tensileg;
+	float *taog;
 
   //matrix variables 
   double *bg;
@@ -246,7 +247,7 @@ protected:
 
   void Shift(double dt,const unsigned bsfluid);
 	double ComputeVariable();
-
+	unsigned count;
 public:
   JSphGpu(bool withmpi);
   ~JSphGpu();
