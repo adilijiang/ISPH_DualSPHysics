@@ -1045,10 +1045,9 @@ void JSphGpu::RunMotion(double stepdt){
         cusph::MoveMatBound(PeriActive,Simulate2D,nparts,idbegin-CaseNfixed,mvmatrix,stepdt,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
       }
     }
-
 		PistonPosX+=mvPistonX;
 		cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Poszg,Idpg,MirrorPosg,Codeg,PistonPosX,PistonPosZ,PistonYmin,PistonYmax,Simulate2D,Velrhopg,pistonvel);
-  }
+	}
   TmgStop(Timers,TMG_SuMotion);
 }
 
@@ -1124,6 +1123,6 @@ double JSphGpu::ComputeVariable(){
   cusph::ComputeVelMod(Np-Npb,Velrhopg+Npb,Divrg); //Divrg is used to store the velocity magnitudes here
   float velmax=cusph::ReduMaxFloat(Np-Npb,0,Divrg,CellDiv->GetAuxMem(cusph::ReduMaxFloatSize(Np-Npb)));
   VelMax=sqrt(velmax);
-	std::cout<<VelMax<<"\n";
+	//std::cout<<VelMax<<"\n";
 	return(CFLnumber*H/VelMax);
 }

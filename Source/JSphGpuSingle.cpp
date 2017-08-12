@@ -422,7 +422,6 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   const char met[]="Interaction_Forces";
   TmgStart(Timers,TMG_CfForces);
   PreInteraction_Forces(tinter,dt);
-
   const unsigned bsfluid=BlockSizes.forcesfluid;
   const unsigned bsbound=BlockSizes.forcesbound;
 	CheckCudaError(met,"Failed checkin.");
@@ -432,6 +431,7 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
 		cusph::ResetBoundVel(Npb,bsbound,Velrhopg,VelrhopPreg);
 		ArraysGpu->Free(dWyCorrg);	    dWyCorrg=NULL;
 	}
+	
   //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
   //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
   //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,FtRidpg,DemDatag,float(DemDtForce),Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,ViscDtg,Aceg);
@@ -469,7 +469,6 @@ double JSphGpuSingle::ComputeStep_Sym(double dt){
   //-Predictor
   //----------- 
 	TmgStart(Timers,TMG_Stage1);
-	//cusph::ResetVely(Npb,Np-Npb,Velrhopg);
   InitAdvection(dt);
 	RunCellDivide(true);
 	Interaction_Forces(INTER_Forces,dt);        //-Interaction
@@ -736,8 +735,8 @@ void JSphGpuSingle::InitAdvection(double dt){
     //-Changes data of predictor variables for calculating the new data
     cudaMemcpy(PosxyPreg,Posxyg,sizeof(double2)*np,cudaMemcpyDeviceToDevice);     //Es decir... PosxyPre[] <= Posxy[] //i.e. PosxyPre[] <= Posxy[]
     cudaMemcpy(PoszPreg,Poszg,sizeof(double)*np,cudaMemcpyDeviceToDevice);        //Es decir... PoszPre[] <= Posz[] //i.e. PoszPre[] <= Posz[]
-    cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
-    
+		cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
+
     double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*np);
     double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*np);
     
@@ -905,7 +904,8 @@ void JSphGpuSingle::RunShifting(double dt){
   JSphGpu::RunShifting(dt);
   TmgStop(Timers,TMG_SuShifting);
   CheckCudaError(met,"Failed in calculating shifting distance");
-	cusph::CorrectShiftVelocity(TKernel,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,Idpg,Divrg,Codeg,BoundaryFS,ShiftPosg,Aceg);
+	const bool wavegen=(WaveGen? true:false);
+	cusph::CorrectShiftVelocity(wavegen,TKernel,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,Idpg,Divrg,Codeg,BoundaryFS,ShiftPosg,Aceg,DampingPointX,DampingLengthX);
 	Shift(dt,bsfluid);
 	cusph::ResetBoundVel(Npb,bsbound,Velrhopg,VelrhopPreg);
   ArraysGpu->Free(PosxyPreg);     PosxyPreg=NULL;
