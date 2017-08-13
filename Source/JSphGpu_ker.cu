@@ -428,6 +428,15 @@ __device__ void KerGetParticlesDr(int p2
   drz=float(posdp1.z-posz[p2]);
 }
 
+__device__ void KerGetParticlesDr(int p2
+  ,const double2 *posxy,const double *posz,const double3 &posdp1
+  ,double &drx,double &dry,double &drz)
+{
+  double2 posp2=posxy[p2];
+  drx=posdp1.x-posp2.x;
+  dry=posdp1.y-posp2.y;
+  drz=posdp1.z-posz[p2];
+}
 //------------------------------------------------------------------------------
 /// Devuelve limites de celdas para interaccion.
 /// Returns cell limits for the interaction.
@@ -490,6 +499,26 @@ __device__ void KerGetKernelQuintic(float rr2,float drx,float dry,float drz
   if(qq<1.0f)fac=Bwen*(-5.0f*powf(3.0f-qq,4.0f)+30.0f*powf(2.0f-qq,4.0f)-75.0f*powf(1.0f-qq,4.0f));
   else if(qq<2.0f)fac=Bwen*(-5.0f*powf(3.0f-qq,4.0f)+30.0f*powf(2.0f-qq,4.0f));
   else if(qq<3.0f)fac=Bwen*(-5.0f*powf(3.0f-qq,4.0f));
+  else fac=0;
+  fac=fac/rad;
+
+  frx=fac*drx; fry=fac*dry; frz=fac*drz;
+
+}
+
+__device__ void KerGetKernelQuintic(double rr2,double drx,double dry,double drz
+  ,double &frx,double &fry,double &frz)
+{
+  const double rad=sqrt(rr2);
+	const double h=CTE.h;
+  const double qq=rad/h;
+  const double Bwen=7.0/(478.0*PI*h*h*h);
+
+	//-Quintic Spline
+  double fac;
+  if(qq<1.0)fac=Bwen*(-5.0*pow(3.0-qq,4.0)+30.0*pow(2.0-qq,4.0)-75.0*pow(1.0-qq,4.0));
+  else if(qq<2.0)fac=Bwen*(-5.0*pow(3.0-qq,4.0)+30.0*pow(2.0-qq,4.0));
+  else if(qq<3.0)fac=Bwen*(-5.0*pow(3.0-qq,4.0));
   else fac=0;
   fac=fac/rad;
 
@@ -950,7 +979,7 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesFlui
       //-Wendland kernel.
       float frx,fry,frz;
       if(tker==KERNEL_Quintic) KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
-			else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
+			//else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 	  
       //-Obtiene masa de particula p2 en caso de existir floatings.
 	  //-Obtains mass of particle p2 if any floating bodies exist.
@@ -1167,7 +1196,7 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesFlui
 
 template<TpKernel tker,TpFtMode ftmode> __device__ void KerViscousSchwaigerCalc
   (bool boundp2,unsigned p1,const unsigned &pini,const unsigned &pfin,const float *ftomassp,const double2 *posxy,const double *posz
-	,const float4 *velrhop,const word *code,const unsigned *idp,float massp2,float ftmassp1,bool ftp1,double3 posdp1,float3 velp1,float3 &sumfr
+	,const float4 *velrhop,const word *code,const unsigned *idp,float massp2,float ftmassp1,bool ftp1,double3 posdp1,float3 velp1,double3 &sumfr
 	,float3 &dud,float3 &dvd,float3 &dwd,float3 dwxp1,float3 dwyp1,float3 dwzp1,const float *divr,const float boundaryfs,double3 &taop1)
 {
 	const float volume=massp2/CTE.rhopzero; //Volume of particle j 
@@ -1180,7 +1209,7 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerViscousSchwaigerCalc
       //-Wendland kernel.
       float frx,fry,frz;
       if(tker==KERNEL_Quintic) KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
-			else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
+			//else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 			const double rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
 			const double taotemp=volume*rDivW/(rr2+CTE.eta2);
 			taop1.x+=taotemp*drx*drx; taop1.z+=taotemp*drz*drz;
@@ -1222,7 +1251,7 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerViscousSchwaiger
   if(p<npf){
     unsigned p1=p+npb;      //-Nº de particula. //-NI of particle
 		const unsigned Correctp1=p;
-		float3 sumfr=make_float3(0,0,0);
+		double3 sumfr=make_double3(0,0,0);
     float3 dud=make_float3(0,0,0);
 		float3 dvd=make_float3(0,0,0);
 		float3 dwd=make_float3(0,0,0);
@@ -1300,7 +1329,7 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerViscousSchwaiger
     ace[Correctp1]=r;
 		if(divr[p1]>freesurface){ ace[Correctp1].x=ace[Correctp1].x*taoFinal; ace[Correctp1].z=ace[Correctp1].z*taoFinal;}
 		tao[Correctp1]=taoFinal;
-		SumFr[Correctp1].x=sumfr.x; SumFr[Correctp1].y=sumfr.y; SumFr[Correctp1].z=sumfr.z;
+		SumFr[Correctp1].x=float(sumfr.x); SumFr[Correctp1].y=float(sumfr.y); SumFr[Correctp1].z=float(sumfr.z);
   }
 }
 
