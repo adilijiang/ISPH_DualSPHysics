@@ -1663,7 +1663,7 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 
     if(divrp1<freesurface){
 			dcdn-=beta0;
-			double factorNormShift=alphashift;
+			double factorNormShift=0;//alphashift;
       rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*factorNormShift);
       if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift);
       rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*factorNormShift);
@@ -3133,17 +3133,19 @@ template<TpKernel tker,bool schwaiger> __device__ void KerMatrixAFluid
 
 			//===== Laplacian operator =====
       const float rDivW=drx*frx+dry*fry+drz*frz;
-      float temp=2.0f*rDivW/(RhopZero*(rr2+CTE.eta2));
+      float temp=rDivW/(rr2+CTE.eta2);
 
 			if(schwaiger){
-				const float Schwaigergrad=temp_x*sumfr.x+temp_y*sumfr.y+temp_z*sumfr.x;
-				temp+=2.0f*Schwaigergrad/RhopZero;
+				const float Schwaigergrad=temp_x*sumfr.x+temp_y*sumfr.y+temp_z*sumfr.z;
+				temp+=Schwaigergrad;
 				temp=temp*taop1;
 			}
-			
-      matrixInd[index]=double(-temp*volumep2);
+
+			temp=temp*volumep2*2.0/RhopZero;
+
+      matrixInd[index]=double(-temp);
       col[index]=oj;
-      matrixInd[diag]+=double(temp*volumep2);
+      matrixInd[diag]+=double(temp);
       index++;
 
 			//=====Divergence of velocity==========
@@ -3155,7 +3157,7 @@ template<TpKernel tker,bool schwaiger> __device__ void KerMatrixAFluid
 			if(!fluid){
 				double dist = posz[p2]-mirrorPos[idp[p2]].z;
 			  double temp2=temp*RhopZero*gravity.z*dist;
-			  Neumann+=double(volumep2*temp2); 
+			  Neumann+=double(temp2); 
 			}
     }
   }
