@@ -833,19 +833,11 @@ void JSphGpuSingle::SolvePPE(double dt){
 
 	CheckCudaError(met,"Matrix Setup");
 
-	//cusph::FreeSurfaceMark(bsbound,bsfluid,np,npb,npbok,Divrg,ag,bg,rowIndg,Codeg,PI,FreeSurface,ShiftOffset);
+	cusph::FreeSurfaceMark(bsbound,bsfluid,np,npb,npbok,Divrg,ag,bg,rowIndg,Codeg,PI,FreeSurface,ShiftOffset);
   CheckCudaError(met,"FreeSurfaceMark");
 	TmgStop(Timers,TMG_Stage2a);
 	TmgStart(Timers,TMG_Stage2b);
   cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Xg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
-  /*int *rowCusp;
-	cudaMalloc((void**)&rowCusp,sizeof(int)*(Np+1));
-	cudaMemcpy(rowCusp,rowIndg,sizeof(int)*(Np+1),cudaMemcpyDeviceToDevice);
-	int *colCusp;
-	cudaMalloc((void**)&colCusp,sizeof(int)*Nnz);
-	cudaMemcpy(colCusp,colIndg,sizeof(int)*Nnz,cudaMemcpyDeviceToDevice);
-	cusph::solveCusp(ag,Xg,bg,rowCusp,colCusp,Nnz,PPEDim);
-	cudaFree(rowCusp); cudaFree(colCusp);*/
 	CheckCudaError(met,"Matrix Solve");
 
   cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Poszg,Velrhopg,Xg,Idpg,Codeg,NegativePressureBound,MirrorPosg);

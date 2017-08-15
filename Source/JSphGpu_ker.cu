@@ -1299,6 +1299,11 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerViscousSchwaiger
 			}
     }
 
+		if(sumfr.x||sumfr.y||sumfr.z){
+			SumFr[Correctp1].x+=float(sumfr.x); SumFr[Correctp1].y+=float(sumfr.y); SumFr[Correctp1].z+=float(sumfr.z);
+			sumfr=make_double3(0,0,0);
+		}
+
     //-Interaccion con contorno.
 		//-Interaction with boundaries.
     for(int z=zini;z<zfin;z++){
@@ -1329,7 +1334,7 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerViscousSchwaiger
     ace[Correctp1]=r;
 		if(divr[p1]>freesurface){ ace[Correctp1].x=ace[Correctp1].x*taoFinal; ace[Correctp1].z=ace[Correctp1].z*taoFinal;}
 		tao[Correctp1]=taoFinal;
-		SumFr[Correctp1].x=float(sumfr.x); SumFr[Correctp1].y=float(sumfr.y); SumFr[Correctp1].z=float(sumfr.z);
+		SumFr[Correctp1].x+=float(sumfr.x); SumFr[Correctp1].y+=float(sumfr.y); SumFr[Correctp1].z+=float(sumfr.z);
   }
 }
 
@@ -1692,7 +1697,7 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 
     if(divrp1<freesurface){
 			dcdn-=beta0;
-			double factorNormShift=0;//alphashift;
+			double factorNormShift=alphashift;
       rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*factorNormShift);
       if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift);
       rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*factorNormShift);
@@ -3132,7 +3137,6 @@ __global__ void kerMatrixASetupBoundMirror(const unsigned end,const unsigned sta
 	   for(int p1=int(start);p1<int(end);p1++){
 			 const unsigned oi=p1;
 			 row[oi]=1;
-			 numfreesurface[0]++;
        unsigned nnzOld=nnz[0];
        nnz[0]+=row[oi]+1;
        row[oi]=nnzOld;  
@@ -3145,7 +3149,7 @@ void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,cons
   const unsigned npf=np-npb;
 	const unsigned matOrder=npb-npbok;
 	if(npf){
-    //kerMatrixASetupBound <<<1,1>>> (npbok,0,0,ppedim,row,nnz,numfreesurface,divr,freesurface);
+    //kerMatrixASetup <<<1,1>>> (npbok,0,0,ppedim,row,nnz,numfreesurface,divr,freesurface);
 		kerMatrixASetupBoundMirror <<<1,1>>> (npbok,0,0,ppedim,row,nnz,numfreesurface,divr,freesurface);
 		kerMatrixASetup <<<1,1>>> (np,npb,matOrder,ppedim,row,nnz,numfreesurface,divr,freesurface);
   }
@@ -3421,13 +3425,12 @@ void PopulateMatrix(TpKernel tkernel,bool schwaiger,TpCellMode cellmode,const un
 			else KerPopulateMatrixAFluid<tker,true> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos,dt,matOrder,SumFr,tao,boundaryfs); 
 			//KerPopulateMatrixABound<tker> <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder);
 			KerPopulateMatrixABoundMirror<tker> <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder);
-		
 		}
 		else if(tkernel==KERNEL_Wendland){    const TpKernel tker=KERNEL_Wendland;
 			if(!schwaiger) KerPopulateMatrixAFluid<tker,false> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos,dt,matOrder,NULL,NULL,boundaryfs); 
 			else KerPopulateMatrixAFluid<tker,true> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos,dt,matOrder,SumFr,tao,boundaryfs); 
-			//KerPopulateMatrixABound<tker> <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder);
-			KerPopulateMatrixABoundMirror<tker> <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder);
+			KerPopulateMatrixABound<tker> <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder);
+			//KerPopulateMatrixABoundMirror<tker> <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder);
 		}
 	}
 }
