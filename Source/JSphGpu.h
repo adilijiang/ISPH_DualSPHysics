@@ -219,9 +219,9 @@ protected:
   ///////////////////////////////////////////////
   unsigned *MirrorCellg;
 	double3 *MirrorPosg;
-  float3 *dWxCorrg; //Kernel correction in the x direction
+  double3 *dWxCorrg; //Kernel correction in the x direction
   float3 *dWyCorrg; //Kernel correction in the y direction
-  float3 *dWzCorrg; //Kernel correction in the z direction
+  double3 *dWzCorrg; //Kernel correction in the z direction
   float4 *MLSg;
 	double3 *sumFrg;
 	float *Divrg; //Divergence of position

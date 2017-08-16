@@ -714,7 +714,7 @@ template<TpKernel tker> __global__ void KerMLSBoundary2D
 //------------------------------------------------------------------------------
 ///  Inverse Kernel Correction Matrix
 //------------------------------------------------------------------------------
-__global__ void KerInverseKernelCor2D(unsigned n,unsigned pinit,float3 *dwxcorrg,float3 *dwzcorrg,const word *code)
+__global__ void KerInverseKernelCor2D(unsigned n,unsigned pinit,double3 *dwxcorrg,double3 *dwzcorrg,const word *code)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
@@ -723,10 +723,10 @@ __global__ void KerInverseKernelCor2D(unsigned n,unsigned pinit,float3 *dwxcorrg
 		const double det=1.0/(dwx.x*dwz.z-dwz.x*dwx.z);
 	
     if(det){
-      dwxcorrg[p].x=float(dwz.z*det);
-	    dwxcorrg[p].z=-float(dwx.z*det); 
-	    dwzcorrg[p].x=-float(dwz.x*det);
-	    dwzcorrg[p].z=float(dwx.x*det);
+      dwxcorrg[p].x=dwz.z*det;
+	    dwxcorrg[p].z=-dwx.z*det; 
+	    dwzcorrg[p].x=-dwz.x*det;
+	    dwzcorrg[p].z=dwx.x*det;
 	  }
   }
 }
@@ -1014,7 +1014,7 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesFlui
 template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesFluidPresGrad
   (bool boundp2,unsigned p1,const unsigned &pini,const unsigned &pfin,float visco
   ,const float *ftomassp,const double2 *posxy,const double *posz,const float4 *velrhop,const word *code,const unsigned *idp
-  ,float3 dwxcorrg,float3 dwycorrg,float3 dwzcorrg,float massp2,float ftmassp1,bool ftp1
+  ,double3 dwxcorrg,float3 dwycorrg,double3 dwzcorrg,float massp2,float ftmassp1,bool ftp1
   ,double3 posdp1,float3 velp1,float pressp1
   ,double3 &acep1,unsigned *row,float &nearestBound,const float *divr,const float boundaryfs,const double *pressure)
 {
@@ -1072,7 +1072,7 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesFlui
   (TpInter tinter,unsigned npf,unsigned npb,int hdiv,uint4 nc,unsigned cellfluid,float viscob,float viscof
   ,const int2 *begincell,int3 cellzero,const unsigned *dcell
   ,const float *ftomassp,const double2 *posxy,const double *posz,const float4 *velrhop,const word *code,const unsigned *idp
-  ,float3 *dwxcorrg,float3 *dwycorrg,float3 *dwzcorrg,double3 *ace,float *divr,unsigned *row,const unsigned matOrder,const float boundaryfs,const double *pressure)
+  ,double3 *dwxcorrg,float3 *dwycorrg,double3 *dwzcorrg,double3 *ace,float *divr,unsigned *row,const unsigned matOrder,const float boundaryfs,const double *pressure)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<npf){
@@ -1181,9 +1181,9 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesFlui
 				
 				divr[p1]+=divrp1;
 				row[p1-matOrder]=rowCount;
-				dwxcorrg[Correctp1].x+=float(dwxp1.x); dwxcorrg[Correctp1].y+=float(dwxp1.y); dwxcorrg[Correctp1].z+=float(dwxp1.z); 
-				dwycorrg[Correctp1].x+=float(dwyp1.x); dwycorrg[Correctp1].y+=float(dwyp1.y); dwycorrg[Correctp1].z+=float(dwyp1.z); 
-				dwzcorrg[Correctp1].x+=float(dwzp1.x); dwzcorrg[Correctp1].y+=float(dwzp1.y); dwzcorrg[Correctp1].z+=float(dwzp1.z); 
+				dwxcorrg[Correctp1].x+=dwxp1.x; /*dwxcorrg[Correctp1].y+=float(dwxp1.y);*/ dwxcorrg[Correctp1].z+=dwxp1.z; 
+				//dwycorrg[Correctp1].x+=float(dwyp1.x); dwycorrg[Correctp1].y+=float(dwyp1.y); dwycorrg[Correctp1].z+=float(dwyp1.z); 
+				dwzcorrg[Correctp1].x+=dwzp1.x; /*dwzcorrg[Correctp1].y+=float(dwzp1.y);*/ dwzcorrg[Correctp1].z+=dwzp1.z; 
 			} 
 	    if(tinter==2){ const float rho0=CTE.rhopzero; r.x+=(acep1.x/rho0); r.y+=(acep1.y/rho0); r.z+=(acep1.z/rho0);}
       ace[Correctp1]=r;
@@ -1194,7 +1194,7 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesFlui
 template<TpKernel tker,TpFtMode ftmode> __device__ void KerViscousSchwaigerCalc
   (bool boundp2,unsigned p1,const unsigned &pini,const unsigned &pfin,const float *ftomassp,const double2 *posxy,const double *posz
 	,const float4 *velrhop,const word *code,const unsigned *idp,float massp2,float ftmassp1,bool ftp1,double3 posdp1,float3 velp1,double3 &sumfr
-	,float3 &dud,float3 &dvd,float3 &dwd,float3 dwxp1,float3 dwyp1,float3 dwzp1,const float *divr,const float boundaryfs,double3 &taop1)
+	,float3 &dud,float3 &dvd,float3 &dwd,double3 dwxp1,float3 dwyp1,double3 dwzp1,const float *divr,const float boundaryfs,double3 &taop1)
 {
 	const float volume=massp2/CTE.rhopzero; //Volume of particle j 
 
@@ -1241,7 +1241,7 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerViscousSchwaigerCalc
 template<TpKernel tker,TpFtMode ftmode> __global__ void KerViscousSchwaiger
   (unsigned npf,unsigned npb,int hdiv,uint4 nc,unsigned cellfluid,float viscob,float viscof,const int2 *begincell
 	,int3 cellzero,const unsigned *dcell,const float *ftomassp,const double2 *posxy,const double *posz
-	,const float4 *velrhop,const word *code,const unsigned *idp,float3 *dwxcorrg,float3 *dwycorrg,float3 *dwzcorrg
+	,const float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,float3 *dwycorrg,double3 *dwzcorrg
 	,double3 *ace,double3 *SumFr,double *tao,const float *divr,const float boundaryfs,const float freesurface)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
@@ -1252,9 +1252,9 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerViscousSchwaiger
     float3 dud=make_float3(0,0,0);
 		float3 dvd=make_float3(0,0,0);
 		float3 dwd=make_float3(0,0,0);
-		float3 dwxp1=dwxcorrg[Correctp1];
+		double3 dwxp1=dwxcorrg[Correctp1];
 		float3 dwyp1=dwycorrg[Correctp1];
-		float3 dwzp1=dwzcorrg[Correctp1];
+		double3 dwzp1=dwzcorrg[Correctp1];
 		double3 taop1=make_double3(0,0,0);
 		//-Obtiene datos de particula p1 en caso de existir floatings.
 	//-Obtains data of particle p1 in case there are floating bodies.
@@ -1342,7 +1342,7 @@ template<TpKernel tker,TpFtMode ftmode> void Interaction_ForcesT_KerInfo(StKerIn
 {
 	#if CUDART_VERSION >= 6050
   {
-    typedef void (*fun_ptr)(TpInter,unsigned,unsigned,int,uint4,unsigned,float,float,const int2*,int3,const unsigned*,const float*,const double2*,const double*,const float4*,const word*,const unsigned*,float3*,float3*,float3*,double3*,float*,unsigned*,const unsigned,const float,const double*);
+    typedef void (*fun_ptr)(TpInter,unsigned,unsigned,int,uint4,unsigned,float,float,const int2*,int3,const unsigned*,const float*,const double2*,const double*,const float4*,const word*,const unsigned*,double3*,float3*,double3*,double3*,float*,unsigned*,const unsigned,const float,const double*);
     fun_ptr ptr=&KerInteractionForcesFluid<tker,ftmode>;
     int qblocksize=0,mingridsize=0;
     cudaOccupancyMaxPotentialBlockSize(&mingridsize,&qblocksize,(void*)ptr,0,0);
@@ -1376,7 +1376,7 @@ template<TpKernel tker,TpFtMode ftmode> void Interaction_ForcesT_KerInfo(StKerIn
 template<TpKernel tker,TpFtMode ftmode,bool schwaiger> void Interaction_ForcesT
   (TpSlipCond tslipcond,TpCellMode cellmode,float viscob,float viscof,unsigned bsbound,unsigned bsfluid
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,float3 *dwxcorrg,float3 *dwycorrg,float3 *dwzcorrg
+  ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,float3 *dwycorrg,double3 *dwzcorrg
   ,const float *ftomassp,double3 *ace,bool simulate2d,float *divr,const double3 *mirrorPos,const unsigned *mirrorCell,float4 *mls,unsigned *row
 	,double3 *SumFr,double *tao,const float boundaryfs,const float freesurface,const double pistonposx,StKerInfo *kerinfo,JBlockSizeAuto *bsauto,const double *pressure)
 {
@@ -1407,7 +1407,7 @@ template<TpKernel tker,TpFtMode ftmode,bool schwaiger> void Interaction_ForcesT
 
 		if(tinter==1){
 			if(simulate2d) KerInverseKernelCor2D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwzcorrg,code);
-			else KerInverseKernelCor3D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwycorrg,dwzcorrg,code);
+			//else KerInverseKernelCor3D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwycorrg,dwzcorrg,code);
 		}
 
 		if(schwaiger&&tinter==1) KerViscousSchwaiger<tker,ftmode> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ace,SumFr,tao,divr,boundaryfs,freesurface);
@@ -1418,7 +1418,7 @@ void Interaction_Forces(TpKernel tkernel,bool floating,bool usedem,TpSlipCond ts
   ,float viscob,float viscof,unsigned bsbound,unsigned bsfluid
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,float3 *dwxcorrg,float3 *dwycorrg,float3 *dwzcorrg
+  ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,float3 *dwycorrg,double3 *dwzcorrg
   ,const float *ftomassp,double3 *ace,bool simulate2d,float *divr,const double3 *mirrorPos,const unsigned *mirrorCell,float4 *mls,unsigned *row,double3 *SumFr,double *tao,const float boundaryfs,const float freesurface,const double pistonposx,StKerInfo *kerinfo,JBlockSizeAuto *bsauto,const double *pressure)
 {
 	if(tkernel==KERNEL_Quintic){    const TpKernel tker=KERNEL_Quintic;
@@ -3149,7 +3149,7 @@ void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,cons
 //==============================================================================
 template<TpKernel tker,bool schwaiger> __device__ void KerMatrixAFluid
   (const bool fluid,const unsigned matOrder,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz,double3 posdp1
-	,const float3 velp1,const float4 *velrhop,const float3 dwx,const float3 dwy,const float3 dwz,tfloat3 gravity,const float massp2,const float RhopZero,const word *code,const unsigned *idp,unsigned &index
+	,const float3 velp1,const float4 *velrhop,const double3 dwx,const float3 dwy,const double3 dwz,tfloat3 gravity,const float massp2,const float RhopZero,const word *code,const unsigned *idp,unsigned &index
 	,unsigned int *col,double *matrixInd,double *matrixb,const int diag,const double3 *mirrorPos,const unsigned oi,double &divU,double &Neumann,const double3 sumfr,const float *divr,const float boundaryfs,const double taop1)
 {
 	float volumep2=massp2/RhopZero; //Volume of particle j
@@ -3181,21 +3181,21 @@ template<TpKernel tker,bool schwaiger> __device__ void KerMatrixAFluid
 
 			temp=temp*volumep2*2.0/RhopZero;
 
-      matrixInd[index]=double(-temp);
+      matrixInd[index]=-temp;
       col[index]=oj;
-      matrixInd[diag]+=double(temp);
+      matrixInd[diag]+=temp;
       index++;
 
 			//=====Divergence of velocity==========
 			float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
-			const double tempDivU=double(dvx*temp_x+dvy*temp_y+dvz*temp_z);
-			divU-=double(volumep2*tempDivU);
+			const double tempDivU=dvx*temp_x+dvy*temp_y+dvz*temp_z;
+			divU-=volumep2*tempDivU;
 
 			//=====dp/dn=====
 			if(!fluid){
 				double dist = posz[p2]-mirrorPos[idp[p2]].z;
 			  double temp2=temp*RhopZero*gravity.z*dist;
-			  Neumann+=double(temp2); 
+			  Neumann+=temp2; 
 			}
     }
   }
@@ -3203,7 +3203,7 @@ template<TpKernel tker,bool schwaiger> __device__ void KerMatrixAFluid
 
 template<TpKernel tker,bool schwaiger> __global__ void KerPopulateMatrixAFluid
   (unsigned n,unsigned pinit,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero,const unsigned *dcell,tfloat3 gravity
-  ,const double2 *posxy,const double *posz,const float4 *velrhop,const float3 *dwxCorr,const float3 *dwyCorr,const float3 *dwzCorr,const float *divr,const word *code
+  ,const double2 *posxy,const double *posz,const float4 *velrhop,const double3 *dwxCorr,const float3 *dwyCorr,const double3 *dwzCorr,const float *divr,const word *code
   ,const unsigned *idp,unsigned int *row,unsigned int *col,double *matrixInd,double *matrixb,const float freesurface,const double3 *mirrorPos,const double dt,const unsigned matOrder,const double3 *SumFr,const double *tao,const float boundaryfs)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
@@ -3395,7 +3395,7 @@ template<TpKernel tker> __global__ void KerPopulateMatrixABoundMirror
 }
 
 void PopulateMatrix(TpKernel tkernel,bool schwaiger,TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
-	,const unsigned *dcell,tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *velrhop,const float3 *dwxCorr,const float3 *dwyCorr,const float3 *dwzCorr,double *matrixInd,double *matrixb
+	,const unsigned *dcell,tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *velrhop,const double3 *dwxCorr,const float3 *dwyCorr,const double3 *dwzCorr,double *matrixInd,double *matrixb
   ,unsigned int *row,unsigned int *col,const unsigned *idp,const float *divr,const word *code,const float freesurface,const double3 *mirrorPos,const unsigned *mirrorCell,const float4 *mls,const double dt,const double3 *SumFr,const double *tao,const float boundaryfs){
   const unsigned npf=np-npb;
   const int hdiv=(cellmode==CELLMODE_H? 2: 1);

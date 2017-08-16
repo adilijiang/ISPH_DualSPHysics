@@ -179,10 +179,10 @@ void JSphGpu::AllocGpuMemoryFixed(){
 	m=sizeof(unsigned)*(np+1);	cudaMalloc((void**)&rowIndg,m);						MemGpuFixed+=m;
  	m=sizeof(double)*PPEMem;		cudaMalloc((void**)&ag,m);								MemGpuFixed+=m;
   m=sizeof(unsigned)*PPEMem;	cudaMalloc((void**)&colIndg,m);						MemGpuFixed+=m;
-	m=sizeof(double3)*npf;				cudaMalloc((void**)&Aceg,m);							MemGpuFixed+=m;
-	m=sizeof(float3)*npf;				cudaMalloc((void**)&dWxCorrg,m);					MemGpuFixed+=m;
+	m=sizeof(double3)*npf;			cudaMalloc((void**)&Aceg,m);							MemGpuFixed+=m;
+															cudaMalloc((void**)&dWxCorrg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&dWzCorrg,m);					MemGpuFixed+=m;
-															cudaMalloc((void**)&ShiftPosg,m);					MemGpuFixed+=m;
+	m=sizeof(float3)*npf;				cudaMalloc((void**)&ShiftPosg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&Tensileg,m);					MemGpuFixed+=m;
   m=sizeof(unsigned);					cudaMalloc((void**)&counterNnzGPU,m);			MemGpuFixed+=m;
 															cudaMalloc((void**)&NumFreeSurfaceGPU,m);	MemGpuFixed+=m;
@@ -874,9 +874,9 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
   //-Asigna memoria.ddd
   //-Allocates memory.
   if(tinter==1){
-		cudaMemset(dWxCorrg,0,sizeof(float3)*npf);
+		cudaMemset(dWxCorrg,0,sizeof(double3)*npf);
 		dWyCorrg=ArraysGpu->ReserveFloat3();	cudaMemset(dWyCorrg,0,sizeof(float3)*npf); 
-		cudaMemset(dWzCorrg,0,sizeof(float3)*npf);
+		cudaMemset(dWzCorrg,0,sizeof(double3)*npf);
 		Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
 		cudaMemset(MLSg,0,sizeof(float4)*npb);
 		cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
