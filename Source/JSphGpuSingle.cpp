@@ -859,7 +859,7 @@ void JSphGpuSingle::SolvePPE(double dt){
 //==============================================================================
 /// Shifting
 //==============================================================================
-void JSphGpuSingle::RunShifting(double dt){ 
+/*void JSphGpuSingle::RunShifting(double dt){ 
   const char met[]="Shifting";
   const unsigned np=Np;
   const unsigned npb=Npb;
@@ -912,5 +912,5 @@ void JSphGpuSingle::RunShifting(double dt){
   ArraysGpu->Free(VelrhopPreg);   VelrhopPreg=NULL;
   ArraysGpu->Free(Divrg);         Divrg=NULL;
 	ArraysGpu->Free(dWyCorrg);	    dWyCorrg=NULL;
-}
+}*/
 

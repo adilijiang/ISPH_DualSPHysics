@@ -845,7 +845,7 @@ void JSphGpu::AddAccInput(){
     bool setgravity;
     AccInput->GetAccValues(c,TimeStep,mkfluid,acclin,accang,centre,velang,vellin,setgravity);
     const word codesel=word(mkfluid);
-    cusph::AddAccInput(Np-Npb,Npb,codesel,acclin,accang,centre,velang,vellin,setgravity,Gravity,Codeg,Posxyg,Poszg,Velrhopg,Aceg);
+ //   cusph::AddAccInput(Np-Npb,Npb,codesel,acclin,accang,centre,velang,vellin,setgravity,Gravity,Codeg,Posxyg,Poszg,Velrhopg,Aceg);
   }
 }
 
@@ -1097,7 +1097,7 @@ void JSphGpu::MatrixASetup(const unsigned np,const unsigned npb,const unsigned n
 //===============================================================================
 ///Shift
 //===============================================================================
-void JSphGpu::Shift(double dt,const unsigned bsfluid){
+/*void JSphGpu::Shift(double dt,const unsigned bsfluid){
   TmgStart(Timers,TMG_SuComputeStep);
   const bool shift=TShifting!=SHIFT_None;
   //-Asigna memoria para calcular el desplazamiento.
@@ -1116,7 +1116,7 @@ void JSphGpu::Shift(double dt,const unsigned bsfluid){
   ArraysGpu->Free(movxyg);   movxyg=NULL;
   ArraysGpu->Free(movzg);    movzg=NULL;
   TmgStop(Timers,TMG_SuComputeStep);
-}
+}*/
 
 //==============================================================================
 /// Variable timestep
