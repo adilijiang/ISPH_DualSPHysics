@@ -223,6 +223,8 @@ protected:
   float3 *dWyCorrg; //Kernel correction in the y direction
   double3 *dWzCorrg; //Kernel correction in the z direction
   double4 *MLSg;
+	double3 *Velocity;
+	double3 *VelocityPre;
 	double3 *sumFrg;
 	float *Divrg; //Divergence of position
 	float3 *ShiftPosg;

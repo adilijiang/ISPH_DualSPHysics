@@ -331,7 +331,7 @@ void JSphGpuSingle::RunPeriodic(){
 			//-Create new periodic particles duplicating the particles from the list
             if(TStep==STEP_Symplectic){
               if((PosxyPreg || PoszPreg || VelrhopPreg) && (!PosxyPreg || !PoszPreg || !VelrhopPreg))RunException(met,"Symplectic data is invalid.") ;
-              cusph::PeriodicDuplicateSymplectic(count,Np,DomCells,perinc,listpg,Idpg,Codeg,Dcellg,Posxyg,Poszg,Velrhopg,PosxyPreg,PoszPreg,VelrhopPreg);
+            //  cusph::PeriodicDuplicateSymplectic(count,Np,DomCells,perinc,listpg,Idpg,Codeg,Dcellg,Posxyg,Poszg,Velrhopg,PosxyPreg,PoszPreg,VelrhopPreg);
             }
             //-Libera lista y actualiza numero de particulas.
 			//-Releases memory and updates the particle number.
@@ -426,9 +426,9 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   const unsigned bsbound=BlockSizes.forcesbound;
 	CheckCudaError(met,"Failed checkin.");
   //-Interaccion Fluid-Fluid/Bound & Bound-Fluid.
-  cusph::Interaction_Forces(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,taog,BoundaryFS,FreeSurface,PistonPosX,NULL,NULL,Pressure);	
+  cusph::Interaction_Forces(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velocity,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,taog,BoundaryFS,FreeSurface,PistonPosX,NULL,NULL,Pressure);	
 	if(TSlipCond&&tinter==2){
-		cusph::ResetBoundVel(Npb,bsbound,Velrhopg,VelrhopPreg);
+		cusph::ResetBoundVel(Npb,bsbound,Velocity,VelocityPre);
 		ArraysGpu->Free(dWyCorrg);	    dWyCorrg=NULL;
 	}
 	
@@ -470,7 +470,7 @@ double JSphGpuSingle::ComputeStep_Sym(double dt){
   //----------- 
 	TmgStart(Timers,TMG_Stage1);
   InitAdvection(dt);
-	RunCellDivide(true);
+//	RunCellDivide(true);
 	Interaction_Forces(INTER_Forces,dt);        //-Interaction
 	ComputeSymplecticPre(dt);                   //-Applies Symplectic-Predictor to the particles
 	//-Pressure Poisson equation
@@ -488,7 +488,7 @@ double JSphGpuSingle::ComputeStep_Sym(double dt){
 	TmgStart(Timers,TMG_Stage4);
   //if(TShifting)RunShifting(dt);               //-Shifting
 	TmgStop(Timers,TMG_Stage4);
-	if(VariableTimestep) dt=ComputeVariable();
+//	if(VariableTimestep) dt=ComputeVariable();
   return(dt);
 }
 
@@ -562,6 +562,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 	cudaMemset(MirrorPosg,0,sizeof(double3)*Npb);
 	MirrorBoundary();
 	count=1;
+	cudaMemset(Velocity,0,sizeof(double3)*Np);
 	while(TimeStep<TimeMax){
 		if(CaseNmoving)RunMotion(stepdt);
     stepdt=ComputeStep_Sym(stepdt);
@@ -574,6 +575,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
         TimeMax=TimeStep;
       }
       SaveData();
+			SaveVtkData("InitSymplectic.vtk",Nstep,Np,Posxyg,Poszg,Idpg,Velocity,Pressure);
       Part++;
       PartNstep=Nstep;
       TimeStepM1=TimeStep;
@@ -597,35 +599,32 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 /// Generates output files for particle data
 //==============================================================================
 #include "JFormatFiles2.h"
-void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const unsigned *idp,const float4 *velrhop,const double *pressure)const{
+void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const unsigned *idp,const double3 *velrhop,const double *pressure)const{
   //-Allocate memory.
   tdouble2 *pxy=new tdouble2[np];
   double *pz=new double[np];
-  tfloat4 *vrhop=new tfloat4[np];
   tfloat3 *pos=new tfloat3[np];
   unsigned *idph=new unsigned[np];
-  tfloat3 *vel=new tfloat3[np];
-  float *rhop=new float[np];
+  double3 *vel=new double3[np];
+  //float *rhop=new float[np];
 	double *pres=new double[np];
 
   //-Copies memory to CPU.
   cudaMemcpy(pxy,posxy,sizeof(double2)*np,cudaMemcpyDeviceToHost);
   cudaMemcpy(pz,posz,sizeof(double)*np,cudaMemcpyDeviceToHost);
   cudaMemcpy(idph,idp,sizeof(unsigned)*np,cudaMemcpyDeviceToHost);
-  cudaMemcpy(vrhop,velrhop,sizeof(float4)*np,cudaMemcpyDeviceToHost);
+  cudaMemcpy(vel,velrhop,sizeof(double3)*np,cudaMemcpyDeviceToHost);
 	cudaMemcpy(pres,pressure,sizeof(double)*np,cudaMemcpyDeviceToHost);
   for(unsigned p=0;p<np;p++){
     pos[p]=ToTFloat3(TDouble3(pxy[p].x,pxy[p].y,pz[p]));
-    vel[p]=TFloat3(vrhop[p].x,vrhop[p].y,vrhop[p].z);
-    rhop[p]=vrhop[p].w;
   }
 
   //-Creates VTK file.
   JFormatFiles2::StScalarData fields[20];
   unsigned nfields=0;
   if(idph){  fields[nfields]=JFormatFiles2::DefineField("Id"  ,JFormatFiles2::UInt32 ,1,idph); nfields++; }
-  if(vel){   fields[nfields]=JFormatFiles2::DefineField("Vel" ,JFormatFiles2::Float32,3,vel);  nfields++; }
-  if(rhop){  fields[nfields]=JFormatFiles2::DefineField("Rhop",JFormatFiles2::Float32,1,rhop); nfields++; }
+  if(vel){   fields[nfields]=JFormatFiles2::DefineField("Vel" ,JFormatFiles2::Double64,3,vel);  nfields++; }
+  //if(rhop){  fields[nfields]=JFormatFiles2::DefineField("Rhop",JFormatFiles2::Float32,1,rhop); nfields++; }
 	if(pres){  fields[nfields]=JFormatFiles2::DefineField("Pressure",JFormatFiles2::Double64,1,pres); nfields++; }
   string file=Log->GetDirOut()+fun::FileNameSec(fname,fnum);
   JFormatFiles2::SaveVtk(file,np,pos,nfields,fields);
@@ -633,11 +632,10 @@ void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,cons
   //-Frees memory.
   delete[] pxy;
   delete[] pz;
-  delete[] vrhop;
   delete[] pos;
   delete[] idph;
   delete[] vel;
-  delete[] rhop;
+  //delete[] rhop;
 	delete[] pres;
 }
 
@@ -739,12 +737,13 @@ void JSphGpuSingle::InitAdvection(double dt){
     //-Changes data of predictor variables for calculating the new data
     cudaMemcpy(PosxyPreg,Posxyg,sizeof(double2)*np,cudaMemcpyDeviceToDevice);     //Es decir... PosxyPre[] <= Posxy[] //i.e. PosxyPre[] <= Posxy[]
     cudaMemcpy(PoszPreg,Poszg,sizeof(double)*np,cudaMemcpyDeviceToDevice);        //Es decir... PoszPre[] <= Posz[] //i.e. PoszPre[] <= Posz[]
-		cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
+		//cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
+		cudaMemcpy(VelocityPre,Velocity,sizeof(double3)*np,cudaMemcpyDeviceToDevice);
 
     double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*np);
     double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*np);
     
-    cusph::ComputeRStar(WithFloating,npf,npb,VelrhopPreg,dt,Codeg,movxyg,movzg);
+    cusph::ComputeRStar(WithFloating,npf,npb,VelocityPre,dt,Codeg,movxyg,movzg);
 	  cusph::ComputeStepPos2(PeriActive,WithFloating,np,npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
 
     ArraysGpu->Free(movxyg);   movxyg=NULL;
@@ -788,7 +787,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   cudaMemset(colIndg,0,sizeof(int)*Nnz);
 	cudaMemset(ag,0,sizeof(double)*Nnz);
 
-  cusph::PopulateMatrix(TKernel,Schwaiger,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,ag,bg,rowIndg,colIndg,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLSg,dt,sumFrg,taog,BoundaryFS);
+  cusph::PopulateMatrix(TKernel,Schwaiger,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velocity,dWxCorrg,dWyCorrg,dWzCorrg,ag,bg,rowIndg,colIndg,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLSg,dt,sumFrg,taog,BoundaryFS);
 	
 	/*if(count>320){
 		unsigned *rowInd=new unsigned[PPEDim]; cudaMemcpy(rowInd,rowIndg,sizeof(unsigned)*PPEDim,cudaMemcpyDeviceToHost);
@@ -837,18 +836,15 @@ void JSphGpuSingle::SolvePPE(double dt){
 
 	CheckCudaError(met,"Matrix Setup");
 
-	cusph::FreeSurfaceMark(bsbound,bsfluid,np,npb,npbok,Divrg,ag,bg,rowIndg,Codeg,PI,FreeSurface,ShiftOffset);
+	//cusph::FreeSurfaceMark(bsbound,bsfluid,np,npb,npbok,Divrg,ag,bg,rowIndg,Codeg,PI,FreeSurface,ShiftOffset);
   CheckCudaError(met,"FreeSurfaceMark");
 	TmgStop(Timers,TMG_Stage2a);
 	TmgStart(Timers,TMG_Stage2b);
   cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Xg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
 	CheckCudaError(met,"Matrix Solve");
 
-	//double *Pressure; cudaMalloc((void**)&Pressure,sizeof(double)*np); cudaMemset(Pressure,0,sizeof(double)*np);
-
   cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Poszg,Velrhopg,Xg,Idpg,Codeg,NegativePressureBound,MirrorPosg,Pressure);
-	//SaveVtkData("InitSymplectic.vtk",Nstep,Np,Posxyg,Poszg,Idpg,Velrhopg,Pressure);
-	//cudaFree(Pressure);
+	
   CheckCudaError(met,"Pressure assign");
   
   ArraysGpu->Free(bg);             bg=NULL;

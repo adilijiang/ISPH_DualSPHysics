@@ -97,6 +97,8 @@ void JSphGpu::InitVars(){
 	Pressure=NULL;
   Divrg=NULL;
 	taog=NULL;
+	Velocity=NULL;
+	VelocityPre=NULL;
 	MirrorPosg=NULL;
 	MirrorCellg=NULL;
   RidpMoveg=NULL;
@@ -147,6 +149,8 @@ void JSphGpu::FreeGpuMemoryFixed(){
 	if(dWxCorrg)cudaFree(dWxCorrg);									dWxCorrg=NULL;
 	if(dWzCorrg)cudaFree(dWzCorrg);									dWzCorrg=NULL;
 	if(Pressure)cudaFree(Pressure);									Pressure=NULL;
+	if(Velocity)cudaFree(Velocity);								Velocity=NULL;
+	if(VelocityPre)cudaFree(VelocityPre);								VelocityPre=NULL;
 	if(ShiftPosg)cudaFree(ShiftPosg);								ShiftPosg=NULL;
 	if(Tensileg)cudaFree(Tensileg);								Tensileg=NULL;
   if(RidpMoveg)cudaFree(RidpMoveg);								RidpMoveg=NULL;
@@ -187,7 +191,8 @@ void JSphGpu::AllocGpuMemoryFixed(){
   m=sizeof(unsigned);					cudaMalloc((void**)&counterNnzGPU,m);			MemGpuFixed+=m;
 															cudaMalloc((void**)&NumFreeSurfaceGPU,m);	MemGpuFixed+=m;
 	m=sizeof(double)*np;				cudaMalloc((void**)&Pressure,m);					MemGpuFixed+=m;
-
+	m=sizeof(double3)*np;				cudaMalloc((void**)&Velocity,m);					MemGpuFixed+=m;
+															cudaMalloc((void**)&VelocityPre,m);					MemGpuFixed+=m;
 	if(Schwaiger){							
 		m=sizeof(double3)*npf;		cudaMalloc((void**)&sumFrg,m);						MemGpuFixed+=m;
 		m=sizeof(double)*npf;			cudaMalloc((void**)&taog,m);							MemGpuFixed+=m;
@@ -918,7 +923,7 @@ void JSphGpu::ComputeSymplecticPre(double dt){
   double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*Np);
   double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*Np);
 	//-Update velocity
-  cusph::ComputeStepSymplecticPre(WithFloating,Np,Npb,VelrhopPreg,Aceg,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velrhopg);
+  cusph::ComputeStepSymplecticPre(WithFloating,Np,Npb,VelocityPre,Aceg,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velocity);
   ArraysGpu->Free(movxyg);   movxyg=NULL;
   ArraysGpu->Free(movzg);    movzg=NULL;
   TmgStop(Timers,TMG_SuComputeStep);
@@ -939,7 +944,7 @@ void JSphGpu::ComputeSymplecticCorr(double dt){
   //-Computes displacement, velocity and density.
   const double dt05=dt*.5;
 	const bool wavegen=(WaveGen? true:false);
-  cusph::ComputeStepSymplecticCor(WithFloating,Np,Npb,VelrhopPreg,Aceg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velrhopg,Gravity,rowIndg,Posxyg,Poszg,Idpg,MirrorPosg,wavegen,DampingPointX,DampingLengthX);
+  cusph::ComputeStepSymplecticCor(WithFloating,Np,Npb,VelocityPre,Aceg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velocity,Gravity,rowIndg,Posxyg,Poszg,Idpg,MirrorPosg,wavegen,DampingPointX,DampingLengthX);
   //-Aplica desplazamiento a las particulas fluid no periodicas.
   //-Applies displacement to non-periodic fluid particles.
   cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
@@ -981,7 +986,7 @@ double JSphGpu::DtVariable(bool final){
 void JSphGpu::RunShifting(double dt){
 	bool maxShift=false;
 	if(TShifting==SHIFT_Max) maxShift=true;
-  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velrhopg,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift,BetaShift0,BetaShift1);
+//  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velrhopg,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift,BetaShift0,BetaShift1);
 }
 
 //==============================================================================
@@ -1008,12 +1013,12 @@ void JSphGpu::RunMotion(double stepdt){
           mvsimple=OrderCode(mvsimple);
           if(Simulate2D)mvsimple.y=0;
           const tfloat3 mvvel=ToTFloat3(mvsimple/TDouble3(stepdt));
-          cusph::MoveLinBound(PeriActive,np,pini,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg,Idpg,MirrorPosg,MirrorCellg);
+       //   cusph::MoveLinBound(PeriActive,np,pini,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg,Idpg,MirrorPosg,MirrorCellg);
         }
         else{//-Movimiento con matriz //-Movement using a matrix
           const unsigned pini=MotionObjBegin[ref]-CaseNfixed,np=MotionObjBegin[ref+1]-MotionObjBegin[ref];
           mvmatrix=OrderCode(mvmatrix);
-          cusph::MoveMatBound(PeriActive,Simulate2D,np,pini,mvmatrix,stepdt,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
+        //  cusph::MoveMatBound(PeriActive,Simulate2D,np,pini,mvmatrix,stepdt,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
         } 
       }
       BoundChanged=true;
@@ -1039,17 +1044,17 @@ void JSphGpu::RunMotion(double stepdt){
         const tfloat3 mvvel=ToTFloat3(mvsimple/TDouble3(stepdt));
 				mvPistonX=mvsimple.x;
 				pistonvel=mvvel.x;
-        cusph::MoveLinBound(PeriActive,nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg,Idpg,MirrorPosg,MirrorCellg);
+       // cusph::MoveLinBound(PeriActive,nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg,Idpg,MirrorPosg,MirrorCellg);
       }
       else{
         mvmatrix=OrderCode(mvmatrix);
 				std::cout<<"USING MOVEMATBOUND";
 				system("PAUSE");
-        cusph::MoveMatBound(PeriActive,Simulate2D,nparts,idbegin-CaseNfixed,mvmatrix,stepdt,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
+      //  cusph::MoveMatBound(PeriActive,Simulate2D,nparts,idbegin-CaseNfixed,mvmatrix,stepdt,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
       }
     }
 		PistonPosX+=mvPistonX;
-		cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Poszg,Idpg,MirrorPosg,Codeg,PistonPosX,PistonPosZ,PistonYmin,PistonYmax,Simulate2D,Velrhopg,pistonvel);
+//		cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Poszg,Idpg,MirrorPosg,Codeg,PistonPosX,PistonPosZ,PistonYmin,PistonYmax,Simulate2D,Velrhopg,pistonvel);
 	}
   TmgStop(Timers,TMG_SuMotion);
 }
@@ -1123,7 +1128,7 @@ void JSphGpu::MatrixASetup(const unsigned np,const unsigned npb,const unsigned n
 //==============================================================================
 double JSphGpu::ComputeVariable(){
   const char met[]="VariableTimestep";
-  cusph::ComputeVelMod(Np-Npb,Velrhopg+Npb,Divrg); //Divrg is used to store the velocity magnitudes here
+//  cusph::ComputeVelMod(Np-Npb,Velrhopg+Npb,Divrg); //Divrg is used to store the velocity magnitudes here
   float velmax=cusph::ReduMaxFloat(Np-Npb,0,Divrg,CellDiv->GetAuxMem(cusph::ReduMaxFloatSize(Np-Npb)));
   VelMax=sqrt(velmax);
 	//std::cout<<VelMax<<"\n";
