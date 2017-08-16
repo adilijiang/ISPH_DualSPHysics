@@ -189,8 +189,8 @@ void JSphGpu::AllocGpuMemoryFixed(){
 	m=sizeof(double)*np;				cudaMalloc((void**)&Pressure,m);					MemGpuFixed+=m;
 
 	if(Schwaiger){							
-		m=sizeof(float3)*npf;			cudaMalloc((void**)&sumFrg,m);						MemGpuFixed+=m;
-		m=sizeof(float)*npf;			cudaMalloc((void**)&taog,m);							MemGpuFixed+=m;
+		m=sizeof(double3)*npf;		cudaMalloc((void**)&sumFrg,m);						MemGpuFixed+=m;
+		m=sizeof(double)*npf;			cudaMalloc((void**)&taog,m);							MemGpuFixed+=m;
 	}
 
   //-Allocates memory for moving objects.
@@ -881,8 +881,8 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
 		cudaMemset(MLSg,0,sizeof(float4)*npb);
 		cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
 		if(Schwaiger){
-			cudaMemset(sumFrg,0,sizeof(float3)*npf);
-			cudaMemset(taog,0,sizeof(float)*npf);
+			cudaMemset(sumFrg,0,sizeof(double3)*npf);
+			cudaMemset(taog,0,sizeof(double)*npf);
 		}
 	}
 	else cusph::ResetrowIndg(np+1,rowIndg,Npb);

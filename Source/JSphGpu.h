@@ -223,11 +223,11 @@ protected:
   float3 *dWyCorrg; //Kernel correction in the y direction
   float3 *dWzCorrg; //Kernel correction in the z direction
   float4 *MLSg;
-	float3 *sumFrg;
+	double3 *sumFrg;
 	float *Divrg; //Divergence of position
 	float3 *ShiftPosg;
 	float3 *Tensileg;
-	float *taog;
+	double *taog;
 
   //matrix variables 
   double *bg;
