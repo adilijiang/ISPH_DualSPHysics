@@ -175,7 +175,7 @@ void JSphGpu::AllocGpuMemoryFixed(){
 	
 	m=sizeof(double3)*npb;			cudaMalloc((void**)&MirrorPosg,m);				MemGpuFixed+=m;
 	m=sizeof(unsigned)*npb;			cudaMalloc((void**)&MirrorCellg,m);				MemGpuFixed+=m;
-	m=sizeof(float4)*npb;				cudaMalloc((void**)&MLSg,m);							MemGpuFixed+=m;
+	m=sizeof(double4)*npb;			cudaMalloc((void**)&MLSg,m);							MemGpuFixed+=m;
 	m=sizeof(unsigned)*(np+1);	cudaMalloc((void**)&rowIndg,m);						MemGpuFixed+=m;
  	m=sizeof(double)*PPEMem;		cudaMalloc((void**)&ag,m);								MemGpuFixed+=m;
   m=sizeof(unsigned)*PPEMem;	cudaMalloc((void**)&colIndg,m);						MemGpuFixed+=m;
@@ -878,7 +878,7 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
 		dWyCorrg=ArraysGpu->ReserveFloat3();	cudaMemset(dWyCorrg,0,sizeof(float3)*npf); 
 		cudaMemset(dWzCorrg,0,sizeof(double3)*npf);
 		Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
-		cudaMemset(MLSg,0,sizeof(float4)*npb);
+		cudaMemset(MLSg,0,sizeof(double4)*npb);
 		cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
 		if(Schwaiger){
 			cudaMemset(sumFrg,0,sizeof(double3)*npf);

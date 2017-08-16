@@ -222,7 +222,7 @@ protected:
   double3 *dWxCorrg; //Kernel correction in the x direction
   float3 *dWyCorrg; //Kernel correction in the y direction
   double3 *dWzCorrg; //Kernel correction in the z direction
-  float4 *MLSg;
+  double4 *MLSg;
 	double3 *sumFrg;
 	float *Divrg; //Divergence of position
 	float3 *ShiftPosg;
