@@ -107,7 +107,7 @@ protected:
   double2 *Posxyg;
   double *Poszg;
   float4 *Velrhopg;
-    
+  double *Pressure;
   //-Vars. para compute step: SYMPLECTIC
   //-Variables for compute step: Symplectic
   double2 *PosxyPreg;  ///<ES: Sympletic: para guardar valores en predictor EN: Symplectic: for maintaining predictor values
@@ -136,7 +136,7 @@ protected:
   //-Variables for computing forces
  
   //float *ViscDtg;
-  float3 *Aceg;      ///<ES: Acumula fuerzas de interaccion EN: Accumulates acceleration of the particles
+  double3 *Aceg;      ///<ES: Acumula fuerzas de interaccion EN: Accumulates acceleration of the particles
 
   double VelMax;      ///<Maximum value of Vel[] sqrt(vel.x^2 + vel.y^2 + vel.z^2) computed in PreInteraction_Forces().
   double AceMax;      ///<Maximum value of Ace[] (ace.x^2 + ace.y^2 + ace.z^2) computed in Interaction_Forces().

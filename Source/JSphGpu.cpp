@@ -42,7 +42,7 @@ JSphGpu::JSphGpu(bool withmpi):JSph(false,withmpi){
   ClassName="JSphGpu";
   counterNnzCPU=NULL;
 	NumFreeSurfaceCPU=NULL;
-  Idp=NULL; Code=NULL; Dcell=NULL; Posxy=NULL; Posz=NULL; Velrhop=NULL; 
+  Idp=NULL; Code=NULL; Dcell=NULL; Posxy=NULL; Posz=NULL; Velrhop=NULL;
   AuxPos=NULL; AuxVel=NULL; AuxRhop=NULL;
   FtoForces=NULL; FtoCenter=NULL;   //-Floatings.
   CellDiv=NULL;
@@ -94,6 +94,7 @@ void JSphGpu::InitVars(){
 	ShiftPosg=NULL; Tensileg=NULL;
 	MLSg=NULL;
 	sumFrg=NULL;
+	Pressure=NULL;
   Divrg=NULL;
 	taog=NULL;
 	MirrorPosg=NULL;
@@ -145,6 +146,7 @@ void JSphGpu::FreeGpuMemoryFixed(){
 	if(Aceg)cudaFree(Aceg);													Aceg=NULL;
 	if(dWxCorrg)cudaFree(dWxCorrg);									dWxCorrg=NULL;
 	if(dWzCorrg)cudaFree(dWzCorrg);									dWzCorrg=NULL;
+	if(Pressure)cudaFree(Pressure);									Pressure=NULL;
 	if(ShiftPosg)cudaFree(ShiftPosg);								ShiftPosg=NULL;
 	if(Tensileg)cudaFree(Tensileg);								Tensileg=NULL;
   if(RidpMoveg)cudaFree(RidpMoveg);								RidpMoveg=NULL;
@@ -177,13 +179,14 @@ void JSphGpu::AllocGpuMemoryFixed(){
 	m=sizeof(unsigned)*(np+1);	cudaMalloc((void**)&rowIndg,m);						MemGpuFixed+=m;
  	m=sizeof(double)*PPEMem;		cudaMalloc((void**)&ag,m);								MemGpuFixed+=m;
   m=sizeof(unsigned)*PPEMem;	cudaMalloc((void**)&colIndg,m);						MemGpuFixed+=m;
-	m=sizeof(float3)*npf;				cudaMalloc((void**)&Aceg,m);							MemGpuFixed+=m;
-															cudaMalloc((void**)&dWxCorrg,m);					MemGpuFixed+=m;
+	m=sizeof(double3)*npf;				cudaMalloc((void**)&Aceg,m);							MemGpuFixed+=m;
+	m=sizeof(float3)*npf;				cudaMalloc((void**)&dWxCorrg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&dWzCorrg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&ShiftPosg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&Tensileg,m);					MemGpuFixed+=m;
   m=sizeof(unsigned);					cudaMalloc((void**)&counterNnzGPU,m);			MemGpuFixed+=m;
 															cudaMalloc((void**)&NumFreeSurfaceGPU,m);	MemGpuFixed+=m;
+	m=sizeof(double)*np;				cudaMalloc((void**)&Pressure,m);					MemGpuFixed+=m;
 
 	if(Schwaiger){							
 		m=sizeof(float3)*npf;			cudaMalloc((void**)&sumFrg,m);						MemGpuFixed+=m;
@@ -635,7 +638,7 @@ void JSphGpu::ConfigBlockSizes(bool usezone,bool useperi){
     //-Collects kernel information.
     StKerInfo kerinfo;
     memset(&kerinfo,0,sizeof(StKerInfo));
-    cusph::Interaction_Forces(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,0,0,0,0,INTER_Forces,100,50,20,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Simulate2D,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&kerinfo,NULL);
+    cusph::Interaction_Forces(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,0,0,0,0,INTER_Forces,100,50,20,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Simulate2D,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&kerinfo,NULL,NULL);
     //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&kerinfo);
     //Log->Printf("====> bound -> r:%d  bs:%d  bsmax:%d",kerinfo.forcesbound_rg,kerinfo.forcesbound_bs,kerinfo.forcesbound_bsmax);
     //Log->Printf("====> fluid -> r:%d  bs:%d  bsmax:%d",kerinfo.forcesfluid_rg,kerinfo.forcesfluid_bs,kerinfo.forcesfluid_bsmax);
@@ -884,7 +887,7 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
 	}
 	else cusph::ResetrowIndg(np+1,rowIndg,Npb);
 
-	cudaMemset(Aceg,0,sizeof(tfloat3)*npf);
+	cudaMemset(Aceg,0,sizeof(double3)*npf);
 
   //-Inicializa arrays.
   //-Initialises arrays.
@@ -936,10 +939,10 @@ void JSphGpu::ComputeSymplecticCorr(double dt){
   //-Computes displacement, velocity and density.
   const double dt05=dt*.5;
 	const bool wavegen=(WaveGen? true:false);
-  //cusph::ComputeStepSymplecticCor(WithFloating,Np,Npb,VelrhopPreg,Aceg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velrhopg,Gravity,rowIndg,Posxyg,Poszg,Idpg,MirrorPosg,wavegen,DampingPointX,DampingLengthX);
+  cusph::ComputeStepSymplecticCor(WithFloating,Np,Npb,VelrhopPreg,Aceg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velrhopg,Gravity,rowIndg,Posxyg,Poszg,Idpg,MirrorPosg,wavegen,DampingPointX,DampingLengthX);
   //-Aplica desplazamiento a las particulas fluid no periodicas.
   //-Applies displacement to non-periodic fluid particles.
-  //cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
+  cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
   //-Libera memoria asignada al desplazamiento.
   //-Releases memory allocated for diplacement.
   ArraysGpu->Free(movxyg);   movxyg=NULL;

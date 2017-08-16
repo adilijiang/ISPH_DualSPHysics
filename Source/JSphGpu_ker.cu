@@ -1,17 +1,12 @@
 /*
  <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
-
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
-
  This file is part of DualSPHysics. 
-
  DualSPHysics is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or (at your option) any later version. 
-
  DualSPHysics is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details. 
-
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
@@ -1470,7 +1465,6 @@ template<bool psimple> __device__ void KerInteractionForcesDemBox
       KerGetParticlesDr<psimple> (p2,posxy,posz,pospress,posdp1,posp1,drx,dry,drz);
       const float rr2=drx*drx+dry*dry+drz*drz;
       const float rad=sqrt(rr2);
-
       //-Calcula valor maximo de demdt.
 	  //-Computes maximum value of demdt.
       float4 demdatap2=demdata[CODE_GetTypeAndValue(codep2)];
@@ -1478,7 +1472,6 @@ template<bool psimple> __device__ void KerInteractionForcesDemBox
       const float kn=4/(3*(taup1+demdatap2.y))*sqrt(CTE.dp/4);  //generalized rigidity - Lemieux 2008
       const float demvisc=float(PI)/(sqrt( kn/nu_mass ))*40.f;
       if(demdtp1<demvisc)demdtp1=demvisc;
-
       const float over_lap=1.0f*CTE.dp-rad; //-(ri+rj)-|dij|
       if(over_lap>0.0f){ //-Contact
         const float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z; //vji
@@ -1504,7 +1497,6 @@ template<bool psimple> __device__ void KerInteractionForcesDemBox
     }
   }
 }
-
 //------------------------------------------------------------------------------
 /// ES:
 /// Realiza interaccion entre particulas. Fluid/Float-Fluid/Float or Fluid/Float-Bound
@@ -1526,7 +1518,6 @@ template<bool psimple> __global__ void KerInteractionForcesDem
     if(p1!=UINT_MAX){
       float demdtp1=0;
       float3 acep1=make_float3(0,0,0);
-
       //-Obtiene datos basicos de particula p1.
 	  //-Obtains basic data of particle p1.
       double3 posdp1;
@@ -1538,12 +1529,10 @@ template<bool psimple> __global__ void KerInteractionForcesDem
       const float taup1=rdata.y;
       const float kfricp1=rdata.z;
       const float restitup1=rdata.w;
-
       //-Obtiene limites de interaccion
 	  //-Obtains interaction limits
       int cxini,cxfin,yini,yfin,zini,zfin;
       KerGetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
-
       //-Interaccion con contorno.
 	  //-Interaction with boundaries.
       for(int z=zini;z<zfin;z++){
@@ -1561,7 +1550,6 @@ template<bool psimple> __global__ void KerInteractionForcesDem
           if(pfin)KerInteractionForcesDemBox<psimple> (true ,pini,pfin,demdata,dtforce,posxy,posz,pospress,velrhop,code,idp,posdp1,posp1,velp1,tavp1,masstotp1,taup1,kfricp1,restitup1,acep1,demdtp1);
         }
       }
-
       //-Interaccion con Fluidas.
 	  //-Interaction with fluids.
       for(int z=zini;z<zfin;z++){
@@ -1588,7 +1576,6 @@ template<bool psimple> __global__ void KerInteractionForcesDem
     }
   }
 }
-
 //==============================================================================
 /// Interaccion para el calculo de fuerzas.
 /// Interaction for the force computation.
@@ -3149,8 +3136,8 @@ void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,cons
   const unsigned npf=np-npb;
 	const unsigned matOrder=npb-npbok;
 	if(npf){
-    //kerMatrixASetup <<<1,1>>> (npbok,0,0,ppedim,row,nnz,numfreesurface,divr,freesurface);
-		kerMatrixASetupBoundMirror <<<1,1>>> (npbok,0,0,ppedim,row,nnz,numfreesurface,divr,freesurface);
+    kerMatrixASetup <<<1,1>>> (npbok,0,0,ppedim,row,nnz,numfreesurface,divr,freesurface);
+		//kerMatrixASetupBoundMirror <<<1,1>>> (npbok,0,0,ppedim,row,nnz,numfreesurface,divr,freesurface);
 		kerMatrixASetup <<<1,1>>> (np,npb,matOrder,ppedim,row,nnz,numfreesurface,divr,freesurface);
   }
 }
@@ -3423,8 +3410,8 @@ void PopulateMatrix(TpKernel tkernel,bool schwaiger,TpCellMode cellmode,const un
 		if(tkernel==KERNEL_Quintic){    const TpKernel tker=KERNEL_Quintic;
 			if(!schwaiger) KerPopulateMatrixAFluid<tker,false> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos,dt,matOrder,NULL,NULL,boundaryfs); 
 			else KerPopulateMatrixAFluid<tker,true> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos,dt,matOrder,SumFr,tao,boundaryfs); 
-			//KerPopulateMatrixABound<tker> <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder);
-			KerPopulateMatrixABoundMirror<tker> <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder);
+			KerPopulateMatrixABound<tker> <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder);
+			//KerPopulateMatrixABoundMirror<tker> <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder);
 		}
 		else if(tkernel==KERNEL_Wendland){    const TpKernel tker=KERNEL_Wendland;
 			if(!schwaiger) KerPopulateMatrixAFluid<tker,false> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos,dt,matOrder,NULL,NULL,boundaryfs); 
@@ -3449,9 +3436,7 @@ void PopulateMatrix(TpKernel tkernel,bool schwaiger,TpCellMode cellmode,const un
       //-Wendland kernel.
       float frx,fry,frz;
       KerGetKernel(rr2,drx,dry,drz,frx,fry,frz);
-
 	    float volumep2=massp2/RhopZero; //Volume of particle j 
-
       float rDivW=drx*frx+dry*fry+drz*frz;
       float temp=2.0f*rDivW/(RhopZero*(rr2+CTE.eta2));
       matrixInd[index]=double(-temp*volumep2);
@@ -3461,7 +3446,6 @@ void PopulateMatrix(TpKernel tkernel,bool schwaiger,TpCellMode cellmode,const un
     }
   }
 }
-
 __global__ void KerPopulatePeriodic
   (unsigned npbok,unsigned npb,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero,const unsigned *dcell
   ,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,unsigned int *row,unsigned int *col,double *matrixInd,const unsigned *mirrorCell)
@@ -3472,7 +3456,6 @@ __global__ void KerPopulatePeriodic
     if(CODE_GetTypeValue(code[p1])==1&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
 			const unsigned idpg1=idp[p1];
       unsigned oi=p1;
-
       const unsigned diag=row[oi];
 			//Cell=col[diag];
       col[diag]=oi;
@@ -3505,16 +3488,16 @@ __global__ void KerPopulatePeriodic
       else matrixInd[diag]=1.0;
     }
   }
-}*/
+}
 
 void PopulatePeriodic(TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
 	,const unsigned *dcell,const double2 *posxy,const double *posz,double *matrixInd
   ,unsigned int *row,unsigned int *col,const unsigned *idp,const word *code,const unsigned *mirrorCell){
   const unsigned npf=np-npb;
-  /*const int hdiv=(cellmode==CELLMODE_H? 2: 1);
-  const uint4 nc=make_uint4(ncells.x,ncells.y,ncells.z,ncells.x*ncells.y);
-  const unsigned cellfluid=nc.w*nc.z+1;
-  const int3 cellzero=make_int3(cellmin.x,cellmin.y,cellmin.z);*/
+  //const int hdiv=(cellmode==CELLMODE_H? 2: 1);
+  //const uint4 nc=make_uint4(ncells.x,ncells.y,ncells.z,ncells.x*ncells.y);
+  //const unsigned cellfluid=nc.w*nc.z+1;
+  //const int3 cellzero=make_int3(cellmin.x,cellmin.y,cellmin.z);
   //-Interaccion Fluid-Fluid & Fluid-Bound
   //-Interaction Fluid-Fluid & Fluid-Bound
   if(npf){
@@ -3523,7 +3506,7 @@ void PopulatePeriodic(TpCellMode cellmode,const unsigned bsbound,const unsigned 
 
 		//KerPopulatePeriodic <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorCell);
 	}
-}
+}*/
 
 //==============================================================================
 ///Free Surface Mark
@@ -3632,50 +3615,6 @@ void InitArrayCol(unsigned n,unsigned int *v,int value){
 }
 
 //==============================================================================
-/// Solve matrix CUSP
-//==============================================================================
-void solveCusp(double *matrixa,double *x,double *matrixb,int *row,int *col, const unsigned Nnz,const unsigned ppedim){
-  typedef cusp::device_memory MemorySpace; 
-  typedef double ValueType;
-  // *NOTE* raw pointers must be wrapped with thrust::device_ptr!
-  thrust::device_ptr<int>   wrapped_row(row);
-  thrust::device_ptr<int>   wrapped_col(col);
-  thrust::device_ptr<ValueType> wrapped_values(matrixa);
-  thrust::device_ptr<ValueType> wrapped_b(matrixb);
-  thrust::device_ptr<ValueType> wrapped_x(x);
-  // use array1d_view to wrap the individual arrays
-  typedef typename cusp::array1d_view<thrust::device_ptr<int>> DeviceIndexArrayView;
-  typedef typename cusp::array1d_view<thrust::device_ptr<ValueType>> DeviceValueArrayView;
-  DeviceIndexArrayView row_offsets   (wrapped_row, wrapped_row + ppedim + 1);
-  DeviceIndexArrayView column_indices(wrapped_col, wrapped_col + Nnz);
-  DeviceValueArrayView values        (wrapped_values, wrapped_values + Nnz);
-  DeviceValueArrayView mb            (wrapped_b, wrapped_b + ppedim);
-  DeviceValueArrayView mx            (wrapped_x, wrapped_x + ppedim);
-  // combine the three array1d_views into a csr_matrix_view
-  typedef cusp::csr_matrix_view<DeviceIndexArrayView,
-                                  DeviceIndexArrayView,
-                                  DeviceValueArrayView> DeviceView;
-  DeviceView A(ppedim, ppedim, Nnz, row_offsets, column_indices, values);
-  
-  //Create precond, monitor and solve
-  cusp::precond::diagonal<ValueType,MemorySpace> M(A);
-cusp::default_monitor<ValueType> monitor(mb, 1000, 1e-5);
-  cusp::krylov::bicgstab(A,mx,mb,monitor,M);
-  // report solver results
-  /*if (monitor.converged()) 
-  {
-    std::cout << "Solver converged to " << monitor.relative_tolerance() << " relative tolerance";
-    std::cout << " after " << monitor.iteration_count() << " iterations" << std::endl;
-  }
-  else
-  {
-    std::cout << "Solver reached iteration limit " << monitor.iteration_limit() << " before converging";
-    std::cout << " to " << monitor.relative_tolerance() << " relative tolerance " << std::endl;
-  }*/
-  x=thrust::raw_pointer_cast(&mx[0]);
-}
-
-//==============================================================================
 /// Solve matrix with ViennaCL
 //==============================================================================
 template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag,typename ScalarType>
@@ -3745,7 +3684,7 @@ void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int it
 //------------------------------------------------------------------------------
 /// Shifting
 //------------------------------------------------------------------------------
-template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesShifting2
+/*template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesShifting2
   (bool boundp2,unsigned p1,const unsigned &pini,const unsigned &pfin,float visco,const float *ftomassp
   ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code
   ,float massp2,float ftmassp1,bool ftp1
@@ -3767,20 +3706,6 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesShif
 				KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 				Wab=KerGetKernelWendlandWab(rr2);
 			}
-	  
-      //-Obtiene masa de particula p2 en caso de existir floatings.
-	  //-Obtains mass of particle p2 if any floating bodies exist.
-     // bool ftp2;         //-Indica si es floating. //-indicates if it is floating.
-      //float ftmassp2;    //-Contiene masa de particula floating o massp2 si es bound o fluid. //-Contains mass of floating body or massf if fluid.
-     // bool compute=true; //-Se desactiva cuando se usa DEM y es float-float o float-bound. //-Deactivated when DEM is used and is float-float or float-bound.
-      /*if(USE_FLOATING){
-        const word cod=code[p2];
-        ftp2=(CODE_GetType(cod)==CODE_TYPE_FLOATING);
-        ftmassp2=(ftp2? ftomassp[CODE_GetTypeValue(cod)]: massp2);
-        //if(ftp2 && (tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt))deltap1=FLT_MAX;
-				//if(ftp2 && tshifting==SHIFT_NoBound)shiftposp1.x=FLT_MAX; //-Con floatings anula shifting. //-Cancels shifting with floating bodies
-        //compute=!(USE_DEM && ftp1 && (boundp2 || ftp2)); //-Se desactiva cuando se usa DEM y es float-float o float-bound. //-Deactivated when DEM is used and is float-float or float-bound.
-      }*/
 
       //-Shifting correction
       const float volume=massp2/CTE.rhopzero;
@@ -3823,13 +3748,6 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesShif
 	//-Obtains data of particle p1 in case there are floating bodies.
     bool ftp1;       //-Indica si es floating. //-Indicates if it is floating.
     float ftmassp1;  //-Contiene masa de particula floating o 1.0f si es fluid. //-Contains floating particle mass or 1.0f if it is fluid.
-    /*if(USE_FLOATING){
-      const word cod=code[p1];
-      ftp1=(CODE_GetType(cod)==CODE_TYPE_FLOATING);
-      ftmassp1=(ftp1? ftomassp[CODE_GetTypeValue(cod)]: 1.f);
-      //if(ftp1 && (tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt))deltap1=FLT_MAX;
-      //if(ftp1 && shift)shiftposp1.x=FLT_MAX;  //-Para floatings no se calcula shifting. //-Shifting is not calculated for floating bodies.
-    }*/
 
     //-Obtiene datos basicos de particula p1.
 	//-Obtains basic data of particle p1.
@@ -4103,6 +4021,6 @@ void CorrectShiftVelocity(const bool wavegen,TpKernel tkernel,TpCellMode cellmod
 		if(wavegen) KerCorrectShiftVelocity<true> <<<sgridf,bsfluid>>> (npf,npb,velrhop,shiftvel,posxy,dampingpoint,dampinglength);
 		else KerCorrectShiftVelocity<false> <<<sgridf,bsfluid>>> (npf,npb,velrhop,shiftvel,posxy,dampingpoint,dampinglength);
 	}
-}
+}*/
 
 }

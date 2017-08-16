@@ -82,7 +82,7 @@ float ReduMaxFloat_w(unsigned ndata,unsigned inidata,float4* data,float* resu);
 
 void CteInteractionUp(const StCteInteraction *cte);
 void InitArray(unsigned n,float3 *v,tfloat3 value);
-void ResetAcey(unsigned npf,float3 *v);
+void ResetAcey(unsigned npf,double3 *v);
 void ResetVely(unsigned npb,unsigned npf,float4 *v);
 void ResetBoundVel(const unsigned npbok,const unsigned bsbound,float4 *vel,float4 *velpre);
 void ResetrowIndg(const unsigned npplus,unsigned *row,const unsigned npb);
@@ -103,7 +103,7 @@ void Interaction_Forces(TpKernel tkernel,bool floating,bool usedem,TpSlipCond ts
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,float3 *dwxcorrg,float3 *dwycorrg,float3 *dwzcorrg
-  ,const float *ftomassp,float3 *ace,bool simulate2d,float *divr,const double3 *mirrorPos,const unsigned *mirrorCell,float4 *mls,unsigned *row,float3 *SumFr,float *tao,const float boundaryfs,const float freesurface,const double pistonposx,StKerInfo *kerinfo,JBlockSizeAuto *bsauto);
+  ,const float *ftomassp,double3 *ace,bool simulate2d,float *divr,const double3 *mirrorPos,const unsigned *mirrorCell,float4 *mls,unsigned *row,float3 *SumFr,float *tao,const float boundaryfs,const float freesurface,const double pistonposx,StKerInfo *kerinfo,JBlockSizeAuto *bsauto,const double *pressure);
 
 //# Kernels para calculo de fuerzas DEM
 //# for the calculation of the DEM forces
@@ -124,11 +124,11 @@ void RunShifting(const bool simulate2d,unsigned np,unsigned npb,double dt
 	,const bool maxShift,float3 *sumtensile,const float shiftoffset,const double alphashift,const double beta0,const double beta1);
 
 void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb
-  ,const float4 *velrhoppre,const float3 *ace,double dtm,float rhopoutmin,float rhopoutmax
+  ,const float4 *velrhoppre,const double3 *ace,double dtm,float rhopoutmin,float rhopoutmax
   ,word *code,double2 *movxy,double *movz,float4 *velrhop);
 
 void ComputeStepSymplecticCor(bool floating,unsigned np,unsigned npb
-  ,const float4 *velrhoppre,const float3 *ace,double dtm,double dt,float rhopoutmin,float rhopoutmax
+  ,const float4 *velrhoppre,const double3 *ace,double dtm,double dt,float rhopoutmin,float rhopoutmax
   ,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity,const unsigned *row,const double2 *posxy,const double *posz,const unsigned *idp,const double3 *mirrorPos,const bool WaveGen,const double dampingpoint,const double dampinglength);
 
 //# Kernels para ComputeStep (position)
@@ -191,7 +191,7 @@ void PopulateMatrix(TpKernel tkernel,bool schwaiger,TpCellMode cellmode,const un
 //# Kernels for Assigning Pressure
 void PressureAssign(const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
   ,const tfloat3 gravity,const double *posz,float4 *velrhop,double *press,const unsigned *idp
-	,const word *code,bool negpresbound,const double3 *mirrorPos);
+	,const word *code,bool negpresbound,const double3 *mirrorPos,double *pressure);
 
 //# Kernels for ArrayInitialisation
 void InitArrayPOrder(unsigned n,unsigned *v,unsigned value);
@@ -216,7 +216,7 @@ void ComputeShift(bool floating,const unsigned bsfluid,unsigned np,unsigned npb
 
 void CorrectShiftVelocity(const bool wavegen,TpKernel tkernel,TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
 	,const unsigned *dcell,const double2 *posxy,const double *posz,float4 *velrhop,const float3 *dwxCorr,const float3 *dwyCorr,const float3 *dwzCorr
-  ,const unsigned *idp,const float *divr,const word *code,const float boundaryfs,float3 *shiftpos,float3 *shftvel,const double dampingpoint,const double dampinglength);
+  ,const unsigned *idp,const float *divr,const word *code,const float boundaryfs,float3 *shiftpos,double3 *shftvel,const double dampingpoint,const double dampinglength);
 }
 #endif
 
