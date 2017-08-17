@@ -279,9 +279,9 @@ int2 JCellDivGpu::CellBeginEnd(unsigned cell)const{
 /// Ordena arrays basicos segun SortPart. 
 /// Reorders basic arrays according to SortPart
 //==============================================================================
-void JCellDivGpu::SortBasicArrays(const unsigned *idp,const word *code,const unsigned *dcell,const double2 *posxy,const double *posz,const float4 *velrhop,unsigned *idp2,word *code2,unsigned *dcell2,double2 *posxy2,double *posz2,float4 *velrhop2){
+void JCellDivGpu::SortBasicArrays(const unsigned *idp,const word *code,const unsigned *dcell,const double2 *posxy,const double *posz,const float4 *velrhop,const double3 *velocity,const double *pressure,unsigned *idp2,word *code2,unsigned *dcell2,double2 *posxy2,double *posz2,float4 *velrhop2,double3 *velocity2,double *pressure2){
   const unsigned pini=(DivideFull? 0: NpbFinal);
-  cudiv::SortDataParticles(Nptot,pini,SortPart,idp,code,dcell,posxy,posz,velrhop,idp2,code2,dcell2,posxy2,posz2,velrhop2);
+  cudiv::SortDataParticles(Nptot,pini,SortPart,idp,code,dcell,posxy,posz,velrhop,velocity,pressure,idp2,code2,dcell2,posxy2,posz2,velrhop2,velocity2,pressure2);
 }
 
 //==============================================================================
@@ -301,6 +301,11 @@ void JCellDivGpu::SortDataArrays(const float *a,const float *b,float *a2,float *
 void JCellDivGpu::SortDataArrays(const double2 *a,const double *b,const float4 *c,double2 *a2,double *b2,float4 *c2){
   const unsigned pini=(DivideFull? 0: NpbFinal);
   cudiv::SortDataParticles(Nptot,pini,SortPart,a,b,c,a2,b2,c2);
+}
+//==============================================================================
+void JCellDivGpu::SortDataArrays(const double2 *a,const double *b,const float4 *c,const double3 *d,double2 *a2,double *b2,float4 *c2,double3 *d2){
+  const unsigned pini=(DivideFull? 0: NpbFinal);
+  cudiv::SortDataParticles(Nptot,pini,SortPart,a,b,c,d,a2,b2,c2,d2);
 }
 //==============================================================================
 void JCellDivGpu::SortDataArrays(const tsymatrix3f *a,tsymatrix3f *a2){

@@ -107,7 +107,6 @@ protected:
   double2 *Posxyg;
   double *Poszg;
   float4 *Velrhopg;
-  double *Pressure;
   //-Vars. para compute step: SYMPLECTIC
   //-Variables for compute step: Symplectic
   double2 *PosxyPreg;  ///<ES: Sympletic: para guardar valores en predictor EN: Symplectic: for maintaining predictor values
@@ -165,6 +164,7 @@ protected:
   float4*      SaveArrayGpu(unsigned np,const float4      *datasrc)const{ return(TSaveArrayGpu<float4>     (np,datasrc)); }
   double*      SaveArrayGpu(unsigned np,const double      *datasrc)const{ return(TSaveArrayGpu<double>     (np,datasrc)); }
   double2*     SaveArrayGpu(unsigned np,const double2     *datasrc)const{ return(TSaveArrayGpu<double2>    (np,datasrc)); }
+	double3*     SaveArrayGpu(unsigned np,const double3     *datasrc)const{ return(TSaveArrayGpu<double3>    (np,datasrc)); }
   tsymatrix3f* SaveArrayGpu(unsigned np,const tsymatrix3f *datasrc)const{ return(TSaveArrayGpu<tsymatrix3f>(np,datasrc)); }
   unsigned*    SaveArrayGpu_Uint(unsigned np,const unsigned *datasrc)const;
   template<class T> void TRestoreArrayGpu(unsigned np,T *data,T *datanew)const;
@@ -174,6 +174,7 @@ protected:
   void RestoreArrayGpu(unsigned np,float4      *data,float4      *datanew)const{ TRestoreArrayGpu<float4>     (np,data,datanew); }
   void RestoreArrayGpu(unsigned np,double      *data,double      *datanew)const{ TRestoreArrayGpu<double>     (np,data,datanew); }
   void RestoreArrayGpu(unsigned np,double2     *data,double2     *datanew)const{ TRestoreArrayGpu<double2>    (np,data,datanew); }
+	void RestoreArrayGpu(unsigned np,double3     *data,double3     *datanew)const{ TRestoreArrayGpu<double3>    (np,data,datanew); }
   void RestoreArrayGpu(unsigned np,tsymatrix3f *data,tsymatrix3f *datanew)const{ TRestoreArrayGpu<tsymatrix3f>(np,data,datanew); }
   void RestoreArrayGpu_Uint(unsigned np,unsigned *data,unsigned *datanew)const;
 
@@ -227,8 +228,8 @@ protected:
 	double3 *VelocityPre;
 	double3 *sumFrg;
 	float *Divrg; //Divergence of position
-	float3 *ShiftPosg;
-	float3 *Tensileg;
+	double3 *ShiftPosg;
+	double3 *Tensileg;
 	double *taog;
 
   //matrix variables 
@@ -237,7 +238,7 @@ protected:
   unsigned PPEDim;
   unsigned *colIndg;
   unsigned *rowIndg;
-  double *Xg;
+  double *Pressureg;
 
   unsigned *counterNnzGPU;
   unsigned *counterNnzCPU;

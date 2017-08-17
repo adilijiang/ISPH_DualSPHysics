@@ -120,8 +120,8 @@ void AddDelta(unsigned n,const float *delta,float *ar);
 //# Kernels para Shifting
 //# Kernels for Shifting
 void RunShifting(const bool simulate2d,unsigned np,unsigned npb,double dt
-  ,double shiftcoef,float freesurface,float4 *velrhop,const float *divr,float3 *shiftpos
-	,const bool maxShift,float3 *sumtensile,const float shiftoffset,const double alphashift,const double beta0,const double beta1);
+  ,double shiftcoef,float freesurface,double3 *velrhop,const float *divr,double3 *shiftpos
+	,const bool maxShift,double3 *sumtensile,const float shiftoffset,const double alphashift,const double beta0,const double beta1);
 
 void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb
   ,const double3 *velrhoppre,const double3 *ace,double dtm,float rhopoutmin,float rhopoutmax
@@ -206,17 +206,17 @@ void Interaction_Shifting(TpKernel tkernel,TpSlipCond tslipcond,bool simulate2d,
   ,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz
-  ,float4 *velrhop,const word *code,const float *ftomassp
-  ,TpShifting tshifting,float3 *shiftpos,float *divr,const float tensilen,const float tensiler,float3 *sumtensile
+  ,double3 *velrhop,const word *code,const float *ftomassp
+  ,TpShifting tshifting,double3 *shiftpos,float *divr,const float tensilen,const float tensiler,double3 *sumtensile
 	,const float freesurface,const float boundaryfs,const unsigned *idp,const double3 *mirrorPos,const unsigned *mirrorCell
-	,float3 *dwxcorrg,float3 *dwycorrg,float3 *dwzcorrg,float4 *mls,unsigned *row,const double pistonposx);
+	,double3 *dwxcorrg,float3 *dwycorrg,double3 *dwzcorrg,double4 *mls,unsigned *row,const double pistonposx);
 
 void ComputeShift(bool floating,const unsigned bsfluid,unsigned np,unsigned npb
-  ,const float3 *shiftpos,word *code,double2 *movxy,double *movz);
+  ,const double3 *shiftpos,word *code,double2 *movxy,double *movz);
 
 void CorrectShiftVelocity(const bool wavegen,TpKernel tkernel,TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
-	,const unsigned *dcell,const double2 *posxy,const double *posz,float4 *velrhop,const float3 *dwxCorr,const float3 *dwyCorr,const float3 *dwzCorr
-  ,const unsigned *idp,const float *divr,const word *code,const float boundaryfs,float3 *shiftpos,double3 *shftvel,const double dampingpoint,const double dampinglength);
+	,const unsigned *dcell,const double2 *posxy,const double *posz,double3 *velrhop,const double3 *dwxCorr,const float3 *dwyCorr,const double3 *dwzCorr
+  ,const unsigned *idp,const float *divr,const word *code,const float boundaryfs,double3 *shiftpos,double3 *shftvel,const double dampingpoint,const double dampinglength);
 }
 #endif
 

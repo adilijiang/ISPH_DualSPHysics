@@ -89,12 +89,11 @@ void JSphGpu::InitVars(){
   rowIndg=NULL;
   counterNnzGPU=NULL;
 	NumFreeSurfaceGPU=NULL;
-  Xg=NULL;
   dWxCorrg=NULL; dWyCorrg=NULL; dWzCorrg=NULL;
 	ShiftPosg=NULL; Tensileg=NULL;
 	MLSg=NULL;
 	sumFrg=NULL;
-	Pressure=NULL;
+	Pressureg=NULL;
   Divrg=NULL;
 	taog=NULL;
 	Velocity=NULL;
@@ -148,9 +147,6 @@ void JSphGpu::FreeGpuMemoryFixed(){
 	if(Aceg)cudaFree(Aceg);													Aceg=NULL;
 	if(dWxCorrg)cudaFree(dWxCorrg);									dWxCorrg=NULL;
 	if(dWzCorrg)cudaFree(dWzCorrg);									dWzCorrg=NULL;
-	if(Pressure)cudaFree(Pressure);									Pressure=NULL;
-	if(Velocity)cudaFree(Velocity);								Velocity=NULL;
-	if(VelocityPre)cudaFree(VelocityPre);								VelocityPre=NULL;
 	if(ShiftPosg)cudaFree(ShiftPosg);								ShiftPosg=NULL;
 	if(Tensileg)cudaFree(Tensileg);								Tensileg=NULL;
   if(RidpMoveg)cudaFree(RidpMoveg);								RidpMoveg=NULL;
@@ -186,13 +182,10 @@ void JSphGpu::AllocGpuMemoryFixed(){
 	m=sizeof(double3)*npf;			cudaMalloc((void**)&Aceg,m);							MemGpuFixed+=m;
 															cudaMalloc((void**)&dWxCorrg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&dWzCorrg,m);					MemGpuFixed+=m;
-	m=sizeof(float3)*npf;				cudaMalloc((void**)&ShiftPosg,m);					MemGpuFixed+=m;
+															cudaMalloc((void**)&ShiftPosg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&Tensileg,m);					MemGpuFixed+=m;
   m=sizeof(unsigned);					cudaMalloc((void**)&counterNnzGPU,m);			MemGpuFixed+=m;
 															cudaMalloc((void**)&NumFreeSurfaceGPU,m);	MemGpuFixed+=m;
-	m=sizeof(double)*np;				cudaMalloc((void**)&Pressure,m);					MemGpuFixed+=m;
-	m=sizeof(double3)*np;				cudaMalloc((void**)&Velocity,m);					MemGpuFixed+=m;
-															cudaMalloc((void**)&VelocityPre,m);					MemGpuFixed+=m;
 	if(Schwaiger){							
 		m=sizeof(double3)*npf;		cudaMalloc((void**)&sumFrg,m);						MemGpuFixed+=m;
 		m=sizeof(double)*npf;			cudaMalloc((void**)&taog,m);							MemGpuFixed+=m;
@@ -306,12 +299,12 @@ void JSphGpu::AllocGpuMemoryParticles(unsigned np,float over){
   ArraysGpu->SetArraySize(np2);
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_2B,2);  //-code*2
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,5);  //-idp*2,dcell*2,divr+npfout
-	ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,2);  //-b,x
+	ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,3);  //-b,pressure
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,1); //-Saving/dWyCorrg
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,2); //-velrhop,velrhoppre
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,3);  //-posz*2,poszpre
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,4); //-posxy*2,posxypre+npfout
-  
+  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_24B,4); //VelocityDouble
   if(CaseNfloat){
     ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,4);  //-FtMasspg
   }
@@ -337,7 +330,9 @@ void JSphGpu::ResizeGpuMemoryParticles(unsigned npnew){
   double2     *posxypre  =SaveArrayGpu(Np,PosxyPreg);
   double      *poszpre   =SaveArrayGpu(Np,PoszPreg);
   float4      *velrhoppre=SaveArrayGpu(Np,VelrhopPreg);
-  //-Frees pointers.
+	double3			*velocity	 =SaveArrayGpu(Np,Velocity);
+	double3			*velocitypre	 =SaveArrayGpu(Np,VelocityPre);
+	double      *pressure  =SaveArrayGpu(Np,Pressureg);
   ArraysGpu->Free(Idpg);
   ArraysGpu->Free(Codeg);
   ArraysGpu->Free(Dcellg);
@@ -347,6 +342,9 @@ void JSphGpu::ResizeGpuMemoryParticles(unsigned npnew){
   ArraysGpu->Free(PosxyPreg);
   ArraysGpu->Free(PoszPreg);
   ArraysGpu->Free(VelrhopPreg);
+	ArraysGpu->Free(Velocity);
+	ArraysGpu->Free(VelocityPre);
+	ArraysGpu->Free(Pressureg);
   //-Resizes GPU memory allocation.
   const double mbparticle=(double(MemGpuParticles)/(1024*1024))/GpuParticlesSize; //-MB por particula.
   Log->Printf("**JSphGpu: Requesting gpu memory for %u particles: %.1f MB.",npnew,mbparticle*npnew);
@@ -358,9 +356,13 @@ void JSphGpu::ResizeGpuMemoryParticles(unsigned npnew){
   Posxyg  =ArraysGpu->ReserveDouble2();
   Poszg   =ArraysGpu->ReserveDouble();
   Velrhopg=ArraysGpu->ReserveFloat4();
+	Velocity=ArraysGpu->ReserveDouble3();
+	Pressureg=ArraysGpu->ReserveDouble();
   if(posxypre)  PosxyPreg  =ArraysGpu->ReserveDouble2();
   if(poszpre)   PoszPreg   =ArraysGpu->ReserveDouble();
   if(velrhoppre)VelrhopPreg=ArraysGpu->ReserveFloat4();
+	if(velocitypre)VelocityPre=ArraysGpu->ReserveDouble3();
+
   //-Restore data in GPU memory.
   RestoreArrayGpu(Np,idp,Idpg);
   RestoreArrayGpu(Np,code,Codeg);
@@ -371,6 +373,9 @@ void JSphGpu::ResizeGpuMemoryParticles(unsigned npnew){
   RestoreArrayGpu(Np,posxypre,PosxyPreg);
   RestoreArrayGpu(Np,poszpre,PoszPreg);
   RestoreArrayGpu(Np,velrhoppre,VelrhopPreg);
+	RestoreArrayGpu(Np,velocity,Velocity);
+	RestoreArrayGpu(Np,velocitypre,VelocityPre);
+	RestoreArrayGpu(Np,pressure,Pressureg);
   //-Updates values.
   GpuParticlesSize=npnew;
   MemGpuParticles=ArraysGpu->GetAllocMemoryGpu();
@@ -431,6 +436,8 @@ void JSphGpu::ReserveBasicArraysGpu(){
   Posxyg=ArraysGpu->ReserveDouble2();
   Poszg=ArraysGpu->ReserveDouble();
   Velrhopg=ArraysGpu->ReserveFloat4();
+	Velocity=ArraysGpu->ReserveDouble3();
+	Pressureg=ArraysGpu->ReserveDouble();
 }
 
 //==============================================================================
@@ -885,6 +892,7 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
 		Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
 		cudaMemset(MLSg,0,sizeof(double4)*npb);
 		cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
+		cudaMemset(Pressureg,0,sizeof(double)*np);
 		if(Schwaiger){
 			cudaMemset(sumFrg,0,sizeof(double3)*npf);
 			cudaMemset(taog,0,sizeof(double)*npf);
@@ -957,6 +965,7 @@ void JSphGpu::ComputeSymplecticCorr(double dt){
   ArraysGpu->Free(PosxyPreg);    PosxyPreg=NULL;
   ArraysGpu->Free(PoszPreg);     PoszPreg=NULL;
   ArraysGpu->Free(VelrhopPreg);  VelrhopPreg=NULL;
+	ArraysGpu->Free(VelocityPre);   VelocityPre=NULL;
 	ArraysGpu->Free(Divrg);         Divrg=NULL;
   TmgStop(Timers,TMG_SuComputeStep);
 }
@@ -986,7 +995,7 @@ double JSphGpu::DtVariable(bool final){
 void JSphGpu::RunShifting(double dt){
 	bool maxShift=false;
 	if(TShifting==SHIFT_Max) maxShift=true;
-//  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velrhopg,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift,BetaShift0,BetaShift1);
+  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velocity,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift,BetaShift0,BetaShift1);
 }
 
 //==============================================================================
@@ -1102,7 +1111,7 @@ void JSphGpu::MatrixASetup(const unsigned np,const unsigned npb,const unsigned n
 //===============================================================================
 ///Shift
 //===============================================================================
-/*void JSphGpu::Shift(double dt,const unsigned bsfluid){
+void JSphGpu::Shift(double dt,const unsigned bsfluid){
   TmgStart(Timers,TMG_SuComputeStep);
   const bool shift=TShifting!=SHIFT_None;
   //-Asigna memoria para calcular el desplazamiento.
@@ -1121,7 +1130,7 @@ void JSphGpu::MatrixASetup(const unsigned np,const unsigned npb,const unsigned n
   ArraysGpu->Free(movxyg);   movxyg=NULL;
   ArraysGpu->Free(movzg);    movzg=NULL;
   TmgStop(Timers,TMG_SuComputeStep);
-}*/
+}
 
 //==============================================================================
 /// Variable timestep
