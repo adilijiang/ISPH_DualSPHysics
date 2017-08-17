@@ -25,17 +25,6 @@
 #include <thrust/device_vector.h>
 #include <thrust/sort.h>
 
-
-#include <cusp/csr_matrix.h>
-#include <cusp/monitor.h>
-//#include <cusp/io/matrix_market.h>
-#include <cusp/krylov/bicgstab.h>
-//#include <cusp/krylov/cg.h>
-#include <cusp/precond/diagonal.h>
-//#include <cusp/precond/aggregation/smoothed_aggregation.h>
-//#include <cusp/print.h>
-//#include <cusp/array1d.h>
-
 #include <iostream>
 #include <cstdlib>
 #include <string>
@@ -398,7 +387,7 @@ void ComputeVelMod(unsigned n,const float4 *vel,float *velmod){
 /// Devuelve posicion y vel de particula.
 /// Returns postion and vel of a particle.
 //------------------------------------------------------------------------------
-__device__ void KerGetParticleData(unsigned p1
+/*__device__ void KerGetParticleData(unsigned p1
   ,const double2 *posxy,const double *posz,const float4 *velrhop
   ,float3 &velp1,double3 &posdp1)
 {
@@ -407,7 +396,7 @@ __device__ void KerGetParticleData(unsigned p1
 
   double2 pxy=posxy[p1];
   posdp1=make_double3(pxy.x,pxy.y,posz[p1]);
-}
+}*/
 
 
 __device__ void KerGetParticleData(unsigned p1
@@ -493,7 +482,7 @@ __device__ void KerGetInteractionCells(double px,double py,double pz
 /// Devuelve valores de kernel: frx, fry y frz. USADA
 /// Returns kernel values: frx, fry and frz. USED
 //------------------------------------------------------------------------------
-__device__ void KerGetKernelQuintic(float rr2,float drx,float dry,float drz
+/*__device__ void KerGetKernelQuintic(float rr2,float drx,float dry,float drz
   ,float &frx,float &fry,float &frz)
 {
   const float rad=sqrt(rr2);
@@ -510,7 +499,7 @@ __device__ void KerGetKernelQuintic(float rr2,float drx,float dry,float drz
 
   frx=fac*drx; fry=fac*dry; frz=fac*drz;
 
-}
+}*/
 
 __device__ void KerGetKernelQuintic(double rr2,double drx,double dry,double drz
   ,double &frx,double &fry,double &frz)
@@ -549,7 +538,7 @@ __device__ void KerGetKernelWendland(float rr2,float drx,float dry,float drz
 /// Devuelve valores de kernel: wab.
 /// returns kernel values: wab.
 //------------------------------------------------------------------------------
-__device__ float KerGetKernelQuinticWab(float rr2)
+/*__device__ float KerGetKernelQuinticWab(float rr2)
 {
   const float rad=sqrt(rr2);
   const float qq=rad/CTE.h;
@@ -560,6 +549,22 @@ __device__ float KerGetKernelQuinticWab(float rr2)
   if(qq<1.0f)wab=Awen*(powf(3.0f-qq,5.0f)-6.0f*powf(2.0f-qq,5.0f)+15.0f*powf(1.0f-qq,5.0f));
   else if(qq<2.0f)wab=Awen*(powf(3.0f-qq,5.0f)-6.0f*powf(2.0f-qq,5.0f));
   else if(qq<3.0f)wab=Awen*(powf(3.0f-qq,5.0f));
+  else wab=0;
+  return(wab);
+}*/
+
+__device__ double KerGetKernelQuinticWab(double rr2)
+{
+  const double rad=sqrt(rr2);
+  const double qq=rad/CTE.h;
+	const double h=CTE.h;
+	const double Awen=7.0/(478.0*PI*h*h);
+
+	//-Quintic Spline
+  double wab;
+  if(qq<1.0)wab=Awen*(pow(3.0-qq,5.0)-6.0*pow(2.0-qq,5.0)+15.0*pow(1.0-qq,5.0));
+  else if(qq<2.0)wab=Awen*(pow(3.0-qq,5.0)-6.0*pow(2.0-qq,5.0));
+  else if(qq<3.0)wab=Awen*(pow(3.0-qq,5.0));
   else wab=0;
   return(wab);
 }
@@ -889,9 +894,10 @@ template<TpKernel tker> __global__ void KerInteractionForcesBound
 			BitangVel.y=BitangDir.y*BitangProdVel;
 			BitangVel.z=BitangDir.z*BitangProdVel;
 			double dp05=0.5*CTE.dp;
-			if(posz[p1]<dp05&&(posxy[p1].x<pistonposx||posxy[p1].x>18.0-dp05)){
+			//if(posz[p1]<dp05&&(posxy[p1].x<pistonposx||posxy[p1].x>18.0-dp05)){
+			if(posz[p1]<dp05&&(posxy[p1].x<dp05||posxy[p1].x>1.0-dp05)){
 				velrhop[p1].x=2.0f*velrhop[p1].x-Sum.x;
-				velrhop[p1].z=-Sum.z;
+				velrhop[p1].z=2.0f*velrhop[p1].z-Sum.z;
 			}
 			else{
 				velrhop[p1].x=2.0*velrhop[p1].x+TangVel.x+BitangVel.x-NormVel.x;
@@ -1005,14 +1011,14 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesFlui
       //===== Aceleration ===== 
 		  const double rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
 		  const double temp=volume*2.0f*visco*rDivW/(rr2+CTE.eta2);
-	    const double dvx=velp1.x-velrhop2.x, dvy=velp1.y-velrhop2.y, dvz=velp1.z-velrhop2.z;
-      acep1.x+=temp*dvx; acep1.y+=temp*dvy; acep1.z+=temp*dvz;
+	    const double dvx=velp1.x-velrhop2.x, /*dvy=velp1.y-velrhop2.y,*/ dvz=velp1.z-velrhop2.z;
+      acep1.x+=temp*dvx; /*acep1.y+=temp*dvy;*/ acep1.z+=temp*dvz;
 
 			divrp1-=volume*rDivW;
 
-			dwxp1.x-=volume*frx*drx; dwxp1.y-=volume*frx*dry; dwxp1.z-=volume*frx*drz;
-			dwyp1.x-=volume*fry*drx; dwyp1.y-=volume*fry*dry; dwyp1.z-=volume*fry*drz;
-			dwzp1.x-=volume*frz*drx; dwzp1.y-=volume*frz*dry; dwzp1.z-=volume*frz*drz;
+			dwxp1.x-=volume*frx*drx; /*dwxp1.y-=volume*frx*dry;*/ dwxp1.z-=volume*frx*drz;
+			//dwyp1.x-=volume*fry*drx; dwyp1.y-=volume*fry*dry; dwyp1.z-=volume*fry*drz;
+			dwzp1.x-=volume*frz*drx; /*dwzp1.y-=volume*frz*dry;*/ dwzp1.z-=volume*frz*drz;
 			rowCount++;
 		}
   }
@@ -1055,11 +1061,11 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesFlui
         compute=!(USE_DEM && ftp1 && (boundp2 || ftp2)); //-Se desactiva cuando se usa DEM y es float-float o float-bound. //-Deactivated when DEM is used and is float-float or float-bound.
       }*/
       //===== Aceleration ===== 
-      const double temp_x=frx*dwxcorrg.x+fry*dwycorrg.x+frz*dwzcorrg.x;
-      const double temp_y=frx*dwxcorrg.y+fry*dwycorrg.y+frz*dwzcorrg.y;
-		  const double temp_z=frx*dwxcorrg.z+fry*dwycorrg.z+frz*dwzcorrg.z;
+      const double temp_x=frx*dwxcorrg.x/*+fry*dwycorrg.x*/+frz*dwxcorrg.z;
+      //const double temp_y=frx*dwxcorrg.y+fry*dwycorrg.y+frz*dwzcorrg.y;
+		  const double temp_z=frx*dwzcorrg.x/*+fry*dwycorrg.z*/+frz*dwzcorrg.z;
       const double temp=volumep2*(pressp2-pressp1);
-      acep1.x+=temp*temp_x; acep1.y+=temp*temp_y; acep1.z+=temp*temp_z;
+      acep1.x+=temp*temp_x; /*acep1.y+=temp*temp_y;*/ acep1.z+=temp*temp_z;
 
 			if(boundp2){
 				if(rr2<=nearestBound){
@@ -1188,13 +1194,13 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesFlui
 			||dwzp1.x||dwzp1.y||dwzp1.z||rowCount){
       double3 r=ace[Correctp1]; 
       if(tinter==1){ 
-				r.x+=acep1.x; r.y+=acep1.y; r.z+=acep1.z;
+				r.x=acep1.x; r.y=acep1.y; r.z=acep1.z;
 				
 				divr[p1]+=divrp1;
 				row[p1-matOrder]=rowCount;
-				dwxcorrg[Correctp1].x+=dwxp1.x; /*dwxcorrg[Correctp1].y+=float(dwxp1.y);*/ dwxcorrg[Correctp1].z+=dwxp1.z; 
+				dwxcorrg[Correctp1].x=dwxp1.x; /*dwxcorrg[Correctp1].y+=float(dwxp1.y);*/ dwxcorrg[Correctp1].z=dwxp1.z; 
 				//dwycorrg[Correctp1].x+=float(dwyp1.x); dwycorrg[Correctp1].y+=float(dwyp1.y); dwycorrg[Correctp1].z+=float(dwyp1.z); 
-				dwzcorrg[Correctp1].x+=dwzp1.x; /*dwzcorrg[Correctp1].y+=float(dwzp1.y);*/ dwzcorrg[Correctp1].z+=dwzp1.z; 
+				dwzcorrg[Correctp1].x=dwzp1.x; /*dwzcorrg[Correctp1].y+=float(dwzp1.y);*/ dwzcorrg[Correctp1].z=dwzp1.z; 
 			} 
 	    if(tinter==2){ const float rho0=CTE.rhopzero; r.x+=(acep1.x/rho0); r.y+=(acep1.y/rho0); r.z+=(acep1.z/rho0);}
       ace[Correctp1]=r;
@@ -3171,16 +3177,16 @@ template<TpKernel tker,bool schwaiger> __device__ void KerMatrixAFluid
       if(tker==KERNEL_Quintic) KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
 			//else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 
-			const double temp_x=frx*dwx.x+fry*dwy.x+frz*dwz.x;
-			const double temp_y=frx*dwx.y+fry*dwy.y+frz*dwz.y;
-			const double temp_z=frx*dwx.z+fry*dwy.z+frz*dwz.z;
+			const double temp_x=frx*dwx.x/*+fry*dwy.x*/+frz*dwx.z;
+			//const double temp_y=frx*dwx.y+fry*dwy.y+frz*dwz.y;
+			const double temp_z=frx*dwz.x/*+fry*dwy.z*/+frz*dwz.z;
 
 			//===== Laplacian operator =====
       const double rDivW=drx*frx+dry*fry+drz*frz;
       double temp=rDivW/(rr2+CTE.eta2);
 
 			if(schwaiger){
-				const double Schwaigergrad=temp_x*sumfr.x+temp_y*sumfr.y+temp_z*sumfr.z;
+				const double Schwaigergrad=temp_x*sumfr.x+/*temp_y*sumfr.y+*/temp_z*sumfr.z;
 				temp+=Schwaigergrad;
 				temp=temp*taop1;
 			}
@@ -3193,8 +3199,8 @@ template<TpKernel tker,bool schwaiger> __device__ void KerMatrixAFluid
       index++;
 
 			//=====Divergence of velocity==========
-			double dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
-			const double tempDivU=dvx*temp_x+dvy*temp_y+dvz*temp_z;
+			double dvx=velp1.x-velrhop[p2].x, /*dvy=velp1.y-velrhop[p2].y,*/ dvz=velp1.z-velrhop[p2].z;
+			const double tempDivU=dvx*temp_x+/*dvy*temp_y+*/dvz*temp_z;
 			divU-=volumep2*tempDivU;
 
 			//=====dp/dn=====

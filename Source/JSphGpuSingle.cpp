@@ -836,7 +836,7 @@ void JSphGpuSingle::SolvePPE(double dt){
 
 	CheckCudaError(met,"Matrix Setup");
 
-	//cusph::FreeSurfaceMark(bsbound,bsfluid,np,npb,npbok,Divrg,ag,bg,rowIndg,Codeg,PI,FreeSurface,ShiftOffset);
+	cusph::FreeSurfaceMark(bsbound,bsfluid,np,npb,npbok,Divrg,ag,bg,rowIndg,Codeg,PI,FreeSurface,ShiftOffset);
   CheckCudaError(met,"FreeSurfaceMark");
 	TmgStop(Timers,TMG_Stage2a);
 	TmgStart(Timers,TMG_Stage2b);
