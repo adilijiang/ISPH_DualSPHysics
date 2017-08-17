@@ -433,6 +433,8 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
 	CheckCudaError(met,"Failed checkin.");
 
 	//-Interaccion Fluid-Fluid/Bound & Bound-Fluid.
+	const bool wavegen=(WaveGen? true:false);
+	if(wavegen&&tinter==1) cusph::KerMirrorCellToFluid(NpbOk,bsbound,CellMode,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Codeg,Divrg,Idpg,MirrorPosg,MirrorCellg,rowIndg);
   cusph::Interaction_Forces(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velocity,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,taog,BoundaryFS,FreeSurface,PistonPosX,NULL,NULL,Pressureg);	
 	if(TSlipCond&&tinter==2){
 		cusph::ResetBoundVel(Npb,bsbound,Velocity,VelocityPre);
@@ -478,6 +480,7 @@ double JSphGpuSingle::ComputeStep_Sym(double dt){
 	TmgStart(Timers,TMG_Stage1);
   InitAdvection(dt);
 	RunCellDivide(true);
+	if(WaveGen) cusph::UpdateMirror(NpbOk,BlockSizes.forcesbound,Posxyg,Poszg,Idpg,MirrorCellg,MirrorPosg,Codeg,PistonPosX,Velrhopg,Dcellg);
 	Interaction_Forces(INTER_Forces,dt);        //-Interaction
 	ComputeSymplecticPre(dt);                   //-Applies Symplectic-Predictor to the particles
 	//-Pressure Poisson equation
@@ -888,6 +891,9 @@ void JSphGpuSingle::RunShifting(double dt){
   //cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
 	cudaMemcpy(VelocityPre,Velocity,sizeof(double3)*np,cudaMemcpyDeviceToDevice);
 
+	const bool wavegen=(WaveGen? true:false);
+	if(wavegen) cusph::UpdateMirror(NpbOk,BlockSizes.forcesbound,Posxyg,Poszg,Idpg,MirrorCellg,MirrorPosg,Codeg,PistonPosX,Velrhopg,Dcellg);
+ 
   RunCellDivide(true);
 
   TmgStart(Timers,TMG_SuShifting);
@@ -898,7 +904,8 @@ void JSphGpuSingle::RunShifting(double dt){
   const unsigned *dcell=Dcellg;
   const unsigned bsbound=BlockSizes.forcesbound;
   const unsigned bsfluid=BlockSizes.forcesfluid;
-
+	TmgStart(Timers,TMG_SuShifting);
+	if(wavegen) cusph::KerMirrorCellToFluid(NpbOk,bsbound,CellMode,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Codeg,Divrg,Idpg,MirrorPosg,MirrorCellg,rowIndg);
   cusph::Interaction_Shifting(TKernel,TSlipCond,Simulate2D,WithFloating,UseDEM,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,bsbound,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velocity,Codeg,FtoMasspg,TShifting,ShiftPosg,Divrg,TensileN,TensileR,Tensileg,FreeSurface,BoundaryFS,Idpg,MirrorPosg,MirrorCellg,dWxCorrg,dWyCorrg,dWzCorrg,MLSg,rowIndg,PistonPosX);
 
   CheckCudaError(met,"Failed in calculating concentration");

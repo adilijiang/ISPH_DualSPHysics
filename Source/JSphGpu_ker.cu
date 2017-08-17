@@ -2889,6 +2889,57 @@ __global__ void KerWaveGenBoundary
 		}
 	}
 }
+
+__device__ void KerClosestFluidPaddleMirror
+  (const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
+	,const double3 posdp1,float &closestR,unsigned &closestp2)
+{
+	for(int p2=pini;p2<pfin;p2++){
+    float drx,dry,drz;
+    KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+    float rr2=drx*drx+dry*dry+drz*drz;
+    if(rr2<closestR){
+			closestp2=p2;
+			closestR=rr2;
+		}
+	}
+}
+
+__global__ void KerRelatePaddleMirror
+  (unsigned n,int hdiv,uint4 nc,const int2 *begincell,int3 cellzero,const double2 *posxy,const double *posz
+	,const word *code,const unsigned *idp,double3 *mirrorPos,unsigned *mirrorCell)
+{
+	unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
+  if(p1<n){
+		if(CODE_GetType(code[p1])==CODE_TYPE_MOVING){
+			unsigned idpg1=idp[p1];
+			const double3 posmp1=make_double3(mirrorPos[idpg1].x,mirrorPos[idpg1].y,mirrorPos[idpg1].z);
+			float closestR=CTE.fourh2;
+			unsigned closestp2=0;
+
+			int cxini,cxfin,yini,yfin,zini,zfin;
+			KerGetInteractionCells(mirrorCell[idpg1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+
+			for(int z=zini;z<zfin;z++){
+				int zmod=(nc.w)*z+(nc.w*nc.z+1);//-Le suma Nct+1 que es la primera celda de fluido. //-Adds Nct + 1 which is the first cell fluid.	
+				for(int y=yini;y<yfin;y++){
+					int ymod=zmod+nc.x*y;
+					unsigned pini,pfin=0;
+					for(int x=cxini;x<cxfin;x++){
+						int2 cbeg=begincell[x+ymod];
+						if(cbeg.y){
+							if(!pfin)pini=cbeg.x;
+							pfin=cbeg.y;
+						}
+					}
+					if(pfin) KerClosestFluidPaddleMirror(pini,pfin,posxy,posz,posmp1,closestR,closestp2);
+				}
+			}
+			mirrorCell[idpg1]=closestp2;
+		}
+	}
+}
+
 __global__ void KerMirrorCell
   (unsigned npb,const unsigned *idp,double3 *mirrorPos,unsigned *mirrorCell)
 {
@@ -3109,6 +3160,7 @@ void MirrorBoundary(const bool simulate2d,const unsigned bsbound,unsigned npb,co
 		KerCreateMirrorsCodeZero <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,Physrelation,wavegen);
 		if(wavegen) KerWaveGenBoundary <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,pistonposx);
 		KerMirrorCell <<<sgridb,bsbound>>> (npb,idp,mirrorPos,Physrelation);
+		if(wavegen) KerRelatePaddleMirror <<<sgridb,bsbound>>> (npb,hdiv,nc,begincell,cellzero,posxy,posz,code,idp,mirrorPos,Physrelation);	
 	}
 }
 
