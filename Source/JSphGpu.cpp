@@ -1053,17 +1053,15 @@ void JSphGpu::RunMotion(double stepdt){
         const tfloat3 mvvel=ToTFloat3(mvsimple/TDouble3(stepdt));
 				mvPistonX=mvsimple.x;
 				pistonvel=mvvel.x;
-       // cusph::MoveLinBound(PeriActive,nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg,Idpg,MirrorPosg,MirrorCellg);
+        cusph::MoveLinBound(PeriActive,nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velocity,Codeg,Idpg,MirrorPosg,MirrorCellg);
       }
       else{
         mvmatrix=OrderCode(mvmatrix);
-				std::cout<<"USING MOVEMATBOUND";
-				system("PAUSE");
-      //  cusph::MoveMatBound(PeriActive,Simulate2D,nparts,idbegin-CaseNfixed,mvmatrix,stepdt,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
+        //cusph::MoveMatBound(PeriActive,Simulate2D,nparts,idbegin-CaseNfixed,mvmatrix,stepdt,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
       }
     }
 		PistonPosX+=mvPistonX;
-//		cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Poszg,Idpg,MirrorPosg,Codeg,PistonPosX,PistonPosZ,PistonYmin,PistonYmax,Simulate2D,Velrhopg,pistonvel);
+		cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Poszg,Idpg,MirrorPosg,Codeg,PistonPosX,PistonPosZ,PistonYmin,PistonYmax,Simulate2D,Velocity,pistonvel);
 	}
   TmgStop(Timers,TMG_SuMotion);
 }

@@ -894,8 +894,8 @@ template<TpKernel tker> __global__ void KerInteractionForcesBound
 			BitangVel.y=BitangDir.y*BitangProdVel;
 			BitangVel.z=BitangDir.z*BitangProdVel;
 			double dp05=0.5*CTE.dp;
-			//if(posz[p1]<dp05&&(posxy[p1].x<pistonposx||posxy[p1].x>18.0-dp05)){
-			if(posz[p1]<dp05&&(posxy[p1].x<dp05||posxy[p1].x>1.0-dp05)){
+			if(posz[p1]<dp05&&(posxy[p1].x<pistonposx||posxy[p1].x>18.0-dp05)){
+			//if(posz[p1]<dp05&&(posxy[p1].x<dp05||posxy[p1].x>0.584-dp05)){
 				velrhop[p1].x=2.0f*velrhop[p1].x-Sum.x;
 				velrhop[p1].z=2.0f*velrhop[p1].z-Sum.z;
 			}
@@ -2118,7 +2118,7 @@ void CalcRidp(bool periactive,unsigned np,unsigned pini,unsigned idini,unsigned 
 /// Applies a linear movement to a set of particles.
 //------------------------------------------------------------------------------
 template<bool periactive> __global__ void KerMoveLinBound(unsigned n,unsigned ini,double3 mvpos,float3 mvvel
-  ,const unsigned *ridpmv,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code,const unsigned *idpg,double3 *mirrorPos,unsigned *mirrorCell)
+  ,const unsigned *ridpmv,double2 *posxy,double *posz,unsigned *dcell,double3 *velrhop,word *code,const unsigned *idpg,double3 *mirrorPos,unsigned *mirrorCell)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
@@ -2129,7 +2129,7 @@ template<bool periactive> __global__ void KerMoveLinBound(unsigned n,unsigned in
       KerUpdatePos<periactive>(posxy[pid],posz[pid],mvpos.x,mvpos.y,mvpos.z,false,pid,posxy,posz,dcell,code);
       //-Calcula velocidad.
 	  //-Computes velocity.
-      velrhop[pid]=make_float4(mvvel.x,mvvel.y,mvvel.z,velrhop[pid].w);
+      velrhop[pid]=make_double3(mvvel.x,mvvel.y,mvvel.z);
 
 			unsigned idp1=idpg[pid];
 			mirrorPos[idp1].x+=mvpos.x;
@@ -2149,7 +2149,7 @@ template<bool periactive> __global__ void KerMoveLinBound(unsigned n,unsigned in
 /// Applies a linear movement to a set of particles.
 //==============================================================================
 void MoveLinBound(byte periactive,unsigned np,unsigned ini,tdouble3 mvpos,tfloat3 mvvel
-  ,const unsigned *ridp,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code,const unsigned *idpg,double3 *mirrorPos,unsigned *mirrorCell)
+  ,const unsigned *ridp,double2 *posxy,double *posz,unsigned *dcell,double3 *velrhop,word *code,const unsigned *idpg,double3 *mirrorPos,unsigned *mirrorCell)
 {
   dim3 sgrid=GetGridSize(np,SPHBSIZE);
   if(periactive)KerMoveLinBound<true>  <<<sgrid,SPHBSIZE>>> (np,ini,Double3(mvpos),Float3(mvvel),ridp,posxy,posz,dcell,velrhop,code,idpg,mirrorPos,mirrorCell);
@@ -2209,7 +2209,7 @@ void MoveMatBound(byte periactive,bool simulate2d,unsigned np,unsigned ini,tmatr
   }
 }
 
-__global__ void KerPistonCorner(const unsigned npb,double2 *posxy,const double *posz,const unsigned *idp,double3 *mirrorpos,word *code,const double pistonposX,const double pistonposZ,const double pistonYmin,const double pistonYmax,const bool simulate2d,float4 *velrhop,const float pistonvelx)
+__global__ void KerPistonCorner(const unsigned npb,double2 *posxy,const double *posz,const unsigned *idp,double3 *mirrorpos,word *code,const double pistonposX,const double pistonposZ,const double pistonYmin,const double pistonYmax,const bool simulate2d,double3 *velrhop,const float pistonvelx)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
@@ -2234,7 +2234,7 @@ __global__ void KerPistonCorner(const unsigned npb,double2 *posxy,const double *
 //==============================================================================
 /// Recalculate mirror points for wavegen boudary
 //==============================================================================
-void PistonCorner(const unsigned bsbound,const unsigned npb,double2 *posxy,const double *posz,const unsigned *idp,double3 *mirrorpos,word *code,const double pistonposX,const double pistonposZ,const double pistonYmin,const double pistonYmax,const bool simulate2d,float4 *velrhop,const float pistonvelx)
+void PistonCorner(const unsigned bsbound,const unsigned npb,double2 *posxy,const double *posz,const unsigned *idp,double3 *mirrorpos,word *code,const double pistonposX,const double pistonposZ,const double pistonYmin,const double pistonYmax,const bool simulate2d,double3 *velrhop,const float pistonvelx)
 {
 	dim3 sgridb=GetGridSize(npb,bsbound);
 	KerPistonCorner <<<sgridb,bsbound>>> (npb,posxy,posz,idp,mirrorpos,code,pistonposX,pistonposZ,pistonYmin,pistonYmax,simulate2d,velrhop,pistonvelx);
