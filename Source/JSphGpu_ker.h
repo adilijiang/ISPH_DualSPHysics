@@ -103,7 +103,8 @@ void Interaction_Forces(TpKernel tkernel,bool floating,bool usedem,TpSlipCond ts
   ,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
   ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
   ,const double2 *posxy,const double *posz,double3 *velrhop,const word *code,const unsigned *idp,double3 *dwxcorrg,float3 *dwycorrg,double3 *dwzcorrg
-  ,const float *ftomassp,double3 *ace,bool simulate2d,float *divr,const double3 *mirrorPos,const unsigned *mirrorCell,double4 *mls,unsigned *row,double3 *SumFr,double *tao,const float boundaryfs,const float freesurface,const double pistonposx,StKerInfo *kerinfo,JBlockSizeAuto *bsauto,const double *pressure);
+  ,const float *ftomassp,double3 *ace,bool simulate2d,float *divr,const double3 *mirrorPos,const unsigned *mirrorCell,double4 *mls,unsigned *row
+	,double3 *SumFr,double *tao,const float boundaryfs,const float freesurface,const double pistonposx,StKerInfo *kerinfo,JBlockSizeAuto *bsauto,const double *pressure,const bool wavegen);
 
 //# Kernels para calculo de fuerzas DEM
 //# for the calculation of the DEM forces
@@ -136,10 +137,17 @@ void ComputeStepSymplecticCor(bool floating,unsigned np,unsigned npb
 void ComputeStepPos(byte periactive,bool floating,unsigned np,unsigned npb,const double2 *movxy,const double *movz,double2 *posxy,double *posz,unsigned *dcell,word *code);
 void ComputeStepPos2(byte periactive,bool floating,unsigned np,unsigned npb,const double2 *posxypre,const double *poszpre,const double2 *movxy,const double *movz,double2 *posxy,double *posz,unsigned *dcell,word *code);
 
+void UpdateMirror(const unsigned npbok,const unsigned bsbound,double2 *posxy,double *posz,const unsigned *idp
+	,unsigned *mirrorcell,double3 *mirrorPos,const word *code,const double pistonposx,double3 *Velocity,unsigned *dcell);
+
+void KerMirrorCellToFluid
+  (unsigned npbok,unsigned bsbound,TpCellMode cellmode,tuint3 ncells,const int2 *begincell,tuint3 cellmin,const word *code,float *divr,const unsigned *idp
+	,const double3 *mirrorPos,unsigned *mirrorCell,unsigned *row);
+
 //# Kernels para Motion
 //# Kernels for Motion
 void CalcRidp(bool periactive,unsigned np,unsigned pini,unsigned idini,unsigned idfin,const word *code,const unsigned *idp,unsigned *ridp);
-void MoveLinBound(byte periactive,unsigned np,unsigned ini,tdouble3 mvpos,tfloat3 mvvel,const unsigned *ridp,double2 *posxy,double *posz,unsigned *dcell,double3 *velrhop,word *code,const unsigned *idpg,double3 *mirrorPos,unsigned *mirrorCell);
+void MoveLinBound(const bool wavegen,byte periactive,unsigned np,unsigned ini,tdouble3 mvpos,tfloat3 mvvel,const unsigned *ridp,double2 *posxy,double *posz,unsigned *dcell,double3 *velrhop,word *code,const unsigned *idpg,double3 *mirrorPos,unsigned *mirrorCell);
 void MoveMatBound(byte periactive,bool simulate2d,unsigned np,unsigned ini,tmatrix4d m,double dt,const unsigned *ridpmv,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code);
 void PistonCorner(const unsigned bsbound,const unsigned npb,double2 *posxy,const double *posz,const unsigned *idp,double3 *mirrorpos,word *code,const double pistonposX,const double pistonposZ,const double pistonYmin,const double pistonYmax,const bool simulate2d,double3 *velrhop,const float pistonvelx);
 
@@ -172,7 +180,7 @@ void AddAccInput(unsigned n,unsigned pini,word codesel
 void ComputeRStar(bool floating,unsigned np,unsigned npb,const double3 *velrhoppre,double dtm,word *code,double2 *movxy,double *movz);
 
 //# Kernels for finding a dummy particles corresponding wall particle
-void MirrorBoundary(const bool simulate2d,const unsigned bsbound,unsigned npbok
+void MirrorBoundary(const bool simulate2d,const unsigned bsbound,TpCellMode cellmode,tuint3 ncells,const int2 *begincell,tuint3 cellmin,unsigned npbok
   ,const double2 *posxy,const double *posz
   ,const word *code,const unsigned *idp,double3 *mirror,unsigned *Physrelation,const bool wavegen,const double pistonposx);
 
@@ -184,7 +192,7 @@ void FreeSurfaceMark(const unsigned bsbound,const unsigned bsfluid,unsigned np,u
   ,double *matrixInd,double *matrixb,unsigned int *row,const word *code,const double pi,const float freesurface,const float shiftoffset);
 
 //# Kernels for Populating matrix A
-void PopulateMatrix(TpKernel tkernel,bool schwaiger,TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
+void PopulateMatrix(const bool wavegen, TpKernel tkernel,bool schwaiger,TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
 	,const unsigned *dcell,tfloat3 gravity,const double2 *posxy,const double *posz,const double3 *velrhop,const double3 *dwxCorr,const float3 *dwyCorr,const double3 *dwzCorr,double *matrixInd,double *matrixb
   ,unsigned int *row,unsigned int *col,const unsigned *idp,const float *divr,const word *code,const float freesurface,const double3 *mirrorPos,const unsigned *mirrorCell,const double4 *mls,const double dt,const double3 *SumFr,const double *tao,const float boundaryfs);
 
@@ -209,7 +217,7 @@ void Interaction_Shifting(TpKernel tkernel,TpSlipCond tslipcond,bool simulate2d,
   ,double3 *velrhop,const word *code,const float *ftomassp
   ,TpShifting tshifting,double3 *shiftpos,float *divr,const float tensilen,const float tensiler,double3 *sumtensile
 	,const float freesurface,const float boundaryfs,const unsigned *idp,const double3 *mirrorPos,const unsigned *mirrorCell
-	,double3 *dwxcorrg,float3 *dwycorrg,double3 *dwzcorrg,double4 *mls,unsigned *row,const double pistonposx);
+	,double3 *dwxcorrg,float3 *dwycorrg,double3 *dwzcorrg,double4 *mls,unsigned *row,const double pistonposx,const bool wavegen);
 
 void ComputeShift(bool floating,const unsigned bsfluid,unsigned np,unsigned npb
   ,const double3 *shiftpos,word *code,double2 *movxy,double *movz);
