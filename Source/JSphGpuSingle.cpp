@@ -573,6 +573,8 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 	MirrorBoundary();
 	count=1;
 	cudaMemset(Velocity,0,sizeof(double3)*Np);
+	cudaMemset(Pressureg,0,sizeof(double)*Np);
+	SaveVtkData("InitSymplectic.vtk",Nstep,Np,Posxyg,Poszg,Idpg,Velocity,Pressureg);
 	while(TimeStep<TimeMax){
 		if(CaseNmoving)RunMotion(stepdt);
     stepdt=ComputeStep_Sym(stepdt);
@@ -798,7 +800,7 @@ void JSphGpuSingle::SolvePPE(double dt){
 	const bool wavegen=(WaveGen? true:false);
   cusph::PopulateMatrix(wavegen,TKernel,Schwaiger,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velocity,dWxCorrg,dWyCorrg,dWzCorrg,ag,bg,rowIndg,colIndg,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLSg,dt,sumFrg,taog,BoundaryFS);
 	
-	/*if(count>0){
+/*if(count>0){
 		unsigned *rowInd=new unsigned[PPEDim]; cudaMemcpy(rowInd,rowIndg,sizeof(unsigned)*PPEDim,cudaMemcpyDeviceToHost);
 		unsigned *colInd=new unsigned[Nnz]; cudaMemcpy(colInd,colIndg,sizeof(unsigned)*Nnz,cudaMemcpyDeviceToHost);
 		double *b=new double[PPEDim]; cudaMemcpy(b,bg,sizeof(double)*PPEDim,cudaMemcpyDeviceToHost);
@@ -817,19 +819,16 @@ void JSphGpuSingle::SolvePPE(double dt){
 
 			FileOutput.open(TimeFile.c_str());
 
-		for(int i=0;i<npbok;i++){
+		/*for(int i=0;i<npbok;i++){
 			FileOutput << fixed << setprecision(19) << "particle "<< Idpc[i] << "\t Order " << i << "\t b " << b[i] << "\n";
 			for(int j=rowInd[i];j<rowInd[i+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j]  << "\t"<<Idpc[colInd[j]]<< "\n";
 		}
 
 		for(int i=npb;i<np;i++){
-			if(Idpc[i]==4217){
 			FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << (i-npb)+npbok << "\t b " << b[(i-npb)+npbok] << "\n";
 			for(int j=rowInd[(i-npb)+npbok];j<rowInd[(i-npb)+npbok+1];j++){
 				if(colInd[j]-npbok<0) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\t"<<Idpc[colInd[j]]<<"\n";
 				else FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\t"<<Idpc[(colInd[j]-npbok)+npb]<<"\n";
-			}
-			break;
 			}
 		}
 		FileOutput.close();
