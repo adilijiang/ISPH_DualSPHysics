@@ -1050,7 +1050,7 @@ void JSphGpu::RunMotion(double stepdt){
       if(WaveGen->GetMotion(c,TimeStep+MotionTimeMod,stepdt,mvsimple,mvmatrix,nparts,idbegin)){//-Movimiento simple ///Simple movement
         mvsimple=OrderCode(mvsimple);
         if(Simulate2D)mvsimple.y=0;
-        const tfloat3 mvvel=ToTFloat3(mvsimple/TDouble3(stepdt));
+        tfloat3 mvvel=ToTFloat3(mvsimple/TDouble3(stepdt));
 				mvPistonX=mvsimple.x;
 				pistonvel=mvvel.x;
         cusph::MoveLinBound(true,PeriActive,nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velocity,Codeg,Idpg,MirrorPosg,MirrorCellg);

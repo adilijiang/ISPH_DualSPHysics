@@ -437,7 +437,7 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
 	if(wavegen&&tinter==1) cusph::KerMirrorCellToFluid(NpbOk,bsbound,CellMode,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Codeg,Divrg,Idpg,MirrorPosg,MirrorCellg,rowIndg);
   cusph::Interaction_Forces(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velocity,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,taog,BoundaryFS,FreeSurface,PistonPosX,NULL,NULL,Pressureg,wavegen);	
 	if(TSlipCond&&tinter==2){
-		cusph::ResetBoundVel(Npb,bsbound,Velocity,VelocityPre);
+		cusph::ResetBoundVel(NpbOk,bsbound,Velocity,VelocityPre);
 		ArraysGpu->Free(dWyCorrg);	    dWyCorrg=NULL;
 	}
 	
@@ -479,8 +479,8 @@ double JSphGpuSingle::ComputeStep_Sym(double dt){
   //----------- 
 	TmgStart(Timers,TMG_Stage1);
   InitAdvection(dt);
-	RunCellDivide(true);
 	if(WaveGen) cusph::UpdateMirror(NpbOk,BlockSizes.forcesbound,Posxyg,Poszg,Idpg,MirrorCellg,MirrorPosg,Codeg,PistonPosX,Velocity,Dcellg);
+	RunCellDivide(true);
 	Interaction_Forces(INTER_Forces,dt);        //-Interaction
 	ComputeSymplecticPre(dt);                   //-Applies Symplectic-Predictor to the particles
 	//-Pressure Poisson equation
@@ -497,6 +497,7 @@ double JSphGpuSingle::ComputeStep_Sym(double dt){
 	//-----------
 	TmgStart(Timers,TMG_Stage4);
   if(TShifting)RunShifting(dt);               //-Shifting
+	
 	TmgStop(Timers,TMG_Stage4);
 //	if(VariableTimestep) dt=ComputeVariable();
   return(dt);
@@ -587,9 +588,9 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
         TimeMax=TimeStep;
       }
       SaveData();
-			SaveVtkData("InitSymplectic.vtk",Nstep,Np,Posxyg,Poszg,Idpg,Velocity,Pressureg);
       Part++;
       PartNstep=Nstep;
+			SaveVtkData("InitSymplectic.vtk",Nstep,Np,Posxyg,Poszg,Idpg,Velocity,Pressureg);
       TimeStepM1=TimeStep;
 			TimePartNext=TimeOut->GetNextTime(TimeStep);
       TimerPart.Start();
@@ -844,7 +845,7 @@ void JSphGpuSingle::SolvePPE(double dt){
 
 	CheckCudaError(met,"Matrix Setup");
 
-	cusph::FreeSurfaceMark(bsbound,bsfluid,np,npb,npbok,Divrg,ag,bg,rowIndg,Codeg,PI,FreeSurface,ShiftOffset);
+	//cusph::FreeSurfaceMark(bsbound,bsfluid,np,npb,npbok,Divrg,ag,bg,rowIndg,Codeg,PI,FreeSurface,ShiftOffset);
   CheckCudaError(met,"FreeSurfaceMark");
 	TmgStop(Timers,TMG_Stage2a);
 	TmgStart(Timers,TMG_Stage2b);
@@ -916,7 +917,7 @@ void JSphGpuSingle::RunShifting(double dt){
 
 	cusph::CorrectShiftVelocity(wavegen,TKernel,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velocity,dWxCorrg,dWyCorrg,dWzCorrg,Idpg,Divrg,Codeg,BoundaryFS,ShiftPosg,Aceg,DampingPointX,DampingLengthX);
 	Shift(dt,bsfluid);
-	cusph::ResetBoundVel(Npb,bsbound,Velocity,VelocityPre);
+	cusph::ResetBoundVel(NpbOk,bsbound,Velocity,VelocityPre);
   ArraysGpu->Free(PosxyPreg);     PosxyPreg=NULL;
   ArraysGpu->Free(PoszPreg);      PoszPreg=NULL;
   ArraysGpu->Free(VelrhopPreg);   VelrhopPreg=NULL;

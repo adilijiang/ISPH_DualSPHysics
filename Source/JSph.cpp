@@ -818,7 +818,7 @@ void JSph::ConfigConstants(bool simulate2d){
 	
 	if(TKernel==KERNEL_Quintic){
 		//QUINTIC SPLINE
-		Dosh=float(h*3); 
+		Dosh=float(h*6); 
 		Fourh2=float(h*h*9.0f); 
 		if(simulate2d){
 			Awen=float(7.0/(478.0*PI*h*h)); 
