@@ -890,22 +890,25 @@ template<TpKernel tker> __global__ void KerInteractionForcesBound
 				NormVel.x=NormDir.x*NormProdVel;
 				NormVel.y=NormDir.y*NormProdVel;
 				NormVel.z=NormDir.z*NormProdVel;
-				TangVel.x=TangDir.x*TangProdVel;
+				TangVel.x=Sum.x-NormVel.x;
+				TangVel.z=Sum.z-NormVel.z;
+				/*TangVel.x=TangDir.x*TangProdVel;
 				TangVel.y=TangDir.y*TangProdVel;
 				TangVel.z=TangDir.z*TangProdVel;
 				BitangVel.x=BitangDir.x*BitangProdVel;
 				BitangVel.y=BitangDir.y*BitangProdVel;
-				BitangVel.z=BitangDir.z*BitangProdVel;
+				BitangVel.z=BitangDir.z*BitangProdVel;*/
+
 				double dp05=0.5*CTE.dp;
-				if(posz[p1]<dp05&&(posxy[p1].x<pistonposx||posxy[p1].x>18.0-dp05)){
+				if(posz[p1]<dp05&&(posxy[p1].x<pistonposx||posxy[p1].x>9.0-dp05)){
 				//if(posz[p1]<dp05&&(posxy[p1].x<dp05||posxy[p1].x>0.584-dp05)){
 					velrhop[p1].x=2.0f*velrhop[p1].x-Sum.x;
 					velrhop[p1].z=2.0f*velrhop[p1].z-Sum.z;
 				}
 				else{
-					velrhop[p1].x=2.0*velrhop[p1].x+TangVel.x+BitangVel.x-NormVel.x;
-					velrhop[p1].y=2.0*velrhop[p1].y+TangVel.y+BitangVel.y-NormVel.y;
-					velrhop[p1].z=2.0*velrhop[p1].z+TangVel.z+BitangVel.z-NormVel.z;
+					velrhop[p1].x=2.0*velrhop[p1].x+TangVel.x/*+BitangVel.x*/-NormVel.x;
+					//velrhop[p1].y=2.0*velrhop[p1].y+TangVel.y/*+BitangVel.y*/-NormVel.y;
+					velrhop[p1].z=2.0*velrhop[p1].z+TangVel.z/*+BitangVel.z*/-NormVel.z;
 				}
 			}
 			else if(tslipcond==SLIPCOND_NoSlip){
@@ -1016,7 +1019,7 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesFlui
       
       //===== Aceleration ===== 
 		  const double rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
-		  const double temp=volume*2.0f*visco*rDivW/(rr2+CTE.eta2);
+		  const double temp=volume*2.0*visco*rDivW/(rr2+CTE.eta2);
 	    const double dvx=velp1.x-velrhop2.x, dvy=velp1.y-velrhop2.y, dvz=velp1.z-velrhop2.z;
       acep1.x+=temp*dvx; acep1.y+=temp*dvy; acep1.z+=temp*dvz;
 
@@ -1657,19 +1660,19 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 
 		if(simulate2d) norm.y=0;
 	  double3 tang=make_double3(0,0,0);
-	  double3 bitang=make_double3(0,0,0);
+	  //double3 bitang=make_double3(0,0,0);
 		rshiftpos.x+=sumtensile[Correctp1].x; rshiftpos.y+=sumtensile[Correctp1].y; rshiftpos.z+=sumtensile[Correctp1].z;
 		if(simulate2d)  rshiftpos.y=0;
 
-	  //-tangent and bitangent calculation
-	  tang.x=norm.z+norm.y;		
+	  /*//-tangent and bitangent calculation
+	  tang.x=-norm.z+norm.y;		
 	  if(!simulate2d)tang.y=-(norm.x+norm.z);	
-	  tang.z=-norm.x+norm.y;
+	  tang.z=norm.x+norm.y;
 		if(!simulate2d){
 			bitang.x=tang.y*norm.z-norm.y*tang.z;
 			bitang.y=norm.x*tang.z-tang.x*norm.z;
 			bitang.z=tang.x*norm.y-norm.x*tang.y;
-		}
+		}*/
 
 	  //-unit normal vector
 	  double temp=norm.x*norm.x+norm.y*norm.y+norm.z*norm.z;
@@ -1679,7 +1682,9 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
     }
     else {norm.x=0.f; norm.y=0.f; norm.z=0.f;}
 
-	  //-unit tangent vector
+		tang.x=-norm.z;
+		tang.z=norm.x;
+	 /* //-unit tangent vector
 	  temp=tang.x*tang.x+tang.y*tang.y+tang.z*tang.z;
 	  if(temp){
       temp=sqrt(temp);
@@ -1695,26 +1700,27 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 				bitang.x=bitang.x/temp; bitang.y=bitang.y/temp; bitang.z=bitang.z/temp;
 			}
 			else {bitang.x=0.f; bitang.y=0.f; bitang.z=0.f;}
-		}
+		}*/
 
 	  //-gradient calculation
-	  double dcds=tang.x*rshiftpos.x+tang.z*rshiftpos.z+tang.y*rshiftpos.y;
-	  double dcdn=norm.x*rshiftpos.x+norm.z*rshiftpos.z+norm.y*rshiftpos.y;
-	  double dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
+	  double dcds=tang.x*rshiftpos.x+tang.z*rshiftpos.z;//+tang.y*rshiftpos.y;
+	  double dcdn=norm.x*rshiftpos.x+norm.z*rshiftpos.z;//+norm.y*rshiftpos.y;
+	  //double dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
 
-    if(divrp1<freesurface){
+    /*if(divrp1<freesurface){
 			dcdn-=beta0;
 			double factorNormShift=alphashift;
-      rshiftpos.x=dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*factorNormShift;
+      rshiftpos.x=dcds*tang.x+(dcdn*norm.x)*factorNormShift;//+dcdb*bitang.x;
       //if(!simulate2d) rshiftpos.y=dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift;
-      rshiftpos.z=dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*factorNormShift;
+      rshiftpos.z=dcds*tang.z+(dcdn*norm.z)*factorNormShift;//+dcdb*bitang.z;
     }
-    else if(divrp1<=(freesurface+ShiftOffset)){ 
-			dcdn-=beta1;
+    else*/ if(divrp1<=(freesurface+ShiftOffset)){ 
+			if(divrp1<freesurface) dcdn-=beta0;
+			else dcdn-=beta1;
 			double factorNormShift=alphashift;
-			rshiftpos.x=dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*factorNormShift;
+			rshiftpos.x=dcds*tang.x+dcdn*norm.x*factorNormShift;//+dcdb*bitang.x;
       //if(!simulate2d) rshiftpos.y=dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift;
-      rshiftpos.z=dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*factorNormShift;
+      rshiftpos.z=dcds*tang.z+dcdn*norm.z*factorNormShift;//+dcdb*bitang.z;
     }
 
     rshiftpos.x=rshiftpos.x*umagn;
