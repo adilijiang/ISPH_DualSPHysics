@@ -861,31 +861,31 @@ template<TpKernel tker> __global__ void KerInteractionForcesBound
 			row[p1]=rowCount;
 
 			if(tslipcond==SLIPCOND_Slip){
-				double3 NormDir=make_double3(0,0,0) ,NormVel=make_double3(0,0,0),TangDir=make_double3(0,0,0),TangVel=make_double3(0,0,0),BitangDir=make_double3(0,0,0),BitangVel=make_double3(0,0,0); 
+				double3 NormDir=make_double3(0,0,0) ,NormVel=make_double3(0,0,0),/*TangDir=make_double3(0,0,0),*/TangVel=make_double3(0,0,0);//,BitangDir=make_double3(0,0,0),BitangVel=make_double3(0,0,0); 
 				NormDir.x=posmp1.x-posxy[p1].x;
 				if(!simulate2d)NormDir.y=posmp1.y-posxy[p1].y;
 				NormDir.z=posmp1.z-posz[p1];
 
-				TangDir.x=NormDir.z+NormDir.y;
+				/*TangDir.x=NormDir.z+NormDir.y;
 				if(!simulate2d)TangDir.y=-(NormDir.x+NormDir.z);
 				TangDir.z=-NormDir.x+NormDir.y;
 
 				BitangDir.x=TangDir.y*NormDir.z-NormDir.y*TangDir.z;
 				if(!simulate2d)BitangDir.y=NormDir.x*TangDir.z-TangDir.x*NormDir.z;
-				BitangDir.z=TangDir.x*NormDir.y-NormDir.x*TangDir.y;
+				BitangDir.z=TangDir.x*NormDir.y-NormDir.x*TangDir.y;*/
 
 				double MagNorm=NormDir.x*NormDir.x+NormDir.y*NormDir.y+NormDir.z*NormDir.z;
 				if(MagNorm){MagNorm=sqrt(MagNorm); NormDir.x=NormDir.x/MagNorm; NormDir.y=NormDir.y/MagNorm; NormDir.z=NormDir.z/MagNorm;}
 
-				double MagTang=TangDir.x*TangDir.x+TangDir.y*TangDir.y+TangDir.z*TangDir.z;
+				/*double MagTang=TangDir.x*TangDir.x+TangDir.y*TangDir.y+TangDir.z*TangDir.z;
 				if(MagTang){MagTang=sqrt(MagTang); TangDir.x=TangDir.x/MagTang; TangDir.y=TangDir.y/MagTang; TangDir.z=TangDir.z/MagTang;}
 
 				double MagBitang=BitangDir.x*BitangDir.x+BitangDir.y*BitangDir.y+BitangDir.z*BitangDir.z;
-				if(MagBitang){MagBitang=sqrt(MagBitang); BitangDir.x=BitangDir.x/MagBitang; BitangDir.y=BitangDir.y/MagBitang; BitangDir.z=BitangDir.z/MagBitang;}
+				if(MagBitang){MagBitang=sqrt(MagBitang); BitangDir.x=BitangDir.x/MagBitang; BitangDir.y=BitangDir.y/MagBitang; BitangDir.z=BitangDir.z/MagBitang;}*/
 
 				double NormProdVel=Sum.x*NormDir.x+Sum.y*NormDir.y+Sum.z*NormDir.z;
-				double TangProdVel=Sum.x*TangDir.x+Sum.y*TangDir.y+Sum.z*TangDir.z;
-				double BitangProdVel=Sum.x*BitangDir.x+Sum.y*BitangDir.y+Sum.z*BitangDir.z;
+				//double TangProdVel=Sum.x*TangDir.x+Sum.y*TangDir.y+Sum.z*TangDir.z;
+				//double BitangProdVel=Sum.x*BitangDir.x+Sum.y*BitangDir.y+Sum.z*BitangDir.z;
 
 				NormVel.x=NormDir.x*NormProdVel;
 				NormVel.y=NormDir.y*NormProdVel;
@@ -1707,16 +1707,15 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 	  double dcdn=norm.x*rshiftpos.x+norm.z*rshiftpos.z;//+norm.y*rshiftpos.y;
 	  //double dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
 
-    /*if(divrp1<freesurface){
+    if(divrp1<freesurface){
 			dcdn-=beta0;
-			double factorNormShift=alphashift;
+			double factorNormShift=0;//alphashift;
       rshiftpos.x=dcds*tang.x+(dcdn*norm.x)*factorNormShift;//+dcdb*bitang.x;
       //if(!simulate2d) rshiftpos.y=dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift;
       rshiftpos.z=dcds*tang.z+(dcdn*norm.z)*factorNormShift;//+dcdb*bitang.z;
     }
-    else*/ if(divrp1<=(freesurface+ShiftOffset)){ 
-			if(divrp1<freesurface) dcdn-=beta0;
-			else dcdn-=beta1;
+    else if(divrp1<=(freesurface+ShiftOffset)){ 
+			dcdn-=beta1;
 			double factorNormShift=alphashift;
 			rshiftpos.x=dcds*tang.x+dcdn*norm.x*factorNormShift;//+dcdb*bitang.x;
       //if(!simulate2d) rshiftpos.y=dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift;
@@ -2323,22 +2322,36 @@ void MoveMatBound(byte periactive,bool simulate2d,unsigned np,unsigned ini,tmatr
   }
 }
 
-__global__ void KerPistonCorner(const unsigned npb,double2 *posxy,const double *posz,const unsigned *idp,double3 *mirrorpos,word *code,const double pistonposX,const double pistonposZ,const double pistonYmin,const double pistonYmax,const bool simulate2d,double3 *velrhop,const float pistonvelx)
+__global__ void KerPistonCorner(const unsigned npb,double2 *posxy,const double *posz,const unsigned *idp,double3 *mirrorpos,word *code,const double pistonposX,const double pistonposZ,const double pistonYmin,const double pistonYmax,const bool simulate2d,double3 *velrhop,const float pistonvelx,unsigned *mirrorCell)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
 		if(CODE_GetType(code[p1])!=CODE_TYPE_MOVING){
 			const unsigned idp1=idp[p1];
 			double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
-			double x2=pistonposX-posdp1.x; x2=x2*x2;
-			if(x2<=6*CTE.fourh2){
- 				if(posdp1.x<pistonposX){
+			if(posdp1.x<pistonposX){
  					mirrorpos[idp1].x=2.0*pistonposX-posxy[p1].x;
+					mirrorpos[idp1].z=2.0*pistonposZ-posz[p1];
 					velrhop[p1].x=pistonvelx;
-  			}
- 				else{
+
+					double dx=mirrorpos[idp1].x-CTE.maprealposminx;
+					double dy=mirrorpos[idp1].y-CTE.maprealposminy;
+					double dz=mirrorpos[idp1].z-CTE.maprealposminz;
+					unsigned cx=unsigned(dx/CTE.scell),cy=unsigned(dy/CTE.scell),cz=unsigned(dz/CTE.scell);
+					mirrorCell[idp1]=PC__Cell(CTE.cellcode,cx,cy,cz);
+  		}
+ 			else{
+				double x2=pistonposX-posdp1.x; x2=x2*x2;
+				if(x2<=CTE.fourh2){
 					mirrorpos[idp1].x=posxy[p1].x;
+					mirrorpos[idp1].z=2.0*pistonposZ-posz[p1];
 					velrhop[p1].x=0;
+
+					double dx=mirrorpos[idp1].x-CTE.maprealposminx;
+					double dy=mirrorpos[idp1].y-CTE.maprealposminy;
+					double dz=mirrorpos[idp1].z-CTE.maprealposminz;
+					unsigned cx=unsigned(dx/CTE.scell),cy=unsigned(dy/CTE.scell),cz=unsigned(dz/CTE.scell);
+					mirrorCell[idp1]=PC__Cell(CTE.cellcode,cx,cy,cz);
 				}
 			}
 		}
@@ -2348,11 +2361,12 @@ __global__ void KerPistonCorner(const unsigned npb,double2 *posxy,const double *
 //==============================================================================
 /// Recalculate mirror points for wavegen boudary
 //==============================================================================
-void PistonCorner(const unsigned bsbound,const unsigned npb,double2 *posxy,const double *posz,const unsigned *idp,double3 *mirrorpos,word *code,const double pistonposX,const double pistonposZ,const double pistonYmin,const double pistonYmax,const bool simulate2d,double3 *velrhop,const float pistonvelx)
+void PistonCorner(const unsigned bsbound,const unsigned npb,double2 *posxy,const double *posz,const unsigned *idp,double3 *mirrorpos,word *code,const double pistonposX,const double pistonposZ,const double pistonYmin,const double pistonYmax,const bool simulate2d,double3 *velrhop,const float pistonvelx,unsigned *mirrorCell)
 {
 	dim3 sgridb=GetGridSize(npb,bsbound);
-	KerPistonCorner <<<sgridb,bsbound>>> (npb,posxy,posz,idp,mirrorpos,code,pistonposX,pistonposZ,pistonYmin,pistonYmax,simulate2d,velrhop,pistonvelx);
+	KerPistonCorner <<<sgridb,bsbound>>> (npb,posxy,posz,idp,mirrorpos,code,pistonposX,pistonposZ,pistonYmin,pistonYmax,simulate2d,velrhop,pistonvelx,mirrorCell);
 }
+
 //##############################################################################
 //# Kernels for Floating bodies.
 //##############################################################################

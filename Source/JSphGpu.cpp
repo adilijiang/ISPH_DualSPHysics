@@ -1061,8 +1061,8 @@ void JSphGpu::RunMotion(double stepdt){
       }
     }
 		PistonPosX+=mvPistonX;
-		cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Poszg,Idpg,MirrorPosg,Codeg,PistonPosX,PistonPosZ,PistonYmin,PistonYmax,Simulate2D,Velocity,pistonvel);
-	}
+		cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Poszg,Idpg,MirrorPosg,Codeg,PistonPosX,PistonPosZ,PistonYmin,PistonYmax,Simulate2D,Velocity,pistonvel,MirrorCellg);
+ 	}
   TmgStop(Timers,TMG_SuMotion);
 }
 
