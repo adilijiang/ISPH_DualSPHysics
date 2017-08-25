@@ -433,7 +433,7 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
 	CheckCudaError(met,"Failed checkin.");
 
 	//-Interaccion Fluid-Fluid/Bound & Bound-Fluid.
-  cusph::Interaction_Forces(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velocity,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,taog,BoundaryFS,FreeSurface,PistonPosX,NULL,NULL,Pressureg,PistonVel);	
+  cusph::Interaction_Forces(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velocity,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,taog,BoundaryFS,FreeSurface,PistonPosX,NULL,NULL,Pressureg,PistonVel,RightWall);	
 	if(TSlipCond&&tinter==2){
 		//cusph::ResetBoundVel(Npb,bsbound,Velocity,VelocityPre);
 		ArraysGpu->Free(dWyCorrg);	    dWyCorrg=NULL;
@@ -727,13 +727,13 @@ void JSphGpuSingle::FinishRun(bool stop){
 //==============================================================================
 /// Irelation - Dummy particles' respective Wall particle
 //==============================================================================
-void JSphGpuSingle::MirrorBoundary(){
+/*void JSphGpuSingle::MirrorBoundary(){
 	const char met[]="MirrorBoundary";
   const unsigned bsbound=BlockSizes.forcesbound;
 	const bool wavegen=(WaveGen? true:false);
   cusph::MirrorBoundary(Simulate2D,bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,MirrorPosg,MirrorCellg,wavegen,PistonPosX);
   CheckCudaError(met,"findIrelation");
-}
+}*/
 
 //==============================================================================
 /// Initial advection
@@ -783,7 +783,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   const unsigned npb=Npb;
   const unsigned npbok=NpbOk;
   const unsigned npf=np-npb;
-	const unsigned PPEDim=npbok+npf;
+	const unsigned PPEDim=npf;
   const unsigned bsbound=BlockSizes.forcesbound;
   const unsigned bsfluid=BlockSizes.forcesfluid;
 	unsigned Nnz=0;
@@ -800,9 +800,9 @@ void JSphGpuSingle::SolvePPE(double dt){
   cudaMemset(colIndg,0,sizeof(int)*Nnz);
 	cudaMemset(ag,0,sizeof(double)*Nnz);
 
-  cusph::PopulateMatrix(TKernel,Schwaiger,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velocity,dWxCorrg,dWyCorrg,dWzCorrg,ag,bg,rowIndg,colIndg,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLSg,dt,sumFrg,taog,BoundaryFS,Pressureg,PistonPosX,PistonVel);
+  cusph::PopulateMatrix(TKernel,Schwaiger,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velocity,dWxCorrg,dWyCorrg,dWzCorrg,ag,bg,rowIndg,colIndg,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLSg,dt,sumFrg,taog,BoundaryFS,Pressureg,PistonPosX,PistonVel,RightWall);
 	
-	/*if(count>320){
+	/*std::cout<<Nnz<<"\n";
 		unsigned *rowInd=new unsigned[PPEDim]; cudaMemcpy(rowInd,rowIndg,sizeof(unsigned)*PPEDim,cudaMemcpyDeviceToHost);
 		unsigned *colInd=new unsigned[Nnz]; cudaMemcpy(colInd,colIndg,sizeof(unsigned)*Nnz,cudaMemcpyDeviceToHost);
 		double *b=new double[PPEDim]; cudaMemcpy(b,bg,sizeof(double)*PPEDim,cudaMemcpyDeviceToHost);
@@ -821,25 +821,16 @@ void JSphGpuSingle::SolvePPE(double dt){
 
 			FileOutput.open(TimeFile.c_str());
 
-		/*for(int i=0;i<npbok;i++){
-			FileOutput << fixed << setprecision(19) << "particle "<< Idpc[i] << "\t Order " << i << "\t b " << b[i] << "\n";
-			for(int j=rowInd[i];j<rowInd[i+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j]  << "\t"<<Idpc[colInd[j]]<< "\n";
-		}
-
 		for(int i=npb;i<np;i++){
-			if(Idpc[i]==4217){
-			FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << (i-npb)+npbok << "\t b " << b[(i-npb)+npbok] << "\n";
-			for(int j=rowInd[(i-npb)+npbok];j<rowInd[(i-npb)+npbok+1];j++){
-				if(colInd[j]-npbok<0) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\t"<<Idpc[colInd[j]]<<"\n";
-				else FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\t"<<Idpc[(colInd[j]-npbok)+npb]<<"\n";
-			}
-			break;
+			FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << (i-npb) << "\t b " << b[(i-npb)] << "\n";
+			for(int j=rowInd[(i-npb)];j<rowInd[(i-npb)+1];j++){
+				FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\t"<<Idpc[colInd[j]+npb]<<"\n";
 			}
 		}
 		FileOutput.close();
 		
 		delete[] rowInd; delete[] colInd; delete[] b; delete[]a; delete[] Idpc;
-	}
+	
 	count++;*/
 
 	if(PeriActive){

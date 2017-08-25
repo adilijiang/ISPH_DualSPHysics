@@ -112,7 +112,7 @@ void JSph::InitVars(){
   Tolerance=0;
 	VariableTimestep=false;
   StrongConnection=0; JacobiWeight=0; Presmooth=0; Postsmooth=0; CoarseCutoff=0;
-	PistonPosX=0; PistonPosZ=0; PistonVel=0;
+	PistonPosX=0; PistonPosZ=0; PistonVel=0; RightWall;
 	NegativePressureBound=true;
   Visco=0; ViscoBoundFactor=1;
   UseDEM=false;  //(DEM)
@@ -441,7 +441,7 @@ void JSph::LoadCaseConfig(){
 		BetaShift1=eparms.GetValueDouble("BetaShift1",true,0.0f);
 		AlphaShift=eparms.GetValueDouble("AlphaShift",true,0.0f);
   }
-
+	RightWall=eparms.GetValueDouble("RightWall",true,0.5f);
   FreeSurface=eparms.GetValueFloat("FreeSurface",true,1.6f);
 	BoundaryFS=eparms.GetValueFloat("BoundaryFS",true,1.4f);
 
@@ -560,9 +560,10 @@ void JSph::LoadCaseConfig(){
   LoadMkInfo(&parts);
 	
   //-Configuration of WaveGen.
+	PistonPosX=eparms.GetValueDouble("PistonPosX",true,0.0f)+0.5*Dp;
   if(xml.GetNode("case.execution.special.wavepaddles",false)){
     WaveGen=new JWaveGen(Log,DirCase,&xml,"case.execution.special.wavepaddles");
-		PistonPosX=eparms.GetValueDouble("PistonPosX",true,0.0f)+0.5*Dp;
+		
 		PistonPosZ=eparms.GetValueDouble("PistonPosZ",true,0.0f)+0.5*Dp;
 		PistonYmin=eparms.GetValueDouble("PistonYmin",true,0.0f)+0.5*Dp;
 		PistonYmax=eparms.GetValueDouble("PistonYmax",true,0.0f)-0.5*Dp;
