@@ -1053,15 +1053,16 @@ void JSphGpu::RunMotion(double stepdt){
         tfloat3 mvvel=ToTFloat3(mvsimple/TDouble3(stepdt));
 				mvPistonX=mvsimple.x;
 				pistonvel=mvvel.x;
-        cusph::MoveLinBound(true,PeriActive,nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velocity,Codeg,Idpg,MirrorPosg,MirrorCellg);
+        //cusph::MoveLinBound(true,PeriActive,nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velocity,Codeg,Idpg,MirrorPosg,MirrorCellg);
       }
       else{
         mvmatrix=OrderCode(mvmatrix);
         //cusph::MoveMatBound(PeriActive,Simulate2D,nparts,idbegin-CaseNfixed,mvmatrix,stepdt,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
       }
     }
+		PistonVel=pistonvel;
 		PistonPosX+=mvPistonX;
-		cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Poszg,Idpg,MirrorPosg,Codeg,PistonPosX,PistonPosZ,PistonYmin,PistonYmax,Simulate2D,Velocity,pistonvel,MirrorCellg);
+		//cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Poszg,Idpg,MirrorPosg,Codeg,PistonPosX,PistonPosZ,PistonYmin,PistonYmax,Simulate2D,Velocity,pistonvel,MirrorCellg);
  	}
   TmgStop(Timers,TMG_SuMotion);
 }
@@ -1106,7 +1107,7 @@ void JSphGpu::MatrixASetup(const unsigned np,const unsigned npb,const unsigned n
 	numFreeSurface=NumFreeSurfaceCPU[0];
 }
 
-//===============================================================================
+/*//===============================================================================
 ///Shift
 //===============================================================================
 void JSphGpu::Shift(double dt,const unsigned bsfluid){
@@ -1128,7 +1129,7 @@ void JSphGpu::Shift(double dt,const unsigned bsfluid){
   ArraysGpu->Free(movxyg);   movxyg=NULL;
   ArraysGpu->Free(movzg);    movzg=NULL;
   TmgStop(Timers,TMG_SuComputeStep);
-}
+}*/
 
 //==============================================================================
 /// Variable timestep

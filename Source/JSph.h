@@ -189,6 +189,7 @@ protected:
 	bool NegativePressureBound; //Allow negative pressure in the boundary
 	bool VariableTimestep;
 
+	double PistonVel;
 	double PistonPosX; //Starting x-position of piston for wave generation
 	double PistonPosZ; //Bottom of piston for wave generation
 	double PistonYmin; //Min y-position of piston for wave generation
