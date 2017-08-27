@@ -650,7 +650,7 @@ void JSphGpu::ConfigBlockSizes(bool usezone,bool useperi){
     //-Collects kernel information.
     StKerInfo kerinfo;
     memset(&kerinfo,0,sizeof(StKerInfo));
-    cusph::Interaction_Forces(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,0,0,0,0,INTER_Forces,100,50,20,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Simulate2D,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&kerinfo,NULL,NULL,NULL,NULL);
+    cusph::Interaction_Forces(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,0,0,0,0,INTER_Forces,100,50,20,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Simulate2D,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&kerinfo,NULL,NULL,NULL,NULL,TFloat3(0));
     //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&kerinfo);
     //Log->Printf("====> bound -> r:%d  bs:%d  bsmax:%d",kerinfo.forcesbound_rg,kerinfo.forcesbound_bs,kerinfo.forcesbound_bsmax);
     //Log->Printf("====> fluid -> r:%d  bs:%d  bsmax:%d",kerinfo.forcesfluid_rg,kerinfo.forcesfluid_bs,kerinfo.forcesfluid_bsmax);
@@ -890,7 +890,6 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
 		dWyCorrg=ArraysGpu->ReserveFloat3();	cudaMemset(dWyCorrg,0,sizeof(float3)*npf); 
 		cudaMemset(dWzCorrg,0,sizeof(double3)*npf);
 		Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
-		cudaMemset(MLSg,0,sizeof(double4)*npb);
 		cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
 		cudaMemset(Pressureg,0,sizeof(double)*np);
 		if(Schwaiger){
@@ -931,9 +930,9 @@ void JSphGpu::ComputeSymplecticPre(double dt){
   double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*Np);
   double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*Np);
 	//-Update velocity
-  cusph::ComputeStepSymplecticPre(WithFloating,Np,Npb,VelocityPre,Aceg,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velocity);
-  ArraysGpu->Free(movxyg);   movxyg=NULL;
-  ArraysGpu->Free(movzg);    movzg=NULL;
+  cusph::ComputeStepSymplecticPre(BlockSizes.forcesfluid,WithFloating,Np,Npb,Aceg,dt,Codeg,Velocity);
+ ArraysGpu->Free(movxyg);   movxyg=NULL;
+ ArraysGpu->Free(movzg);    movzg=NULL;
   TmgStop(Timers,TMG_SuComputeStep);
 }
 
@@ -950,12 +949,12 @@ void JSphGpu::ComputeSymplecticCorr(double dt){
   double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*Np);
   //-Calcula desplazamiento, velocidad y densidad.
   //-Computes displacement, velocity and density.
-  const double dt05=dt*.5;
+  const double dt05=dt*0.5;
 	const bool wavegen=(WaveGen? true:false);
-  cusph::ComputeStepSymplecticCor(WithFloating,Np,Npb,VelocityPre,Aceg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velocity,Gravity,rowIndg,Posxyg,Poszg,Idpg,MirrorPosg,wavegen,DampingPointX,DampingLengthX);
+  cusph::ComputeStepSymplecticCor(BlockSizes.forcesfluid,WithFloating,Np,Npb,VelocityPre,Aceg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velocity,Gravity,rowIndg,Posxyg,Poszg,Idpg,MirrorPosg,wavegen,DampingPointX,DampingLengthX);
   //-Aplica desplazamiento a las particulas fluid no periodicas.
   //-Applies displacement to non-periodic fluid particles.
-  cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
+  cusph::ComputeStepPos2(BlockSizes.forcesfluid,PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
   //-Libera memoria asignada al desplazamiento.
   //-Releases memory allocated for diplacement.
   ArraysGpu->Free(movxyg);   movxyg=NULL;
@@ -1107,7 +1106,7 @@ void JSphGpu::MatrixASetup(const unsigned np,const unsigned npb,const unsigned n
 	numFreeSurface=NumFreeSurfaceCPU[0];
 }
 
-/*//===============================================================================
+//===============================================================================
 ///Shift
 //===============================================================================
 void JSphGpu::Shift(double dt,const unsigned bsfluid){
@@ -1123,13 +1122,13 @@ void JSphGpu::Shift(double dt,const unsigned bsfluid){
   cusph::ComputeShift(WithFloating,bsfluid,Np,Npb,ShiftPosg,Codeg,movxyg,movzg);
   //-Aplica desplazamiento a las particulas fluid no periodicas.
   //-Applies displacement to non-periodic fluid particles.
-  cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
+  cusph::ComputeStepPos2(BlockSizes.forcesfluid,PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
   //-Libera memoria asignada al desplazamiento.
   //-Releases memory allocated for diplacement.
   ArraysGpu->Free(movxyg);   movxyg=NULL;
   ArraysGpu->Free(movzg);    movzg=NULL;
   TmgStop(Timers,TMG_SuComputeStep);
-}*/
+}
 
 //==============================================================================
 /// Variable timestep
