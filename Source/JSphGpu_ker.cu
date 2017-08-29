@@ -1320,7 +1320,7 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 
     if(divrp1<freesurface){
 			dcdn-=beta0;
-			double factorNormShift=alphashift;
+			double factorNormShift=0;//alphashift;
       rshiftpos.x=dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*factorNormShift;
       if(!simulate2d) rshiftpos.y=dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift;
       rshiftpos.z=dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*factorNormShift;
@@ -1738,16 +1738,6 @@ template<bool periactive> __global__ void KerMoveLinBound(unsigned n,unsigned in
       //-Calcula velocidad.
 	  //-Computes velocity.
       velrhop[pid]=make_double3(mvvel.x,mvvel.y,mvvel.z);
-
-			unsigned idp1=idpg[pid];
-			mirrorPos[idp1].x+=mvpos.x;
-			mirrorPos[idp1].y+=mvpos.y;
-			mirrorPos[idp1].z+=mvpos.z;
-			double dx=mirrorPos[idp1].x-CTE.maprealposminx;
-			double dy=mirrorPos[idp1].y-CTE.maprealposminy;
-			double dz=mirrorPos[idp1].z-CTE.maprealposminz;
-			unsigned cx=unsigned(dx/CTE.scell),cy=unsigned(dy/CTE.scell),cz=unsigned(dz/CTE.scell);
-			mirrorCell[idp1]=PC__Cell(CTE.cellcode,cx,cy,cz);
     }
   }
 }
