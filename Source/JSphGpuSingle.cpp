@@ -434,9 +434,6 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
 
 	//-Interaccion Fluid-Fluid/Bound & Bound-Fluid.
   cusph::Interaction_Forces(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velocity,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,taog,BoundaryFS,FreeSurface,PistonPosX,NULL,NULL,Pressureg,PistonVel,RightWall,Gravity);	
-	if(tinter==2){
-		ArraysGpu->Free(dWyCorrg);	    dWyCorrg=NULL;
-	}
 	
   //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
   //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
@@ -862,7 +859,7 @@ void JSphGpuSingle::RunShifting(double dt){
   cudaMemset(ShiftPosg,0,sizeof(double3)*npf);
 	cudaMemset(Tensileg,0,sizeof(double3)*npf);
 	cudaMemset(dWxCorrg,0,sizeof(double3)*npf);
-	dWyCorrg=ArraysGpu->ReserveFloat3();	cudaMemset(dWyCorrg,0,sizeof(float3)*npf); 
+	cudaMemset(dWyCorrg,0,sizeof(double3)*npf); 
 	cudaMemset(dWzCorrg,0,sizeof(double3)*npf);
 	cudaMemset(MLSg,0,sizeof(double4)*npb);
   cudaMemset(Aceg,0,sizeof(double3)*npf);
@@ -901,6 +898,5 @@ void JSphGpuSingle::RunShifting(double dt){
   ArraysGpu->Free(VelrhopPreg);   VelrhopPreg=NULL;
 	ArraysGpu->Free(VelocityPre);   VelocityPre=NULL;
   ArraysGpu->Free(Divrg);         Divrg=NULL;
-	ArraysGpu->Free(dWyCorrg);	    dWyCorrg=NULL;
 }
 

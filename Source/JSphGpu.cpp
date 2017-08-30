@@ -146,6 +146,7 @@ void JSphGpu::FreeGpuMemoryFixed(){
 	if(taog) cudaFree(taog);												taog=NULL;
 	if(Aceg)cudaFree(Aceg);													Aceg=NULL;
 	if(dWxCorrg)cudaFree(dWxCorrg);									dWxCorrg=NULL;
+	if(dWyCorrg)cudaFree(dWyCorrg);									dWyCorrg=NULL;
 	if(dWzCorrg)cudaFree(dWzCorrg);									dWzCorrg=NULL;
 	if(ShiftPosg)cudaFree(ShiftPosg);								ShiftPosg=NULL;
 	if(Tensileg)cudaFree(Tensileg);								Tensileg=NULL;
@@ -181,6 +182,7 @@ void JSphGpu::AllocGpuMemoryFixed(){
   m=sizeof(unsigned)*PPEMem;	cudaMalloc((void**)&colIndg,m);						MemGpuFixed+=m;
 	m=sizeof(double3)*npf;			cudaMalloc((void**)&Aceg,m);							MemGpuFixed+=m;
 															cudaMalloc((void**)&dWxCorrg,m);					MemGpuFixed+=m;
+															cudaMalloc((void**)&dWyCorrg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&dWzCorrg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&ShiftPosg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&Tensileg,m);					MemGpuFixed+=m;
@@ -300,11 +302,11 @@ void JSphGpu::AllocGpuMemoryParticles(unsigned np,float over){
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_2B,2);  //-code*2
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,5);  //-idp*2,dcell*2,divr+npfout
 	ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,3);  //-b,pressure
-  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,1); //-Saving/dWyCorrg
+  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,1); //-Saving
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,2); //-velrhop,velrhoppre
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,3);  //-posz*2,poszpre
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,4); //-posxy*2,posxypre+npfout
-  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_24B,4); //VelocityDouble
+  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_24B,4); //Velocity,VelocityPre
   if(CaseNfloat){
     ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,4);  //-FtMasspg
   }
@@ -887,7 +889,7 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
   //-Allocates memory.
   if(tinter==1){
 		cudaMemset(dWxCorrg,0,sizeof(double3)*npf);
-		dWyCorrg=ArraysGpu->ReserveFloat3();	cudaMemset(dWyCorrg,0,sizeof(float3)*npf); 
+		cudaMemset(dWyCorrg,0,sizeof(double3)*npf); 
 		cudaMemset(dWzCorrg,0,sizeof(double3)*npf);
 		Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
 		cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
