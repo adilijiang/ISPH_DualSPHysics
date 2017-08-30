@@ -742,7 +742,8 @@ void JSphGpuSingle::InitAdvection(double dt){
     double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*np);
     
     cusph::ComputeRStar(BlockSizes.forcesfluid,WithFloating,npf,npb,VelocityPre,dt,Codeg,movxyg,movzg);
-	  cusph::ComputeStepPos2(BlockSizes.forcesfluid,PeriActive,WithFloating,np,npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
+		cusph::Moveparticles(BlockSizes.forcesfluid,np,npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg);
+	  //cusph::ComputeStepPos2(BlockSizes.forcesfluid,PeriActive,WithFloating,np,npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
 
     ArraysGpu->Free(movxyg);   movxyg=NULL;
     ArraysGpu->Free(movzg);    movzg=NULL; 

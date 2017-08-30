@@ -956,7 +956,8 @@ void JSphGpu::ComputeSymplecticCorr(double dt){
   cusph::ComputeStepSymplecticCor(BlockSizes.forcesfluid,WithFloating,Np,Npb,VelocityPre,Aceg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velocity,Gravity,rowIndg,Posxyg,Poszg,Idpg,MirrorPosg,wavegen,DampingPointX,DampingLengthX);
   //-Aplica desplazamiento a las particulas fluid no periodicas.
   //-Applies displacement to non-periodic fluid particles.
-  cusph::ComputeStepPos2(BlockSizes.forcesfluid,PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
+	cusph::Moveparticles(BlockSizes.forcesfluid,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg);
+  //cusph::ComputeStepPos2(BlockSizes.forcesfluid,PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
   //-Libera memoria asignada al desplazamiento.
   //-Releases memory allocated for diplacement.
   ArraysGpu->Free(movxyg);   movxyg=NULL;

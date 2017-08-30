@@ -1666,6 +1666,38 @@ void ComputeStepPos2(const unsigned bsfluid,byte periactive,bool floating,unsign
   }
 }
 
+//------------------------------------------------------------------------------
+/// Actualizacion de posicion de particulas segun desplazamiento.
+/// Updates particle position according to displacement.
+//------------------------------------------------------------------------------
+__global__ void KerMoveparticles(unsigned n,unsigned pini
+  ,const double2 *posxypre,const double *poszpre,const double2 *movxy,const double *movz
+  ,double2 *posxy,double *posz)
+{
+  unsigned pt=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(pt<n){
+    unsigned p=pt+pini;
+    posxy[p].x=posxypre[p].x+movxy[p].x;
+		posxy[p].y=posxypre[p].y+movxy[p].y;
+		posz[p]=poszpre[p]+movz[p];
+  }
+}
+
+//==============================================================================
+/// Actualizacion de posicion de particulas segun desplazamiento.
+/// Updates particle position according to displacement.
+//==============================================================================
+void Moveparticles(const unsigned bsfluid,unsigned np,unsigned npb
+  ,const double2 *posxypre,const double *poszpre,const double2 *movxy,const double *movz
+  ,double2 *posxy,double *posz)
+{
+  const unsigned pini=npb;
+  const unsigned npf=np-pini;
+  if(npf){
+    dim3 sgrid=GetGridSize(npf,bsfluid);
+		KerMoveparticles <<<sgrid,bsfluid>>> (npf,pini,posxypre,poszpre,movxy,movz,posxy,posz);
+  }
+}
 
 //##############################################################################
 //# Kernels para Motion

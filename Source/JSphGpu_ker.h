@@ -135,6 +135,7 @@ void ComputeStepSymplecticCor(const unsigned bsfluid,bool floating,unsigned np,u
 //# Kernels for ComputeStep (position)
 void ComputeStepPos(byte periactive,bool floating,unsigned np,unsigned npb,const double2 *movxy,const double *movz,double2 *posxy,double *posz,unsigned *dcell,word *code);
 void ComputeStepPos2(const unsigned bsfluid,byte periactive,bool floating,unsigned np,unsigned npb,const double2 *posxypre,const double *poszpre,const double2 *movxy,const double *movz,double2 *posxy,double *posz,unsigned *dcell,word *code);
+void Moveparticles(const unsigned bsfluid,unsigned np,unsigned npb,const double2 *posxypre,const double *poszpre,const double2 *movxy,const double *movz,double2 *posxy,double *posz);
 
 //# Kernels para Motion
 //# Kernels for Motion
