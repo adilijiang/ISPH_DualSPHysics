@@ -218,6 +218,9 @@ void ComputeShift(bool floating,const unsigned bsfluid,unsigned np,unsigned npb
 void CorrectShiftVelocity(const bool wavegen,TpKernel tkernel,TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
 	,const unsigned *dcell,const double2 *posxy,const double *posz,double3 *velrhop,const double3 *dwxCorr,const double3 *dwyCorr,const double3 *dwzCorr
   ,const unsigned *idp,const float *divr,const word *code,const float boundaryfs,double3 *shiftpos,double3 *shftvel,const double dampingpoint,const double dampinglength,const double PistonPos,const double PistonVel,const double RightWall,const tfloat3 gravity,const double *pressure);
+
+void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double *X,const double *B,const unsigned *rowInd,const unsigned *col,const unsigned Nnz,const unsigned n);
+
 }
 #endif
 

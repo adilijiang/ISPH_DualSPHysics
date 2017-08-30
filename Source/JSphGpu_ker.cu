@@ -3252,4 +3252,78 @@ void CorrectShiftVelocity(const bool wavegen,TpKernel tkernel,TpCellMode cellmod
 	}
 }
 
+__global__ void MakeJacobi
+  (double *M,const double *A,const unsigned *rowInd,const unsigned n)
+{
+  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+		const unsigned diag=rowInd[p];
+		M[p]=A[diag];
+	}
+}
+
+__global__ void AVecMult
+  (double *AVec,const double *A,const double *Vec,const unsigned *rowInd,const unsigned *col,const unsigned n)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+		unsigned row_start=rowInd[n];
+		unsigned row_end=rowInd[n+1];
+		double temp=0;
+		for(int index=row_start;index<row_end;index++){
+			unsigned column=col[index];
+			temp+=A[index]*Vec[column];
+		}
+		AVec[n]=temp;
+	}
+}
+
+__global__ void FindResidual
+  (double *residual,const double *Vec1,const double value,const double *Vec2,const unsigned n)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+		residual[n]=Vec1[n]-value*Vec2[n];
+	}
+}
+
+__global__ void VecVecMult
+  (double &value,const double *Vec1,const double *Vec2,const unsigned n)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<1){
+		temp=0;
+		for(int i=0;i<n;i++){
+			residual[n]=Vec1[n]-value*Vec2[n];
+		}
+		value
+	}
+}
+
+void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double *X,const double *B,const unsigned *rowInd,const unsigned *col,const unsigned Nnz,const unsigned n)
+{
+	dim3 grid=GetGridSize(n,SPHBSIZE);
+	double *r; cudaMalloc((void**)&r,sizeof(double)*n); cudaMemset(r,0,sizeof(double)*n);
+	double *r0; cudaMalloc((void**)&r0,sizeof(double)*n); cudaMemset(r0,0,sizeof(double)*n);
+	double *v; cudaMalloc((void**)&v,sizeof(double)*n); cudaMemset(v,0,sizeof(double)*n);
+	double *p; cudaMalloc((void**)&p,sizeof(double)*n); cudaMemset(p,0,sizeof(double)*n);
+	double *pI; cudaMalloc((void**)&pI,sizeof(double)*n); cudaMemset(pI,0,sizeof(double)*n);
+	double *s; cudaMalloc((void**)&s,sizeof(double)*n); cudaMemset(s,0,sizeof(double)*n);
+	double *sI; cudaMalloc((void**)&sI,sizeof(double)*n); cudaMemset(sI,0,sizeof(double)*n);
+	double *AX; cudaMalloc((void**)&AX,sizeof(double)*n); cudaMemset(AX,0,sizeof(double)*n);
+	double *M; cudaMalloc((void**)&M,sizeof(double)*n); cudaMemset(M,0,sizeof(double)*n);
+	double *t; cudaMalloc((void**)&t,sizeof(double)*n); cudaMemset(t,0,sizeof(double)*n);
+
+	double *t; cudaMalloc((void**)&t,sizeof(double)*n); cudaMemset(t,0,sizeof(double)*n);
+	double temp=0; double rho0=1.0; double alpha=1.0; double omega=1.0; double rho=0;
+
+	MakeJacobi<<<grid,SPHBSIZE>>> (M,A,rowInd,n); //M=A_diag
+	AVecMult<<<grid,SPHBSIZE>>> (AX,A,X,rowInd,col,n); //AX=AX
+	FindResidual<<<grid,SPHBSIZE>>> (r,B,1.0,AX,n); //r=B-AX
+	cudaMemcpy(r0,r,sizeof(double)*n,cudaMemcpyDeviceToDevice); //r0=r
+
+	for(int iter=1;iter<=iterMax;iter++){
+		VecVecMult<<<1,1>>> (rho,r0,r,n); //rho=r0.r
+	}
+}
 }
