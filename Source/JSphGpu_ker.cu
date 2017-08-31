@@ -3308,11 +3308,20 @@ __global__ void dotProductAdd
 }
 
 __global__ void VecVecModAdd
-  (double *result,const double *Vec1,const double *Vec2,const double var1,const double var2, const unsigned n)
+  (double *result,const double *Vec1,const double *Vec2,const double *Vec3,const double var1,const double var2, const unsigned n)
 {
 	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
-			result[p]=Vec1[p]+var1*(Vec2[p]+var2);
+			result[p]=Vec1[p]+var1*(Vec2[p]+var2*Vec3[p]);
+	}
+}
+
+__global__ void VecVecModAdd
+  (double *result,const double *Vec1,const double *Vec2,const double var1, const unsigned n)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+			result[p]=Vec1[p]+var1*Vec2[p];
 	}
 }
 
@@ -3321,7 +3330,8 @@ __global__ void inverse
 {
 	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
-		inverse[p]=Vec1[p]/(Vec2[p]+1.0e-15);
+		if(Vec2[p]) inverse[p]=Vec1[p]/Vec2[p];
+		else inverse[p]=0;
 	}
 }
 
@@ -3342,7 +3352,6 @@ void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double 
 	double residual=0;
 	double norm2_s0=0;
 	double norm2_r0=0;
-	double *output=new double[n];
 
 	double *r; cudaMalloc((void**)&r,sizeof(double)*n); cudaMemset(r,0,sizeof(double)*n);
 	double *rbar; cudaMalloc((void**)&rbar,sizeof(double)*n); cudaMemset(rbar,0,sizeof(double)*n);
@@ -3371,6 +3380,7 @@ void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double 
 
 	for(int iter=1;iter<=iterMax;iter++){
 		iterNumber=iter;
+
 		dotProductMult<<<grid,SPHBSIZE>>>(dotProdTemp,rbar,r,n); //rho=rbar.r multiply
 		dotProductAdd<<<1,1>>>(values,4,dotProdTemp,n); //rho=rbar.r add
 		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
@@ -3380,12 +3390,10 @@ void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double 
 		else{
 			valuesH[5]=(valuesH[4]/(valuesH[1]+1.0e-15))*(valuesH[2]/(valuesH[3]+1.0e-15)); //beta=(rho/rho0)*(alpha/omega)
 			cudaMemcpy(values,valuesH,sizeof(double)*7,cudaMemcpyHostToDevice);
-			//double *ptemp; cudaMalloc((void**)&ptemp,sizeof(double)*n); cudaMemcpy(ptemp,p,sizeof(double)*n,cudaMemcpyDeviceToDevice);
-			VecVecModAdd<<<grid,SPHBSIZE>>>(p,r,p,valuesH[5],-valuesH[3],n); //p=r+beta*(p-omega)
+			VecVecModAdd<<<grid,SPHBSIZE>>>(p,r,p,v,valuesH[5],-valuesH[3],n); //p=r+beta*(p-omega*v)
 		}
 
 		inverse<<<grid,SPHBSIZE>>>(pI,p,M,n); //pI=p/M
-
 		AVecMult<<<grid,SPHBSIZE>>>(v,A,pI,rowInd,col,n); //v=ApI
 
 		dotProductMult<<<grid,SPHBSIZE>>>(dotProdTemp,rbar,v,n); //temp=rbar.v multiply
@@ -3395,7 +3403,7 @@ void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double 
 		valuesH[2]=valuesH[4]/(valuesH[0]+1.0e-15); //alpha=rho/(rbar.v)
 		cudaMemcpy(values,valuesH,sizeof(double)*7,cudaMemcpyHostToDevice);
 
-		VecVecModAdd<<<grid,SPHBSIZE>>>(s,r,v,-valuesH[2],0,n); //s=r-alpha*v
+		VecVecModAdd<<<grid,SPHBSIZE>>>(s,r,v,-valuesH[2],n); //s=r-alpha*v
 
 		dotProductMult<<<grid,SPHBSIZE>>>(dotProdTemp,s,s,n); //norm2s multiply
 		dotProductAdd<<<1,1>>>(values,6,dotProdTemp,n); //norm2s add
@@ -3407,9 +3415,7 @@ void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double 
 			else norm2_s0=norm2_s;
 		}
 		if(norm2_s<=Tol2*norm2_s0){
-			//double *xtemp; cudaMalloc((void**)&xtemp,sizeof(double)*n); cudaMemcpy(xtemp,X,sizeof(double)*n,cudaMemcpyDeviceToDevice);
-			VecVecModAdd<<<grid,SPHBSIZE>>>(X,X,pI,valuesH[2],0,n); //x=x+alpha*pI
-			cudaMemcpy(output,X,sizeof(double)*n,cudaMemcpyDeviceToHost); for(int i=0;i<int(n);i++)std::cout<<i<<"f\t"<<output[i]<<"\n"; system("PAUSE");
+			VecVecModAdd<<<grid,SPHBSIZE>>>(X,X,pI,valuesH[2],n); //x=x+alpha*pI
 			residual=sqrt(norm2_s/norm2_s0);
 			break;
 		}
@@ -3433,11 +3439,10 @@ void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double 
 		cudaMemcpy(values,valuesH,sizeof(double)*7,cudaMemcpyHostToDevice);
 
 		findX<<<grid,SPHBSIZE>>>(X,pI,sI,valuesH[2],valuesH[3],n); //x=x+alpha*pI+omega*sI
-		cudaMemcpy(output,X,sizeof(double)*n,cudaMemcpyDeviceToHost); for(int i=0;i<int(n);i++)std::cout<<i<<"s\t"<<output[i]<<"\n"; system("PAUSE");
-		VecVecModAdd<<<grid,SPHBSIZE>>>(r,s,t,-valuesH[3],0,n); //r=s-omega*t
+		
+		VecVecModAdd<<<grid,SPHBSIZE>>>(r,s,t,-valuesH[3],n); //r=s-omega*t
 
 		dotProductMult<<<grid,SPHBSIZE>>>(dotProdTemp,r,r,n); //norm2r multiply
-
 		dotProductAdd<<<1,1>>>(values,6,dotProdTemp,n); //norm2r add
 		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
 
@@ -3451,6 +3456,20 @@ void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double 
 		valuesH[1]=valuesH[4];
 		cudaMemcpy(values,valuesH,sizeof(double)*7,cudaMemcpyHostToDevice);
 	}
-	std::cout<<iterNumber<<"\t"<<residual<<"\n";
+
+	cudaFree(r); r=NULL;
+	cudaFree(rbar); rbar=NULL;
+	cudaFree(v); v=NULL;
+	cudaFree(p); p=NULL;
+	cudaFree(pI); pI=NULL;
+	cudaFree(s); s=NULL;
+	cudaFree(sI); sI=NULL;
+	cudaFree(AX); AX=NULL;
+	cudaFree(M); M=NULL;
+	cudaFree(t); t=NULL;
+	cudaFree(dotProdTemp); dotProdTemp=NULL;
+	cudaFree(values); values=NULL;
+	delete[] valuesH; valuesH=NULL;
+	//std::cout<<iterNumber<<"\t"<<residual<<"\n";
 }
 }

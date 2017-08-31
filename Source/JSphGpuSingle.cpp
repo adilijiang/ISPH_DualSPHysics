@@ -788,7 +788,7 @@ void JSphGpuSingle::SolvePPE(double dt){
 	
   cusph::PopulateMatrix(TKernel,Schwaiger,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velocity,dWxCorrg,dWyCorrg,dWzCorrg,ag,bg,rowIndg,colIndg,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLSg,dt,sumFrg,taog,BoundaryFS,Pressureg,PistonPosX,PistonVel,RightWall);
 	
-	//std::cout<<Nnz<<"\n";
+	/*//std::cout<<Nnz<<"\n";
 		unsigned *rowInd=new unsigned[PPEDim+1]; cudaMemcpy(rowInd,rowIndg,sizeof(unsigned)*(PPEDim+1),cudaMemcpyDeviceToHost);
 		unsigned *colInd=new unsigned[Nnz]; cudaMemcpy(colInd,colIndg,sizeof(unsigned)*Nnz,cudaMemcpyDeviceToHost);
 		double *b=new double[PPEDim]; cudaMemcpy(b,bg,sizeof(double)*PPEDim,cudaMemcpyDeviceToHost);
@@ -817,7 +817,7 @@ void JSphGpuSingle::SolvePPE(double dt){
 		
 		delete[] rowInd; delete[] colInd; delete[] b; delete[]a; delete[] Idpc;
 	
-	count++;
+	count++;*/
 
 	if(PeriActive){
 		//CellDivSingle->MatrixMirrorDCellSingle(bsbound,bsfluid,npf,npb,npbok,Posxyg,Poszg,Codeg,Idpg,rowIndg,colIndg,DomRealPosMin,DomRealPosMax,DomPosMin,Scell,DomCellCode,PeriActive,MapRealPosMin,MapRealSize,PeriXinc,PeriYinc,PeriZinc);
@@ -834,7 +834,7 @@ void JSphGpuSingle::SolvePPE(double dt){
 	cusph::PreBiCGSTAB(Tolerance,Iterations,ag,Pressureg,bg,rowIndg,colIndg,Nnz,PPEDim);
 	CheckCudaError(met,"Matrix Solve");
 
-  //cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Poszg,Velrhopg,Pressureg,Idpg,Codeg,NegativePressureBound,MirrorPosg,bg);
+  cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Poszg,Velrhopg,Pressureg,Idpg,Codeg,NegativePressureBound,MirrorPosg,bg);
 	
   CheckCudaError(met,"Pressure assign");
   
