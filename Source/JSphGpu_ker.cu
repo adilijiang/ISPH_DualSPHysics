@@ -438,7 +438,7 @@ __device__ void KerGetParticlesDr(unsigned count,int p2
 			dry=0;
 			drz=posdp1.z-posp2.z;
 			velp2.x=2.0*LeftWallVel-fluidVel.x;
-			velp2.z=fluidVel.z;
+			velp2.z=-fluidVel.z;
 			pressp2=fluidPress;
 		}
 	}
@@ -451,7 +451,7 @@ __device__ void KerGetParticlesDr(unsigned count,int p2
 			drx=posdp1.x-posp2.x;
 			dry=0;
 			drz=posdp1.z-posp2.z;
-			velp2.x=fluidVel.x;
+			velp2.x=-fluidVel.x;
 			velp2.z=-fluidVel.z;
 			pressp2=fluidPress+NeumannDist*gravity.z*CTE.rhopzero;
 		}
@@ -465,7 +465,7 @@ __device__ void KerGetParticlesDr(unsigned count,int p2
 			dry=0;
 			drz=posdp1.z-posp2.z;
 			velp2.x=-fluidVel.x;
-			velp2.z=fluidVel.z;
+			velp2.z=-fluidVel.z;
 			pressp2=fluidPress;
 		}
 	}
@@ -3267,14 +3267,14 @@ __global__ void AVecMult
 {
 	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
-		unsigned row_start=rowInd[n];
-		unsigned row_end=rowInd[n+1];
+		unsigned row_start=rowInd[p];
+		unsigned row_end=rowInd[p+1];
 		double temp=0;
 		for(int index=row_start;index<row_end;index++){
 			unsigned column=col[index];
 			temp+=A[index]*Vec[column];
 		}
-		AVec[n]=temp;
+		AVec[p]=temp;
 	}
 }
 
@@ -3283,28 +3283,69 @@ __global__ void FindResidual
 {
 	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
-		residual[n]=Vec1[n]-value*Vec2[n];
+		residual[p]=Vec1[p]-value*Vec2[p];
 	}
 }
 
-__global__ void VecVecMult
-  (double &value,const double *Vec1,const double *Vec2,const unsigned n)
+__global__ void dotProductMult
+  (double *temp,const double *Vec1,const double *Vec2,const unsigned n)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+			temp[p]=Vec1[p]*Vec2[p];
+	}
+}
+
+__global__ void dotProductAdd
+  (double *value,const unsigned valuePos,const double *temp,const unsigned n)
 {
 	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<1){
-		temp=0;
-		for(int i=0;i<n;i++){
-			residual[n]=Vec1[n]-value*Vec2[n];
-		}
-		value
+		double sum=0.0;
+		for(int i=0;i<int(n);i++)  sum+=temp[i];
+		value[valuePos]=sum;
+	}
+}
+
+__global__ void VecVecModAdd
+  (double *result,const double *Vec1,const double *Vec2,const double var1,const double var2, const unsigned n)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+			result[p]=Vec1[p]+var1*(Vec2[p]+var2);
+	}
+}
+
+__global__ void inverse
+  (double *inverse,const double *Vec1,const double *Vec2,const unsigned n)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+		inverse[p]=Vec1[p]/(Vec2[p]+1.0e-15);
+	}
+}
+
+__global__ void findX
+  (double *x,const double *Vec1,const double *Vec2,const double var1,const double var2, const unsigned n)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+			x[p]+=var1*Vec1[p]+var2*Vec2[p];
 	}
 }
 
 void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double *X,const double *B,const unsigned *rowInd,const unsigned *col,const unsigned Nnz,const unsigned n)
 {
 	dim3 grid=GetGridSize(n,SPHBSIZE);
+	unsigned iterNumber=0;
+	double Tol2=Tol*Tol;
+	double residual=0;
+	double norm2_s0=0;
+	double norm2_r0=0;
+	double *output=new double[n];
+
 	double *r; cudaMalloc((void**)&r,sizeof(double)*n); cudaMemset(r,0,sizeof(double)*n);
-	double *r0; cudaMalloc((void**)&r0,sizeof(double)*n); cudaMemset(r0,0,sizeof(double)*n);
+	double *rbar; cudaMalloc((void**)&rbar,sizeof(double)*n); cudaMemset(rbar,0,sizeof(double)*n);
 	double *v; cudaMalloc((void**)&v,sizeof(double)*n); cudaMemset(v,0,sizeof(double)*n);
 	double *p; cudaMalloc((void**)&p,sizeof(double)*n); cudaMemset(p,0,sizeof(double)*n);
 	double *pI; cudaMalloc((void**)&pI,sizeof(double)*n); cudaMemset(pI,0,sizeof(double)*n);
@@ -3313,17 +3354,103 @@ void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double 
 	double *AX; cudaMalloc((void**)&AX,sizeof(double)*n); cudaMemset(AX,0,sizeof(double)*n);
 	double *M; cudaMalloc((void**)&M,sizeof(double)*n); cudaMemset(M,0,sizeof(double)*n);
 	double *t; cudaMalloc((void**)&t,sizeof(double)*n); cudaMemset(t,0,sizeof(double)*n);
+	double *dotProdTemp; cudaMalloc((void**)&dotProdTemp,sizeof(double)*n); cudaMemset(dotProdTemp,0,sizeof(double)*n);
 
-	double *t; cudaMalloc((void**)&t,sizeof(double)*n); cudaMemset(t,0,sizeof(double)*n);
-	double temp=0; double rho0=1.0; double alpha=1.0; double omega=1.0; double rho=0;
+	double *valuesH=new double[7]; 
+	valuesH[0]=0; valuesH[1]=1.0; valuesH[2]=1.0; valuesH[3]=1.0; valuesH[4]=0.0; valuesH[5]=0.0; valuesH[6]=0.0;// 0=temp, 1=rho0, 2=alpha, 3=omega, 4=rho, 5=beta, 6=norm
+	
+	double *values; cudaMalloc((void**)&values,sizeof(double)*7); cudaMemcpy(values,valuesH,sizeof(double)*7,cudaMemcpyHostToDevice);
 
-	MakeJacobi<<<grid,SPHBSIZE>>> (M,A,rowInd,n); //M=A_diag
-	AVecMult<<<grid,SPHBSIZE>>> (AX,A,X,rowInd,col,n); //AX=AX
-	FindResidual<<<grid,SPHBSIZE>>> (r,B,1.0,AX,n); //r=B-AX
-	cudaMemcpy(r0,r,sizeof(double)*n,cudaMemcpyDeviceToDevice); //r0=r
+	MakeJacobi<<<grid,SPHBSIZE>>>(M,A,rowInd,n); //M=A_diag
+
+	AVecMult<<<grid,SPHBSIZE>>>(AX,A,X,rowInd,col,n); //AX=AX
+
+	FindResidual<<<grid,SPHBSIZE>>>(r,B,1.0,AX,n); //r=B-AX
+
+	cudaMemcpy(rbar,r,sizeof(double)*n,cudaMemcpyDeviceToDevice); //rbar=r
 
 	for(int iter=1;iter<=iterMax;iter++){
-		VecVecMult<<<1,1>>> (rho,r0,r,n); //rho=r0.r
+		iterNumber=iter;
+		dotProductMult<<<grid,SPHBSIZE>>>(dotProdTemp,rbar,r,n); //rho=rbar.r multiply
+		dotProductAdd<<<1,1>>>(values,4,dotProdTemp,n); //rho=rbar.r add
+		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
+
+		if(valuesH[4]==0) break;
+		if(iter==1) cudaMemcpy(p,r,sizeof(double)*n,cudaMemcpyDeviceToDevice); //p=r
+		else{
+			valuesH[5]=(valuesH[4]/(valuesH[1]+1.0e-15))*(valuesH[2]/(valuesH[3]+1.0e-15)); //beta=(rho/rho0)*(alpha/omega)
+			cudaMemcpy(values,valuesH,sizeof(double)*7,cudaMemcpyHostToDevice);
+			//double *ptemp; cudaMalloc((void**)&ptemp,sizeof(double)*n); cudaMemcpy(ptemp,p,sizeof(double)*n,cudaMemcpyDeviceToDevice);
+			VecVecModAdd<<<grid,SPHBSIZE>>>(p,r,p,valuesH[5],-valuesH[3],n); //p=r+beta*(p-omega)
+		}
+
+		inverse<<<grid,SPHBSIZE>>>(pI,p,M,n); //pI=p/M
+
+		AVecMult<<<grid,SPHBSIZE>>>(v,A,pI,rowInd,col,n); //v=ApI
+
+		dotProductMult<<<grid,SPHBSIZE>>>(dotProdTemp,rbar,v,n); //temp=rbar.v multiply
+		dotProductAdd<<<1,1>>>(values,0,dotProdTemp,n); //temp=rbar.v add
+		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
+
+		valuesH[2]=valuesH[4]/(valuesH[0]+1.0e-15); //alpha=rho/(rbar.v)
+		cudaMemcpy(values,valuesH,sizeof(double)*7,cudaMemcpyHostToDevice);
+
+		VecVecModAdd<<<grid,SPHBSIZE>>>(s,r,v,-valuesH[2],0,n); //s=r-alpha*v
+
+		dotProductMult<<<grid,SPHBSIZE>>>(dotProdTemp,s,s,n); //norm2s multiply
+		dotProductAdd<<<1,1>>>(values,6,dotProdTemp,n); //norm2s add
+		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
+
+		double norm2_s=valuesH[6];
+		if(iter==1){
+			if(norm2_s <=1.0e-6) norm2_s0=1.0;
+			else norm2_s0=norm2_s;
+		}
+		if(norm2_s<=Tol2*norm2_s0){
+			//double *xtemp; cudaMalloc((void**)&xtemp,sizeof(double)*n); cudaMemcpy(xtemp,X,sizeof(double)*n,cudaMemcpyDeviceToDevice);
+			VecVecModAdd<<<grid,SPHBSIZE>>>(X,X,pI,valuesH[2],0,n); //x=x+alpha*pI
+			cudaMemcpy(output,X,sizeof(double)*n,cudaMemcpyDeviceToHost); for(int i=0;i<int(n);i++)std::cout<<i<<"f\t"<<output[i]<<"\n"; system("PAUSE");
+			residual=sqrt(norm2_s/norm2_s0);
+			break;
+		}
+
+		inverse<<<grid,SPHBSIZE>>>(sI,s,M,n); //sI=s/M
+
+		AVecMult<<<grid,SPHBSIZE>>>(t,A,sI,rowInd,col,n); //t=AsI
+
+		dotProductMult<<<grid,SPHBSIZE>>>(dotProdTemp,s,t,n); //temp=s.t multiply
+
+		dotProductAdd<<<1,1>>>(values,0,dotProdTemp,n); //temp=s.t add
+		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
+
+		dotProductMult<<<grid,SPHBSIZE>>>(dotProdTemp,t,t,n); //norm2t multiply
+		dotProductAdd<<<1,1>>>(values,6,dotProdTemp,n); //norm2t add
+		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
+
+		double norm2_t=valuesH[6];
+
+		valuesH[3]=valuesH[0]/(norm2_t+1.0e-15); //omega=temp/norm2_t
+		cudaMemcpy(values,valuesH,sizeof(double)*7,cudaMemcpyHostToDevice);
+
+		findX<<<grid,SPHBSIZE>>>(X,pI,sI,valuesH[2],valuesH[3],n); //x=x+alpha*pI+omega*sI
+		cudaMemcpy(output,X,sizeof(double)*n,cudaMemcpyDeviceToHost); for(int i=0;i<int(n);i++)std::cout<<i<<"s\t"<<output[i]<<"\n"; system("PAUSE");
+		VecVecModAdd<<<grid,SPHBSIZE>>>(r,s,t,-valuesH[3],0,n); //r=s-omega*t
+
+		dotProductMult<<<grid,SPHBSIZE>>>(dotProdTemp,r,r,n); //norm2r multiply
+
+		dotProductAdd<<<1,1>>>(values,6,dotProdTemp,n); //norm2r add
+		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
+
+		double norm2_r=valuesH[6];
+		if(iter==1){
+			if(norm2_r <=1.0e-6) norm2_r0=1.0;
+			else norm2_r0=norm2_r;
+		}
+		residual=sqrt(norm2_r/norm2_r0);
+		if(norm2_r<=Tol2*norm2_r0) break;
+		valuesH[1]=valuesH[4];
+		cudaMemcpy(values,valuesH,sizeof(double)*7,cudaMemcpyHostToDevice);
 	}
+	std::cout<<iterNumber<<"\t"<<residual<<"\n";
 }
 }
