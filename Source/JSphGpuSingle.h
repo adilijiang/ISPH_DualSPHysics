@@ -44,10 +44,10 @@ protected:
   void RunPeriodic();
   void RunCellDivide(bool updateperiodic);
 
-  void Interaction_Forces(TpInter tinter,double dt);
+  void Interaction_Forces(TpInter tinter,const double dt);
   double ComputeAceMax(float *auxmem);
 
-  double ComputeStep_Sym(double dt);
+  double ComputeStep_Sym(const double dt);
 
   void RunFloating(double dt,bool predictor);
 
@@ -55,12 +55,12 @@ protected:
   void SaveData();
   void FinishRun(bool stop);
 
-  void InitAdvection(double dt);
+  void InitAdvection(const double dt);
   void MirrorBoundary();
   void BoundaryVelocity(TpSlipCond TSlipCond);
   void KernelCorrection();
-  void SolvePPE(double dt);
-  void RunShifting(double dt);
+  void SolvePPE(const double dt);
+  void RunShifting(const double dt);
 
 public:
   JSphGpuSingle();

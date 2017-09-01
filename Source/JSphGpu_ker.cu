@@ -1670,13 +1670,13 @@ void ComputeStepPos2(const unsigned bsfluid,byte periactive,bool floating,unsign
 /// Actualizacion de posicion de particulas segun desplazamiento.
 /// Updates particle position according to displacement.
 //------------------------------------------------------------------------------
-__global__ void KerMoveparticles(unsigned n,unsigned pini
+__global__ void KerMoveparticles(unsigned npf,unsigned npb
   ,const double2 *posxypre,const double *poszpre,const double2 *movxy,const double *movz
   ,double2 *posxy,double *posz)
 {
   unsigned pt=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
-  if(pt<n){
-    unsigned p=pt+pini;
+  if(pt<npf){
+    unsigned p=pt+npb;
     posxy[p].x=posxypre[p].x+movxy[p].x;
 		posxy[p].y=posxypre[p].y+movxy[p].y;
 		posz[p]=poszpre[p]+movz[p];
@@ -1691,11 +1691,10 @@ void Moveparticles(const unsigned bsfluid,unsigned np,unsigned npb
   ,const double2 *posxypre,const double *poszpre,const double2 *movxy,const double *movz
   ,double2 *posxy,double *posz)
 {
-  const unsigned pini=npb;
-  const unsigned npf=np-pini;
+  const unsigned npf=np-npb;
   if(npf){
     dim3 sgrid=GetGridSize(npf,bsfluid);
-		KerMoveparticles <<<sgrid,bsfluid>>> (npf,pini,posxypre,poszpre,movxy,movz,posxy,posz);
+		KerMoveparticles <<<sgrid,bsfluid>>> (npf,npb,posxypre,poszpre,movxy,movz,posxy,posz);
   }
 }
 
@@ -2475,28 +2474,28 @@ void AddAccInput(unsigned n,unsigned pini,word codesel
 //==========================
 ///Initial advection - r*
 //==========================
-template<bool floating> __global__ void KerComputeRStar(unsigned npf,unsigned npb,const double3 *velrhoppre,double dtm,word *code,double2 *movxy,double *movz)
+template<bool floating> __global__ void KerComputeRStar(unsigned npf,unsigned npb,const double3 *velrhoppre,double dt,word *code,double2 *movxy,double *movz)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
   if(p<npf){
     unsigned p1=p+npb;
     //-Particulas: Fixed & Moving //-Particles: Fixed & Moving
       double3 rvelrhop=velrhoppre[p1];
-      double dx=rvelrhop.x*dtm;
-      double dy=rvelrhop.y*dtm;
-      double dz=rvelrhop.z*dtm;
+      double dx=rvelrhop.x*dt;
+      double dy=rvelrhop.y*dt;
+      double dz=rvelrhop.z*dt;
         
       movxy[p1]=make_double2(dx,dy);
       movz[p1]=dz;  
   }
 }
 
-void ComputeRStar(const unsigned bsfluid,bool floating,unsigned npf,unsigned npb,const double3 *velrhoppre,double dtm,word *code,double2 *movxy,double *movz)
+void ComputeRStar(const unsigned bsfluid,bool floating,unsigned npf,unsigned npb,const double3 *velrhoppre,double dt,word *code,double2 *movxy,double *movz)
 {
   if(npf){
     dim3 sgrid=GetGridSize(npf,bsfluid);
-    if(floating)KerComputeRStar<true> <<<sgrid,bsfluid>>> (npf,npb,velrhoppre,dtm,code,movxy,movz);
-    else        KerComputeRStar<false><<<sgrid,bsfluid>>> (npf,npb,velrhoppre,dtm,code,movxy,movz);
+    if(floating)KerComputeRStar<true> <<<sgrid,bsfluid>>> (npf,npb,velrhoppre,dt,code,movxy,movz);
+    else        KerComputeRStar<false><<<sgrid,bsfluid>>> (npf,npb,velrhoppre,dt,code,movxy,movz);
   }
 }
 
@@ -3330,8 +3329,7 @@ __global__ void inverse
 {
 	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
-		if(Vec2[p]) inverse[p]=Vec1[p]/Vec2[p];
-		else inverse[p]=0;
+		inverse[p]=Vec1[p]/(Vec2[p]+1.0e-15);
 	}
 }
 

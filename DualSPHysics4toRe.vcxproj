@@ -358,17 +358,13 @@ IF EXIST cg_variables.h move cg_variables.h $(Configuration)\
       </Command>
     </PreBuildEvent>
     <ClCompile>
-      <Optimization>MaxSpeed</Optimization>
-      <InlineFunctionExpansion>
-      </InlineFunctionExpansion>
-      <IntrinsicFunctions>
-      </IntrinsicFunctions>
-      <FavorSizeOrSpeed>
-      </FavorSizeOrSpeed>
-      <OmitFramePointers>
-      </OmitFramePointers>
+      <Optimization>Disabled</Optimization>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <IntrinsicFunctions>false</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
+      <OmitFramePointers>false</OmitFramePointers>
       <EnableFiberSafeOptimizations>false</EnableFiberSafeOptimizations>
-      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
       <AdditionalIncludeDirectories>$(ProjectDir)..\ViennaCLLibrary;$(CULASPARSE_INC_PATH);$(CUDA_PATH_V7_5)/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_WITHGPU;WIN32;_CONSOLE;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -380,6 +376,8 @@ IF EXIST cg_variables.h move cg_variables.h $(Configuration)\
       <OpenMPSupport>true</OpenMPSupport>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <CompileAs>CompileAsCpp</CompileAs>
+      <FloatingPointModel>Strict</FloatingPointModel>
+      <FloatingPointExceptions>true</FloatingPointExceptions>
     </ClCompile>
     <Link>
       <AdditionalDependencies>cudart.lib;JWaveGen_$(PlatformName)_$(PlatformToolset)_Release.lib;JFormatFiles2_$(PlatformName)_$(PlatformToolset)_Release.lib;JSphMotion_$(PlatformName)_$(PlatformToolset)_Release.lib;JXml_$(PlatformName)_$(PlatformToolset)_Release.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -593,20 +591,16 @@ IF EXIST cg_variables.h move cg_variables.h $(Configuration)\
   <ItemGroup>
     <CustomBuild Include="Source\JCellDivGpu_ker.cu">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">rem ***Vars de compilacion
-set CudaPath=$(CUDA_PATH_V7_5)
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">set CudaPath=$(CUDA_PATH_V7_5)
 set CudaNvcc="%CudaPath%\bin\nvcc.exe"
 set CudaInc="%CudaPath%\include"
-rem ***Seleccion de GPU hardware para compilacion
 set gpuhw=-gencode=arch=compute_30,code=\"sm_30,compute_30\"
 set gpuhw=-gencode=arch=compute_35,code=\"sm_35,compute_35\"
 set gpuhw=-gencode=arch=compute_13,code=\"sm_13,compute_13\" -gencode=arch=compute_20,code=\"sm_20,compute_20\"
 set gpuhw=-gencode=arch=compute_20,code=\"sm_20,compute_20\"
-rem ***Activa la visualizacion de registros por kernel
-set ptxinfo=--ptxas-options -v
+set ptxinfo=-O0 -Xcicc -O0 -Xptxas -O0
 set ptxinfo=
-rem ***Sentencia de compilacion
-%CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension)
+%CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension)
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Intermediate\$(Configuration)\%(Filename).obj</Outputs>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
@@ -629,21 +623,17 @@ rem ***Sentencia de compilacion
     </CustomBuild>
     <CustomBuild Include="Source\JCellDivGpuSingle_ker.cu">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">rem ***Vars de compilacion
-set CudaPath=$(CUDA_PATH_V7_5)
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">set CudaPath=$(CUDA_PATH_V7_5)
 set CudaNvcc="%CudaPath%\bin\nvcc.exe"
 set CudaInc="%CudaPath%\include"
-rem ***Seleccion de GPU hardware para compilacion
 set gpuhw=-gencode=arch=compute_30,code=\"sm_30,compute_30\"
 set gpuhw=-gencode=arch=compute_13,code=\"sm_13,compute_13\" -gencode=arch=compute_20,code=\"sm_20,compute_20\"
 set gpuhw=-gencode=arch=compute_35,code=\"sm_35,compute_35\"
 set gpuhw=-gencode=arch=compute_13,code=\"sm_13,compute_13\" -gencode=arch=compute_20,code=\"sm_20,compute_20\"
 set gpuhw=-gencode=arch=compute_20,code=\"sm_20,compute_20\"
 rem ***Activa la visualizacion de registros por kernel
-set ptxinfo=--ptxas-options -v
-set ptxinfo=
-rem ***Sentencia de compilacion
-%CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension)
+set ptxinfo=-O0 -Xcicc -O0 -Xptxas -O0
+%CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension)
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Intermediate\$(Configuration)\%(Filename).obj</Outputs>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
@@ -666,24 +656,17 @@ rem ***Sentencia de compilacion
     </CustomBuild>
     <CustomBuild Include="Source\JSphGpu_ker.cu">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">rem ***Vars de compilacion
-set CudaPath=$(CUDA_PATH_V7_5)
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">set CudaPath=$(CUDA_PATH_V7_5)
 set CudaNvcc="%CudaPath%\bin\nvcc.exe"
 set CudaInc="%CudaPath%\include"
 set CudaInc=$(ProjectDir)..\ViennaCLLibrary
-rem ***Seleccion de GPU hardware para compilacion
 set gpuhw=-gencode=arch=compute_30,code=\"sm_30,compute_30\"
 set gpuhw=-gencode=arch=compute_13,code=\"sm_13,compute_13\" -gencode=arch=compute_20,code=\"sm_20,compute_20\"
 set gpuhw=-gencode=arch=compute_35,code=\"sm_35,compute_35\"
 set gpuhw=-gencode=arch=compute_13,code=\"sm_13,compute_13\" -gencode=arch=compute_20,code=\"sm_20,compute_20\"
 set gpuhw=-gencode=arch=compute_20,code=\"sm_20,compute_20\"
-rem ***Activa la visualizacion de registros por kernel y creacion de _ptxasinfo
-set ptxinfo=--ptxas-options -v
-rem set ptxinfo=
-rem ***Sentencia de compilacion sin salida _ptxasinfo
-rem %CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension) -D _CRT_SECURE_NO_DEPRECATE 
-rem ***Sentencia de compilacion con salida _ptxasinfo
-%CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension) -D _CRT_SECURE_NO_DEPRECATE 1&gt;$(OutDir)$(ProjectName)_$(Configuration)64_ptxasinfo
+set ptxinfo=-O0 -Xcicc -O0 -Xptxas -O0
+%CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension) -D _CRT_SECURE_NO_DEPRECATE 1&gt;$(OutDir)$(ProjectName)_$(Configuration)64_ptxasinfo
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Intermediate\$(Configuration)\%(Filename).obj</Outputs>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>

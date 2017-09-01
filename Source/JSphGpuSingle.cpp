@@ -424,7 +424,7 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
 /// Interaccion para el calculo de fuerzas.
 /// Interaction for force computation.
 //==============================================================================
-void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
+void JSphGpuSingle::Interaction_Forces(TpInter tinter,const double dt){
   const char met[]="Interaction_Forces";
   TmgStart(Timers,TMG_CfForces);
   PreInteraction_Forces(tinter,dt);
@@ -468,7 +468,7 @@ double JSphGpuSingle::ComputeAceMax(float *auxmem){
 /// Particle interaction and update of particle data according to
 /// the computed forces using the Symplectic time stepping scheme
 //==============================================================================
-double JSphGpuSingle::ComputeStep_Sym(double dt){
+double JSphGpuSingle::ComputeStep_Sym(const double dt){
   //SaveVtkData("InitSymplectic.vtk",Nstep,Np,Posxyg,Poszg,Idpg,Velrhopg);
   //-Predictor
   //----------- 
@@ -723,7 +723,7 @@ void JSphGpuSingle::FinishRun(bool stop){
 //==============================================================================
 /// Initial advection
 //==============================================================================
-void JSphGpuSingle::InitAdvection(double dt){
+void JSphGpuSingle::InitAdvection(const double dt){
     const char met[]="SolvePPE";
     PosxyPreg=ArraysGpu->ReserveDouble2();
     PoszPreg=ArraysGpu->ReserveDouble();
@@ -757,7 +757,7 @@ void JSphGpuSingle::InitAdvection(double dt){
 #include <fstream>
 #include <sstream>
 #include <iomanip>
-void JSphGpuSingle::SolvePPE(double dt){ 
+void JSphGpuSingle::SolvePPE(const double dt){ 
   const char met[]="SolvePPE";
 	TmgStart(Timers,TMG_Stage2a);
   tuint3 ncells=CellDivSingle->GetNcells();
@@ -830,8 +830,8 @@ void JSphGpuSingle::SolvePPE(double dt){
   CheckCudaError(met,"FreeSurfaceMark");
 	TmgStop(Timers,TMG_Stage2a);
 	TmgStart(Timers,TMG_Stage2b);
-  //cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Pressureg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
-	cusph::PreBiCGSTAB(Tolerance,Iterations,ag,Pressureg,bg,rowIndg,colIndg,Nnz,PPEDim);
+  cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Pressureg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
+	//cusph::PreBiCGSTAB(Tolerance,Iterations,ag,Pressureg,bg,rowIndg,colIndg,Nnz,PPEDim);
 	CheckCudaError(met,"Matrix Solve");
 
   cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Poszg,Velrhopg,Pressureg,Idpg,Codeg,NegativePressureBound,MirrorPosg,bg);
@@ -845,7 +845,7 @@ void JSphGpuSingle::SolvePPE(double dt){
 //==============================================================================
 /// Shifting
 //==============================================================================
-void JSphGpuSingle::RunShifting(double dt){ 
+void JSphGpuSingle::RunShifting(const double dt){ 
   const char met[]="Shifting";
   const unsigned np=Np;
   const unsigned npb=Npb;
