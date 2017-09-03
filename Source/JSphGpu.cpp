@@ -893,7 +893,7 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
 		cudaMemset(dWzCorrg,0,sizeof(double3)*npf);
 		Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
 		cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
-		cudaMemset(Pressureg,0,sizeof(double)*np);
+		//cudaMemset(Pressureg,0,sizeof(double)*np);
 		if(Schwaiger){
 			cudaMemset(sumFrg,0,sizeof(double3)*npf);
 			cudaMemset(taog,0,sizeof(double)*npf);
@@ -1125,6 +1125,8 @@ void JSphGpu::Shift(double dt,const unsigned bsfluid){
   cusph::ComputeShift(WithFloating,bsfluid,Np,Npb,ShiftPosg,Codeg,movxyg,movzg);
   //-Aplica desplazamiento a las particulas fluid no periodicas.
   //-Applies displacement to non-periodic fluid particles.
+
+//##POSSIBLE BUG????
   cusph::ComputeStepPos2(BlockSizes.forcesfluid,PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
   //-Libera memoria asignada al desplazamiento.
   //-Releases memory allocated for diplacement.

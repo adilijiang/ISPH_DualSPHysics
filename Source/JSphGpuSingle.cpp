@@ -354,11 +354,12 @@ void JSphGpuSingle::RunPeriodic(){
 /// Ejecuta divide de particulas en celdas.
 /// Executes the division of particles in cells.
 //==============================================================================
+
 void JSphGpuSingle::RunCellDivide(bool updateperiodic){
   const char met[]="RunCellDivide";
   //-Crea nuevas particulas periodicas y marca las viejas para ignorarlas.
   //-Creates new periodic particles and marks the old ones to be ignored.
-  if(updateperiodic && PeriActive)RunPeriodic();
+  //if(updateperiodic && PeriActive)RunPeriodic();
   //-Inicia Divide.
   //-Initiates Divide.
   CellDivSingle->Divide(Npb,Np-Npb-NpbPer-NpfPer,NpbPer,NpfPer,BoundChanged,Dcellg,Codeg,Timers,Posxyg,Poszg,Idpg);
@@ -404,7 +405,7 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
   NpbOk=Npb-CellDivSingle->GetNpbIgnore();
   //-Recupera posiciones de floatings.
   //-Retrieves positions of floating bodies.
-  if(CaseNfloat)cusph::CalcRidp(PeriActive!=0,Np-Npb,Npb,CaseNpb,CaseNpb+CaseNfloat,Codeg,Idpg,FtRidpg);
+  //if(CaseNfloat)cusph::CalcRidp(PeriActive!=0,Np-Npb,Npb,CaseNpb,CaseNpb+CaseNfloat,Codeg,Idpg,FtRidpg);
   TmgStop(Timers,TMG_NlSortData);
 
   //-Gestion de particulas excluidas (contorno y fluid).
@@ -434,8 +435,7 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,const double dt){
 	
 	//-Interaccion Fluid-Fluid/Bound & Bound-Fluid.
   cusph::Interaction_Forces(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velocity,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,taog,BoundaryFS,FreeSurface,PistonPosX,NULL,NULL,Pressureg,PistonVel,RightWall,Gravity);	
-	//float *div=new float[Np]; cudaMemcpy(div,Divrg,sizeof(float)*Np,cudaMemcpyDeviceToHost);
-	//for(int i=0;i<int(Np);i++) std::cout<<div[i]<<"\n";
+
   //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
   //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
   //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,FtRidpg,DemDatag,float(DemDtForce),Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,ViscDtg,Aceg);
@@ -509,7 +509,7 @@ void JSphGpuSingle::RunFloating(double dt,bool predictor){
 //    cusph::FtCalcForces(PeriActive!=0,FtCount,Gravity,FtoDatag,FtoMasspg,FtoCenterg,FtRidpg,Posxyg,Poszg,Aceg,FtoForcesg);
     //-Aplica movimiento sobre floatings.
 	//-Applies movement to the floating objects
-    cusph::FtUpdate(PeriActive!=0,predictor,Simulate2D,FtCount,dt,Gravity,FtoDatag,FtRidpg,FtoForcesg,FtoCenterg,FtoVelg,FtoOmegag,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
+    //cusph::FtUpdate(PeriActive!=0,predictor,Simulate2D,FtCount,dt,Gravity,FtoDatag,FtRidpg,FtoForcesg,FtoCenterg,FtoVelg,FtoOmegag,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
     TmgStop(Timers,TMG_SuFloating);
   }
 }
@@ -518,6 +518,7 @@ void JSphGpuSingle::RunFloating(double dt,bool predictor){
 /// Inicia proceso de simulacion.
 /// Runs the simulation
 //==============================================================================
+
 void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   const char* met="Run";
   if(!cfg||!log)return;
@@ -567,7 +568,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 	//MirrorBoundary();
 	count=1;
 	cudaMemset(Velocity,0,sizeof(double3)*Np);
-	PistonPosX=Dp*0.5;
+	cudaMemset(Pressureg,0,sizeof(double)*Np);
 	PistonVel=0;
 	while(TimeStep<TimeMax){
 		if(CaseNmoving)RunMotion(stepdt);
@@ -785,7 +786,7 @@ void JSphGpuSingle::SolvePPE(const double dt){
 
   cudaMemset(colIndg,0,sizeof(int)*Nnz);
 	cudaMemset(ag,0,sizeof(double)*Nnz);
-	
+
   cusph::PopulateMatrix(TKernel,Schwaiger,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velocity,dWxCorrg,dWyCorrg,dWzCorrg,ag,bg,rowIndg,colIndg,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLSg,dt,sumFrg,taog,BoundaryFS,Pressureg,PistonPosX,PistonVel,RightWall);
 	
 	/*//std::cout<<Nnz<<"\n";
@@ -830,8 +831,9 @@ void JSphGpuSingle::SolvePPE(const double dt){
   CheckCudaError(met,"FreeSurfaceMark");
 	TmgStop(Timers,TMG_Stage2a);
 	TmgStart(Timers,TMG_Stage2b);
+	cusph::SolverResultArrange(bsfluid,npb,npbok,npf,Pressureg);
   cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Pressureg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
-	//cusph::PreBiCGSTAB(Tolerance,Iterations,ag,Pressureg,bg,rowIndg,colIndg,Nnz,PPEDim);
+	//cusph::PreBiCGSTAB(Tolerance,Iterations,ag,Pressureg,bg,rowIndg,colIndg,Nnz,PPEDim,Npb);
 	CheckCudaError(met,"Matrix Solve");
 
   cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Poszg,Velrhopg,Pressureg,Idpg,Codeg,NegativePressureBound,MirrorPosg,bg);
