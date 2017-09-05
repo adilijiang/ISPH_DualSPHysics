@@ -422,7 +422,7 @@ __device__ void KerGetParticlesDr(unsigned count,int p2
 	double Bottom=dp05;
 	double3 posp2=make_double3(posxy[p2].x,posxy[p2].y,posz[p2]);
 	velp2.y=0;
-	if(count==0){//Fluid particle p2
+	if(count==2){//Fluid particle p2
 		interact=true;
 		drx=posdp1.x-posp2.x;
 		dry=0;
@@ -439,11 +439,11 @@ __device__ void KerGetParticlesDr(unsigned count,int p2
 			dry=0;
 			drz=posdp1.z-posp2.z;
 			velp2.x=2.0*LeftWallVel-fluidVel.x;
-			velp2.z=fluidVel.z;
+			velp2.z=-fluidVel.z;
 			pressp2=fluidPress;
 		}
 	}
-	else if(count==2){//Boundary Bottom
+	else if(count==3){//Boundary Bottom
 		double dist=posp2.z-Bottom;
 		if(dist*dist<=CTE.fourh2){
 			interact=true;
@@ -452,12 +452,12 @@ __device__ void KerGetParticlesDr(unsigned count,int p2
 			drx=posdp1.x-posp2.x;
 			dry=0;
 			drz=posdp1.z-posp2.z;
-			velp2.x=fluidVel.x;
+			velp2.x=-fluidVel.x;
 			velp2.z=-fluidVel.z;
 			pressp2=fluidPress+NeumannDist*gravity.z*CTE.rhopzero;
 		}
 	}
-	else if(count==3){//Boundary RightWall
+	else if(count==5){//Boundary RightWall
 		double dist=posp2.x-RightWall;
 		if(dist*dist<=CTE.fourh2){
 			interact=true;
@@ -466,11 +466,11 @@ __device__ void KerGetParticlesDr(unsigned count,int p2
 			dry=0;
 			drz=posdp1.z-posp2.z;
 			velp2.x=-fluidVel.x;
-			velp2.z=fluidVel.z;
+			velp2.z=-fluidVel.z;
 			pressp2=fluidPress;
 		}
 	}
-	else if(count==4){//Boundary BottomLeft
+	else if(count==0){//Boundary BottomLeft
 		double distx=posp2.x-LeftWall;
 		double distz=posp2.z-Bottom;
 		double dist=distx*distx+distz*distz;
@@ -487,7 +487,7 @@ __device__ void KerGetParticlesDr(unsigned count,int p2
 			pressp2=fluidPress+NeumannDist*gravity.z*CTE.rhopzero;
 		}
 	}
-	else if(count==5){//Boundary BottomRight
+	else if(count==4){//Boundary BottomRight
 		double distx=posp2.x-RightWall;
 		double distz=posp2.z-Bottom;
 		double dist=distx*distx+distz*distz;
@@ -664,8 +664,9 @@ __global__ void KerInverseKernelCor2D(unsigned n,unsigned pinit,double3 *dwxcorr
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
-		double3 dwx; dwx.x=dwxcorrg[p].x; dwx.z=dwxcorrg[p].z;
-		double3 dwz; dwz.x=dwzcorrg[p].x; dwz.z=dwzcorrg[p].z;
+		double3 dwx, dwz; 
+		dwx.x=dwxcorrg[p].x; dwz.x=dwzcorrg[p].x;
+		dwx.z=dwxcorrg[p].z; dwz.z=dwzcorrg[p].z;
 		const double det=1.0/(dwx.x*dwz.z-dwz.x*dwx.z);
 	
     if(det){
@@ -679,6 +680,7 @@ __global__ void KerInverseKernelCor2D(unsigned n,unsigned pinit,double3 *dwxcorr
 
 __global__ void KerInverseKernelCor3D(unsigned n,unsigned pinit,float3 *dwxcorrg,double3 *dwycorrg,float3 *dwzcorrg,const word *code)
 {
+	//WRONG SWAP VARIABLES AROUND
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
 		double3 dwx; dwx.x=dwxcorrg[p].x; dwx.y=dwxcorrg[p].y; dwx.z=dwxcorrg[p].z; //  dwx.x   dwx.y   dwx.z
@@ -2541,7 +2543,7 @@ template<TpKernel tker,bool schwaiger> __device__ void KerMatrixAFluidSelf
 {
 	float volumep2=massp2/RhopZero; //Volume of particle j
 	double drx,dry,drz;
-  for(int count=1;count<=5;count++){
+  for(int count=0;count<=5;count++){
 		bool interact=false;
 		double3 velp2;
 		double pressp2;
@@ -3237,16 +3239,6 @@ void CorrectShiftVelocity(const bool wavegen,TpKernel tkernel,TpCellMode cellmod
 	}
 }
 
-__global__ void setPressure
-  (double *temp,double *pressure,const unsigned n,const unsigned npb)
-{
-	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
-  if(p<n){
-		const unsigned p1=p+npb;
-		temp[p]=pressure[p1];
-	}
-}
-
 __global__ void MakeJacobi
   (double *M,const double *A,const unsigned *rowInd,const unsigned n)
 {
@@ -3274,11 +3266,11 @@ __global__ void AVecMult
 }
 
 __global__ void FindResidual
-  (double *residual,const double *Vec1,const double value,const double *Vec2,const unsigned n)
+  (double *residual,const double *Vec1,const double *Vec2,const unsigned n)
 {
 	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
-		residual[p]=Vec1[p]-value*Vec2[p];
+		residual[p]=Vec1[p]-Vec2[p];
 	}
 }
 
@@ -3357,29 +3349,26 @@ void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double 
 	double *AX; cudaMalloc((void**)&AX,sizeof(double)*n); cudaMemset(AX,0,sizeof(double)*n);
 	double *M; cudaMalloc((void**)&M,sizeof(double)*n); cudaMemset(M,0,sizeof(double)*n);
 	double *t; cudaMalloc((void**)&t,sizeof(double)*n); cudaMemset(t,0,sizeof(double)*n);
-	double *dotProdTemp; cudaMalloc((void**)&dotProdTemp,sizeof(double)*n); cudaMemset(dotProdTemp,0,sizeof(double)*n);
+	double *tempVec; cudaMalloc((void**)&tempVec,sizeof(double)*n); cudaMemset(tempVec,0,sizeof(double)*n);
 
 	double *valuesH=new double[7]; 
 	valuesH[0]=0; valuesH[1]=1.0; valuesH[2]=1.0; valuesH[3]=1.0; valuesH[4]=0.0; valuesH[5]=0.0; valuesH[6]=0.0;// 0=temp, 1=rho0, 2=alpha, 3=omega, 4=rho, 5=beta, 6=norm
 	
 	double *values; cudaMalloc((void**)&values,sizeof(double)*7); cudaMemcpy(values,valuesH,sizeof(double)*7,cudaMemcpyHostToDevice);
-	
-	setPressure<<<grid,SPHBSIZE>>>(dotProdTemp,X,n,npb); //M=A_diag
-	cudaMemcpy(X,dotProdTemp,sizeof(double)*n,cudaMemcpyDeviceToDevice);
 
 	MakeJacobi<<<grid,SPHBSIZE>>>(M,A,rowInd,n); //M=A_diag
 
 	AVecMult<<<grid,SPHBSIZE>>>(AX,A,X,rowInd,col,n); //AX=AX
 
-	FindResidual<<<grid,SPHBSIZE>>>(r,B,1.0,AX,n); //r=B-AX
+	FindResidual<<<grid,SPHBSIZE>>>(r,B,AX,n); //r=B-AX
 
 	cudaMemcpy(rbar,r,sizeof(double)*n,cudaMemcpyDeviceToDevice); //rbar=r
 
 	for(int iter=1;iter<=iterMax;iter++){
 		iterNumber=iter;
 
-		dotProductMult<<<grid,SPHBSIZE>>>(dotProdTemp,rbar,r,n); //rho=rbar.r multiply
-		dotProductAdd<<<1,1>>>(values,4,dotProdTemp,n); //rho=rbar.r add
+		dotProductMult<<<grid,SPHBSIZE>>>(tempVec,rbar,r,n); //rho=rbar.r multiply
+		dotProductAdd<<<1,1>>>(values,4,tempVec,n); //rho=rbar.r add
 		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
 
 		if(valuesH[4]==0) break;
@@ -3387,14 +3376,16 @@ void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double 
 		else{
 			valuesH[5]=(valuesH[4]/(valuesH[1]+1.0e-15))*(valuesH[2]/(valuesH[3]+1.0e-15)); //beta=(rho/rho0)*(alpha/omega)
 			cudaMemcpy(values,valuesH,sizeof(double)*7,cudaMemcpyHostToDevice);
-			VecVecModAdd<<<grid,SPHBSIZE>>>(p,r,p,v,valuesH[5],-valuesH[3],n); //p=r+beta*(p-omega*v)
+			cudaMemcpy(tempVec,p,sizeof(double)*n,cudaMemcpyDeviceToDevice);
+			VecVecModAdd<<<grid,SPHBSIZE>>>(p,r,tempVec,v,valuesH[5],-valuesH[3],n); //p=r+beta*(p-omega*v)
 		}
 
 		inverse<<<grid,SPHBSIZE>>>(pI,p,M,n); //pI=p/M
+
 		AVecMult<<<grid,SPHBSIZE>>>(v,A,pI,rowInd,col,n); //v=ApI
 
-		dotProductMult<<<grid,SPHBSIZE>>>(dotProdTemp,rbar,v,n); //temp=rbar.v multiply
-		dotProductAdd<<<1,1>>>(values,0,dotProdTemp,n); //temp=rbar.v add
+		dotProductMult<<<grid,SPHBSIZE>>>(tempVec,rbar,v,n); //temp=rbar.v multiply
+		dotProductAdd<<<1,1>>>(values,0,tempVec,n); //temp=rbar.v add
 		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
 
 		valuesH[2]=valuesH[4]/(valuesH[0]+1.0e-15); //alpha=rho/(rbar.v)
@@ -3402,17 +3393,19 @@ void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double 
 
 		VecVecModAdd<<<grid,SPHBSIZE>>>(s,r,v,-valuesH[2],n); //s=r-alpha*v
 
-		dotProductMult<<<grid,SPHBSIZE>>>(dotProdTemp,s,s,n); //norm2s multiply
-		dotProductAdd<<<1,1>>>(values,6,dotProdTemp,n); //norm2s add
+		dotProductMult<<<grid,SPHBSIZE>>>(tempVec,s,s,n); //norm2s multiply
+		dotProductAdd<<<1,1>>>(values,6,tempVec,n); //norm2s add
 		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
 
 		double norm2_s=valuesH[6];
 		if(iter==1){
-			if(norm2_s <=1.0e-6) norm2_s0=1.0;
+			if(norm2_s <=Tol) norm2_s0=1.0;
 			else norm2_s0=norm2_s;
 		}
+
 		if(norm2_s<=Tol2*norm2_s0){
-			VecVecModAdd<<<grid,SPHBSIZE>>>(X,X,pI,valuesH[2],n); //x=x+alpha*pI
+			cudaMemcpy(tempVec,X,sizeof(double)*n,cudaMemcpyDeviceToDevice);
+			VecVecModAdd<<<grid,SPHBSIZE>>>(X,tempVec,pI,valuesH[2],n); //x=x+alpha*pI
 			residual=sqrt(norm2_s/norm2_s0);
 			break;
 		}
@@ -3421,13 +3414,12 @@ void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double 
 
 		AVecMult<<<grid,SPHBSIZE>>>(t,A,sI,rowInd,col,n); //t=AsI
 
-		dotProductMult<<<grid,SPHBSIZE>>>(dotProdTemp,s,t,n); //temp=s.t multiply
-
-		dotProductAdd<<<1,1>>>(values,0,dotProdTemp,n); //temp=s.t add
+		dotProductMult<<<grid,SPHBSIZE>>>(tempVec,s,t,n); //temp=s.t multiply
+		dotProductAdd<<<1,1>>>(values,0,tempVec,n); //temp=s.t add
 		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
 
-		dotProductMult<<<grid,SPHBSIZE>>>(dotProdTemp,t,t,n); //norm2t multiply
-		dotProductAdd<<<1,1>>>(values,6,dotProdTemp,n); //norm2t add
+		dotProductMult<<<grid,SPHBSIZE>>>(tempVec,t,t,n); //norm2t multiply
+		dotProductAdd<<<1,1>>>(values,6,tempVec,n); //norm2t add
 		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
 
 		double norm2_t=valuesH[6];
@@ -3439,15 +3431,16 @@ void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double 
 		
 		VecVecModAdd<<<grid,SPHBSIZE>>>(r,s,t,-valuesH[3],n); //r=s-omega*t
 
-		dotProductMult<<<grid,SPHBSIZE>>>(dotProdTemp,r,r,n); //norm2r multiply
-		dotProductAdd<<<1,1>>>(values,6,dotProdTemp,n); //norm2r add
+		dotProductMult<<<grid,SPHBSIZE>>>(tempVec,r,r,n); //norm2r multiply
+		dotProductAdd<<<1,1>>>(values,6,tempVec,n); //norm2r add
 		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
 
 		double norm2_r=valuesH[6];
 		if(iter==1){
-			if(norm2_r <=1.0e-6) norm2_r0=1.0;
+			if(norm2_r <=Tol) norm2_r0=1.0;
 			else norm2_r0=norm2_r;
 		}
+
 		residual=sqrt(norm2_r/norm2_r0);
 		if(norm2_r<=Tol2*norm2_r0) break;
 		valuesH[1]=valuesH[4];
@@ -3464,7 +3457,7 @@ void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double 
 	cudaFree(AX); AX=NULL;
 	cudaFree(M); M=NULL;
 	cudaFree(t); t=NULL;
-	cudaFree(dotProdTemp); dotProdTemp=NULL;
+	cudaFree(tempVec); tempVec=NULL;
 	cudaFree(values); values=NULL;
 	delete[] valuesH; valuesH=NULL;
 	std::cout<<iterNumber<<"\t"<<residual<<"\n";

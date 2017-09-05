@@ -788,13 +788,14 @@ void JSphGpuSingle::SolvePPE(const double dt){
 	cudaMemset(ag,0,sizeof(double)*Nnz);
 
   cusph::PopulateMatrix(TKernel,Schwaiger,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velocity,dWxCorrg,dWyCorrg,dWzCorrg,ag,bg,rowIndg,colIndg,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLSg,dt,sumFrg,taog,BoundaryFS,Pressureg,PistonPosX,PistonVel,RightWall);
-	
+
 	/*//std::cout<<Nnz<<"\n";
 		unsigned *rowInd=new unsigned[PPEDim+1]; cudaMemcpy(rowInd,rowIndg,sizeof(unsigned)*(PPEDim+1),cudaMemcpyDeviceToHost);
 		unsigned *colInd=new unsigned[Nnz]; cudaMemcpy(colInd,colIndg,sizeof(unsigned)*Nnz,cudaMemcpyDeviceToHost);
 		double *b=new double[PPEDim]; cudaMemcpy(b,bg,sizeof(double)*PPEDim,cudaMemcpyDeviceToHost);
 		double *a=new double[Nnz]; cudaMemcpy(a,ag,sizeof(double)*Nnz,cudaMemcpyDeviceToHost);
 		unsigned *Idpc=new unsigned[Np]; cudaMemcpy(Idpc,Idpg,sizeof(unsigned)*Np,cudaMemcpyDeviceToHost);
+		double *press=new double[PPEDim]; cudaMemcpy(press,Pressureg,sizeof(double)*PPEDim,cudaMemcpyDeviceToHost);
 	
 		ofstream FileOutput;
 			string TimeFile;
@@ -809,14 +810,14 @@ void JSphGpuSingle::SolvePPE(const double dt){
 			FileOutput.open(TimeFile.c_str());
 
 		for(int i=npb;i<np;i++){
-			FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << (i-npb) << "\t b " << b[(i-npb)] << "\n";
-			for(int j=rowInd[(i-npb)];j<rowInd[(i-npb)+1];j++){
-				FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\t"<<Idpc[colInd[j]+npb]<<"\n";
-			}
+			FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << (i-npb) << "\t diag " << a[rowInd[(i-npb)]] << "\t b " << b[(i-npb)] << "\t press " << press[i-npb] << "\n";
+			//for(int j=rowInd[(i-npb)];j<rowInd[(i-npb)+1];j++){
+			//	FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\t"<<Idpc[colInd[j]+npb]<<"\n";
+			//}
 		}
 		FileOutput.close();
 		
-		delete[] rowInd; delete[] colInd; delete[] b; delete[]a; delete[] Idpc;
+		delete[] rowInd; delete[] colInd; delete[] b; delete[]a; delete[] Idpc; delete[] press;
 	
 	count++;*/
 
@@ -831,6 +832,7 @@ void JSphGpuSingle::SolvePPE(const double dt){
   CheckCudaError(met,"FreeSurfaceMark");
 	TmgStop(Timers,TMG_Stage2a);
 	TmgStart(Timers,TMG_Stage2b);
+
 	cusph::SolverResultArrange(bsfluid,npb,npbok,npf,Pressureg);
   cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Pressureg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
 	//cusph::PreBiCGSTAB(Tolerance,Iterations,ag,Pressureg,bg,rowIndg,colIndg,Nnz,PPEDim,Npb);
