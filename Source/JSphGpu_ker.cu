@@ -439,7 +439,7 @@ __device__ void KerGetParticlesDr(unsigned count,int p2
 			dry=0;
 			drz=posdp1.z-posp2.z;
 			velp2.x=2.0*LeftWallVel-fluidVel.x;
-			velp2.z=-fluidVel.z;
+			velp2.z=fluidVel.z;
 			pressp2=fluidPress;
 		}
 	}
@@ -452,7 +452,7 @@ __device__ void KerGetParticlesDr(unsigned count,int p2
 			drx=posdp1.x-posp2.x;
 			dry=0;
 			drz=posdp1.z-posp2.z;
-			velp2.x=-fluidVel.x;
+			velp2.x=fluidVel.x;
 			velp2.z=-fluidVel.z;
 			pressp2=fluidPress+NeumannDist*gravity.z*CTE.rhopzero;
 		}
@@ -466,7 +466,7 @@ __device__ void KerGetParticlesDr(unsigned count,int p2
 			dry=0;
 			drz=posdp1.z-posp2.z;
 			velp2.x=-fluidVel.x;
-			velp2.z=-fluidVel.z;
+			velp2.z=fluidVel.z;
 			pressp2=fluidPress;
 		}
 	}
@@ -1342,7 +1342,7 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
     //Max Shifting
 		if(maxShift){
       double absShift=sqrt(rshiftpos.x*rshiftpos.x+rshiftpos.y*rshiftpos.y+rshiftpos.z*rshiftpos.z);
-			double maxDist=0.1*dp;
+			double maxDist=0.2*h;
       if(abs(rshiftpos.x)>maxDist) rshiftpos.x=maxDist*rshiftpos.x/absShift;
       if(abs(rshiftpos.y)>maxDist) rshiftpos.y=maxDist*rshiftpos.y/absShift;
       if(abs(rshiftpos.z)>maxDist) rshiftpos.z=maxDist*rshiftpos.z/absShift;
@@ -2666,8 +2666,9 @@ template<TpKernel tker,bool schwaiger> __global__ void KerPopulateMatrixAFluid
 			double divU=0;
 			double Neumann=0;
       if(divr[p1]>freesurface){
-				double3 sumfr=SumFr[Correctp1];
-				const double taop1=tao[Correctp1];
+				double3 sumfr=make_double3(0,0,0);
+				double taop1=0;
+				if(schwaiger){ taop1=tao[Correctp1]; sumfr=SumFr[Correctp1];}
         //-Obtiene datos basicos de particula p1.
   	    //-Obtains basic data of particle p1.
         double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
@@ -3139,7 +3140,7 @@ template<TpKernel tker> __device__ void KerCalcShiftVelocity
 						const double temp_y=frx*dwx.y+fry*dwy.y+frz*dwz.y;
 						const double temp_z=frx*dwx.z+fry*dwy.z+frz*dwz.z;
 
-						double dvx=velp2.x-velp1.x, dvy=velp2.y-velp1.y, dvz=velp2.z-velp1.z;
+						double dvx=velp2.x-velp1.x, dvy=0,/*velp2.y-velp1.y,*/ dvz=velp2.z-velp1.z;
 						gradvx.x+=temp_x*dvx*volumep2; gradvx.y+=temp_y*dvx*volumep2; gradvx.z+=temp_z*dvx*volumep2;
 						gradvy.x+=temp_x*dvy*volumep2; gradvy.y+=temp_y*dvy*volumep2; gradvy.z+=temp_z*dvy*volumep2;
 						gradvz.x+=temp_x*dvz*volumep2; gradvz.y+=temp_y*dvz*volumep2; gradvz.z+=temp_z*dvz*volumep2;   
