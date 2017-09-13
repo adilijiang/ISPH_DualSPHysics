@@ -300,8 +300,8 @@ void JSphGpu::AllocGpuMemoryParticles(unsigned np,float over){
   //-Compute total number of arrays
   ArraysGpu->SetArraySize(np2);
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_2B,2);  //-code*2
-  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,5);  //-idp*2,dcell*2,divr+npfout
-	ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,3);  //-b,pressure
+  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,4);  //-idp*2,dcell*2,npfout
+	ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,4);  //-b,pressure,divr
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,1); //-Saving
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,2); //-velrhop,velrhoppre
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,3);  //-posz*2,poszpre
@@ -891,7 +891,7 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
 		cudaMemset(dWxCorrg,0,sizeof(double3)*npf);
 		cudaMemset(dWyCorrg,0,sizeof(double3)*npf); 
 		cudaMemset(dWzCorrg,0,sizeof(double3)*npf);
-		Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
+		Divrg=ArraysGpu->ReserveDouble(); cudaMemset(Divrg,0,sizeof(double)*np);
 		cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
 		//cudaMemset(Pressureg,0,sizeof(double)*np);
 		if(Schwaiger){
@@ -953,7 +953,7 @@ void JSphGpu::ComputeSymplecticCorr(double dt){
   //-Computes displacement, velocity and density.
   const double dt05=dt*0.5;
 	const bool wavegen=(WaveGen? true:false);
-  cusph::ComputeStepSymplecticCor(BlockSizes.forcesfluid,WithFloating,Np,Npb,VelocityPre,Aceg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velocity,Gravity,rowIndg,Posxyg,Poszg,Idpg,MirrorPosg,wavegen,DampingPointX,DampingLengthX);
+  cusph::ComputeStepSymplecticCor(BlockSizes.forcesfluid,WithFloating,Np,Npb,VelocityPre,Aceg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velocity,Gravity,rowIndg,Posxyg,Poszg,Idpg,MirrorPosg,wavegen,DampingPointX,DampingLengthX,RightWall,PistonPosX,PistonVel);
   //-Aplica desplazamiento a las particulas fluid no periodicas.
   //-Applies displacement to non-periodic fluid particles.
 	cusph::Moveparticles(BlockSizes.forcesfluid,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg);
@@ -1095,7 +1095,7 @@ void JSphGpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
 ///Matrix storage
 //===============================================================================
 void JSphGpu::MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,
-		const unsigned ppedim,unsigned int *row,const float *divr,const float freesurface,unsigned &nnz,unsigned &numFreeSurface){
+		const unsigned ppedim,unsigned int *row,const double *divr,const float freesurface,unsigned &nnz,unsigned &numFreeSurface){
  
   cudaMemset(counterNnzGPU, 0, sizeof(unsigned));
 	cudaMemset(NumFreeSurfaceGPU, 0, sizeof(unsigned));
@@ -1138,11 +1138,11 @@ void JSphGpu::Shift(double dt,const unsigned bsfluid){
 //==============================================================================
 /// Variable timestep
 //==============================================================================
-double JSphGpu::ComputeVariable(){
+/*double JSphGpu::ComputeVariable(){
   const char met[]="VariableTimestep";
 //  cusph::ComputeVelMod(Np-Npb,Velrhopg+Npb,Divrg); //Divrg is used to store the velocity magnitudes here
   float velmax=cusph::ReduMaxFloat(Np-Npb,0,Divrg,CellDiv->GetAuxMem(cusph::ReduMaxFloatSize(Np-Npb)));
   VelMax=sqrt(velmax);
 	//std::cout<<VelMax<<"\n";
 	return(CFLnumber*H/VelMax);
-}
+}*/

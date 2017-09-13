@@ -835,8 +835,8 @@ void JSphGpuSingle::SolvePPE(const double dt){
 	TmgStart(Timers,TMG_Stage2b);
 
 
-  //cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Pressureg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
-	cusph::PreBiCGSTAB(Tolerance,Iterations,ag,Pressureg,bg,rowIndg,colIndg,Nnz,PPEDim,Npb);
+  cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Pressureg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
+	//cusph::PreBiCGSTAB(Tolerance,Iterations,ag,Pressureg,bg,rowIndg,colIndg,Nnz,PPEDim,Npb);
 	CheckCudaError(met,"Matrix Solve");
 
   cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Poszg,Velrhopg,Pressureg,Idpg,Codeg,NegativePressureBound,MirrorPosg,bg);
@@ -862,8 +862,7 @@ void JSphGpuSingle::RunShifting(const double dt){
   VelrhopPreg=ArraysGpu->ReserveFloat4();
 	VelocityPre=ArraysGpu->ReserveDouble3();
 
-	Divrg=ArraysGpu->ReserveFloat();
-	cudaMemset(Divrg,0,sizeof(float)*np);
+	Divrg=ArraysGpu->ReserveDouble();	cudaMemset(Divrg,0,sizeof(double)*np);
   cudaMemset(ShiftPosg,0,sizeof(double3)*npf);
 	cudaMemset(Tensileg,0,sizeof(double3)*npf);
 	cudaMemset(dWxCorrg,0,sizeof(double3)*npf);

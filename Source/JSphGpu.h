@@ -227,7 +227,7 @@ protected:
 	double3 *Velocity;
 	double3 *VelocityPre;
 	double3 *sumFrg;
-	float *Divrg; //Divergence of position
+	double *Divrg; //Divergence of position
 	double3 *ShiftPosg;
 	double3 *Tensileg;
 	double *taog;
@@ -246,7 +246,7 @@ protected:
 	unsigned *NumFreeSurfaceCPU;
 
   void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,
-		const unsigned ppedim,unsigned int *rowGpu,const float *divr,const float freesurface,unsigned &nnz,unsigned &numFreeSurface);
+		const unsigned ppedim,unsigned int *rowGpu,const double *divr,const float freesurface,unsigned &nnz,unsigned &numFreeSurface);
 
   void Shift(double dt,const unsigned bsfluid);
 	double ComputeVariable();
