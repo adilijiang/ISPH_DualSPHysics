@@ -569,6 +569,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 	count=1;
 	cudaMemset(Velocity,0,sizeof(double3)*Np);
 	cudaMemset(Pressureg,0,sizeof(double)*Np);
+	NormShiftDir=ArraysGpu->ReserveDouble3();
 	PistonVel=0;
 	while(TimeStep<TimeMax){
 		if(CaseNmoving)RunMotion(stepdt);
@@ -582,7 +583,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
         TimeMax=TimeStep;
       }
       SaveData();
-			SaveVtkData("InitSymplectic.vtk",Nstep,Np,Posxyg,Poszg,Idpg,Velocity,Pressureg);
+			SaveVtkData("InitSymplectic.vtk",Nstep,Np,Posxyg,Poszg,Idpg,Velocity,Pressureg,NormShiftDir);
       Part++;
       PartNstep=Nstep;
       TimeStepM1=TimeStep;
@@ -594,7 +595,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
     //if(Nstep>=2)break;
   }
   TimerSim.Stop(); TimerTot.Stop();
-
+	ArraysGpu->Free(NormShiftDir);  NormShiftDir=NULL;
   //-Fin de simulacion
   //-End of the simulation.
   //--------------------
@@ -606,7 +607,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 /// Generates output files for particle data
 //==============================================================================
 #include "JFormatFiles2.h"
-void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const unsigned *idp,const double3 *velrhop,const double *pressure)const{
+void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const unsigned *idp,const double3 *velrhop,const double *pressure,const double3 *normshiftdir)const{
   //-Allocate memory.
   tdouble2 *pxy=new tdouble2[np];
   double *pz=new double[np];
@@ -615,6 +616,7 @@ void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,cons
   double3 *vel=new double3[np];
   //float *rhop=new float[np];
 	double *pres=new double[np];
+	double3 *normshift=new double3[np];
 	//float *divr=new float[np];
 
   //-Copies memory to CPU.
@@ -623,6 +625,7 @@ void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,cons
   cudaMemcpy(idph,idp,sizeof(unsigned)*np,cudaMemcpyDeviceToHost);
   cudaMemcpy(vel,velrhop,sizeof(double3)*np,cudaMemcpyDeviceToHost);
 	cudaMemcpy(pres,pressure,sizeof(double)*np,cudaMemcpyDeviceToHost);
+	cudaMemcpy(normshift,normshiftdir,sizeof(double3)*np,cudaMemcpyDeviceToHost);
 	//cudaMemcpy(divr,divrg,sizeof(float)*np,cudaMemcpyDeviceToHost);
   for(unsigned p=0;p<np;p++){
     pos[p]=ToTFloat3(TDouble3(pxy[p].x,pxy[p].y,pz[p]));
@@ -635,6 +638,7 @@ void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,cons
   if(vel){   fields[nfields]=JFormatFiles2::DefineField("Vel" ,JFormatFiles2::Double64,3,vel);  nfields++; }
   //if(rhop){  fields[nfields]=JFormatFiles2::DefineField("Rhop",JFormatFiles2::Float32,1,rhop); nfields++; }
 	if(pres){  fields[nfields]=JFormatFiles2::DefineField("Pressure",JFormatFiles2::Double64,1,pres); nfields++; }
+	if(normshift){   fields[nfields]=JFormatFiles2::DefineField("NormShiftDir" ,JFormatFiles2::Double64,3,normshift);  nfields++; }
 	//if(divr){  fields[nfields]=JFormatFiles2::DefineField("Divr",JFormatFiles2::Float32,1,divr); nfields++; }
   string file=Log->GetDirOut()+fun::FileNameSec(fname,fnum);
   JFormatFiles2::SaveVtk(file,np,pos,nfields,fields);
@@ -645,6 +649,7 @@ void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,cons
   delete[] pos;
   delete[] idph;
   delete[] vel;
+	delete[] normshift;
   //delete[] rhop;
 	delete[] pres;
 	//delete[]divr;
@@ -863,6 +868,7 @@ void JSphGpuSingle::RunShifting(const double dt){
 	VelocityPre=ArraysGpu->ReserveDouble3();
 
 	Divrg=ArraysGpu->ReserveDouble();	cudaMemset(Divrg,0,sizeof(double)*np);
+	cudaMemset(NormShiftDir,0,sizeof(double3)*np);
   cudaMemset(ShiftPosg,0,sizeof(double3)*npf);
 	cudaMemset(Tensileg,0,sizeof(double3)*npf);
 	cudaMemset(dWxCorrg,0,sizeof(double3)*npf);
@@ -889,17 +895,21 @@ void JSphGpuSingle::RunShifting(const double dt){
   const unsigned bsbound=BlockSizes.forcesbound;
   const unsigned bsfluid=BlockSizes.forcesfluid;
 
-  cusph::Interaction_Shifting(TKernel,TSlipCond,Simulate2D,WithFloating,UseDEM,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,bsbound,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velocity,Codeg,FtoMasspg,TShifting,ShiftPosg,Divrg,TensileN,TensileR,Tensileg,FreeSurface,BoundaryFS,Idpg,MirrorPosg,MirrorCellg,dWxCorrg,dWyCorrg,dWzCorrg,MLSg,rowIndg,PistonPosX,PistonVel,RightWall,Gravity,Pressureg);
-
+	double *AvConc; cudaMalloc((void**)&AvConc,sizeof(double)); cudaMemset(AvConc,0,sizeof(double));
+	double *W; cudaMalloc((void**)&W,sizeof(double)*npf); cudaMemset(W,0,sizeof(double)*npf);
+  cusph::Interaction_Shifting(TKernel,TSlipCond,Simulate2D,WithFloating,UseDEM,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,bsbound,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velocity,Codeg,FtoMasspg,TShifting,ShiftPosg,Divrg,TensileN,TensileR,Tensileg,FreeSurface,BoundaryFS,Idpg,MirrorPosg,MirrorCellg,dWxCorrg,dWyCorrg,dWzCorrg,MLSg,rowIndg,PistonPosX,PistonVel,RightWall,Gravity,Pressureg,AvConc,W);
+	
   CheckCudaError(met,"Failed in calculating concentration");
 
-  JSphGpu::RunShifting(dt);
+  JSphGpu::RunShifting(dt,AvConc);
   TmgStop(Timers,TMG_SuShifting);
   CheckCudaError(met,"Failed in calculating shifting distance");
 	const bool wavegen=(WaveGen? true:false);
 	//cusph::CorrectShiftVelocity(wavegen,TKernel,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velocity,dWxCorrg,dWyCorrg,dWzCorrg,Idpg,Divrg,Codeg,BoundaryFS,ShiftPosg,Aceg,DampingPointX,DampingLengthX,PistonPosX,PistonVel,RightWall,Gravity,Pressureg);
 	Shift(dt,bsfluid);
 	//cusph::ResetBoundVel(Npb,bsbound,Velocity,VelocityPre);
+	cudaFree(AvConc); AvConc=NULL;
+	cudaFree(W); W=NULL;
   ArraysGpu->Free(PosxyPreg);     PosxyPreg=NULL;
   ArraysGpu->Free(PoszPreg);      PoszPreg=NULL;
   ArraysGpu->Free(VelrhopPreg);   VelrhopPreg=NULL;

@@ -202,7 +202,7 @@ protected:
   void ComputeSymplecticPre(double dt);
   void ComputeSymplecticCorr(double dt);
   double DtVariable(bool final);
-  void RunShifting(double dt);
+  void RunShifting(double dt,const double *AvConc);
 
   void RunMotion(double stepdt);
 
@@ -231,6 +231,7 @@ protected:
 	double3 *ShiftPosg;
 	double3 *Tensileg;
 	double *taog;
+	double3 *NormShiftDir;
 
   //matrix variables 
   double *bg;

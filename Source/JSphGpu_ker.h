@@ -120,9 +120,9 @@ void AddDelta(unsigned n,const float *delta,float *ar);
 
 //# Kernels para Shifting
 //# Kernels for Shifting
-void RunShifting(const bool simulate2d,unsigned np,unsigned npb,double dt
+void RunShifting(const unsigned bsfluid,const bool simulate2d,unsigned np,unsigned npb,double dt
   ,double shiftcoef,float freesurface,double3 *velrhop,const double *divr,double3 *shiftpos
-	,const bool maxShift,double3 *sumtensile,const float shiftoffset,const double alphashift,const double beta0,const double beta1);
+	,const bool maxShift,double3 *sumtensile,const float shiftoffset,const double alphashift,const double beta0,const double beta1,const double *AvConc,double3 *NormShiftDir);
 
 void ComputeStepSymplecticPre(const unsigned bsfluid,bool floating,unsigned np,unsigned npb
   ,const double3 *ace,double dtm,word *code,double3 *velrhop);
@@ -210,7 +210,8 @@ void Interaction_Shifting(TpKernel tkernel,TpSlipCond tslipcond,bool simulate2d,
   ,double3 *velrhop,const word *code,const float *ftomassp
   ,TpShifting tshifting,double3 *shiftpos,double *divr,const float tensilen,const float tensiler,double3 *sumtensile
 	,const float freesurface,const float boundaryfs,const unsigned *idp,const double3 *mirrorPos,const unsigned *mirrorCell
-	,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg,double4 *mls,unsigned *row,const double pistonposx,const double PistonVel,const double RightWall,const tfloat3 gravity,const double *pressure);
+	,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg,double4 *mls,unsigned *row,const double pistonposx,const double PistonVel
+	,const double RightWall,const tfloat3 gravity,const double *pressure,double *AvConc,double *W);
 
 void ComputeShift(bool floating,const unsigned bsfluid,unsigned np,unsigned npb
   ,const double3 *shiftpos,word *code,double2 *movxy,double *movz);

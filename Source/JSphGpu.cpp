@@ -306,7 +306,7 @@ void JSphGpu::AllocGpuMemoryParticles(unsigned np,float over){
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,2); //-velrhop,velrhoppre
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,3);  //-posz*2,poszpre
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,4); //-posxy*2,posxypre+npfout
-  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_24B,4); //Velocity,VelocityPre
+  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_24B,5); //Velocity,VelocityPre,NormShiftDir
   if(CaseNfloat){
     ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,4);  //-FtMasspg
   }
@@ -994,10 +994,10 @@ double JSphGpu::DtVariable(bool final){
 /// Calcula Shifting final para posicion de particulas.
 /// Computes final shifting distance for the particle position.
 //==============================================================================
-void JSphGpu::RunShifting(double dt){
+void JSphGpu::RunShifting(double dt,const double *AvConc){
 	bool maxShift=false;
 	if(TShifting==SHIFT_Max) maxShift=true;
-  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velocity,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift,BetaShift0,BetaShift1);
+  cusph::RunShifting(BlockSizes.forcesfluid,Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velocity,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift,BetaShift0,BetaShift1,AvConc,NormShiftDir);
 }
 
 //==============================================================================
