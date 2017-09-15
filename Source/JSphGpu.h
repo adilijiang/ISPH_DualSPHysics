@@ -232,6 +232,8 @@ protected:
 	double3 *Tensileg;
 	double *taog;
 	double3 *NormShiftDir;
+	double3 *TangShiftDir;
+	double3 *ShiftDist;
 
   //matrix variables 
   double *bg;

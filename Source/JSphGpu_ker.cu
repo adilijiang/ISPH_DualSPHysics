@@ -1024,9 +1024,9 @@ template<TpKernel tker,TpFtMode ftmode,bool schwaiger> void Interaction_ForcesT
 	,double3 *SumFr,double *tao,const float boundaryfs,const float freesurface,const double pistonposx,StKerInfo *kerinfo,JBlockSizeAuto *bsauto,const double *pressure,const double pistonvel,const double RightWall,const tfloat3 gravity)
 {
 	const unsigned npf=np-npb;
-	if(kerinfo)Interaction_ForcesT_KerInfo<tker,ftmode>(kerinfo);
+	//if(kerinfo)Interaction_ForcesT_KerInfo<tker,ftmode>(kerinfo);
   //else if(bsauto)Interaction_ForcesT_BsAuto<psimple,tker,ftmode,lamsps,tdelta,shift>(cellmode,viscob,viscof,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,posxy,posz,pospress,velrhop,code,idp,ftomassp,tau,gradvel,viscdt,ar,ace,delta,tshifting,shiftpos,shiftdetect,simulate2d,bsauto);
-  else if(npf){
+  /*else*/ if(npf){
 		//-Executes particle interactions.
 		const int hdiv=(cellmode==CELLMODE_H? 2: 1);
 		const uint4 nc=make_uint4(ncells.x,ncells.y,ncells.z,ncells.x*ncells.y);
@@ -1259,7 +1259,7 @@ void Interaction_ForcesDem(bool psimple,TpCellMode cellmode,unsigned bsize
 __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,double dt
   ,float shiftcoef,float freesurface,double3 *velrhop,const double *divr,double3 *shiftpos
 	,const float ShiftOffset,const double alphashift,const bool maxShift,double3 *sumtensile
-	,const double beta0,const double beta1,const double *AvConc,double3 *NormShiftDir)
+	,const double beta0,const double beta1,const double *AvConc,double3 *NormShiftDir,double3 *TangShiftDir,double3 *ShiftDist)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
   if(p<n){
@@ -1274,8 +1274,6 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 		double umagn=-double(shiftcoef)*h*h;
 
 		double3 norm=make_double3(-rshiftpos.x,-rshiftpos.y,-rshiftpos.z);
-
-		if(simulate2d) norm.y=0;
 	  double3 tang=make_double3(0,0,0);
 	  double3 bitang=make_double3(0,0,0);
 		rshiftpos.x+=sumtensile[Correctp1].x; rshiftpos.y+=sumtensile[Correctp1].y; rshiftpos.z+=sumtensile[Correctp1].z;
@@ -1283,17 +1281,18 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 		rshiftpos.y=rshiftpos.y/avConc;
 		rshiftpos.z=rshiftpos.z/avConc;
 		if(simulate2d)  rshiftpos.y=0;
-
+		
 	  //-tangent and bitangent calculation
-	  tang.x=-norm.z+norm.y;		
+	  tang.x=norm.z;		
 	  if(!simulate2d)tang.y=-(norm.x+norm.z);	
-	  tang.z=norm.x+norm.y;
+	  tang.z=-norm.x;
 		if(!simulate2d){
 			bitang.x=tang.y*norm.z-norm.y*tang.z;
 			bitang.y=norm.x*tang.z-tang.x*norm.z;
 			bitang.z=tang.x*norm.y-norm.x*tang.y;
 		}
-
+		NormShiftDir[p1]=rshiftpos;
+		TangShiftDir[p1]=tang;
 	  //-unit normal vector
 	  double temp=norm.x*norm.x+norm.y*norm.y+norm.z*norm.z;
 	  if(temp){
@@ -1327,7 +1326,7 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 
     if(divrp1<freesurface){
 			dcdn-=beta0;
-			double factorNormShift=alphashift;
+			double factorNormShift=alphashift; 
       rshiftpos.x=dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*factorNormShift;
       if(!simulate2d) rshiftpos.y=dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift;
       rshiftpos.z=dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*factorNormShift;
@@ -1352,7 +1351,7 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
       if(abs(rshiftpos.y)>maxDist) rshiftpos.y=maxDist*rshiftpos.y/absShift;
       if(abs(rshiftpos.z)>maxDist) rshiftpos.z=maxDist*rshiftpos.z/absShift;
 		}
-		NormShiftDir[p1]=norm;
+		ShiftDist[p1]=rshiftpos;
     shiftpos[Correctp1]=rshiftpos;
   }
 }
@@ -1363,11 +1362,11 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 //==============================================================================
 void RunShifting(const unsigned bsfluid,const bool simulate2d,unsigned np,unsigned npb,double dt
   ,double shiftcoef,float freesurface,double3 *velrhop,const double *divr,double3 *shiftpos
-	,bool maxShift,double3 *sumtensile,const float shiftoffset,const double alphashift,const double betashift0,const double betashift1,const double *AvConc,double3 *NormShiftDir){
+	,bool maxShift,double3 *sumtensile,const float shiftoffset,const double alphashift,const double betashift0,const double betashift1,const double *AvConc,double3 *NormShiftDir,double3 *TangShiftDir,double3 *ShiftDist){
   const unsigned npf=np-npb;
   if(npf){
     dim3 sgridf=GetGridSize(npf,bsfluid);
-    KerRunShifting <<<sgridf,bsfluid>>> (simulate2d,npf,npb,dt,shiftcoef,freesurface,velrhop,divr,shiftpos,shiftoffset,alphashift,maxShift,sumtensile,betashift0,betashift1,AvConc,NormShiftDir);
+    KerRunShifting <<<sgridf,bsfluid>>> (simulate2d,npf,npb,dt,shiftcoef,freesurface,velrhop,divr,shiftpos,shiftoffset,alphashift,maxShift,sumtensile,betashift0,betashift1,AvConc,NormShiftDir,TangShiftDir,ShiftDist);
   }
 }
 
@@ -3412,7 +3411,7 @@ void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double 
 
 		double norm2_s=valuesH[6];
 		if(iter==1){
-			if(norm2_s <=Tol) norm2_s0=1.0;
+			if(norm2_s <=1e-6) norm2_s0=1.0;
 			else norm2_s0=norm2_s;
 		}
 
@@ -3450,7 +3449,7 @@ void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double 
 
 		double norm2_r=valuesH[6];
 		if(iter==1){
-			if(norm2_r <=Tol) norm2_r0=1.0;
+			if(norm2_r <=1e-6) norm2_r0=1.0;
 			else norm2_r0=norm2_r;
 		}
 

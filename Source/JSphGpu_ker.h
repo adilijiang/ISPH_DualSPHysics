@@ -122,7 +122,7 @@ void AddDelta(unsigned n,const float *delta,float *ar);
 //# Kernels for Shifting
 void RunShifting(const unsigned bsfluid,const bool simulate2d,unsigned np,unsigned npb,double dt
   ,double shiftcoef,float freesurface,double3 *velrhop,const double *divr,double3 *shiftpos
-	,const bool maxShift,double3 *sumtensile,const float shiftoffset,const double alphashift,const double beta0,const double beta1,const double *AvConc,double3 *NormShiftDir);
+	,const bool maxShift,double3 *sumtensile,const float shiftoffset,const double alphashift,const double beta0,const double beta1,const double *AvConc,double3 *NormShiftDir,double3 *TangShiftDir,double3 *ShiftDist);
 
 void ComputeStepSymplecticPre(const unsigned bsfluid,bool floating,unsigned np,unsigned npb
   ,const double3 *ace,double dtm,word *code,double3 *velrhop);
