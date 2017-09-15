@@ -608,6 +608,21 @@ __device__ void KerGetKernelWendland(float rr2,float drx,float dry,float drz
   frx=fac*drx; fry=fac*dry; frz=fac*drz;
 }
 
+__device__ void KerGetKernelWendland(double rr2,double drx,double dry,double drz
+  ,double &frx,double &fry,double &frz)
+{
+  const double rad=sqrt(rr2);
+	const double h=CTE.h;
+	const double Bwen=-2.7852/(h*h*h);
+  const double qq=rad/h;
+
+  //-Wendland kernel.
+  const double wqq1=1.0-0.5*qq;
+  const double fac=Bwen*qq*wqq1*wqq1*wqq1/rad;
+
+  frx=fac*drx; fry=fac*dry; frz=fac*drz;
+}
+
 //------------------------------------------------------------------------------
 /// Devuelve valores de kernel: wab.
 /// returns kernel values: wab.
@@ -656,6 +671,19 @@ __device__ float KerGetKernelWendlandWab(float rr2)
   return(CTE.awen*wqq*wqq2*wqq2);
 }
 
+__device__ double KerGetKernelWendlandWab(double rr2)
+{
+  const double rad=sqrt(rr2);
+	const double h=CTE.h;
+  const double qq=rad/h;
+	const double Awen=0.577/(h*h);
+  //-Wendland kernel.
+  const double wqq=2.0*qq+1.0;
+  const double wqq1=1.0-0.5*qq;
+  const double wqq2=wqq1*wqq1;
+				 
+  return(Awen*wqq*wqq2*wqq2);
+}
 //------------------------------------------------------------------------------
 ///  Inverse Kernel Correction Matrix
 //------------------------------------------------------------------------------
@@ -723,7 +751,7 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesFlui
 					//-Wendland kernel.
 					double frx,fry,frz;
 					if(tker==KERNEL_Quintic) KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
-																					//else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
+					else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
       
 				//===== Aceleration ===== 
 					const double rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
@@ -769,7 +797,7 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesFlui
 					//-Wendland kernel.
 					double frx,fry,frz;
 					if(tker==KERNEL_Quintic) KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
-					//else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
+					else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 
 					//===== Aceleration ===== 
 					const double temp_x=frx*dwxcorrg.x+fry*dwycorrg.x+frz*dwzcorrg.x;
@@ -895,7 +923,7 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerViscousSchwaigerCalc
 					//-Wendland kernel.
 					double frx,fry,frz;
 					if(tker==KERNEL_Quintic) KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
-					//else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
+					else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 					const double rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
 					const double taotemp=volume*rDivW/(rr2+CTE.eta2);
 					taop1.x+=taotemp*drx*drx; taop1.z+=taotemp*drz*drz;
@@ -1293,6 +1321,7 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 		}
 		NormShiftDir[p1]=rshiftpos;
 		TangShiftDir[p1]=tang;
+		TangShiftDir[p1].y=divrp1;
 	  //-unit normal vector
 	  double temp=norm.x*norm.x+norm.y*norm.y+norm.z*norm.z;
 	  if(temp){
@@ -1326,7 +1355,7 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 
     if(divrp1<freesurface){
 			dcdn-=beta0;
-			double factorNormShift=alphashift; 
+			double factorNormShift=0;//alphashift; 
       rshiftpos.x=dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*factorNormShift;
       if(!simulate2d) rshiftpos.y=dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift;
       rshiftpos.z=dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*factorNormShift;
@@ -2550,7 +2579,7 @@ template<TpKernel tker,bool schwaiger> __device__ void KerMatrixAFluidSelf
 				//-Wendland kernel.
 				double frx,fry,frz;
 				if(tker==KERNEL_Quintic) KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
-				//else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
+				else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 
 				const double temp_x=frx*dwx.x+fry*dwy.x+frz*dwz.x;
 				const double temp_y=frx*dwx.y+fry*dwy.y+frz*dwz.y;
@@ -2606,7 +2635,7 @@ template<TpKernel tker,bool schwaiger> __device__ void KerMatrixAFluid
 						//-Wendland kernel.
 						double frx,fry,frz;
 						if(tker==KERNEL_Quintic) KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
-						//else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
+						else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 
 						const double temp_x=frx*dwx.x+fry*dwy.x+frz*dwz.x;
 						const double temp_y=frx*dwx.y+fry*dwy.y+frz*dwz.y;
@@ -2953,8 +2982,8 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesShif
 						Wab=KerGetKernelQuinticWab(rr2);
 					}
 					else if(tker==KERNEL_Wendland){
-				//		KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
-					//	Wab=KerGetKernelWendlandWab(rr2);
+						KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
+						Wab=KerGetKernelWendlandWab(rr2);
 					}
 
 					//-Shifting correction
@@ -2993,7 +3022,7 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesShif
 		double sumW=0;
     double Wab1;
 		if(tker==KERNEL_Quintic) Wab1=KerGetKernelQuinticWab(CTE.dp*CTE.dp);
-		//else if(tker==KERNEL_Wendland) Wab1=KerGetKernelWendlandWab(CTE.dp*CTE.dp);
+		else if(tker==KERNEL_Wendland) Wab1=KerGetKernelWendlandWab(CTE.dp*CTE.dp);
 
     //-Vars para Shifting.
 		//-Variables for Shifting.
@@ -3093,7 +3122,7 @@ void Interaction_Shifting
 			else if(!usedem)KerInteractionForcesShifting1<tker,FTMODE_Sph> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,tshifting,shiftpos,divr,tensilen,tensiler,sumtensile,freesurface,boundaryfs,dwxcorrg,dwycorrg,dwzcorrg,pistonposx,PistonVel,RightWall,gravity,pressure,W);
 			else            KerInteractionForcesShifting1<tker,FTMODE_Dem> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,tshifting,shiftpos,divr,tensilen,tensiler,sumtensile,freesurface,boundaryfs,dwxcorrg,dwycorrg,dwzcorrg,pistonposx,PistonVel,RightWall,gravity,pressure,W);
 			
-			if(simulate2d) KerInverseKernelCor2D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwzcorrg,code);
+			//if(simulate2d) KerInverseKernelCor2D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwzcorrg,code);
 		}
 	}
 }
@@ -3145,7 +3174,7 @@ template<TpKernel tker> __device__ void KerCalcShiftVelocity
 					//-Wendland kernel.
 						double frx,fry,frz;
 						if(tker==KERNEL_Quintic) KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
-						//else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
+						else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 
 						const double temp_x=frx*dwx.x+fry*dwy.x+frz*dwz.x;
 						const double temp_y=frx*dwx.y+fry*dwy.y+frz*dwz.y;

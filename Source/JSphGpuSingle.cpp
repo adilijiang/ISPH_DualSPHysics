@@ -793,7 +793,7 @@ void JSphGpuSingle::SolvePPE(const double dt){
   bg=ArraysGpu->ReserveDouble(); cudaMemset(bg,0,sizeof(double)*PPEDim);
 
   MatrixASetup(np,npb,npbok,PPEDim,rowIndg,Divrg,FreeSurface,Nnz,Numfreesurface);	
-
+	std::cout<<Nnz<<"\n";
 	if(Nnz>MatrixMemory*np) RunException(met,fun::PrintStr("MatrixMemory too small"));
 	CheckCudaError(met,"Nnz");
 
@@ -916,7 +916,7 @@ void JSphGpuSingle::RunShifting(const double dt){
   CheckCudaError(met,"Failed in calculating shifting distance");
 	const bool wavegen=(WaveGen? true:false);
 	//cusph::CorrectShiftVelocity(wavegen,TKernel,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velocity,dWxCorrg,dWyCorrg,dWzCorrg,Idpg,Divrg,Codeg,BoundaryFS,ShiftPosg,Aceg,DampingPointX,DampingLengthX,PistonPosX,PistonVel,RightWall,Gravity,Pressureg);
-	Shift(dt,bsfluid);
+	//Shift(dt,bsfluid);
 	//cusph::ResetBoundVel(Npb,bsbound,Velocity,VelocityPre);
 	cudaFree(AvConc); AvConc=NULL;
 	cudaFree(W); W=NULL;
