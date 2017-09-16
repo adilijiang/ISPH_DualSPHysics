@@ -929,12 +929,12 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
 void JSphGpu::ComputeSymplecticPre(double dt){
   TmgStart(Timers,TMG_SuComputeStep);
   //-Allocate memory to compute the diplacement
-  double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*Np);
-  double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*Np);
+  //double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*Np);
+  //double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*Np);
 	//-Update velocity
   cusph::ComputeStepSymplecticPre(BlockSizes.forcesfluid,WithFloating,Np,Npb,Aceg,dt,Codeg,Velocity);
- ArraysGpu->Free(movxyg);   movxyg=NULL;
- ArraysGpu->Free(movzg);    movzg=NULL;
+ //ArraysGpu->Free(movxyg);   movxyg=NULL;
+// ArraysGpu->Free(movzg);    movzg=NULL;
   TmgStop(Timers,TMG_SuComputeStep);
 }
 
@@ -947,21 +947,21 @@ void JSphGpu::ComputeSymplecticCorr(double dt){
   const bool shift=TShifting!=SHIFT_None;
   //-Asigna memoria para calcular el desplazamiento.
   //-Allocates memory to calculate the displacement.
-  double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*Np);
-  double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*Np);
+  //double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*Np);
+  //double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*Np);
   //-Calcula desplazamiento, velocidad y densidad.
   //-Computes displacement, velocity and density.
   const double dt05=dt*0.5;
 	const bool wavegen=(WaveGen? true:false);
-  cusph::ComputeStepSymplecticCor(BlockSizes.forcesfluid,WithFloating,Np,Npb,VelocityPre,Aceg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velocity,Gravity,rowIndg,Posxyg,Poszg,Idpg,MirrorPosg,wavegen,DampingPointX,DampingLengthX,RightWall,PistonPosX,PistonVel);
+  cusph::ComputeStepSymplecticCor(BlockSizes.forcesfluid,WithFloating,Np,Npb,VelocityPre,Aceg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,Velocity,Gravity,rowIndg,Posxyg,Poszg,Idpg,MirrorPosg,wavegen,DampingPointX,DampingLengthX,RightWall,PistonPosX,PistonVel,PosxyPreg,PoszPreg,Dcellg);
   //-Aplica desplazamiento a las particulas fluid no periodicas.
   //-Applies displacement to non-periodic fluid particles.
-	cusph::Moveparticles(BlockSizes.forcesfluid,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg);
+	//cusph::Moveparticles(BlockSizes.forcesfluid,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg);
   //cusph::ComputeStepPos2(BlockSizes.forcesfluid,PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
   //-Libera memoria asignada al desplazamiento.
   //-Releases memory allocated for diplacement.
-  ArraysGpu->Free(movxyg);   movxyg=NULL;
-  ArraysGpu->Free(movzg);    movzg=NULL;
+  //ArraysGpu->Free(movxyg);   movxyg=NULL;
+  //ArraysGpu->Free(movzg);    movzg=NULL;
   //-Libera memoria asignada a variables Pre en ComputeSymplecticPre().
   //-Releases memory allocated for the predictor variables in ComputeSymplecticPre().
   ArraysGpu->Free(PosxyPreg);    PosxyPreg=NULL;
@@ -1122,12 +1122,12 @@ void JSphGpu::Shift(double dt,const unsigned bsfluid){
   //-Calcula desplazamiento, velocidad y densidad.
   //-Computes displacement, velocity and density.
   const double dt05=dt*.5;
-  cusph::ComputeShift(WithFloating,bsfluid,Np,Npb,ShiftPosg,Codeg,movxyg,movzg);
+  cusph::ComputeShift(WithFloating,bsfluid,Np,Npb,ShiftPosg,Codeg,movxyg,movzg,Posxyg,Poszg,Dcellg);
   //-Aplica desplazamiento a las particulas fluid no periodicas.
   //-Applies displacement to non-periodic fluid particles.
 
 //##POSSIBLE BUG????
-  cusph::ComputeStepPos2(BlockSizes.forcesfluid,PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
+  //cusph::ComputeStepPos2(BlockSizes.forcesfluid,PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
   //-Libera memoria asignada al desplazamiento.
   //-Releases memory allocated for diplacement.
   ArraysGpu->Free(movxyg);   movxyg=NULL;

@@ -754,14 +754,9 @@ void JSphGpuSingle::InitAdvection(const double dt){
     cudaMemcpy(PoszPreg,Poszg,sizeof(double)*np,cudaMemcpyDeviceToDevice);        //Es decir... PoszPre[] <= Posz[] //i.e. PoszPre[] <= Posz[]
 		cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
 		cudaMemcpy(VelocityPre,Velocity,sizeof(double3)*np,cudaMemcpyDeviceToDevice);
-    double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*np);
-    double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*np);
-    
-    cusph::ComputeRStar(BlockSizes.forcesfluid,WithFloating,npf,npb,VelocityPre,dt,Codeg,movxyg,movzg);
-		cusph::Moveparticles(BlockSizes.forcesfluid,np,npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg);
+   
+    cusph::ComputeRStar(BlockSizes.forcesfluid,WithFloating,npf,npb,VelocityPre,dt,Codeg,PosxyPreg,PoszPreg,Posxyg,Poszg,Dcellg);
 	  //cusph::ComputeStepPos2(BlockSizes.forcesfluid,PeriActive,WithFloating,np,npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
-    ArraysGpu->Free(movxyg);   movxyg=NULL;
-    ArraysGpu->Free(movzg);    movzg=NULL; 
     CheckCudaError(met,"Initial Advection");
 }
 
@@ -793,7 +788,7 @@ void JSphGpuSingle::SolvePPE(const double dt){
   bg=ArraysGpu->ReserveDouble(); cudaMemset(bg,0,sizeof(double)*PPEDim);
 
   MatrixASetup(np,npb,npbok,PPEDim,rowIndg,Divrg,FreeSurface,Nnz,Numfreesurface);	
-	std::cout<<Nnz<<"\n";
+
 	if(Nnz>MatrixMemory*np) RunException(met,fun::PrintStr("MatrixMemory too small"));
 	CheckCudaError(met,"Nnz");
 
@@ -897,11 +892,12 @@ void JSphGpuSingle::RunShifting(const double dt){
   RunCellDivide(true);
 
   TmgStart(Timers,TMG_SuShifting);
+
   tuint3 ncells=CellDivSingle->GetNcells();
   const int2 *begincell=CellDivSingle->GetBeginCell();
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
-
   const unsigned *dcell=Dcellg;
+
   const unsigned bsbound=BlockSizes.forcesbound;
   const unsigned bsfluid=BlockSizes.forcesfluid;
 
@@ -916,7 +912,7 @@ void JSphGpuSingle::RunShifting(const double dt){
   CheckCudaError(met,"Failed in calculating shifting distance");
 	const bool wavegen=(WaveGen? true:false);
 	//cusph::CorrectShiftVelocity(wavegen,TKernel,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velocity,dWxCorrg,dWyCorrg,dWzCorrg,Idpg,Divrg,Codeg,BoundaryFS,ShiftPosg,Aceg,DampingPointX,DampingLengthX,PistonPosX,PistonVel,RightWall,Gravity,Pressureg);
-	//Shift(dt,bsfluid);
+	Shift(dt,bsfluid);
 	//cusph::ResetBoundVel(Npb,bsbound,Velocity,VelocityPre);
 	cudaFree(AvConc); AvConc=NULL;
 	cudaFree(W); W=NULL;

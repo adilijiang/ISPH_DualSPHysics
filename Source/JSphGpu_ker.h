@@ -129,7 +129,7 @@ void ComputeStepSymplecticPre(const unsigned bsfluid,bool floating,unsigned np,u
 
 void ComputeStepSymplecticCor(const unsigned bsfluid,bool floating,unsigned np,unsigned npb
   ,const double3 *velrhoppre,const double3 *ace,double dtm,double dt,float rhopoutmin,float rhopoutmax
-  ,word *code,double2 *movxy,double *movz,double3 *velrhop,tfloat3 gravity,const unsigned *row,const double2 *posxy,const double *posz,const unsigned *idp,const double3 *mirrorPos,const bool WaveGen,const double dampingpoint,const double dampinglength,const double RightWall, const double PistonPos,const double PistonVel);
+  ,word *code,double3 *velrhop,tfloat3 gravity,const unsigned *row,double2 *posxy, double *posz,const unsigned *idp,const double3 *mirrorPos,const bool WaveGen,const double dampingpoint,const double dampinglength,const double RightWall, const double PistonPos,const double PistonVel,double2 *posxypre,double *poszpre,unsigned *dcell);
 
 //# Kernels para ComputeStep (position)
 //# Kernels for ComputeStep (position)
@@ -170,7 +170,7 @@ void AddAccInput(unsigned n,unsigned pini,word codesel
   ,tfloat3 gravity,const word *code,const double2 *posxy,const double *posz,const float4 *velrhop,float3 *ace);
 
 //# Kernels for initial advection
-void ComputeRStar(const unsigned bsfluid,bool floating,unsigned npf,unsigned npb,const double3 *velrhoppre,double dt,word *code,double2 *movxy,double *movz);
+void ComputeRStar(const unsigned bsfluid,bool floating,unsigned npf,unsigned npb,const double3 *velrhoppre,double dt,word *code,double2 *posxypre,double *poszpre,double2 *posxy,double *posz,unsigned *dcell);
 
 //# Kernels for finding a dummy particles corresponding wall particle
 void MirrorBoundary(const bool simulate2d,const unsigned bsbound,unsigned npbok
@@ -214,7 +214,7 @@ void Interaction_Shifting(TpKernel tkernel,TpSlipCond tslipcond,bool simulate2d,
 	,const double RightWall,const tfloat3 gravity,const double *pressure,double *AvConc,double *W);
 
 void ComputeShift(bool floating,const unsigned bsfluid,unsigned np,unsigned npb
-  ,const double3 *shiftpos,word *code,double2 *movxy,double *movz);
+  ,const double3 *shiftpos,word *code,double2 *movxy,double *movz,double2 *posxy,double *posz,unsigned *dcell);
 
 void CorrectShiftVelocity(const bool wavegen,TpKernel tkernel,TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
 	,const unsigned *dcell,const double2 *posxy,const double *posz,double3 *velrhop,const double3 *dwxCorr,const double3 *dwyCorr,const double3 *dwzCorr
