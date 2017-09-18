@@ -899,7 +899,7 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
 			cudaMemset(taog,0,sizeof(double)*npf);
 		}
 	}
-	else cusph::ResetrowIndg(np+1,rowIndg,Npb);
+	//else cusph::ResetrowIndg(np+1,rowIndg,Npb);
 
 	cudaMemset(Aceg,0,sizeof(double3)*npf);
 

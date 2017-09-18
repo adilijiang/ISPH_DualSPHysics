@@ -752,7 +752,7 @@ void JSphGpuSingle::InitAdvection(const double dt){
     //-Changes data of predictor variables for calculating the new data
     cudaMemcpy(PosxyPreg,Posxyg,sizeof(double2)*np,cudaMemcpyDeviceToDevice);     //Es decir... PosxyPre[] <= Posxy[] //i.e. PosxyPre[] <= Posxy[]
     cudaMemcpy(PoszPreg,Poszg,sizeof(double)*np,cudaMemcpyDeviceToDevice);        //Es decir... PoszPre[] <= Posz[] //i.e. PoszPre[] <= Posz[]
-		cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
+		//cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
 		cudaMemcpy(VelocityPre,Velocity,sizeof(double3)*np,cudaMemcpyDeviceToDevice);
    
     cusph::ComputeRStar(BlockSizes.forcesfluid,WithFloating,npf,npb,VelocityPre,dt,Codeg,PosxyPreg,PoszPreg,Posxyg,Poszg,Dcellg);
