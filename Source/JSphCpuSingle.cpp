@@ -590,7 +590,7 @@ double JSphCpuSingle::ComputeStep_Sym(){
 	TmcStart(Timers,TMC_Stage1);
   PreInteraction_Forces(INTER_Forces);
   RunCellDivide(true);
-	if(CaseNmoving)JSphCpu::MirrorDCell(Npb,Codec,MirrorPosc,MirrorCell,Idpc);
+	//if(CaseNmoving)JSphCpu::MirrorDCell(Npb,Codec,MirrorPosc,MirrorCell,Idpc);
   Interaction_Forces(INTER_Forces,TSlipCond);      //-Interaction / Interaccion
   ComputeSymplecticPre(dt);               //-Apply Symplectic-Predictor to particles / Aplica Symplectic-Predictor a las particulas
   //-Pressure Poisson equation
@@ -821,9 +821,9 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 
   //-finding dummy particle relations to wall particles
 	memset(MirrorPosc,0,sizeof(tdouble3)*Npb);
-	JSphCpu::MirrorBoundary(Npb,Posc,Idpc,MirrorPosc,Codec,MirrorCell);  
-	JSphCpu::MirrorDCell(Npb,Codec,MirrorPosc,MirrorCell,Idpc);
-
+	//JSphCpu::MirrorBoundary(Npb,Posc,Idpc,MirrorPosc,Codec,MirrorCell);  
+	//JSphCpu::MirrorDCell(Npb,Codec,MirrorPosc,MirrorCell,Idpc);
+	PistonVel=0;
   while(TimeStep<TimeMax){
 		if(CaseNmoving)RunMotion(DtPre);
     double stepdt=ComputeStep_Sym();
@@ -941,10 +941,10 @@ void JSphCpuSingle::SolvePPE(double dt){
   const unsigned npb=Npb;
   const unsigned npbok=NpbOk;
   const unsigned npf=np-npb;
-	const unsigned PPEDim=npbok+npf;
+	const unsigned PPEDim=npf;
 	unsigned Nnz=0;
 	unsigned NumFreeSurface=0;
-	const unsigned matOrder=npb-npbok;
+	const unsigned matOrder=npb;
 
 	//Create matrix
 	b=ArraysCpu->ReserveDouble(); memset(b,0,sizeof(double)*PPEDim);
@@ -961,7 +961,7 @@ void JSphCpuSingle::SolvePPE(double dt){
 		PopulatePeriodic(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,Dcellc);
 		PopulatePeriodic(npbok,0,nc,hdiv,0,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,Dcellc);
 	}*/
-	FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,Idpc,Codec,ShiftOffset,matOrder,FreeSurface);
+	//FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,Idpc,Codec,ShiftOffset,matOrder,FreeSurface);
 
 	/*ofstream FileOutput;
     string TimeFile;
@@ -975,14 +975,9 @@ void JSphCpuSingle::SolvePPE(double dt){
 
     FileOutput.open(TimeFile.c_str());
 
-  for(int i=0;i<npbok;i++){
-    FileOutput << fixed << setprecision(19) << "particle "<< Idpc[i] << "\t Order " << i << "\t b " << b[i] << "\n";
-    for(int j=rowInd[i];j<rowInd[i+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j]  << "\t"<<Idpc[colInd[j]]<< "\n";
-  }
-
   for(int i=npb;i<np;i++){
-    FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << (i-npb)+npbok << "\t b " << b[(i-npb)+npbok] << "\n";
-    for(int j=rowInd[(i-npb)+npbok];j<rowInd[(i-npb)+npbok+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\t"<<Idpc[colInd[j]]<<"\n";
+    FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << (i-npb) << "\t b " << b[(i-npb)] << "\n";
+    for(int j=rowInd[(i-npb)];j<rowInd[(i-npb)+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\t"<<Idpc[colInd[j]+npb]<<"\n";
   }
   FileOutput.close();
 	count++;*/

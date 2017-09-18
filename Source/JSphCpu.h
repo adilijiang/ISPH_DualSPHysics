@@ -275,6 +275,8 @@ protected:
 
 	void PistonCorner(unsigned npb,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code,const double pistonx, const double pistonz)const;
 
+	void Getp2info(const unsigned count,const unsigned p2,const tdouble3 *pos,bool &interact,const tdouble3 posp1,const tfloat4 velrhopp2,float &drx,float &dry,float &drz,tfloat3 &velp2,float &pressp2,float &NeumannDist)const;
+
 public:
   JSphCpu(bool withmpi);
   ~JSphCpu();

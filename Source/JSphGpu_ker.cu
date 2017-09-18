@@ -755,7 +755,7 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesFlui
       
 				//===== Aceleration ===== 
 					const double rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
-					const double temp=volume*2.0f*visco*rDivW/(rr2+CTE.eta2);
+					const double temp=volume*2.0*visco*rDivW/(rr2+CTE.eta2);
 					const double dvx=velp1.x-velp2.x, dvy=velp1.y-velp2.y, dvz=velp1.z-velp2.z;
 					acep1.x+=temp*dvx; acep1.y+=temp*dvy; acep1.z+=temp*dvz;
 

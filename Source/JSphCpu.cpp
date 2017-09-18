@@ -649,6 +649,92 @@ float JSphCpu::GetKernelWendlandWab(float rr2)const{
   return(Awen*wqq*wqq2*wqq2);
 }
 
+void JSphCpu::Getp2info(const unsigned count,const unsigned p2,const tdouble3 *pos,bool &interact,const tdouble3 posp1,const tfloat4 velrhopp2,float &drx,float &dry,float &drz,tfloat3 &velp2,float &pressp2,float &NeumannDist)const{
+	double Bottom=0.5*Dp;
+	tdouble3 posp2=TDouble3(pos[p2].x,pos[p2].y,pos[p2].z);
+	pressp2=velrhopp2.w;
+	velp2=TFloat3(velrhopp2.x,0,velrhopp2.z);
+	if(count==0){//Fluid particle p2
+		interact=true;
+		drx=float(posp1.x-posp2.x);
+		dry=0;
+		drz=float(posp1.z-posp2.z);
+	}
+	else if(count==1){//Boundary LeftWall
+		double dist=posp2.x-PistonPosX;
+		if(dist*dist<=Fourh2){
+			interact=true;
+			posp2.x=2.0*PistonPosX-posp2.x;
+			drx=float(posp1.x-posp2.x);
+			dry=0;
+			drz=float(posp1.z-posp2.z);
+			velp2.x=float(2.0*PistonVel-velp2.x);
+			if(TSlipCond==SLIPCOND_NoSlip)velp2.z=-velp2.z;
+		}
+	}
+	else if(count==2){//Boundary Bottom
+		double dist=posp2.z-Bottom;
+		if(dist*dist<=Fourh2){
+			interact=true;
+			NeumannDist=-float(2.0*dist);
+			posp2.z=2.0*Bottom-posp2.z;
+			drx=float(posp1.x-posp2.x);
+			dry=0;
+			drz=float(posp1.z-posp2.z);
+			if(TSlipCond==SLIPCOND_NoSlip) velp2.x=-velp2.x;
+			velp2.z=-velp2.z;
+			pressp2+=NeumannDist*Gravity.z*RhopZero;
+		}
+	}
+	else if(count==3){//Boundary RightWall
+		double dist=posp2.x-RightWall;
+		if(dist*dist<=Fourh2){
+			interact=true;
+			posp2.x=2.0*RightWall-posp2.x;
+			drx=float(posp1.x-posp2.x);
+			dry=0;
+			drz=float(posp1.z-posp2.z);
+			velp2.x=-velp2.x;
+			if(TSlipCond==SLIPCOND_NoSlip)velp2.z=-velp2.z;
+		}
+	}
+	else if(count==4){//Boundary BottomLeft
+		double distx=posp2.x-PistonPosX;
+		double distz=posp2.z-Bottom;
+		double dist=distx*distx+distz*distz;
+		if(dist<=Fourh2){
+			interact=true;
+			NeumannDist=-float(2.0*distz);
+			posp2.x=2.0*PistonPosX-posp2.x;
+			posp2.z=2.0*Bottom-posp2.z;
+			drx=float(posp1.x-posp2.x);
+			dry=0;
+			drz=float(posp1.z-posp2.z);
+			velp2.x=float(2.0*PistonVel-velp2.x);
+			velp2.z=-velp2.z;
+			pressp2+=NeumannDist*Gravity.z*RhopZero;
+		}
+	}
+	else if(count==5){//Boundary BottomRight
+		double distx=posp2.x-RightWall;
+		double distz=posp2.z-Bottom;
+		double dist=distx*distx+distz*distz;
+		if(dist<=Fourh2){
+			interact=true;
+			NeumannDist=-float(2.0*distz);
+			posp2.x=2.0*RightWall-posp2.x;
+			posp2.z=2.0*Bottom-posp2.z;
+			drx=float(posp1.x-posp2.x);
+			dry=0;
+			drz=float(posp1.z-posp2.z);
+			velp2.x=-velp2.x;
+			velp2.z=-velp2.z;
+			pressp2+=NeumannDist*Gravity.z*RhopZero;
+		}
+	}
+}
+
+
 //==============================================================================
 /// Devuelve limites de celdas para interaccion.
 /// Return cell limits for interaction.
@@ -858,62 +944,62 @@ template<TpKernel tker,TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
         //-Interaction of Fluid with type Fluid or Bound / Interaccion de Fluid con varias Fluid o Bound.
         //------------------------------------------------
         for(unsigned p2=pini;p2<pfin;p2++){
-          const float drx=float(posp1.x-pos[p2].x);
-					const float dry=float(posp1.y-pos[p2].y);
-					const float drz=float(posp1.z-pos[p2].z);
-					const float rr2=drx*drx+dry*dry+drz*drz;
-          if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-
-            //-Wendland kernel.
-            float frx,fry,frz;
-            if(tker==KERNEL_Quintic) GetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
-						else if(tker==KERNEL_Wendland) GetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
+					bool rowMake=false;
+					for(int count=0;count<=5;count++){
+						float drx,dry,drz;
+						bool interact=false;
+						tfloat3 velp2;
+						float pressp2;
+						float NeumannDist=0;
+						Getp2info(count,p2,pos,interact,posp1,velrhop[p2],drx,dry,drz,velp2,pressp2,NeumannDist);
+						if(interact){
+							const float rr2=drx*drx+dry*dry+drz*drz;
+							if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
+								rowMake=true;
+								//-Wendland kernel.
+								float frx,fry,frz;
+								if(tker==KERNEL_Quintic) GetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
+								else if(tker==KERNEL_Wendland) GetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 			
-            //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
-            float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
-			      const float volumep2=massp2/RhopZero; //Volume of particle j
-            //bool ftp2=false;    //-Indicate if it is floating / Indica si es floating.
-            bool compute=true;  //-Deactivate when using DEM and if it is of type float-float or float-bound /  Se desactiva cuando se usa DEM y es float-float o float-bound.
-            /*if(USE_FLOATING){
-              ftp2=(CODE_GetType(code[p2])==CODE_TYPE_FLOATING);
-              if(ftp2)massp2=FtObjs[CODE_GetTypeValue(code[p2])].massp;
-              //if(ftp2 && (tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt))deltap1=FLT_MAX;
-              //if(ftp2 && shift && tshifting==SHIFT_NoBound)shiftposp1.x=FLT_MAX; //-With floating objects do not use shifting / Con floatings anula shifting.
-              //compute=!(USE_DEM && ftp1 && (boundp2 || ftp2)); //-Deactivate when using DEM and if it is of type float-float or float-bound / Se desactiva cuando se usa DEM y es float-float o float-bound.
-            }*/
+								//===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
+								float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
+								const float volumep2=massp2/RhopZero; //Volume of particle j
+								//bool ftp2=false;    //-Indicate if it is floating / Indica si es floating.
+								bool compute=true;  //-Deactivate when using DEM and if it is of type float-float or float-bound /  Se desactiva cuando se usa DEM y es float-float o float-bound.
+								/*if(USE_FLOATING){
+									ftp2=(CODE_GetType(code[p2])==CODE_TYPE_FLOATING);
+									if(ftp2)massp2=FtObjs[CODE_GetTypeValue(code[p2])].massp;
+									//if(ftp2 && (tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt))deltap1=FLT_MAX;
+									//if(ftp2 && shift && tshifting==SHIFT_NoBound)shiftposp1.x=FLT_MAX; //-With floating objects do not use shifting / Con floatings anula shifting.
+									//compute=!(USE_DEM && ftp1 && (boundp2 || ftp2)); //-Deactivate when using DEM and if it is of type float-float or float-bound / Se desactiva cuando se usa DEM y es float-float o float-bound.
+								}*/
 
-            //===== Acceleration from viscous forces && FreeSurface detection && KernelGradientCorrection===== 
-            if(compute && tinter==1){
-			        const float rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
-			        const float temp=volumep2*2.0f*visco*rDivW/(rr2+Eta2);
-			        const float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
-              acep1.x+=temp*dvx; acep1.y+=temp*dvy; acep1.z+=temp*dvz;
+								//===== Acceleration from viscous forces && FreeSurface detection && KernelGradientCorrection===== 
+								if(compute && tinter==1){
+									const float rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
+									const float temp=volumep2*2.0f*visco*rDivW/(rr2+Eta2);
+									const float dvx=velp1.x-velp2.x, dvy=velp1.y-velp2.y, dvz=velp1.z-velp2.z;
+									acep1.x+=temp*dvx; acep1.y+=temp*dvy; acep1.z+=temp*dvz;
 
-							divrp1-=volumep2*rDivW;
+									divrp1-=volumep2*rDivW;
 
-							dwxp1.x-=volumep2*frx*drx; dwxp1.y-=volumep2*frx*dry; dwxp1.z-=volumep2*frx*drz;
-							dwyp1.x-=volumep2*fry*drx; dwyp1.y-=volumep2*fry*dry; dwyp1.z-=volumep2*fry*drz;
-							dwzp1.x-=volumep2*frz*drx; dwzp1.y-=volumep2*frz*dry; dwzp1.z-=volumep2*frz*drz;
-							rowCount++;
-            }
+									dwxp1.x-=volumep2*frx*drx; dwxp1.y-=volumep2*frx*dry; dwxp1.z-=volumep2*frx*drz;
+									dwyp1.x-=volumep2*fry*drx; dwyp1.y-=volumep2*fry*dry; dwyp1.z-=volumep2*fry*drz;
+									dwzp1.x-=volumep2*frz*drx; dwzp1.y-=volumep2*frz*dry; dwzp1.z-=volumep2*frz*drz;
+								}
 
-			      //===== Acceleration from pressure gradient ===== 
-            if(compute && tinter==2){
-			        const float temp_x=frx*dwx.x+fry*dwy.x+frz*dwz.x;
-              const float temp_y=frx*dwx.y+fry*dwy.y+frz*dwz.y;
-			        const float temp_z=frx*dwx.z+fry*dwy.z+frz*dwz.z;
-			        const float temp=volumep2*(velrhop[p2].w-pressp1);
-              acep1.x+=temp*temp_x; acep1.y+=temp*temp_y; acep1.z+=temp*temp_z;
-
-							//See if fluid particles are close to boundary
-							if(boundp2){
-								if(rr2<=nearestBound){
-									nearestBound=rr2;
-									row[p1]=p2;
+								//===== Acceleration from pressure gradient ===== 
+								if(compute && tinter==2){
+									const float temp_x=frx*dwx.x+fry*dwy.x+frz*dwz.x;
+									const float temp_y=frx*dwx.y+fry*dwy.y+frz*dwz.y;
+									const float temp_z=frx*dwx.z+fry*dwy.z+frz*dwz.z;
+									const float temp=volumep2*(pressp2-pressp1);
+									acep1.x+=temp*temp_x; acep1.y+=temp*temp_y; acep1.z+=temp*temp_z;
 								}
 							}
 			      }
           }
+					if(rowMake&&p1!=p2)rowCount++;
         }
       }
     }
@@ -929,7 +1015,7 @@ template<TpKernel tker,TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
 				dwxcorr[Correctp1].x+=float(dwxp1.x); dwxcorr[Correctp1].y+=float(dwxp1.y); dwxcorr[Correctp1].z+=float(dwxp1.z);
 				dwycorr[Correctp1].x+=float(dwyp1.x); dwycorr[Correctp1].y+=float(dwyp1.y); dwycorr[Correctp1].z+=float(dwyp1.z);
 				dwzcorr[Correctp1].x+=float(dwzp1.x); dwzcorr[Correctp1].y+=float(dwzp1.y); dwzcorr[Correctp1].z+=float(dwzp1.z);
-				row[p1-matOrder]+=rowCount;
+				rowInd[p1-matOrder]+=rowCount;
 			}
 	    if(tinter==2) ace[Correctp1]=ace[Correctp1]+acep1/RhopZero;
     }
@@ -1128,19 +1214,10 @@ template<TpKernel tker,TpFtMode ftmode> void JSphCpu::Interaction_ForcesT
   const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
   const unsigned cellfluid=nc.w*nc.z+1;
   const int hdiv=(CellMode==CELLMODE_H? 2: 1);
-	const unsigned matOrder=npb-npbok;
+	const unsigned matOrder=npb;
   if(npf){
-		if(tinter==1){
-			if(Simulate2D) MLSBoundary2D<tker> (NpbOk,0,nc,hdiv,cellfluid,begincell,cellzero,pos,velrhop,idp,code,mirrorPos,mirrorCell,mls);
-			else MLSBoundary3D<tker> (NpbOk,0,nc,hdiv,cellfluid,begincell,cellzero,pos,velrhop,idp,code,mirrorPos,mirrorCell,mls);
-			Boundary_Velocity<tker> (TSlipCond,NpbOk,0,nc,hdiv,cellfluid,begincell,cellzero,dcell,pos,velrhop,code,divr,mirrorPos,idp,mirrorCell,mls,row);
-		}
-
 		//-Interaction Fluid-Fluid / Interaccion Fluid-Fluid
     InteractionForcesFluid<tker,ftmode> (tinter,npf,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace,divr,row,matOrder);
-
-	  //-Interaction Fluid-Bound / Interaccion Fluid-Bound
-    InteractionForcesFluid<tker,ftmode> (tinter,npf,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,code,idp,ace,divr,row,matOrder);
 
     //-Interaction of DEM Floating-Bound & Floating-Floating / Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
     //if(USE_DEM)InteractionForcesDEM<psimple> (CaseNfloat,nc,hdiv,cellfluid,begincell,cellzero,dcell,FtRidp,DemObjs,pos,pspos,velrhop,code,idp,viscdt,ace);
@@ -2047,18 +2124,8 @@ void JSphCpu::InverseCorrection3D(unsigned np,unsigned npb,tfloat3 *dwxcorr,tflo
 }
 
 void JSphCpu::MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim,unsigned &nnz,int *row,const float *divr,const float freeSurface,unsigned &numfreesurface)const{
-  const unsigned matOrder=npb-npbok;
+  const unsigned matOrder=npb;
 	
-	for(unsigned p1=0;p1<npbok;p1++){
-		if(divr[p1]<=freeSurface){
-			row[p1]=0;
-			numfreesurface++;
-		}
-    const unsigned nnzOld=nnz;
-    nnz += row[p1]+1;
-    row[p1] = nnzOld;
-  }
-
 	for(unsigned p1=npb;p1<np;p1++){
 		const unsigned oi=p1-matOrder;
 		if(divr[p1]<=freeSurface){
@@ -2104,131 +2171,74 @@ template<TpKernel tker> void JSphCpu::PopulateMatrixAFluid(unsigned np,unsigned 
       int cxini,cxfin,yini,yfin,zini,zfin;
       GetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
 
-			//-Search for neighbours in adjacent cells / Busqueda de vecinos en celdas adyacentes.
-			for(int fluid=0;fluid<=1;fluid++){
-				//===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
-				float massp2=(fluid? MassFluid:MassBound); //-Contiene masa de particula segun sea bound o fluid.
-				const float volume=massp2/RhopZero; //Volume of particle j
-				for(int z=zini;z<zfin;z++){
-					const int zmod=(nc.w)*z+(cellinitial*fluid); //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
-					for(int y=yini;y<yfin;y++){
-						int ymod=zmod+nc.x*y;
-						const unsigned pini=beginendcell[cxini+ymod];
-						const unsigned pfin=beginendcell[cxfin+ymod];
+			//===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
+			float massp2=MassFluid; //-Contiene masa de particula segun sea bound o fluid.
+			const float volume=massp2/RhopZero; //Volume of particle j
+			for(int z=zini;z<zfin;z++){
+				const int zmod=(nc.w)*z+cellinitial; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
+				for(int y=yini;y<yfin;y++){
+					int ymod=zmod+nc.x*y;
+					const unsigned pini=beginendcell[cxini+ymod];
+					const unsigned pfin=beginendcell[cxfin+ymod];
 
-						//-Interactions
-						//------------------------------------------------
-						for(unsigned p2=pini;p2<pfin;p2++){
-							const float drx=float(posp1.x-pos[p2].x);
-							const float dry=float(posp1.y-pos[p2].y);
-							const float drz=float(posp1.z-pos[p2].z);
-							const float rr2=drx*drx+dry*dry+drz*drz;
-							if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-  							unsigned oj=p2;
-								if(fluid) oj-=matOrder;
+					//-Interactions
+					//------------------------------------------------
+					for(unsigned p2=pini;p2<pfin;p2++){
+						bool entry=false;
+						for(int count=0;count<=5;count++){
+							float drx,dry,drz;
+							bool interact=false;
+							tfloat3 velp2;
+							float pressp2;
+							float NeumannDist=0;
+							Getp2info(count,p2,pos,interact,posp1,velrhop[p2],drx,dry,drz,velp2,pressp2,NeumannDist);
+							if(interact){
+								const float rr2=drx*drx+dry*dry+drz*drz;
+								if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
+									entry=true;
+  								unsigned oj=p2;
+									oj-=matOrder;
 
-								//-Wendland kernel.
-								float frx,fry,frz;
-								if(tker==KERNEL_Quintic) GetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
-								else if(tker==KERNEL_Wendland) GetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
+									//-Wendland kernel.
+									float frx,fry,frz;
+									if(tker==KERNEL_Quintic) GetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
+									else if(tker==KERNEL_Wendland) GetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 			
-								//===== Laplacian operator =====
-								const float rDivW=drx*frx+dry*fry+drz*frz;
-								float temp=2.0f*rDivW/(RhopZero*(rr2+Eta2));
-								matrixInd[index]=double(-temp*volume);
-								col[index]=oj;
-								matrixInd[diag]+=double(temp*volume);
-								index++;
+									const float temp_x=frx*dwx.x+fry*dwy.x+frz*dwz.x;
+									const float temp_y=frx*dwx.y+fry*dwy.y+frz*dwz.y;
+									const float temp_z=frx*dwx.z+fry*dwy.z+frz*dwz.z;
 
-								//=====Divergence of velocity==========
-								float dvx=velp1.x-velrhop[p2].x, dvy=velp1.y-velrhop[p2].y, dvz=velp1.z-velrhop[p2].z;
-							
-								const float temp_x=frx*dwx.x+fry*dwy.x+frz*dwz.x;
-								const float temp_y=frx*dwx.y+fry*dwy.y+frz*dwz.y;
-								const float temp_z=frx*dwx.z+fry*dwy.z+frz*dwz.z;
-								const double tempDivU=double(dvx*temp_x+dvy*temp_y+dvz*temp_z);
-								divU-=double(volume*tempDivU);
+									//===== Laplacian operator =====
+									const float rDivW=drx*frx+dry*fry+drz*frz;
+									float temp=rDivW/(rr2+Eta2);
 
-								if(!fluid){
-									double dist=pos[p2].z-MirrorPosc[idpc[p2]].z;
-									double temp2=temp*RhopZero*Gravity.z*dist;
-									Neumann+=double(temp2*volume);
+									temp=temp*volume*2.0f/RhopZero;
+
+									if(p1!=p2){
+										matrixInd[index]-=double(temp);
+										col[index]=oj;
+										matrixInd[diag]+=double(temp);
+									}
+
+									//=====Divergence of velocity==========
+									float dvx=velp1.x-velp2.x, dvy=velp1.y-velp2.y, dvz=velp1.z-velp2.z;
+									const double tempDivU=double(dvx*temp_x+dvy*temp_y+dvz*temp_z);
+									divU-=double(volume*tempDivU);
+
+									//=====dp/dn==========
+									double temp2=temp*RhopZero*Gravity.z*NeumannDist;
+									Neumann+=temp2;
 								}
-							}  
-						}
+							}
+						}  
+						if(entry&&p1!=p2) index++;
 					}
 				}
 			}
 	  }
     else matrixInd[diag]=1.0;
 
-		matrixb[oi]=Neumann+divU/dt;
-  }
-}
-
-template<TpKernel tker> void JSphCpu::PopulateMatrixABound(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
-  const tdouble3 *pos,double *matrixInd,int *row,int *col,double *matrixb,float *divr,const float freesurface,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,
-	const unsigned *mirrorCell,tfloat4 *mls,tfloat3 gravity)const{
-
-  const bool boundp2=(!cellinitial); //-Interaction with type boundary (Bound) /  Interaccion con Bound.
-  const int pfin=int(pinit+n);
-
-  #ifdef _WITHOMP
-    #pragma omp parallel for schedule (guided)
-  #endif
-  for(int p1=int(pinit);p1<pfin;p1++)if(CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
-    const unsigned idp1=idpc[p1];
-
-		//-Obtain data of particle p1 / Obtiene datos de particula p1.
-    const tdouble3 posp1=mirrorPos[idp1];
-		const tfloat4 mlsp1=mls[p1];
-		//-Particle order in Matrix
-		unsigned oi=p1;
-		const unsigned diag=row[oi];
-		col[diag]=oi;
-		unsigned index=diag+1;
-	  if(divr[p1]>freesurface){  
-			matrixInd[diag]=1.0;
-      //FLUID INTERACTION
-      //-Obtain interaction limits / Obtiene limites de interaccion
-      int cxini,cxfin,yini,yfin,zini,zfin;
-      GetInteractionCells(mirrorCell[idp1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
-
-			//===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
-      float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
-			const float volume=massp2/RhopZero; //Volume of particle j
-			
-			//-Search for neighbours in adjacent cells / Busqueda de vecinos en celdas adyacentes.
-      for(int z=zini;z<zfin;z++){
-        const int zmod=(nc.w)*z+cellinitial; //-Sum from start of fluid or boundary cells / Le suma donde empiezan las celdas de fluido o bound.
-        for(int y=yini;y<yfin;y++){
-          int ymod=zmod+nc.x*y;
-          const unsigned pini=beginendcell[cxini+ymod];
-          const unsigned pfin=beginendcell[cxfin+ymod];
-
-          //-Interactions
-          //------------------------------------------------
-          for(unsigned p2=pini;p2<pfin;p2++){
-						const float drx=float(posp1.x-pos[p2].x);
-						const float dry=float(posp1.y-pos[p2].y);
-						const float drz=float(posp1.z-pos[p2].z);
-						const float rr2=drx*drx+dry*dry+drz*drz;
-            if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-  	          unsigned oj=(p2-Npb)+NpbOk;
-			
-							float Wab;
-							if(tker==KERNEL_Quintic) Wab=GetKernelQuinticWab(rr2);
-							else if(tker==KERNEL_Wendland) Wab=GetKernelWendlandWab(rr2);
-							const float temp=(mlsp1.w+mlsp1.x*drx+mlsp1.y*dry+mlsp1.z*drz)*Wab;
-							matrixInd[index]=double(-temp*volume);
-              col[index]=oj;
-							index++;
-		        }  
-          }	
-        }
-	    }
-	  }
-    else matrixInd[diag]=1.0;
+		matrixb[oi]=Neumann+(divU/dt);
   }
 }
 
@@ -2239,11 +2249,9 @@ void JSphCpu::PopulateMatrix(TpKernel tkernel,unsigned np,unsigned npb,unsigned 
  
 	if(tkernel==KERNEL_Quintic){    const TpKernel tker=KERNEL_Quintic;
 		PopulateMatrixAFluid<tker> (np,npb,nc,hdiv,cellinitial,beginendcell,cellzero,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,divr,matrixInd,row,col,matrixb,idpc,code,freesurface,rhoZero,matOrder,dt);//-Fluid-Fluid
-		PopulateMatrixABound<tker> (npbok,0,nc,hdiv,cellinitial,beginendcell,cellzero,pos,matrixInd,row,colInd,matrixb,divr,freesurface,idpc,code,mirrorPos,mirrorCell,mls,gravity);
 	}
 	else if(tkernel==KERNEL_Wendland){    const TpKernel tker=KERNEL_Wendland;
 		PopulateMatrixAFluid<tker> (np,npb,nc,hdiv,cellinitial,beginendcell,cellzero,dcell,pos,velrhop,dwxcorr,dwycorr,dwzcorr,divr,matrixInd,row,col,matrixb,idpc,code,freesurface,rhoZero,matOrder,dt);//-Fluid-Fluid
-		PopulateMatrixABound<tker> (npbok,0,nc,hdiv,cellinitial,beginendcell,cellzero,pos,matrixInd,row,col,matrixb,divr,freesurface,idpc,code,mirrorPos,mirrorCell,mls,gravity);
 	}
 }
 
@@ -2352,38 +2360,28 @@ void JSphCpu::FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,double *matr
 void JSphCpu::PressureAssign(unsigned np,unsigned npbok,const tdouble3 *pos,tfloat4 *velrhop,
   const unsigned *idpc,double *x,const word *code,const unsigned npb,float *divr,tfloat3 gravity)const{
 
-  #ifdef _WITHOMP
-    #pragma omp parallel for schedule (guided)
-  #endif
-  for(int p1=0;p1<int(npbok);p1++){
-		double dist=MirrorPosc[Idpc[p1]].z-Posc[p1].z;
-		double Neumann=double(RhopZero)*abs(Gravity.z)*dist;
-		velrhop[p1].w=float(x[p1]+Neumann);
-		if(!NegativePressureBound)if(velrhop[p1].w<0)velrhop[p1].w=0.0;
-  }
-
 	 #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=int(npb);p1<int(np);p1++) velrhop[p1].w=float(x[(p1-npb)+npbok]);
+  for(int p1=int(npb);p1<int(np);p1++) velrhop[p1].w=float(x[(p1-npb)]);
 }
 
 #ifndef _WITHGPU
 template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
 void JSphCpu::run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,double *matrixx,const unsigned ppedim){ 
   VectorType result(rhs);
-  //VectorType residual(rhs);
+  VectorType residual(rhs);
   viennacl::tools::timer timer;
   timer.start();
-  result = viennacl::linalg::solve(matrix, rhs, solver, precond);
+  result = viennacl::linalg::solve(matrix, rhs, solver, precond,result);
   viennacl::backend::finish();    
-  //Log->Printf("  > Solver time: %f",timer.get());   
-  //residual -= viennacl::linalg::prod(matrix, result); 
-	//double normResidual=viennacl::linalg::norm_2(residual);
-  /*if(normResidual){
+  Log->Printf("  > Solver time: %f",timer.get());   
+  residual -= viennacl::linalg::prod(matrix, result); 
+	double normResidual=viennacl::linalg::norm_2(residual);
+  if(normResidual){
 		Log->Printf("  > Relative residual: %e",normResidual / viennacl::linalg::norm_2(rhs));  
 		Log->Printf("  > Iterations: %u",solver.iters());
-	}*/
+	}
 
 	#ifdef _WITHOMP
 			#pragma omp parallel for schedule (static)
