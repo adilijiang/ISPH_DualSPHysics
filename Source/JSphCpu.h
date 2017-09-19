@@ -218,7 +218,7 @@ protected:
   
 #ifndef _WITHGPU
   template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
-  void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,double *matrixx,const unsigned ppedim); 
+  void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,double *matrixx,const unsigned ppedim,VectorType & preresult); 
   
 	void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,double *matrixa,
     double *matrixb,double *matrixx,int *row,int *col,const unsigned ppedim,const unsigned nnz,const unsigned numfreesurface);
@@ -283,6 +283,8 @@ protected:
 	void PistonCorner(unsigned npb,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code,const double pistonx, const double pistonz)const;
 
 	void Getp2info(const unsigned count,const unsigned p2,const tdouble3 *pos,bool &interact,const tdouble3 posp1,const tfloat4 velrhopp2,float &drx,float &dry,float &drz,tfloat3 &velp2,float &pressp2,float &NeumannDist)const;
+
+	void SortPreResult(const unsigned PPEDim,const unsigned npb,const unsigned np,const tfloat4 *velrhop,double *PreResult)const;
 
 public:
   JSphCpu(bool withmpi);

@@ -987,6 +987,7 @@ void JSphCpuSingle::SolvePPE(double dt){
   //solvers
 	TmcStop(Timers,TMC_Stage2a);
 	TmcStart(Timers,TMC_Stage2b);
+	SortPreResult(PPEDim,npb,np,Velrhopc,x);
 #ifndef _WITHGPU
   solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,b,x,rowInd,colInd,PPEDim,Nnz,NumFreeSurface); 
 #endif

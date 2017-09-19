@@ -1475,9 +1475,9 @@ void JSphCpu::RunShifting(double dt){
     //Max Shifting
 		if(TShifting==SHIFT_Max){
       float absShift=sqrt(rshiftpos.x*rshiftpos.x+rshiftpos.y*rshiftpos.y+rshiftpos.z*rshiftpos.z);
-      if(abs(rshiftpos.x>0.1*Dp)) rshiftpos.x=float(0.1*Dp*rshiftpos.x/absShift);
-      if(abs(rshiftpos.y>0.1*Dp)) rshiftpos.y=float(0.1*Dp*rshiftpos.y/absShift);
-      if(abs(rshiftpos.z>0.1*Dp)) rshiftpos.z=float(0.1*Dp*rshiftpos.z/absShift);
+      if(abs(rshiftpos.x)>0.1*Dp) rshiftpos.x=float(0.1*Dp*rshiftpos.x/absShift);
+      if(abs(rshiftpos.y)>0.1*Dp) rshiftpos.y=float(0.1*Dp*rshiftpos.y/absShift);
+      if(abs(rshiftpos.z)>0.1*Dp) rshiftpos.z=float(0.1*Dp*rshiftpos.z/absShift);
     }
 
     dWxCorrShiftPos[Correctp1]=rshiftpos; //particles in fluid bulk, normal shifting
@@ -1952,6 +1952,13 @@ void JSphCpu::FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,double *matr
   }
 }
 
+void JSphCpu::SortPreResult(const unsigned PPEDim,const unsigned npb,const unsigned np,const tfloat4 *velrhop,double *PreResult)const{
+	#ifdef _WITHOMP
+    #pragma omp parallel for schedule (guided)
+  #endif
+  for(int p1=int(npb);p1<int(np);p1++) x[(p1-npb)]=double(velrhop[p1].w);
+}
+
 //===============================================================================
 ///Reorder pressure for particles
 //===============================================================================
@@ -1966,12 +1973,12 @@ void JSphCpu::PressureAssign(unsigned np,unsigned npbok,const tdouble3 *pos,tflo
 
 #ifndef _WITHGPU
 template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
-void JSphCpu::run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,double *matrixx,const unsigned ppedim){ 
+void JSphCpu::run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,double *matrixx,const unsigned ppedim,VectorType & preresult){ 
   VectorType result(rhs);
   VectorType residual(rhs);
   viennacl::tools::timer timer;
   timer.start();
-  result = viennacl::linalg::solve(matrix, rhs, solver, precond,result);
+  result = viennacl::linalg::solve(matrix, rhs, solver, precond,preresult);
   viennacl::backend::finish();    
   Log->Printf("  > Solver time: %f",timer.get());   
   residual -= viennacl::linalg::prod(matrix, result); 
@@ -1998,11 +2005,14 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
     vcl_compressed_matrix.set(&row[0],&col[0],&matrixa[0],ppedim,ppedim,nnz);
 
     viennacl::vector<ScalarType> vcl_vec(vcl_compressed_matrix.size1(),ctx);
+		viennacl::vector<ScalarType> vcl_result(vcl_compressed_matrix.size1(),ctx);
+
     #ifdef _WITHOMP
 				#pragma omp parallel for schedule (static)
 		#endif
 		for(int i=0;i<int(ppedim);i++){
 			vcl_vec[i]=matrixb[i];
+			vcl_result[i]=matrixx[i];
 		}
 
     viennacl::linalg::bicgstab_tag bicgstab(tolerance,iterations);
@@ -2011,7 +2021,7 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
 			if(tprecond==PRECOND_Jacobi){
 				//Log->Printf("JACOBI PRECOND");
 				viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_compressed_matrix,viennacl::linalg::jacobi_tag());
-				run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_jacobi,matrixx,ppedim);
+				run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_jacobi,matrixx,ppedim,vcl_result);
 			}
 			else if(tprecond==PRECOND_AMG){
 					//Log->Printf("AMG PRECOND");
@@ -2038,7 +2048,7 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
 					//for(int i =0; i< vcl_AMG.levels();i++) std::cout << "level " << i << "\t" << "size = " << vcl_AMG.size(i) << "\n";
 					viennacl::backend::finish(); 
 					//Log->Printf("  > Setup time: %f",timer.get());
-					run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_AMG,matrixx,ppedim);
+					run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_AMG,matrixx,ppedim,vcl_result);
 			}
 		}
 		else Log->Printf("norm(b)=0");
@@ -2100,44 +2110,51 @@ template <TpKernel tker,TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
         //-Interaction of Fluid with type Fluid or Bound / Interaccion de Fluid con varias Fluid o Bound.
         //------------------------------------------------
         for(unsigned p2=pini;p2<pfin;p2++)if(divr[p2]!=-1.0||CODE_GetTypeValue(code[p2])==0){
-          const float drx=float(posp1.x-pos[p2].x);
-					const float dry=float(posp1.y-pos[p2].y);
-					const float drz=float(posp1.z-pos[p2].z);
-					const float rr2=drx*drx+dry*dry+drz*drz;
-          if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-            //-Wendland kernel.
-            float frx,fry,frz;
-            if(tker==KERNEL_Quintic) GetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
-						else if(tker==KERNEL_Wendland) GetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
+          for(int count=0;count<=5;count++){
+						float drx,dry,drz;
+						bool interact=false;
+						tfloat3 velp2;
+						float pressp2;
+						float NeumannDist=0;
+						Getp2info(count,p2,pos,interact,posp1,velrhop[p2],drx,dry,drz,velp2,pressp2,NeumannDist);
+						if(interact){
+							const float rr2=drx*drx+dry*dry+drz*drz;
+							if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
+								//-Wendland kernel.
+								float frx,fry,frz;
+								if(tker==KERNEL_Quintic) GetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
+								else if(tker==KERNEL_Wendland) GetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 			
-            //===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
-            float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
-			      const float volumep2=massp2/RhopZero; //Volume of particle j
-            //bool ftp2=false;    //-Indicate if it is floating / Indica si es floating.
-            //bool compute=true;  //-Deactivate when using DEM and if it is of type float-float or float-bound /  Se desactiva cuando se usa DEM y es float-float o float-bound.
-            /*if(USE_FLOATING){
-              ftp2=(CODE_GetType(code[p2])==CODE_TYPE_FLOATING);
-              if(ftp2)massp2=FtObjs[CODE_GetTypeValue(code[p2])].massp;
-              //if(ftp2 && (tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt))deltap1=FLT_MAX;
-              if(ftp2 && tshifting==SHIFT_NoBound)shiftposp1.x=FLT_MAX; //-With floating objects do not use shifting / Con floatings anula shifting.
-              compute=!(USE_DEM && ftp1 && (boundp2 || ftp2)); //-Deactivate when using DEM and if it is of type float-float or float-bound / Se desactiva cuando se usa DEM y es float-float o float-bound.
-            }*/
+								//===== Get mass of particle p2  /  Obtiene masa de particula p2 ===== 
+								float massp2=(boundp2? MassBound: MassFluid); //-Contiene masa de particula segun sea bound o fluid.
+								const float volumep2=massp2/RhopZero; //Volume of particle j
+								//bool ftp2=false;    //-Indicate if it is floating / Indica si es floating.
+								//bool compute=true;  //-Deactivate when using DEM and if it is of type float-float or float-bound /  Se desactiva cuando se usa DEM y es float-float o float-bound.
+								/*if(USE_FLOATING){
+									ftp2=(CODE_GetType(code[p2])==CODE_TYPE_FLOATING);
+									if(ftp2)massp2=FtObjs[CODE_GetTypeValue(code[p2])].massp;
+									//if(ftp2 && (tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt))deltap1=FLT_MAX;
+									if(ftp2 && tshifting==SHIFT_NoBound)shiftposp1.x=FLT_MAX; //-With floating objects do not use shifting / Con floatings anula shifting.
+									compute=!(USE_DEM && ftp1 && (boundp2 || ftp2)); //-Deactivate when using DEM and if it is of type float-float or float-bound / Se desactiva cuando se usa DEM y es float-float o float-bound.
+								}*/
 
-            //-Shifting correction
-						float Wab;
-						if(tker==KERNEL_Quintic) Wab=GetKernelQuinticWab(rr2);
-						else if(tker==KERNEL_Wendland) Wab=GetKernelWendlandWab(rr2);
-						const float tensile=tensileN*powf((Wab/Wab1),tensileR);
+								//-Shifting correction
+								float Wab;
+								if(tker==KERNEL_Quintic) Wab=GetKernelQuinticWab(rr2);
+								else if(tker==KERNEL_Wendland) Wab=GetKernelWendlandWab(rr2);
+								const float tensile=tensileR*powf((Wab/Wab1),tensileN);
             
-						shiftposp1.x+=volumep2*frx; //-For boundary do not use shifting / Con boundary anula shifting.
-            shiftposp1.y+=volumep2*fry;
-            shiftposp1.z+=volumep2*frz;
-						sumtensile.x+=volumep2*tensile*frx;
-						sumtensile.y+=volumep2*tensile*fry;
-						sumtensile.z+=volumep2*tensile*frz;
-            divrp1-=volumep2*(drx*frx+dry*fry+drz*frz);
-          }
-        }
+								shiftposp1.x+=volumep2*frx; //-For boundary do not use shifting / Con boundary anula shifting.
+								shiftposp1.y+=volumep2*fry;
+								shiftposp1.z+=volumep2*frz;
+								sumtensile.x+=volumep2*tensile*frx;
+								sumtensile.y+=volumep2*tensile*fry;
+								sumtensile.z+=volumep2*tensile*frz;
+								divrp1-=volumep2*(drx*frx+dry*fry+drz*frz);
+							}
+						}
+					}
+				}
       }
     }
     divr[p1]+=divrp1;  
@@ -2162,25 +2179,19 @@ void JSphCpu::Interaction_Shifting
 		if(tkernel==KERNEL_Quintic){    const TpKernel tker=KERNEL_Quintic;
 			if(!WithFloating){                   const TpFtMode ftmode=FTMODE_None;
 				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
-				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
 			}else if(!UseDEM){                   const TpFtMode ftmode=FTMODE_Sph;
 				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
-				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
 			}else{                               const TpFtMode ftmode=FTMODE_Dem; 
 				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
-				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
 			}
 		}
 		else if(tkernel==KERNEL_Wendland){    const TpKernel tker=KERNEL_Wendland;
 			if(!WithFloating){                   const TpFtMode ftmode=FTMODE_None;
 				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
-				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
 			}else if(!UseDEM){                   const TpFtMode ftmode=FTMODE_Sph;
 				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
-				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
 			}else{                               const TpFtMode ftmode=FTMODE_Dem; 
 				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,cellfluid,Visco                 ,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
-				InteractionForcesShifting<tker,ftmode>(np,npb,nc,hdiv,0        ,Visco*ViscoBoundFactor,begincell,cellzero,dcell,pos,velrhop,code,idp,TShifting,shiftpos,tensile,divr,tensileN,tensileR);
 			}
 		}
   }
