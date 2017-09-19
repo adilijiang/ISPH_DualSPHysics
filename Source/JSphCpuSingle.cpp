@@ -474,6 +474,8 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
 
 		memset(MLS,0,sizeof(tfloat4)*npb);
 		memset(rowInd,0,sizeof(int)*(np+1));
+		memset(Tao,0,sizeof(float)*npf);
+		memset(SumFr,0,sizeof(tfloat3)*npf);
   }
 	else{
 			#ifdef _WITHOMP
@@ -491,7 +493,7 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
   //-Interaction of Fluid-Fluid/Bound & Bound-Fluid (forces and DEM) / Interaccion Fluid-Fluid/Bound & Bound-Fluid (forces and DEM).
   float viscdt=0;
 
-	JSphCpu::Interaction_Forces(tinter,TKernel,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,dWxCorrShiftPos,dWyCorr,dWzCorrTensile,Codec,Acec,Divr,MirrorPosc,MirrorCell,MLS,rowInd);
+	JSphCpu::Interaction_Forces(tinter,TKernel,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,dWxCorrShiftPos,dWyCorr,dWzCorrTensile,Codec,Acec,Divr,MirrorPosc,MirrorCell,MLS,rowInd,SumFr,Tao);
 
 	//-For 2-D simulations zero the 2nd component / Para simulaciones 2D anula siempre la 2º componente
   if(Simulate2D)for(unsigned p=0;p<npf;p++)Acec[p].y=0;
@@ -955,7 +957,7 @@ void JSphCpuSingle::SolvePPE(double dt){
   memset(colInd,0,sizeof(int)*Nnz);
   memset(a,0,sizeof(double)*Nnz);
   //LHS
-	PopulateMatrix(TKernel,np,npb,npbok,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorrShiftPos,dWyCorr,dWzCorrTensile,Divr,a,rowInd,colInd,b,Idpc,Codec,FreeSurface,RhopZero,matOrder,dt,MirrorPosc,MirrorCell,MLS,Gravity);
+	PopulateMatrix(TKernel,np,npb,npbok,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorrShiftPos,dWyCorr,dWzCorrTensile,Divr,a,rowInd,colInd,b,Idpc,Codec,FreeSurface,RhopZero,matOrder,dt,MirrorPosc,MirrorCell,MLS,Gravity,SumFr,Tao);
  
 	/*if(PeriActive){
 		PopulatePeriodic(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,Dcellc);

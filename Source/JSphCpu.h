@@ -143,6 +143,12 @@ protected:
     ,const tdouble3 *pos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwycorr,tfloat3 *dwzcorr,const word *code,const unsigned *idp
     ,tfloat3 *ace,float *divr,int *row,const unsigned matOrder)const;
 
+	template<TpKernel tker,TpFtMode ftmode> void InteractionForcesSchwaiger
+    (TpInter tinter, unsigned npf,unsigned npb,tint4 nc,int hdiv,unsigned cellinitial,float visco
+		,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
+		,const tdouble3 *pos,const word *code,const unsigned *idp,tfloat4 *velrhop
+		,tfloat3 *sumFr,float *tao)const;
+
   template<bool psimple> void InteractionForcesDEM
     (unsigned nfloat,tint4 nc,int hdiv,unsigned cellfluid
     ,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell
@@ -160,12 +166,12 @@ protected:
     (TpInter tinter,unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tdouble3 *pos,tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwycorr,tfloat3 *dwzcorr,const word *code,const unsigned *idp
-    ,tfloat3 *ace,float *divr,tdouble3 *mirrorPos,const unsigned *mirrorCell,tfloat4 *mls,int *row)const;
+    ,tfloat3 *ace,float *divr,tdouble3 *mirrorPos,const unsigned *mirrorCell,tfloat4 *mls,int *row,tfloat3 *sumFr,float *tao)const;
 
   void Interaction_Forces(TpInter tinter,TpKernel tker,unsigned np,unsigned npb,unsigned npbok
     ,tuint3 ncells,const unsigned *begincell,tuint3 cellmin,const unsigned *dcell
     ,const tdouble3 *pos,tfloat4 *velrhop,const unsigned *idp,tfloat3 *dwxcorr,tfloat3 *dwycorr,tfloat3 *dwzcorr,const word *code
-    ,tfloat3 *ace,float *divr,tdouble3 *mirrorPos,const unsigned *mirrorCell,tfloat4 *mls,int *row)const;
+    ,tfloat3 *ace,float *divr,tdouble3 *mirrorPos,const unsigned *mirrorCell,tfloat4 *mls,int *row,tfloat3 *sumFr,float *tao)const;
 
   void UpdatePos(tdouble3 pos0,double dx,double dy,double dz,bool outrhop,unsigned p,tdouble3 *pos,unsigned *cell,word *code)const;
 
@@ -201,7 +207,8 @@ protected:
   tfloat3 *dWzCorrTensile; //Kernel correction in the z direction
 	tfloat4 *MLS;
   float *Divr; //Divergence of position
-
+	tfloat3 *SumFr;
+	float *Tao;
   //matrix variables for CULA
   double *b;
   double *a;
@@ -233,7 +240,7 @@ protected:
   
 	template<TpKernel tker> void PopulateMatrixAFluid(unsigned np,unsigned npb,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwycorr,tfloat3 *dwzcorr,float *divr,double *matrixInd,int *row,int *col,
-  double *matrixb,const unsigned *idpc,const word *code,const float freesurface,const double rhoZero,const unsigned matOrder,const double dt)const;
+  double *matrixb,const unsigned *idpc,const word *code,const float freesurface,const double rhoZero,const unsigned matOrder,const double dt,tfloat3 *sumFr,float *tao)const;
   
 	template<TpKernel tker> void PopulateMatrixABound(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
   const tdouble3 *pos,double *matrixInd,int *row,int *col,double *matrixb,float *divr,const float freesurface,const unsigned *idpc,const word *code,const tdouble3 *mirrorPos,
@@ -242,7 +249,7 @@ protected:
 	void PopulateMatrix(TpKernel tkernel,unsigned np,unsigned npb,unsigned npbok,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,const unsigned *dcell,
   const tdouble3 *pos,const tfloat4 *velrhop,tfloat3 *dwxcorr,tfloat3 *dwycorr,tfloat3 *dwzcorr,float *divr,double *matrixInd,int *row,int *col,
   double *matrixb,const unsigned *idpc,const word *code,const float freesurface,const double rhoZero,const unsigned matOrder,const double dt,const tdouble3 *mirrorPos,
-	const unsigned *mirrorCell,tfloat4 *mls,tfloat3 gravity)const;
+	const unsigned *mirrorCell,tfloat4 *mls,tfloat3 gravity,tfloat3 *sumFr,float *tao)const;
 
 	void PopulatePeriodic(unsigned n,unsigned pinit,tint4 nc,int hdiv,unsigned cellinitial,const unsigned *beginendcell,tint3 cellzero,
   const tdouble3 *pos,double *matrixInd,int *row,int *col,const unsigned *idpc,const word *code,const unsigned *dCell)const;
