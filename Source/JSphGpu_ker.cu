@@ -800,9 +800,9 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesFlui
 					else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 
 					//===== Aceleration ===== 
-					const double temp_x=frx*dwxcorrg.x/*+fry*dwycorrg.x*/+frz*dwxcorrg.z;
+					const double temp_x=frx*dwxcorrg.x/*+fry*dwycorrg.x*/+frz*dwzcorrg.x;
 					const double temp_y=0;//frx*dwxcorrg.y+fry*dwycorrg.y+frz*dwzcorrg.y;
-					const double temp_z=frx*dwzcorrg.x/*+fry*dwycorrg.z*/+frz*dwzcorrg.z;
+					const double temp_z=frx*dwxcorrg.z/*+fry*dwycorrg.z*/+frz*dwzcorrg.z;
 					const double temp=volumep2*(pressp2-pressp1);
 
 					acep1.x+=temp*temp_x;	acep1.y+=temp*temp_y;	acep1.z+=temp*temp_z;
@@ -1360,13 +1360,13 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
       if(!simulate2d) rshiftpos.y=dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift;
       rshiftpos.z=dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*factorNormShift;
     }
-    else if(divrp1<=freesurface+ShiftOffset){ 
+    /*else if(divrp1<=freesurface+ShiftOffset){ 
 			dcdn-=beta1;
 			double factorNormShift=alphashift;
 			rshiftpos.x=dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*factorNormShift;
       if(!simulate2d) rshiftpos.y=dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift;
       rshiftpos.z=dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*factorNormShift;
-    }
+    }*/
 
     rshiftpos.x=rshiftpos.x*umagn;
     if(!simulate2d) rshiftpos.y=rshiftpos.y*umagn;
@@ -1457,7 +1457,7 @@ __device__ void KerDampingZone(const double xp1,double3 &rvelrhop,const double d
 __device__ void KerCorrectVelocity(const unsigned p1,const double2 *posxy,const double *posz,double3 &rvelrhop,const double RightWall, const double PistonPos,const double PistonVel)
 {
 	//Paddle
-	if(posxy[p1].x-PistonPos<=CTE.dp){
+	if(posxy[p1].x-PistonPos<=0.5*CTE.dp){
 		if(rvelrhop.x-PistonVel<0){
 			rvelrhop.x=PistonVel;
 		}
@@ -1469,7 +1469,7 @@ __device__ void KerCorrectVelocity(const unsigned p1,const double2 *posxy,const 
 		}
 	}
 	//RightWall
-	if(RightWall-posxy[p1].x<=CTE.dp){
+	if(RightWall-posxy[p1].x<=0.5*CTE.dp){
 		if(rvelrhop.x>0){
 			rvelrhop.x=0;
 		}
@@ -1493,8 +1493,8 @@ template<bool floating> __global__ void KerComputeStepSymplecticCor
 
 		KerCorrectVelocity(p1,posxy,posz,velrhop[p1],RightWall,PistonPos,PistonVel);
 		if(wavegen){
-			//const double xp1=posxy[p1].x;
-			//KerDampingZone(xp1,velrhop[p1],dampingpoint,dampinglength);
+			const double xp1=posxy[p1].x;
+			KerDampingZone(xp1,velrhop[p1],dampingpoint,dampinglength);
 		}
 		//-Computes and stores position displacement.
     posxy[p1].x=posxypre[p1].x+(velrhoppre[p1].x+velrhop[p1].x)*dtm;
@@ -2576,9 +2576,9 @@ template<TpKernel tker,bool schwaiger> __device__ void KerMatrixAFluidSelf
 				if(tker==KERNEL_Quintic) KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
 				else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 
-				const double temp_x=frx*dwx.x/*+fry*dwy.x*/+frz*dwx.z;
+				const double temp_x=frx*dwx.x/*+fry*dwy.x*/+frz*dwz.x;
 				const double temp_y=0;//frx*dwx.y+fry*dwy.y+frz*dwz.y;
-				const double temp_z=frx*dwz.x/*+fry*dwy.z*/+frz*dwz.z;
+				const double temp_z=frx*dwx.z/*+fry*dwy.z*/+frz*dwz.z;
 
 				//===== Laplacian operator =====
 				const double rDivW=drx*frx+dry*fry+drz*frz;
@@ -2632,9 +2632,10 @@ template<TpKernel tker,bool schwaiger> __device__ void KerMatrixAFluid
 						if(tker==KERNEL_Quintic) KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
 						else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 
-						const double temp_x=frx*dwx.x/*+fry*dwy.x*/+frz*dwx.z;
+						const double temp_x=frx*dwx.x/*+fry*dwy.x*/+frz*dwz.x;
 						const double temp_y=0;//frx*dwx.y+fry*dwy.y+frz*dwz.y;
-						const double temp_z=frx*dwz.x/*+fry*dwy.z*/+frz*dwz.z;
+						const double temp_z=frx*dwx.z/*+fry*dwy.z*/+frz*dwz.z;
+
 
 						//===== Laplacian operator =====
 						const double rDivW=drx*frx+dry*fry+drz*frz;
