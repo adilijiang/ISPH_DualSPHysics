@@ -823,7 +823,7 @@ template<TpKernel tker> __global__ void KerInteractionForcesBound
 			BitangVel.z=BitangDir.z*BitangProdVel;
 
 			const float dp05=0.5*CTE.dp;
-			if(posz[p1]<dp05&&(posxy[p1].x<PistonPos||posxy[p1].x>9.0-dp05)){
+			if(posz[p1]<dp05&&(posxy[p1].x<PistonPos||posxy[p1].x>12.0-dp05)){
 				velrhop[p1].x=-Sum.x;
 				velrhop[p1].z=-Sum.z;
 			}
@@ -1637,13 +1637,13 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
       if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift);
       rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*factorNormShift);
     }
-    else if(divrp1<=freesurface+ShiftOffset){ 
+    /*else if(divrp1<=freesurface+ShiftOffset){ 
 			dcdn-=beta1;
 			double factorNormShift=alphashift;
 			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*factorNormShift);
       if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift);
       rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*factorNormShift);
-    }
+    }*/
 
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
     if(!simulate2d) rshiftpos.y=float(double(rshiftpos.y)*umagn);
@@ -1651,10 +1651,14 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 
     //Max Shifting
 		if(maxShift){
-      float absShift=sqrt(rshiftpos.x*rshiftpos.x+rshiftpos.y*rshiftpos.y+rshiftpos.z*rshiftpos.z);
-      if(fabs(rshiftpos.x)>0.1*dp) rshiftpos.x=float(0.1*dp*rshiftpos.x/absShift);
-      if(fabs(rshiftpos.y)>0.1*dp) rshiftpos.y=float(0.1*dp*rshiftpos.y/absShift);
-      if(fabs(rshiftpos.z)>0.1*dp) rshiftpos.z=float(0.1*dp*rshiftpos.z/absShift);
+      float absShift=sqrtf(rshiftpos.x*rshiftpos.x+rshiftpos.y*rshiftpos.y+rshiftpos.z*rshiftpos.z);
+			float spacing=0.2*h;
+			float velocity=sqrtf(velrhop[p1].x*velrhop[p1].x+velrhop[p1].y*velrhop[p1].y+velrhop[p1].z*velrhop[p1].z);
+			velocity=10.0f*velocity*dt;
+			const float maxDist=(velocity<spacing? velocity:spacing);
+      if(fabs(rshiftpos.x)>maxDist) rshiftpos.x=float(maxDist*rshiftpos.x/absShift);
+      if(fabs(rshiftpos.y)>maxDist) rshiftpos.y=float(maxDist*rshiftpos.y/absShift);
+      if(fabs(rshiftpos.z)>maxDist) rshiftpos.z=float(maxDist*rshiftpos.z/absShift);
 		}
 
     shiftpos[Correctp1]=rshiftpos;
