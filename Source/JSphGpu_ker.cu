@@ -988,7 +988,7 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesFlui
         compute=!(USE_DEM && ftp1 && (boundp2 || ftp2)); //-Se desactiva cuando se usa DEM y es float-float o float-bound. //-Deactivated when DEM is used and is float-float or float-bound.
       }*/
       //===== Aceleration ===== 
-      const float temp_x=frx*dwxcorrg.x+fry*dwycorrg.x+frz*dwzcorrg.x;
+			const float temp_x=frx*dwxcorrg.x+fry*dwycorrg.x+frz*dwzcorrg.x;
       const float temp_y=frx*dwxcorrg.y+fry*dwycorrg.y+frz*dwzcorrg.y;
 		  const float temp_z=frx*dwxcorrg.z+fry*dwycorrg.z+frz*dwzcorrg.z;
       const float temp=volumep2*(pressp2-pressp1);
@@ -1735,7 +1735,7 @@ void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb
 //------------------------------------------------------------------------------
 __device__ void KerDampingZone(const double xp1,float4 &rvelrhop,const double dampingpoint,const double dampinglength)
 {
-	if(xp1>dampingpoint){
+	if(xp1>=dampingpoint){
 		double fx=1.0-exp(-2.0*(dampinglength-(xp1-dampingpoint)));
 		rvelrhop.x=rvelrhop.x*fx;
 		rvelrhop.y=rvelrhop.y*fx;
@@ -3131,8 +3131,8 @@ template<TpKernel tker,bool schwaiger> __device__ void KerMatrixAFluid
 			//=====dp/dn=====
 			if(!fluid){
 				double dist=posz[p2]-mirrorPos[idp[p2]].z;
-			  double temp2=temp*RhopZero*gravity.z*dist;
-			  Neumann+=double(volumep2*temp2); 
+			  double temp2=double(temp)*RhopZero*gravity.z*dist;
+			  Neumann+=temp2; 
 			}
     }
   }
