@@ -1652,9 +1652,9 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
     //Max Shifting
 		if(maxShift){
       float absShift=sqrt(rshiftpos.x*rshiftpos.x+rshiftpos.y*rshiftpos.y+rshiftpos.z*rshiftpos.z);
-      if(abs(rshiftpos.x>0.1*dp)) rshiftpos.x=float(0.1*dp*rshiftpos.x/absShift);
-      if(abs(rshiftpos.y>0.1*dp)) rshiftpos.y=float(0.1*dp*rshiftpos.y/absShift);
-      if(abs(rshiftpos.z>0.1*dp)) rshiftpos.z=float(0.1*dp*rshiftpos.z/absShift);
+      if(abs(rshiftpos.x)>0.1*dp) rshiftpos.x=float(0.1*dp*rshiftpos.x/absShift);
+      if(abs(rshiftpos.y)>0.1*dp) rshiftpos.y=float(0.1*dp*rshiftpos.y/absShift);
+      if(abs(rshiftpos.z)>0.1*dp) rshiftpos.z=float(0.1*dp*rshiftpos.z/absShift);
 		}
 
     shiftpos[Correctp1]=rshiftpos;
