@@ -227,7 +227,7 @@ protected:
 	float *Divrg; //Divergence of position
 	float3 *ShiftPosg;
 	float3 *Tensileg;
-
+	float *Taog;
   //matrix variables 
   double *bg;
   double *ag;
