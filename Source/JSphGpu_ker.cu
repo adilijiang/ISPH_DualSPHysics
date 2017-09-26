@@ -3465,25 +3465,44 @@ void InitArrayCol(unsigned n,unsigned int *v,int value){
     KerInitArrayCol <<<sgrid,SPHBSIZE>>> (n,v,value);
   }
 }
+__global__ void KerArrangePressureTemp(const unsigned matorder,const unsigned ini,const unsigned n,const float4 *velrhop,double *pressure)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la particula //-NI of the particle
+  if(p<n){
+		pressure[p+matorder]=double(velrhop[ini+p].w);
+	}
+}
+
+//==============================================================================
+/// Rearrange pressure values to within range of ppedim
+//==============================================================================
+void SolverResultArrange(const unsigned bsbound,const unsigned bsfluid,const unsigned npb,const unsigned npbok,const unsigned npf,float4 *velrhop,double *pressure){
+	if(npf){
+		dim3 sgridb=GetGridSize(npbok,bsbound);
+		dim3 sgridf=GetGridSize(npf,bsfluid);
+    KerArrangePressureTemp <<<sgridb,bsbound>>> (0,0,npbok,velrhop,pressure);
+    KerArrangePressureTemp <<<sgridf,bsfluid>>> (npbok,npb,npf,velrhop,pressure);
+  }
+}
 
 //==============================================================================
 /// Solve matrix with ViennaCL
 //==============================================================================
 template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag,typename ScalarType>
 void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,viennacl::vector<ScalarType> & vcl_result){ 
-  VectorType result(rhs);
+  VectorType result(vcl_result);
   //VectorType residual(rhs);
   viennacl::tools::timer timer;
   timer.start();
-  result = viennacl::linalg::solve(matrix, rhs, solver, precond);   
+  result = viennacl::linalg::solve(matrix, rhs, solver, precond,vcl_result);   
   viennacl::backend::finish();  
-  //std::cout << "  > Solver time: " << timer.get() << std::endl;   
-  //residual -= viennacl::linalg::prod(matrix, result); 
-	//double normResidual=viennacl::linalg::norm_2(residual);
-  //if(normResidual){
-		//std::cout << "  > Relative residual: " << normResidual / viennacl::linalg::norm_2(rhs) << std::endl;  
-		//std::cout << "  > Iterations: " << solver.iters() << std::endl;
-	//}
+  /*std::cout << "  > Solver time: " << timer.get() << std::endl;   
+  VectorType residual =rhs-viennacl::linalg::prod(matrix, result); 
+	double normResidual=viennacl::linalg::norm_2(residual);
+  if(normResidual){
+		std::cout << "  > Relative residual: " << normResidual / viennacl::linalg::norm_2(rhs) << std::endl;  
+		std::cout << "  > Iterations: " << solver.iters() << std::endl;
+	}*/
   viennacl::copy(result,vcl_result);
 }
 

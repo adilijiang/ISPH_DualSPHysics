@@ -1028,8 +1028,6 @@ void JSphGpu::RunMotion(double stepdt){
       }
       else{
         mvmatrix=OrderCode(mvmatrix);
-				std::cout<<"USING MOVEMATBOUND";
-				system("PAUSE");
         cusph::MoveMatBound(PeriActive,Simulate2D,nparts,idbegin-CaseNfixed,mvmatrix,stepdt,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
       }
     }
