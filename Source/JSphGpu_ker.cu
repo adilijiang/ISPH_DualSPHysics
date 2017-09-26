@@ -1652,9 +1652,9 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
     //Max Shifting
 		if(maxShift){
       float absShift=sqrt(rshiftpos.x*rshiftpos.x+rshiftpos.y*rshiftpos.y+rshiftpos.z*rshiftpos.z);
-      if(abs(rshiftpos.x)>0.1*dp) rshiftpos.x=float(0.1*dp*rshiftpos.x/absShift);
-      if(abs(rshiftpos.y)>0.1*dp) rshiftpos.y=float(0.1*dp*rshiftpos.y/absShift);
-      if(abs(rshiftpos.z)>0.1*dp) rshiftpos.z=float(0.1*dp*rshiftpos.z/absShift);
+      if(fabs(rshiftpos.x)>0.1*dp) rshiftpos.x=float(0.1*dp*rshiftpos.x/absShift);
+      if(fabs(rshiftpos.y)>0.1*dp) rshiftpos.y=float(0.1*dp*rshiftpos.y/absShift);
+      if(fabs(rshiftpos.z)>0.1*dp) rshiftpos.z=float(0.1*dp*rshiftpos.z/absShift);
 		}
 
     shiftpos[Correctp1]=rshiftpos;
@@ -2143,23 +2143,28 @@ void MoveMatBound(byte periactive,bool simulate2d,unsigned np,unsigned ini,tmatr
   }
 }
 
-__global__ void KerPistonCorner(const unsigned npb,double2 *posxy,const double *posz,const unsigned *idp,double3 *mirrorpos,word *code,const double pistonposX,const double pistonposZ,const double pistonYmin,const double pistonYmax,const bool simulate2d)
+__global__ void KerPistonCorner(const unsigned npb,double2 *posxy,const double *posz,const unsigned *idp,double3 *mirrorpos,word *code,const double pistonposX,const double pistonposZ,const double pistonYmin,const double pistonYmax,const bool simulate2d,unsigned *mirrorCell)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
 		if(CODE_GetType(code[p1])!=CODE_TYPE_MOVING){
 			const unsigned idp1=idp[p1];
 			double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
-			if(posdp1.x<pistonposX){
-				mirrorpos[idp1].x=2.0*pistonposX-posxy[p1].x;
+			if(posdp1.z<pistonposZ){
+				double dist=posdp1.x-pistonposX;
+				if(dist*dist<2*CTE.fourh2){
+					if(posdp1.x<pistonposX){
+						mirrorpos[idp1].x=2.0*pistonposX-posxy[p1].x;
+					}
+					else{
+						mirrorpos[idp1].x=posxy[p1].x;
+					}
 
-				if(posdp1.z<pistonposZ) mirrorpos[idp1].z=2.0*pistonposZ-posz[p1];
-				else mirrorpos[idp1].z=posz[p1];
-
-				if(!simulate2d){
-					if(posdp1.y<pistonYmin) mirrorpos[idp1].y=2.0*pistonYmin-posxy[p1].y;
-					else if(posdp1.y<pistonYmax) mirrorpos[idp1].y=posxy[p1].y;
-					else mirrorpos[idp1].y=2.0*pistonYmax-posxy[p1].y;
+					double dx=mirrorpos[idp1].x-CTE.maprealposminx;
+					double dy=mirrorpos[idp1].y-CTE.maprealposminy;
+					double dz=mirrorpos[idp1].z-CTE.maprealposminz;
+					unsigned cx=unsigned(dx/CTE.scell),cy=unsigned(dy/CTE.scell),cz=unsigned(dz/CTE.scell);
+					mirrorCell[idp1]=PC__Cell(CTE.cellcode,cx,cy,cz);
 				}
 			}
 		}
@@ -2169,10 +2174,10 @@ __global__ void KerPistonCorner(const unsigned npb,double2 *posxy,const double *
 //==============================================================================
 /// Recalculate mirror points for wavegen boudary
 //==============================================================================
-void PistonCorner(const unsigned bsbound,const unsigned npb,double2 *posxy,const double *posz,const unsigned *idp,double3 *mirrorpos,word *code,const double pistonposX,const double pistonposZ,const double pistonYmin,const double pistonYmax,const bool simulate2d)
+void PistonCorner(const unsigned bsbound,const unsigned npb,double2 *posxy,const double *posz,const unsigned *idp,double3 *mirrorpos,word *code,const double pistonposX,const double pistonposZ,const double pistonYmin,const double pistonYmax,const bool simulate2d,unsigned *mirrorCell)
 {
 	dim3 sgridb=GetGridSize(npb,bsbound);
-	KerPistonCorner <<<sgridb,bsbound>>> (npb,posxy,posz,idp,mirrorpos,code,pistonposX,pistonposZ,pistonYmin,pistonYmax,simulate2d);
+	KerPistonCorner <<<sgridb,bsbound>>> (npb,posxy,posz,idp,mirrorpos,code,pistonposX,pistonposZ,pistonYmin,pistonYmax,simulate2d,mirrorCell);
 }
 //##############################################################################
 //# Kernels for Floating bodies.
