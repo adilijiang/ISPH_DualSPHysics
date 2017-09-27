@@ -718,8 +718,11 @@ template<TpKernel tker> __device__ void KerCalculateMirrorVel
       float frx,fry,frz;
       if(tker==KERNEL_Quintic) KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
 			else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
-			const float rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
-			divrp1-=volume*rDivW;
+			if(rr2>=ALMOSTZERO){
+				const float rDivW=drx*frx+dry*fry+drz*frz;//R.Div(W)
+				divrp1-=volume*rDivW;
+			}
+
 			if(fluid){
 				const float4 velrhop2=velrhop[p2];
 				float Wab;
@@ -1584,12 +1587,7 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
     //double umagn=-double(shiftcoef)*double(CTE.h)*dt*sqrt(velrhop[p1].x*velrhop[p1].x+velrhop[p1].y*velrhop[p1].y+velrhop[p1].z*velrhop[p1].z);
 		double umagn=-double(shiftcoef)*h*h;
 
-		if(divrp1>=freesurface&&nearFS==0){
-			rshiftpos.x=-shiftcoef*h*h*rshiftpos.x;
-			if(!simulate2d) rshiftpos.y=-shiftcoef*h*h*rshiftpos.y;
-			rshiftpos.z=-shiftcoef*h*h*rshiftpos.z;
-		}
-		else{
+		if(divrp1<freesurface||nearFS[p1]==1){
 			float3 direction=make_float3(0,0,0);
 			float3 tProdx=make_float3(0,0,0);
 			float3 tPrody=make_float3(0,0,0);
@@ -1603,6 +1601,11 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 			rshiftpos.x=-shiftcoef*h*h*direction.x;
 			if(!simulate2d) rshiftpos.y=-shiftcoef*h*h*direction.y;
 			rshiftpos.z=-shiftcoef*h*h*direction.z;
+		}
+		else{
+			rshiftpos.x=-shiftcoef*h*h*rshiftpos.x;
+			if(!simulate2d) rshiftpos.y=-shiftcoef*h*h*rshiftpos.y;
+			rshiftpos.z=-shiftcoef*h*h*rshiftpos.z;
 		}
     
 
@@ -3732,7 +3735,7 @@ __device__ void KerFindFSVicinityCalc
     float drx,dry,drz;
     KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
     float rr2=drx*drx+dry*dry+drz*drz;
-    if(divr[p2]<freesurface && rr2<=CTE.h*CTE.h){
+    if(divr[p2]<freesurface && rr2<=4.0f*CTE.h*CTE.h){
 			nearFS=1;
 			break;
     }
