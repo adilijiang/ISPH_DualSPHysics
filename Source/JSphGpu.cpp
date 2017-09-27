@@ -94,6 +94,7 @@ void JSphGpu::InitVars(){
 	ShiftPosg=NULL; Tensileg=NULL;
 	MLSg=NULL;
 	Taog=NULL;
+	NormalVectorg=NULL;
 	sumFrg=NULL;
   Divrg=NULL;
 	MirrorPosg=NULL;
@@ -146,7 +147,8 @@ void JSphGpu::FreeGpuMemoryFixed(){
 	if(dWxCorrg)cudaFree(dWxCorrg);									dWxCorrg=NULL;
 	if(dWzCorrg)cudaFree(dWzCorrg);									dWzCorrg=NULL;
 	if(ShiftPosg)cudaFree(ShiftPosg);								ShiftPosg=NULL;
-	if(Tensileg)cudaFree(Tensileg);								Tensileg=NULL;
+	if(Tensileg)cudaFree(Tensileg);									Tensileg=NULL;
+	if(NormalVectorg)cudaFree(NormalVectorg);				NormalVectorg=NULL;
   if(RidpMoveg)cudaFree(RidpMoveg);								RidpMoveg=NULL;
   if(FtRidpg)cudaFree(FtRidpg);										FtRidpg=NULL;
   if(FtoMasspg)cudaFree(FtoMasspg);								FtoMasspg=NULL;
@@ -182,6 +184,7 @@ void JSphGpu::AllocGpuMemoryFixed(){
 															cudaMalloc((void**)&dWzCorrg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&ShiftPosg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&Tensileg,m);					MemGpuFixed+=m;
+															cudaMalloc((void**)&NormalVectorg,m);			MemGpuFixed+=m;
   m=sizeof(unsigned);					cudaMalloc((void**)&counterNnzGPU,m);			MemGpuFixed+=m;
 															cudaMalloc((void**)&NumFreeSurfaceGPU,m);	MemGpuFixed+=m;
 

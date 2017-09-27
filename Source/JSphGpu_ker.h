@@ -210,7 +210,7 @@ void Interaction_Shifting(TpKernel tkernel,TpSlipCond tslipcond,bool simulate2d,
   ,float4 *velrhop,const word *code,const float *ftomassp
   ,TpShifting tshifting,float3 *shiftpos,float *divr,const float tensilen,const float tensiler,float3 *sumtensile
 	,const float freesurface,const float boundaryfs,const unsigned *idp,const double3 *mirrorPos,const unsigned *mirrorCell
-	,float3 *dwxcorrg,float3 *dwycorrg,float3 *dwzcorrg,float4 *mls,unsigned *row,const double PistonPos);
+	,float3 *dwxcorrg,float3 *dwycorrg,float3 *dwzcorrg,float4 *mls,unsigned *row,const double PistonPos,float3 *normal);
 
 void ComputeShift(bool floating,const unsigned bsfluid,unsigned np,unsigned npb
   ,const float3 *shiftpos,word *code,double2 *movxy,double *movz);

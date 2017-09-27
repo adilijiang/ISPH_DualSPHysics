@@ -465,7 +465,6 @@ double JSphGpuSingle::ComputeAceMax(float *auxmem){
 /// the computed forces using the Symplectic time stepping scheme
 //==============================================================================
 double JSphGpuSingle::ComputeStep_Sym(double dt){
-  //SaveVtkData("InitSymplectic.vtk",Nstep,Np,Posxyg,Poszg,Idpg,Velrhopg);
   //-Predictor
   //----------- 
 	TmgStart(Timers,TMG_Stage1);
@@ -573,6 +572,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
         TimeMax=TimeStep;
       }
       SaveData();
+			SaveVtkData("InitSymplectic.vtk",Nstep,Np,Posxyg,Poszg,Idpg,Velrhopg,NormalVectorg);
       Part++;
       PartNstep=Nstep;
       TimeStepM1=TimeStep;
@@ -596,7 +596,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 /// Generates output files for particle data
 //==============================================================================
 #include "JFormatFiles2.h"
-void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const unsigned *idp,const float4 *velrhop)const{
+void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const unsigned *idp,const float4 *velrhop,const float3 *nVector)const{
   //-Allocate memory.
   tdouble2 *pxy=new tdouble2[np];
   double *pz=new double[np];
@@ -605,8 +605,12 @@ void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,cons
   unsigned *idph=new unsigned[np];
   tfloat3 *vel=new tfloat3[np];
   float *rhop=new float[np];
+	unsigned npf=np-Npb;
+	tfloat3 *nVec=new tfloat3[npf];
+	tfloat3 *normal=new tfloat3[np];
 
   //-Copies memory to CPU.
+	cudaMemcpy(nVec,nVector,sizeof(tfloat3)*npf,cudaMemcpyDeviceToHost);
   cudaMemcpy(pxy,posxy,sizeof(double2)*np,cudaMemcpyDeviceToHost);
   cudaMemcpy(pz,posz,sizeof(double)*np,cudaMemcpyDeviceToHost);
   cudaMemcpy(idph,idp,sizeof(unsigned)*np,cudaMemcpyDeviceToHost);
@@ -615,6 +619,8 @@ void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,cons
     pos[p]=ToTFloat3(TDouble3(pxy[p].x,pxy[p].y,pz[p]));
     vel[p]=TFloat3(vrhop[p].x,vrhop[p].y,vrhop[p].z);
     rhop[p]=vrhop[p].w;
+		if(p<Npb) normal[p]=TFloat3(0,0,0);
+		else normal[p]=nVec[p-Npb];
   }
 
   //-Creates VTK file.
@@ -623,6 +629,7 @@ void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,cons
   if(idph){  fields[nfields]=JFormatFiles2::DefineField("Id"  ,JFormatFiles2::UInt32 ,1,idph); nfields++; }
   if(vel){   fields[nfields]=JFormatFiles2::DefineField("Vel" ,JFormatFiles2::Float32,3,vel);  nfields++; }
   if(rhop){  fields[nfields]=JFormatFiles2::DefineField("Rhop",JFormatFiles2::Float32,1,rhop); nfields++; }
+	if(normal){  fields[nfields]=JFormatFiles2::DefineField("Normal",JFormatFiles2::Float32,3,normal); nfields++; }
   string file=Log->GetDirOut()+fun::FileNameSec(fname,fnum);
   JFormatFiles2::SaveVtk(file,np,pos,nfields,fields);
 
@@ -860,6 +867,7 @@ void JSphGpuSingle::RunShifting(double dt){
 	cudaMemset(dWzCorrg,0,sizeof(float3)*npf);
 	cudaMemset(MLSg,0,sizeof(float4)*npb);
   cudaMemset(Aceg,0,sizeof(float3)*npf);
+	cudaMemset(NormalVectorg,0,sizeof(float3)*npf);
 
   //-Cambia datos a variables Pre para calcular nuevos datos.
   //-Changes data of predictor variables for calculating the new data
@@ -878,7 +886,7 @@ void JSphGpuSingle::RunShifting(double dt){
   const unsigned bsbound=BlockSizes.forcesbound;
   const unsigned bsfluid=BlockSizes.forcesfluid;
 
-  cusph::Interaction_Shifting(TKernel,TSlipCond,Simulate2D,WithFloating,UseDEM,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,bsbound,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,FtoMasspg,TShifting,ShiftPosg,Divrg,TensileN,TensileR,Tensileg,FreeSurface,BoundaryFS,Idpg,MirrorPosg,MirrorCellg,dWxCorrg,dWyCorrg,dWzCorrg,MLSg,rowIndg,PistonPosX);
+  cusph::Interaction_Shifting(TKernel,TSlipCond,Simulate2D,WithFloating,UseDEM,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,bsbound,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,FtoMasspg,TShifting,ShiftPosg,Divrg,TensileN,TensileR,Tensileg,FreeSurface,BoundaryFS,Idpg,MirrorPosg,MirrorCellg,dWxCorrg,dWyCorrg,dWzCorrg,MLSg,rowIndg,PistonPosX,NormalVectorg);
 
   CheckCudaError(met,"Failed in calculating concentration");
 
