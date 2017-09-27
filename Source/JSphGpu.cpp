@@ -981,7 +981,7 @@ double JSphGpu::DtVariable(bool final){
 void JSphGpu::RunShifting(double dt){
 	bool maxShift=false;
 	if(TShifting==SHIFT_Max) maxShift=true;
-  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velrhopg,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift,BetaShift0,BetaShift1);
+  cusph::RunShifting(Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velrhopg,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift,BetaShift0,BetaShift1,NormalVectorg,rowIndg);
 }
 
 //==============================================================================

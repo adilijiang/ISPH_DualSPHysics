@@ -572,7 +572,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
         TimeMax=TimeStep;
       }
       SaveData();
-			SaveVtkData("InitSymplectic.vtk",Nstep,Np,Posxyg,Poszg,Idpg,Velrhopg,NormalVectorg);
+			SaveVtkData("InitSymplectic.vtk",Nstep,Np,Posxyg,Poszg,Idpg,Velrhopg,NormalVectorg,rowIndg);
       Part++;
       PartNstep=Nstep;
       TimeStepM1=TimeStep;
@@ -596,7 +596,8 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 /// Generates output files for particle data
 //==============================================================================
 #include "JFormatFiles2.h"
-void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const unsigned *idp,const float4 *velrhop,const float3 *nVector)const{
+void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,const double2 *posxy
+	,const double *posz,const unsigned *idp,const float4 *velrhop,const float3 *nVector,const unsigned *nearFS)const{
   //-Allocate memory.
   tdouble2 *pxy=new tdouble2[np];
   double *pz=new double[np];
@@ -608,6 +609,7 @@ void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,cons
 	unsigned npf=np-Npb;
 	tfloat3 *nVec=new tfloat3[npf];
 	tfloat3 *normal=new tfloat3[np];
+	unsigned *nearfs=new unsigned[np];
 
   //-Copies memory to CPU.
 	cudaMemcpy(nVec,nVector,sizeof(tfloat3)*npf,cudaMemcpyDeviceToHost);
@@ -615,6 +617,7 @@ void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,cons
   cudaMemcpy(pz,posz,sizeof(double)*np,cudaMemcpyDeviceToHost);
   cudaMemcpy(idph,idp,sizeof(unsigned)*np,cudaMemcpyDeviceToHost);
   cudaMemcpy(vrhop,velrhop,sizeof(float4)*np,cudaMemcpyDeviceToHost);
+	cudaMemcpy(nearfs,nearFS,sizeof(unsigned)*np,cudaMemcpyDeviceToHost);
   for(unsigned p=0;p<np;p++){
     pos[p]=ToTFloat3(TDouble3(pxy[p].x,pxy[p].y,pz[p]));
     vel[p]=TFloat3(vrhop[p].x,vrhop[p].y,vrhop[p].z);
@@ -630,6 +633,7 @@ void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,cons
   if(vel){   fields[nfields]=JFormatFiles2::DefineField("Vel" ,JFormatFiles2::Float32,3,vel);  nfields++; }
   if(rhop){  fields[nfields]=JFormatFiles2::DefineField("Rhop",JFormatFiles2::Float32,1,rhop); nfields++; }
 	if(normal){  fields[nfields]=JFormatFiles2::DefineField("Normal",JFormatFiles2::Float32,3,normal); nfields++; }
+	if(nearfs){  fields[nfields]=JFormatFiles2::DefineField("NearFS",JFormatFiles2::UInt32,1,nearfs); nfields++; }
   string file=Log->GetDirOut()+fun::FileNameSec(fname,fnum);
   JFormatFiles2::SaveVtk(file,np,pos,nfields,fields);
 
@@ -641,6 +645,9 @@ void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,cons
   delete[] idph;
   delete[] vel;
   delete[] rhop;
+	delete[] nearfs;
+	delete[] normal;
+	delete[] nVec;
 }
 
 
@@ -868,6 +875,7 @@ void JSphGpuSingle::RunShifting(double dt){
 	cudaMemset(MLSg,0,sizeof(float4)*npb);
   cudaMemset(Aceg,0,sizeof(float3)*npf);
 	cudaMemset(NormalVectorg,0,sizeof(float3)*npf);
+	cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
 
   //-Cambia datos a variables Pre para calcular nuevos datos.
   //-Changes data of predictor variables for calculating the new data
@@ -893,7 +901,7 @@ void JSphGpuSingle::RunShifting(double dt){
   JSphGpu::RunShifting(dt);
   TmgStop(Timers,TMG_SuShifting);
   CheckCudaError(met,"Failed in calculating shifting distance");
-	//cusph::CorrectShiftVelocity(TKernel,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,Idpg,Divrg,Codeg,BoundaryFS,ShiftPosg,Aceg);
+	cusph::CorrectShiftVelocity(TKernel,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,Idpg,Divrg,Codeg,BoundaryFS,ShiftPosg,Aceg);
 	Shift(dt,bsfluid);
 	cusph::ResetBoundVel(Npb,bsbound,Velrhopg,VelrhopPreg);
   ArraysGpu->Free(PosxyPreg);     PosxyPreg=NULL;
