@@ -122,7 +122,7 @@ void AddDelta(unsigned n,const float *delta,float *ar);
 //# Kernels for Shifting
 void RunShifting(const unsigned bsfluid,const bool simulate2d,unsigned np,unsigned npb,double dt
   ,double shiftcoef,float freesurface,double3 *velrhop,const double *divr,double3 *shiftpos
-	,const bool maxShift,double3 *sumtensile,const float shiftoffset,const double alphashift,const double beta0,const double beta1,const double *AvConc,double3 *NormShiftDir,double3 *TangShiftDir,double3 *ShiftDist);
+	,const bool maxShift,double3 *sumtensile,const float shiftoffset,const double alphashift,const double betashift0,const double betashift1,const double *AvConc,double3 *NormShiftDir,double3 *TangShiftDir,double3 *ShiftDist,const double3 *normal,const unsigned *nearFS);
 
 void ComputeStepSymplecticPre(const unsigned bsfluid,bool floating,unsigned np,unsigned npb
   ,const double3 *ace,double dtm,word *code,double3 *velrhop);
@@ -211,7 +211,7 @@ void Interaction_Shifting(TpKernel tkernel,TpSlipCond tslipcond,bool simulate2d,
   ,TpShifting tshifting,double3 *shiftpos,double *divr,const float tensilen,const float tensiler,double3 *sumtensile
 	,const float freesurface,const float boundaryfs,const unsigned *idp,const double3 *mirrorPos,const unsigned *mirrorCell
 	,double3 *dwxcorrg,double3 *dwycorrg,double3 *dwzcorrg,double4 *mls,unsigned *row,const double pistonposx,const double PistonVel
-	,const double RightWall,const tfloat3 gravity,const double *pressure,double *AvConc,double *W);
+	,const double RightWall,const tfloat3 gravity,const double *pressure,double *AvConc,double *W,double3 *normal,double3 *extraP);
 
 void ComputeShift(bool floating,const unsigned bsfluid,unsigned np,unsigned npb
   ,const double3 *shiftpos,word *code,double2 *movxy,double *movz,double2 *posxy,double *posz,unsigned *dcell);
@@ -223,6 +223,10 @@ void CorrectShiftVelocity(const bool wavegen,TpKernel tkernel,TpCellMode cellmod
 void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double *X,const double *B,const unsigned *rowInd,const unsigned *col,const unsigned Nnz,const unsigned n,const unsigned npb);
 
 void SolverResultArrange(const unsigned bsfluid,const unsigned npb,const unsigned npbok,const unsigned npf,double *pressure);
+
+void ShowMirror(TpKernel tkernel,TpCellMode cellmode,unsigned np,unsigned npb,tuint3 ncells,const int2 *begincell,tuint3 cellmin
+	,const unsigned *dcell,const double2 *posxy,const double *posz,const double PistonPos,const double PistonVel,const double RightWall,double3 *extraP,const tfloat3 gravity,const double3 *velrhop,const double *pressure);
+ 
 }
 #endif
 

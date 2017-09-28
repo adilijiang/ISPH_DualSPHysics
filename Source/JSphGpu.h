@@ -234,7 +234,7 @@ protected:
 	double3 *NormShiftDir;
 	double3 *TangShiftDir;
 	double3 *ShiftDist;
-
+	double3 *NormalVectorg;
   //matrix variables 
   double *bg;
   double *ag;
@@ -242,6 +242,7 @@ protected:
   unsigned *colIndg;
   unsigned *rowIndg;
   double *Pressureg;
+	double3 *extraP;
 
   unsigned *counterNnzGPU;
   unsigned *counterNnzCPU;

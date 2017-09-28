@@ -94,7 +94,9 @@ void JSphGpu::InitVars(){
 	MLSg=NULL;
 	sumFrg=NULL;
 	Pressureg=NULL;
+	extraP=NULL;
   Divrg=NULL;
+	NormalVectorg=NULL;
 	taog=NULL;
 	Velocity=NULL;
 	VelocityPre=NULL;
@@ -145,9 +147,11 @@ void JSphGpu::FreeGpuMemoryFixed(){
 	if(sumFrg) cudaFree(sumFrg);										sumFrg=NULL;
 	if(taog) cudaFree(taog);												taog=NULL;
 	if(Aceg)cudaFree(Aceg);													Aceg=NULL;
+	if(NormalVectorg)cudaFree(NormalVectorg);				NormalVectorg=NULL;
 	if(dWxCorrg)cudaFree(dWxCorrg);									dWxCorrg=NULL;
 	if(dWyCorrg)cudaFree(dWyCorrg);									dWyCorrg=NULL;
 	if(dWzCorrg)cudaFree(dWzCorrg);									dWzCorrg=NULL;
+	if(extraP)cudaFree(extraP);											extraP=NULL;
 	if(ShiftPosg)cudaFree(ShiftPosg);								ShiftPosg=NULL;
 	if(Tensileg)cudaFree(Tensileg);								Tensileg=NULL;
   if(RidpMoveg)cudaFree(RidpMoveg);								RidpMoveg=NULL;
@@ -186,7 +190,9 @@ void JSphGpu::AllocGpuMemoryFixed(){
 															cudaMalloc((void**)&dWzCorrg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&ShiftPosg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&Tensileg,m);					MemGpuFixed+=m;
-  m=sizeof(unsigned);					cudaMalloc((void**)&counterNnzGPU,m);			MemGpuFixed+=m;
+															cudaMalloc((void**)&NormalVectorg,m);			MemGpuFixed+=m;
+															cudaMalloc((void**)&extraP,m);						MemGpuFixed+=m;
+	m=sizeof(unsigned);					cudaMalloc((void**)&counterNnzGPU,m);			MemGpuFixed+=m;
 															cudaMalloc((void**)&NumFreeSurfaceGPU,m);	MemGpuFixed+=m;
 	if(Schwaiger){							
 		m=sizeof(double3)*npf;		cudaMalloc((void**)&sumFrg,m);						MemGpuFixed+=m;
@@ -997,7 +1003,7 @@ double JSphGpu::DtVariable(bool final){
 void JSphGpu::RunShifting(double dt,const double *AvConc){
 	bool maxShift=false;
 	if(TShifting==SHIFT_Max) maxShift=true;
-  cusph::RunShifting(BlockSizes.forcesfluid,Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velocity,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift,BetaShift0,BetaShift1,AvConc,NormShiftDir,TangShiftDir,ShiftDist);
+  cusph::RunShifting(BlockSizes.forcesfluid,Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velocity,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift,BetaShift0,BetaShift1,AvConc,NormShiftDir,TangShiftDir,ShiftDist,NormalVectorg,rowIndg);
 }
 
 //==============================================================================
