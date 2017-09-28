@@ -571,6 +571,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 	cudaMemset(Pressureg,0,sizeof(double)*Np);
 	NormShiftDir=ArraysGpu->ReserveDouble3();
 	TangShiftDir=ArraysGpu->ReserveDouble3();
+	Divrg=ArraysGpu->ReserveDouble(); cudaMemset(Divrg,0,sizeof(double)*Np);
 	ShiftDist=ArraysGpu->ReserveDouble3();
 	PistonVel=0;
 	while(TimeStep<TimeMax){
@@ -586,7 +587,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
         TimeMax=TimeStep;
       }
       SaveData();
-			//SaveVtkData("InitSymplectic.vtk",Nstep,Np,Posxyg,Poszg,Idpg,Velocity,Pressureg,NormShiftDir,TangShiftDir,ShiftDist,extraP);
+			SaveVtkData("Properties.vtk",Nstep,Np,Posxyg,Poszg,Velocity,Pressureg,ShiftDist,Divrg);
 			SaveVtkMirror("Mirror.vtk",Nstep,(Np-Npb),extraP);
       Part++;
       PartNstep=Nstep;
@@ -611,68 +612,46 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 /// Generates output files for particle data
 //==============================================================================
 #include "JFormatFiles2.h"
-void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const unsigned *idp,const double3 *velrhop,const double *pressure,const double3 *normshiftdir,const double3 *tangshiftdir,const double3 *shiftdist,const double3 *mirror)const{
+void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const double3 *velrhop,const double *pressure,const double3 *shiftdist,const double *divrg)const{
   //-Allocate memory.
-  //tdouble2 *pxy=new tdouble2[np];
-  //double *pz=new double[np];
+  tdouble2 *pxy=new tdouble2[np];
+  double *pz=new double[np];
 	unsigned npf=Np-Npb;
-  tfloat3 *pos=new tfloat3[npf];
-	tdouble3 *extrap=new tdouble3[npf];
-  //unsigned *idph=new unsigned[np];
-  //double3 *vel=new double3[np];
-  //float *rhop=new float[np];
-	//double *pres=new double[np];
-	//double3 *normshift=new double3[np];
-	//double3 *tangshift=new double3[np];
-	//double3 *shift=new double3[np];
-	//float *divr=new float[np];
+  tfloat3 *pos=new tfloat3[np];
+  double3 *vel=new double3[np];
+	double *pres=new double[np];
+	double3 *shift=new double3[np];
+	double *divr=new double[np];
 
   //-Copies memory to CPU.
-  //cudaMemcpy(pxy,posxy,sizeof(double2)*np,cudaMemcpyDeviceToHost);
-  //cudaMemcpy(pz,posz,sizeof(double)*np,cudaMemcpyDeviceToHost);
-	cudaMemcpy(extrap,mirror,sizeof(double3)*npf,cudaMemcpyDeviceToHost);
-  //cudaMemcpy(idph,idp,sizeof(unsigned)*np,cudaMemcpyDeviceToHost);
-  //cudaMemcpy(vel,velrhop,sizeof(double3)*np,cudaMemcpyDeviceToHost);
-	//cudaMemcpy(pres,pressure,sizeof(double)*np,cudaMemcpyDeviceToHost);
-	//cudaMemcpy(normshift,normshiftdir,sizeof(double3)*np,cudaMemcpyDeviceToHost);
-	//cudaMemcpy(tangshift,tangshiftdir,sizeof(double3)*np,cudaMemcpyDeviceToHost);
-	//cudaMemcpy(shift,shiftdist,sizeof(double3)*np,cudaMemcpyDeviceToHost);
-	//cudaMemcpy(divr,divrg,sizeof(float)*np,cudaMemcpyDeviceToHost);
-  //for(unsigned p=0;p<np;p++){
-    //pos[p]=ToTFloat3(TDouble3(pxy[p].x,pxy[p].y,pz[p]));
-  //}
-	for(unsigned p=0;p<npf;p++){
-		//unsigned p1=p;
-    pos[p]=ToTFloat3(TDouble3(extrap[p].x,extrap[p].y,extrap[p].z));
+  cudaMemcpy(pxy,posxy,sizeof(double2)*np,cudaMemcpyDeviceToHost);
+  cudaMemcpy(pz,posz,sizeof(double)*np,cudaMemcpyDeviceToHost);
+  cudaMemcpy(vel,velrhop,sizeof(double3)*np,cudaMemcpyDeviceToHost);
+	cudaMemcpy(pres,pressure,sizeof(double)*np,cudaMemcpyDeviceToHost);
+	cudaMemcpy(shift,shiftdist,sizeof(double3)*np,cudaMemcpyDeviceToHost);
+	cudaMemcpy(divr,divrg,sizeof(float)*np,cudaMemcpyDeviceToHost);
+  for(unsigned p=0;p<np;p++){
+		pos[p]=ToTFloat3(TDouble3(pxy[p].x,pxy[p].y,pz[p]));
   }
 
   //-Creates VTK file.
   JFormatFiles2::StScalarData fields[20];
   unsigned nfields=0;
-  //if(idph){  fields[nfields]=JFormatFiles2::DefineField("Id"  ,JFormatFiles2::UInt32 ,1,idph); nfields++; }
-  //if(vel){   fields[nfields]=JFormatFiles2::DefineField("Vel" ,JFormatFiles2::Double64,3,vel);  nfields++; }
-  //if(rhop){  fields[nfields]=JFormatFiles2::DefineField("Rhop",JFormatFiles2::Float32,1,rhop); nfields++; }
-	//if(pres){  fields[nfields]=JFormatFiles2::DefineField("Pressure",JFormatFiles2::Double64,1,pres); nfields++; }
-	//if(normshift){   fields[nfields]=JFormatFiles2::DefineField("NormShiftDir" ,JFormatFiles2::Double64,3,normshift);  nfields++; }
-	//if(tangshift){   fields[nfields]=JFormatFiles2::DefineField("TangShiftDir" ,JFormatFiles2::Double64,3,tangshift);  nfields++; }
-	//if(shift){   fields[nfields]=JFormatFiles2::DefineField("ShiftDist" ,JFormatFiles2::Double64,3,shift);  nfields++; }
-	//if(divr){  fields[nfields]=JFormatFiles2::DefineField("Divr",JFormatFiles2::Float32,1,divr); nfields++; }
+  if(vel){   fields[nfields]=JFormatFiles2::DefineField("Vel",JFormatFiles2::Double64,3,vel);  nfields++; }
+	if(pres){  fields[nfields]=JFormatFiles2::DefineField("Pressure",JFormatFiles2::Double64,1,pres); nfields++; }
+	if(shift){   fields[nfields]=JFormatFiles2::DefineField("ShiftDist" ,JFormatFiles2::Double64,3,shift);  nfields++; }
+	if(divr){  fields[nfields]=JFormatFiles2::DefineField("Divr",JFormatFiles2::Float32,1,divr); nfields++; }
   string file=Log->GetDirOut()+fun::FileNameSec(fname,Part);
-  JFormatFiles2::SaveVtk(file,npf,pos,nfields,fields);
+  JFormatFiles2::SaveVtk(file,np,pos,nfields,fields);
 
   //-Frees memory.
-  //delete[] pxy;
-  //delete[] pz;
+  delete[] pxy;
+  delete[] pz;
   delete[] pos;
-	delete[] extrap;
-  //delete[] idph;
-  //delete[] vel;
-	//delete[] normshift;
-	//delete[] tangshift;
-	//delete[] shift;
-  //delete[] rhop;
-	//delete[] pres;
-	//delete[]divr;
+  delete[] vel;
+	delete[] shift;
+  delete[] pres;
+	delete[] divr;
 }
 
 void JSphGpuSingle::SaveVtkMirror(std::string fname,unsigned fnum,unsigned npf,const double3 *mirror)const{
@@ -901,7 +880,8 @@ void JSphGpuSingle::RunShifting(const double dt){
   VelrhopPreg=ArraysGpu->ReserveFloat4();
 	VelocityPre=ArraysGpu->ReserveDouble3();
 
-	Divrg=ArraysGpu->ReserveDouble();	cudaMemset(Divrg,0,sizeof(double)*np);
+	//Divrg=ArraysGpu->ReserveDouble();	
+	cudaMemset(Divrg,0,sizeof(double)*np);
 	cudaMemset(NormShiftDir,0,sizeof(double3)*np);
 	cudaMemset(TangShiftDir,0,sizeof(double3)*np);
 	cudaMemset(ShiftDist,0,sizeof(double3)*np);
@@ -938,16 +918,14 @@ void JSphGpuSingle::RunShifting(const double dt){
 	double *W; cudaMalloc((void**)&W,sizeof(double)*npf); cudaMemset(W,0,sizeof(double)*npf);
   cusph::Interaction_Shifting(TKernel,TSlipCond,Simulate2D,WithFloating,UseDEM,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,bsbound,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velocity,Codeg,FtoMasspg,TShifting,ShiftPosg,Divrg,TensileN,TensileR,Tensileg,FreeSurface,BoundaryFS,Idpg,MirrorPosg,MirrorCellg,dWxCorrg,dWyCorrg,dWzCorrg,MLSg,rowIndg,PistonPosX,PistonVel,RightWall,Gravity,Pressureg,AvConc,W,NormalVectorg,extraP);
 	CheckCudaError(met,"Failed in calculating concentration");
-
-	cusph::ShowMirror(TKernel,CellMode,Np,Npb,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PistonPosX,PistonVel,RightWall,extraP,Gravity,Velocity,Pressureg);
-  CheckCudaError(met,"ShowMirror");
-
-  JSphGpu::RunShifting(dt,AvConc);
+	JSphGpu::RunShifting(dt,AvConc);
   TmgStop(Timers,TMG_SuShifting);
   CheckCudaError(met,"Failed in calculating shifting distance");
 	const bool wavegen=(WaveGen? true:false);
 	cusph::CorrectShiftVelocity(wavegen,TKernel,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velocity,dWxCorrg,dWyCorrg,dWzCorrg,Idpg,Divrg,Codeg,BoundaryFS,ShiftPosg,Aceg,DampingPointX,DampingLengthX,PistonPosX,PistonVel,RightWall,Gravity,Pressureg);
 	Shift(dt,bsfluid);
+	cusph::ShowMirror(TKernel,CellMode,Np,Npb,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,PistonPosX,PistonVel,RightWall,extraP,Gravity,Velocity,Pressureg);
+  CheckCudaError(met,"ShowMirror");
 	//cusph::ResetBoundVel(Npb,bsbound,Velocity,VelocityPre);
 	cudaFree(AvConc); AvConc=NULL;
 	cudaFree(W); W=NULL;
@@ -955,6 +933,6 @@ void JSphGpuSingle::RunShifting(const double dt){
   ArraysGpu->Free(PoszPreg);      PoszPreg=NULL;
   ArraysGpu->Free(VelrhopPreg);   VelrhopPreg=NULL;
 	ArraysGpu->Free(VelocityPre);   VelocityPre=NULL;
-  ArraysGpu->Free(Divrg);         Divrg=NULL;
+  //ArraysGpu->Free(Divrg);         Divrg=NULL;
 }
 

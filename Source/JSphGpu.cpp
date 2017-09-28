@@ -897,7 +897,8 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
 		cudaMemset(dWxCorrg,0,sizeof(double3)*npf);
 		cudaMemset(dWyCorrg,0,sizeof(double3)*npf); 
 		cudaMemset(dWzCorrg,0,sizeof(double3)*npf);
-		Divrg=ArraysGpu->ReserveDouble(); cudaMemset(Divrg,0,sizeof(double)*np);
+		//Divrg=ArraysGpu->ReserveDouble(); 
+		cudaMemset(Divrg,0,sizeof(double)*np);
 		cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
 		//cudaMemset(Pressureg,0,sizeof(double)*np);
 		if(Schwaiger){
@@ -974,7 +975,7 @@ void JSphGpu::ComputeSymplecticCorr(double dt){
   ArraysGpu->Free(PoszPreg);     PoszPreg=NULL;
   ArraysGpu->Free(VelrhopPreg);  VelrhopPreg=NULL;
 	ArraysGpu->Free(VelocityPre);   VelocityPre=NULL;
-	ArraysGpu->Free(Divrg);         Divrg=NULL;
+	//ArraysGpu->Free(Divrg);         Divrg=NULL;
   TmgStop(Timers,TMG_SuComputeStep);
 }
 

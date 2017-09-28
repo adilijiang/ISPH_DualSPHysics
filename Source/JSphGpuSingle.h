@@ -51,7 +51,7 @@ protected:
 
   void RunFloating(double dt,bool predictor);
 
-  void SaveVtkData(std::string fname,unsigned num,unsigned np,const double2 *posxy,const double *posz,const unsigned *idp,const double3 *velrhop,const double *pressure,const double3 *normshiftdir,const double3 *tangshiftdir,const double3 *shiftdist,const double3 *mirror)const;
+  void SaveVtkData(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const double3 *velrhop,const double *pressure,const double3 *shiftdist,const double *divrg)const;
 	void SaveVtkMirror(std::string fname,unsigned num,unsigned npf,const double3 *mirror)const;
   void SaveData();
   void FinishRun(bool stop);
