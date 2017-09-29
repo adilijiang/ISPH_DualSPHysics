@@ -826,7 +826,7 @@ template<TpKernel tker> __global__ void KerInteractionForcesBound
 			BitangVel.z=BitangDir.z*BitangProdVel;
 
 			const float dp05=0.5*CTE.dp;
-			if(posz[p1]<dp05&&(posxy[p1].x<PistonPos||posxy[p1].x>18.0-dp05)){
+			if(posz[p1]<dp05&&(posxy[p1].x<PistonPos||posxy[p1].x>9.0-dp05)){
 				velrhop[p1].x=-Sum.x;
 				velrhop[p1].z=-Sum.z;
 			}

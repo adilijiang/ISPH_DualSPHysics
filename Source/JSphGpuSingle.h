@@ -51,7 +51,8 @@ protected:
 
   void RunFloating(double dt,bool predictor);
 
-  void SaveVtkData(std::string fname,unsigned num,unsigned np,const double2 *posxy,const double *posz,const unsigned *idp,const float4 *velrhop,const float3 *nVector,const unsigned *nearFS)const;
+  void SaveVtkData(std::string fname,unsigned num,unsigned np,const double2 *posxy,const double *posz
+		,const unsigned *idp,const float4 *velrhop,const float3 *nVector,const unsigned *nearFS,const float3 *shiftpos)const;
   void SaveData();
   void FinishRun(bool stop);
 

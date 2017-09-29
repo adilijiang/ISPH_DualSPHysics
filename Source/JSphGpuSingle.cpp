@@ -572,7 +572,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
         TimeMax=TimeStep;
       }
       SaveData();
-			SaveVtkData("InitSymplectic.vtk",Nstep,Np,Posxyg,Poszg,Idpg,Velrhopg,NormalVectorg,rowIndg);
+			SaveVtkData("InitSymplectic.vtk",Nstep,Np,Posxyg,Poszg,Idpg,Velrhopg,NormalVectorg,rowIndg,ShiftPosg);
       Part++;
       PartNstep=Nstep;
       TimeStepM1=TimeStep;
@@ -597,7 +597,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 //==============================================================================
 #include "JFormatFiles2.h"
 void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,const double2 *posxy
-	,const double *posz,const unsigned *idp,const float4 *velrhop,const float3 *nVector,const unsigned *nearFS)const{
+	,const double *posz,const unsigned *idp,const float4 *velrhop,const float3 *nVector,const unsigned *nearFS,const float3 *shiftpos)const{
   //-Allocate memory.
   tdouble2 *pxy=new tdouble2[np];
   double *pz=new double[np];
@@ -610,6 +610,8 @@ void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,cons
 	tfloat3 *nVec=new tfloat3[npf];
 	tfloat3 *normal=new tfloat3[np];
 	unsigned *nearfs=new unsigned[np];
+	tfloat3 *shiftposc=new tfloat3[npf];
+	tfloat3 *shiftdist=new tfloat3[np];
 
   //-Copies memory to CPU.
 	cudaMemcpy(nVec,nVector,sizeof(tfloat3)*npf,cudaMemcpyDeviceToHost);
@@ -618,12 +620,16 @@ void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,cons
   cudaMemcpy(idph,idp,sizeof(unsigned)*np,cudaMemcpyDeviceToHost);
   cudaMemcpy(vrhop,velrhop,sizeof(float4)*np,cudaMemcpyDeviceToHost);
 	cudaMemcpy(nearfs,nearFS,sizeof(unsigned)*np,cudaMemcpyDeviceToHost);
+	cudaMemcpy(shiftposc,shiftpos,sizeof(float3)*npf,cudaMemcpyDeviceToHost);
+
   for(unsigned p=0;p<np;p++){
     pos[p]=ToTFloat3(TDouble3(pxy[p].x,pxy[p].y,pz[p]));
     vel[p]=TFloat3(vrhop[p].x,vrhop[p].y,vrhop[p].z);
     rhop[p]=vrhop[p].w;
 		if(p<Npb) normal[p]=TFloat3(0,0,0);
 		else normal[p]=nVec[p-Npb];
+		if(p<Npb) shiftdist[p]=TFloat3(0,0,0);
+		else shiftdist[p]=shiftposc[p-Npb];
   }
 
   //-Creates VTK file.
@@ -634,6 +640,7 @@ void JSphGpuSingle::SaveVtkData(std::string fname,unsigned fnum,unsigned np,cons
   if(rhop){  fields[nfields]=JFormatFiles2::DefineField("Rhop",JFormatFiles2::Float32,1,rhop); nfields++; }
 	if(normal){  fields[nfields]=JFormatFiles2::DefineField("Normal",JFormatFiles2::Float32,3,normal); nfields++; }
 	if(nearfs){  fields[nfields]=JFormatFiles2::DefineField("NearFS",JFormatFiles2::UInt32,1,nearfs); nfields++; }
+	if(shiftdist){  fields[nfields]=JFormatFiles2::DefineField("ShiftDist",JFormatFiles2::Float32,3,shiftdist); nfields++; }
   string file=Log->GetDirOut()+fun::FileNameSec(fname,fnum);
   JFormatFiles2::SaveVtk(file,np,pos,nfields,fields);
 
