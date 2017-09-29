@@ -3606,4 +3606,21 @@ void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double 
 	delete[] valuesH; valuesH=NULL;
 	std::cout<<iterNumber<<"\t"<<residual<<"\n";
 }
+
+__global__ void KerMoveBound
+  (const unsigned npb,double2 *posxy,double *posz,const double pistonposx,const double rightwall)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<npb){
+		const double dp05=0.5*CTE.dp;
+		if(posxy[p].x<pistonposx) posxy[p].x+=dp05;
+		if(posz[p]<dp05)posz[p]+=dp05;
+		if(posxy[p].x>rightwall)posxy[p].x-=dp05;
+	}
+}
+
+ void MoveBound(const unsigned npb,double2 *posxyg,double *poszg,const double pistonposx,const double rightwall){
+	 dim3 grid=GetGridSize(npb,SPHBSIZE);
+	 KerMoveBound<<<grid,SPHBSIZE>>>(npb,posxyg,poszg,pistonposx,rightwall);
+ }
 }

@@ -574,6 +574,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 	Divrg=ArraysGpu->ReserveDouble(); cudaMemset(Divrg,0,sizeof(double)*Np);
 	ShiftDist=ArraysGpu->ReserveDouble3();
 	PistonVel=0;
+	cusph::MoveBound(Npb,Posxyg,Poszg,PistonPosX,RightWall);
 	while(TimeStep<TimeMax){
 		cudaMemset(extraP,0,sizeof(double3)*(Np-Npb));
 		if(CaseNmoving)RunMotion(stepdt);

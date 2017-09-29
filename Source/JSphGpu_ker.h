@@ -227,6 +227,7 @@ void SolverResultArrange(const unsigned bsfluid,const unsigned npb,const unsigne
 void ShowMirror(TpKernel tkernel,TpCellMode cellmode,unsigned np,unsigned npb,tuint3 ncells,const int2 *begincell,tuint3 cellmin
 	,const unsigned *dcell,const double2 *posxy,const double *posz,const double PistonPos,const double PistonVel,const double RightWall,double3 *extraP,const tfloat3 gravity,const double3 *velrhop,const double *pressure);
  
+void MoveBound(const unsigned npb,double2 *posxyg,double *poszg,const double pistonposx,const double rightwall);
 }
 #endif
 
