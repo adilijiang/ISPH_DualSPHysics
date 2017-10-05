@@ -1025,6 +1025,7 @@ void JSphGpu::RunMotion(double stepdt){
     if(!nmove)cusph::CalcRidp(PeriActive!=0,Npb,0,CaseNfixed,CaseNfixed+CaseNmoving,Codeg,Idpg,RidpMoveg);
     BoundChanged=true;
 		double mvPistonX=0;
+		float pistonvel=0;
     //-Gestion de WaveGen.
 	//-Management of WaveGen.
     if(WaveGen)for(unsigned c=0;c<WaveGen->GetCount();c++){
@@ -1037,6 +1038,7 @@ void JSphGpu::RunMotion(double stepdt){
         if(Simulate2D)mvsimple.y=0;
         const tfloat3 mvvel=ToTFloat3(mvsimple/TDouble3(stepdt));
 				mvPistonX=mvsimple.x;
+				pistonvel=mvvel.x;
         cusph::MoveLinBound(PeriActive,nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg,Idpg,MirrorPosg,MirrorCellg);
       }
       else{
@@ -1046,7 +1048,7 @@ void JSphGpu::RunMotion(double stepdt){
     }
 
 		PistonPosX+=mvPistonX;
-		cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Poszg,Idpg,MirrorPosg,Codeg,PistonPosX,PistonPosZ,PistonYmin,PistonYmax,Simulate2D,MirrorCellg);
+		cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Poszg,Idpg,MirrorPosg,Codeg,PistonPosX,PistonPosZ,PistonYmin,PistonYmax,Simulate2D,MirrorCellg,Velrhopg,pistonvel);
   }
   TmgStop(Timers,TMG_SuMotion);
 }
