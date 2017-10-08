@@ -574,7 +574,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 	Divrg=ArraysGpu->ReserveDouble(); cudaMemset(Divrg,0,sizeof(double)*Np);
 	ShiftDist=ArraysGpu->ReserveDouble3();
 	PistonVel=0;
-	cusph::MoveBound(Npb,Posxyg,Poszg,PistonPosX,RightWall);
+	cusph::MoveBound(Np,Posxyg,Poszg,PistonPosX,RightWall);
 	while(TimeStep<TimeMax){
 		cudaMemset(extraP,0,sizeof(double3)*(Np-Npb));
 		if(CaseNmoving)RunMotion(stepdt);
@@ -677,6 +677,42 @@ void JSphGpuSingle::SaveVtkMirror(std::string fname,unsigned fnum,unsigned npf,c
 	delete[] extrap;
 }
 
+void JSphGpuSingle::SaveVtkSchwaigerTest(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const double *m2g,const double *m3g,const double *m4g)const{
+  //-Allocate memory.
+  tdouble2 *pxy=new tdouble2[np];
+  double *pz=new double[np];
+  tfloat3 *pos=new tfloat3[np];
+  double *m2=new double[np];
+	double *m3=new double[np];
+	double *m4=new double[np];
+
+  //-Copies memory to CPU.
+  cudaMemcpy(pxy,posxy,sizeof(double2)*np,cudaMemcpyDeviceToHost);
+  cudaMemcpy(pz,posz,sizeof(double)*np,cudaMemcpyDeviceToHost);
+  cudaMemcpy(m2,m2g,sizeof(double)*np,cudaMemcpyDeviceToHost);
+	cudaMemcpy(m3,m3g,sizeof(double)*np,cudaMemcpyDeviceToHost);
+	cudaMemcpy(m4,m4g,sizeof(double)*np,cudaMemcpyDeviceToHost);
+  for(unsigned p=0;p<np;p++){
+		pos[p]=ToTFloat3(TDouble3(pxy[p].x,pxy[p].y,pz[p]));
+  }
+
+  //-Creates VTK file.
+  JFormatFiles2::StScalarData fields[20];
+  unsigned nfields=0;
+	if(m2){  fields[nfields]=JFormatFiles2::DefineField("M2",JFormatFiles2::Double64,1,m2); nfields++; }
+	if(m3){  fields[nfields]=JFormatFiles2::DefineField("M3",JFormatFiles2::Double64,1,m3); nfields++; }
+	if(m4){  fields[nfields]=JFormatFiles2::DefineField("M4",JFormatFiles2::Double64,1,m4); nfields++; }
+  string file=Log->GetDirOut()+fun::FileNameSec(fname,Part);
+  JFormatFiles2::SaveVtk(file,np,pos,nfields,fields);
+
+  //-Frees memory.
+  delete[] pxy;
+  delete[] pz;
+  delete[] pos;
+  delete[] m2;
+	delete[] m3;
+  delete[] m4;
+}
 
 //==============================================================================
 /// Genera los ficheros de salida de datos
@@ -752,7 +788,7 @@ void JSphGpuSingle::FinishRun(bool stop){
 /// Initial advection
 //==============================================================================
 void JSphGpuSingle::InitAdvection(const double dt){
-    const char met[]="SolvePPE";
+    const char met[]="InitAdvection";
     PosxyPreg=ArraysGpu->ReserveDouble2();
     PoszPreg=ArraysGpu->ReserveDouble();
     VelrhopPreg=ArraysGpu->ReserveFloat4();
@@ -853,8 +889,15 @@ void JSphGpuSingle::SolvePPE(const double dt){
   CheckCudaError(met,"FreeSurfaceMark");
 	TmgStop(Timers,TMG_Stage2a);
 	TmgStart(Timers,TMG_Stage2b);
-
-  cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Pressureg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
+	double *m2g; cudaMalloc((void**)&m2g,sizeof(double)*np); cudaMemset(m2g,0,sizeof(double)*np);
+	double *m3g; cudaMalloc((void**)&m3g,sizeof(double)*np); cudaMemset(m3g,0,sizeof(double)*np);
+	double *m4g; cudaMalloc((void**)&m4g,sizeof(double)*np); cudaMemset(m4g,0,sizeof(double)*np);
+	cusph::SchwaigerTest(PPEDim,npb,ag,Posxyg,Poszg,rowIndg,colIndg,m2g,m3g,m4g);
+	SaveVtkSchwaigerTest("SchwaigerTest.vtk",Nstep,Np,Posxyg,Poszg,m2g,m3g,m4g);
+	cudaFree(m2g); m2g=NULL; 
+	cudaFree(m3g); m3g=NULL; 
+	cudaFree(m4g); m4g=NULL; 
+  //cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Pressureg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
 	//cusph::PreBiCGSTAB(Tolerance,Iterations,ag,Pressureg,bg,rowIndg,colIndg,Nnz,PPEDim,Npb);
 	CheckCudaError(met,"Matrix Solve");
 

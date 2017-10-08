@@ -178,7 +178,7 @@ void MirrorBoundary(const bool simulate2d,const unsigned bsbound,unsigned npbok
   ,const word *code,const unsigned *idp,double3 *mirror,unsigned *Physrelation,const bool wavegen,const double pistonposx);
 
 //# Kernels for particle matrix order
-void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim,unsigned int*row,unsigned *nnz,unsigned *numfreesurface,const double *divr,const float freesurface);
+void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim,unsigned *row,unsigned *nnz,unsigned *numfreesurface,const double *divr,const float freesurface);
 
 //# Kernels for marking the freesurface
 void FreeSurfaceMark(const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,double *divr
@@ -228,6 +228,8 @@ void ShowMirror(TpKernel tkernel,TpCellMode cellmode,unsigned np,unsigned npb,tu
 	,const unsigned *dcell,const double2 *posxy,const double *posz,const double PistonPos,const double PistonVel,const double RightWall,double3 *extraP,const tfloat3 gravity,const double3 *velrhop,const double *pressure);
  
 void MoveBound(const unsigned npb,double2 *posxyg,double *poszg,const double pistonposx,const double rightwall);
+
+void SchwaigerTest(const unsigned ppedim,const unsigned npb,const double *a,const double2 *posxyg,const double *poszg,const unsigned *row,const unsigned *col,double *m2,double *m3,double *m4);
 }
 #endif
 

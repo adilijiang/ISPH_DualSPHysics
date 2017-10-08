@@ -53,6 +53,7 @@ protected:
 
   void SaveVtkData(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const double3 *velrhop,const double *pressure,const double3 *shiftdist,const double *divrg)const;
 	void SaveVtkMirror(std::string fname,unsigned num,unsigned npf,const double3 *mirror)const;
+	void SaveVtkSchwaigerTest(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const double *m2g,const double *m3g,const double *m4g)const;
   void SaveData();
   void FinishRun(bool stop);
 

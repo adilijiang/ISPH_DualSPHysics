@@ -3613,14 +3613,48 @@ __global__ void KerMoveBound
 	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<npb){
 		const double dp05=0.5*CTE.dp;
-		if(posxy[p].x<pistonposx) posxy[p].x+=dp05;
-		if(posz[p]<dp05)posz[p]+=dp05;
-		if(posxy[p].x>rightwall)posxy[p].x-=dp05;
+		/*if(posxy[p].x<pistonposx)*/ posxy[p].x+=dp05;
+		/*if(posz[p]<dp05)*/posz[p]+=dp05;
+		//if(posxy[p].x>rightwall)posxy[p].x-=dp05;
 	}
 }
 
  void MoveBound(const unsigned npb,double2 *posxyg,double *poszg,const double pistonposx,const double rightwall){
 	 dim3 grid=GetGridSize(npb,SPHBSIZE);
 	 KerMoveBound<<<grid,SPHBSIZE>>>(npb,posxyg,poszg,pistonposx,rightwall);
+ }
+
+ __global__ void KerSchwaigerTest
+  (const unsigned ppedim,const unsigned npb,const double *a,const double2 *posxyg,const double *poszg,const unsigned *row
+	,const unsigned *col,double *m2,double *m3,double *m4)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<ppedim){
+		unsigned p1=p+npb;
+		unsigned row_start=row[p];
+		unsigned row_end=row[p+1];
+		double m2temp=0;
+		double m3temp=0;
+		double m4temp=0;
+		for(int index=row_start;index<row_end;index++){
+			unsigned p2=col[index]+npb;
+			double3 posp2=make_double3(posxyg[p2].x,0,poszg[p2]);
+			double posp2x2=posp2.x*posp2.x; double posp2z2=posp2.z*posp2.z;
+			double phim2p2=posp2x2+posp2z2;
+			double phim3p2=posp2x2*posp2.x+posp2z2*posp2.z;
+			double phim4p2=posp2x2*posp2x2+posp2z2*posp2z2;
+			m2temp+=a[index]*phim2p2;
+			m3temp+=a[index]*phim3p2;
+			m4temp+=a[index]*phim4p2;
+		}
+		m2[p1]=m2temp;
+		m3[p1]=m3temp;
+		m4[p1]=m4temp;
+	}
+}
+
+ void SchwaigerTest(const unsigned ppedim,const unsigned npb,const double *a,const double2 *posxyg,const double *poszg,const unsigned *row,const unsigned *col,double *m2,double *m3,double *m4){
+	 dim3 grid=GetGridSize(ppedim,SPHBSIZE);
+	 KerSchwaigerTest<<<grid,SPHBSIZE>>>(ppedim,npb,a,posxyg,poszg,row,col,m2,m3,m4);
  }
 }
