@@ -202,7 +202,7 @@ protected:
   void ComputeSymplecticPre(double dt);
   void ComputeSymplecticCorr(double dt);
   double DtVariable(bool final);
-  void RunShifting(double dt,const double *AvConc);
+  void RunShifting(double dt);
 
   void RunMotion(double stepdt);
 

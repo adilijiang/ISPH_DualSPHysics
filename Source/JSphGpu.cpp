@@ -1001,10 +1001,10 @@ double JSphGpu::DtVariable(bool final){
 /// Calcula Shifting final para posicion de particulas.
 /// Computes final shifting distance for the particle position.
 //==============================================================================
-void JSphGpu::RunShifting(double dt,const double *AvConc){
+void JSphGpu::RunShifting(double dt){
 	bool maxShift=false;
 	if(TShifting==SHIFT_Max) maxShift=true;
-  cusph::RunShifting(BlockSizes.forcesfluid,Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velocity,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift,BetaShift0,BetaShift1,AvConc,NormShiftDir,TangShiftDir,ShiftDist,NormalVectorg,rowIndg);
+  cusph::RunShifting(BlockSizes.forcesfluid,Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velocity,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift,BetaShift0,BetaShift1,NormShiftDir,TangShiftDir,ShiftDist,NormalVectorg,rowIndg);
 }
 
 //==============================================================================
@@ -1045,10 +1045,23 @@ void JSphGpu::RunMotion(double stepdt){
   //-Procesa otros modos de motion.
   //-Processes other motion modes.
   if(WaveGen){
+		double wL,wH,wd,wOmega,wS0;
+		wL=3.0; wH=0.1; wd=0.5; 
+		double k=2*PI/wL;
+		double kd=k*wd, sinh2kd=sinh(kd);		
+		double kd2=2.0*kd;
+		double temp1=sinh(kd2)+kd2;
+		double temp2=2.0*(cosh(kd2)-1.0);
+		wS0=wH*temp1/temp2;
+
+		wOmega=sqrt(-Gravity.z*k*tanh(kd));
+
+		PistonVel=(wS0/2.0)*wOmega*sin(wOmega*TimeStep);
+
+		PistonPosX+=PistonVel*stepdt;
+
     if(!nmove)cusph::CalcRidp(PeriActive!=0,Npb,0,CaseNfixed,CaseNfixed+CaseNmoving,Codeg,Idpg,RidpMoveg);
     BoundChanged=true;
-		double mvPistonX=0;
-		float pistonvel=0;
     //-Gestion de WaveGen.
 	//-Management of WaveGen.
     if(WaveGen)for(unsigned c=0;c<WaveGen->GetCount();c++){
@@ -1060,8 +1073,8 @@ void JSphGpu::RunMotion(double stepdt){
         mvsimple=OrderCode(mvsimple);
         if(Simulate2D)mvsimple.y=0;
         tfloat3 mvvel=ToTFloat3(mvsimple/TDouble3(stepdt));
-				mvPistonX=mvsimple.x;
-				pistonvel=mvvel.x;
+				mvvel.x=float(PistonVel);
+				mvsimple.x=PistonVel*stepdt;
         cusph::MoveLinBound(PeriActive,nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velocity,Codeg,Idpg,MirrorPosg,MirrorCellg);
       }
       else{
@@ -1069,8 +1082,7 @@ void JSphGpu::RunMotion(double stepdt){
         //cusph::MoveMatBound(PeriActive,Simulate2D,nparts,idbegin-CaseNfixed,mvmatrix,stepdt,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
       }
     }
-		PistonVel=pistonvel;
-		PistonPosX+=mvPistonX;
+		//PistonPosX+=mvPistonX;
 		//cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Poszg,Idpg,MirrorPosg,Codeg,PistonPosX,PistonPosZ,PistonYmin,PistonYmax,Simulate2D,Velocity,pistonvel,MirrorCellg);
  	}
   TmgStop(Timers,TMG_SuMotion);
