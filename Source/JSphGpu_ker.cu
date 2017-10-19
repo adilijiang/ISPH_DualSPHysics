@@ -821,9 +821,9 @@ template<TpKernel tker> __global__ void KerInteractionForcesBound
 			BitangVel.x=BitangDir.x*BitangProdVel;
 			BitangVel.y=BitangDir.y*BitangProdVel;
 			BitangVel.z=BitangDir.z*BitangProdVel;
-
 			const float dp05=0.5*CTE.dp;
-			if(posz[p1]<dp05&&posxy[p1].x>18.0-dp05){
+
+			if(posz[p1]<dp05&&posxy[p1].x>12.0-dp05){
 				velrhop[p1].x=-Sum.x;
 				velrhop[p1].z=-Sum.z;
 			}
@@ -1656,7 +1656,7 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
     //Max Shifting
 		if(maxShift){
       float absShift=sqrtf(rshiftpos.x*rshiftpos.x+rshiftpos.y*rshiftpos.y+rshiftpos.z*rshiftpos.z);
-			float spacing=0.1*dp;
+			float spacing=0.2*h;
 			float velocity=sqrtf(velrhop[p1].x*velrhop[p1].x+velrhop[p1].y*velrhop[p1].y+velrhop[p1].z*velrhop[p1].z);
 			velocity=10.0f*velocity*dt;
 			const float maxDist=spacing;//(velocity<spacing? velocity:spacing);

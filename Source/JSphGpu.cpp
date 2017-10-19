@@ -1019,6 +1019,18 @@ void JSphGpu::RunMotion(double stepdt){
   //-Procesa otros modos de motion.
   //-Processes other motion modes.
   if(WaveGen){
+		double wL,wH,wd,wOmega,wS0;
+		wL=2.0; wH=0.15; wd=0.5; 
+ 		double k=2*PI/wL;
+ 		double kd=k*wd, sinh2kd=sinh(kd);		
+ 		double kd2=2.0*kd;
+ 		double temp1=sinh(kd2)+kd2;
+ 		double temp2=2.0*(cosh(kd2)-1.0);
+ 		wS0=wH*temp1/temp2;
+ 		wOmega=sqrt(-Gravity.z*k*tanh(kd));
+ 		double PistonVel=(wS0/2.0)*wOmega*sin(wOmega*TimeStep);
+ 		PistonPosX+=PistonVel*stepdt;
+
     if(!nmove)cusph::CalcRidp(PeriActive!=0,Npb,0,CaseNfixed,CaseNfixed+CaseNmoving,Codeg,Idpg,RidpMoveg);
     BoundChanged=true;
 		double mvPistonX=0;
@@ -1033,9 +1045,9 @@ void JSphGpu::RunMotion(double stepdt){
       if(WaveGen->GetMotion(c,TimeStep+MotionTimeMod,stepdt,mvsimple,mvmatrix,nparts,idbegin)){//-Movimiento simple ///Simple movement
         mvsimple=OrderCode(mvsimple);
         if(Simulate2D)mvsimple.y=0;
-        const tfloat3 mvvel=ToTFloat3(mvsimple/TDouble3(stepdt));
-				mvPistonX=mvsimple.x;
-				pistonvel=mvvel.x;
+        tfloat3 mvvel=ToTFloat3(mvsimple/TDouble3(stepdt));
+				mvsimple.x=PistonVel*stepdt;
+				mvvel.x=float(PistonVel);
         cusph::MoveLinBound(PeriActive,nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg,Idpg,MirrorPosg,MirrorCellg);
       }
       else{
@@ -1043,9 +1055,7 @@ void JSphGpu::RunMotion(double stepdt){
         cusph::MoveMatBound(PeriActive,Simulate2D,nparts,idbegin-CaseNfixed,mvmatrix,stepdt,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
       }
     }
-
-		PistonPosX+=mvPistonX;
-		cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Poszg,Idpg,MirrorPosg,Codeg,PistonPosX,PistonPosZ,PistonYmin,PistonYmax,Simulate2D,MirrorCellg,Velrhopg,pistonvel);
+		cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Poszg,Idpg,MirrorPosg,Codeg,PistonPosX,PistonPosZ,PistonYmin,PistonYmax,Simulate2D,MirrorCellg,Velrhopg,float(PistonVel));
   }
   TmgStop(Timers,TMG_SuMotion);
 }
