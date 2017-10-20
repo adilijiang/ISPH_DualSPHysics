@@ -2359,7 +2359,6 @@ void JSphCpu::PressureAssign(unsigned np,unsigned npbok,const tdouble3 *pos,tflo
 		double dist=MirrorPosc[Idpc[p1]].z-Posc[p1].z;
 		double Neumann=double(RhopZero)*abs(Gravity.z)*dist;
 		velrhop[p1].w=float(x[p1]+Neumann);
-		if(!NegativePressureBound)if(velrhop[p1].w<0)velrhop[p1].w=0.0;
   }
 
 	 #ifdef _WITHOMP

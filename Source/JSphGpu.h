@@ -235,7 +235,7 @@ protected:
   unsigned *colIndg;
   unsigned *rowIndg;
   double *Xg;
-
+	float PaddleAccel;
   unsigned *counterNnzGPU;
   unsigned *counterNnzCPU;
 	unsigned *NumFreeSurfaceGPU;

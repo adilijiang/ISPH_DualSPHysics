@@ -95,6 +95,7 @@ void JSphGpu::InitVars(){
 	MLSg=NULL;
 	Taog=NULL;
 	sumFrg=NULL;
+	PaddleAccel=NULL;
   Divrg=NULL;
 	MirrorPosg=NULL;
 	MirrorCellg=NULL;
@@ -1029,6 +1030,7 @@ void JSphGpu::RunMotion(double stepdt){
  		wS0=wH*temp1/temp2;
  		wOmega=sqrt(-Gravity.z*k*tanh(kd));
  		double PistonVel=(wS0/2.0)*wOmega*sin(wOmega*TimeStep);
+		PaddleAccel=float((wS0/2.0)*wOmega*wOmega*cos(wOmega*TimeStep));
  		PistonPosX+=PistonVel*stepdt;
 
     if(!nmove)cusph::CalcRidp(PeriActive!=0,Npb,0,CaseNfixed,CaseNfixed+CaseNmoving,Codeg,Idpg,RidpMoveg);

@@ -113,7 +113,6 @@ void JSph::InitVars(){
 	VariableTimestep=false;
   StrongConnection=0; JacobiWeight=0; Presmooth=0; Postsmooth=0; CoarseCutoff=0;
 	PistonPosX=0; PistonPosZ=0;
-	NegativePressureBound=true;
   Visco=0; ViscoBoundFactor=1;
   UseDEM=false;  //(DEM)
   DemDtForce=0;  //(DEM)
@@ -474,12 +473,6 @@ void JSph::LoadCaseConfig(){
     Postsmooth=eparms.GetValueInt("Postsmooth Steps",true,0);
     CoarseCutoff=eparms.GetValueInt("Coarsening Cutoff",true,2500);
     CoarseLevels=eparms.GetValueInt("Coarse Levels",true,0);
-  }
-
-	switch(eparms.GetValueInt("NegativePressureBound",true,1)){
-    case 0:  NegativePressureBound=false;     break;
-    case 1:  NegativePressureBound=true;     break;
-    default: RunException(met,"NegativePressureBound can only be 0 (no) or 1 (yes)");
   }
 
   FtPause=eparms.GetValueFloat("FtPause",true,0);
