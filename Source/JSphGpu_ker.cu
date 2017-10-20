@@ -644,7 +644,7 @@ template<TpKernel tker> __global__ void KerMLSBoundary2D
 
 		b21=b12; b31=b13; b32=b23;
 		
-		double det = (b11*b22*b33+b12*b23*b31+b21*b32*b13)-(b31*b22*b13+b21*b12*b33+b23*b32*b11);
+		double det = (b11*b22*b33+b12*b23*b31+b21*b32*b13)-(b31*b22*b13+b21*b12*b33+b23*b32*b11)+CTE.eta2;
 		
 		if(det){
 			mls[p1].w=float((b22*b33-b23*b32)/det);
@@ -664,7 +664,7 @@ __global__ void KerInverseKernelCor2D(unsigned n,unsigned pinit,float3 *dwxcorrg
   if(p<n){
 		double3 dwx; dwx.x=dwxcorrg[p].x; dwx.y=dwxcorrg[p].y; dwx.z=dwxcorrg[p].z;
 		double3 dwz; dwz.x=dwzcorrg[p].x; dwz.y=dwzcorrg[p].y; dwz.z=dwzcorrg[p].z;
-		const double det=1.0/(dwx.x*dwz.z-dwz.x*dwx.z);
+		const double det=1.0/(dwx.x*dwz.z-dwz.x*dwx.z+CTE.eta2);
 	
     if(det){
       dwxcorrg[p].x=float(dwz.z*det);
@@ -683,7 +683,7 @@ __global__ void KerInverseKernelCor3D(unsigned n,unsigned pinit,float3 *dwxcorrg
 		double3 dwy; dwy.x=dwycorrg[p].x; dwy.y=dwycorrg[p].y; dwy.z=dwycorrg[p].z; //  dwy.x   dwy.y   dwy.z
 		double3 dwz; dwz.x=dwzcorrg[p].x; dwz.y=dwzcorrg[p].y; dwz.z=dwzcorrg[p].z; //  dwz.x   dwz.y   dwz.z
 
-		const double det=(dwx.x*dwy.y*dwz.z+dwx.y*dwy.z*dwz.x+dwy.x*dwz.y*dwx.z)-(dwz.x*dwy.y*dwx.z+dwy.x*dwx.y*dwz.z+dwy.z*dwz.y*dwx.x);
+		const double det=(dwx.x*dwy.y*dwz.z+dwx.y*dwy.z*dwz.x+dwy.x*dwz.y*dwx.z)-(dwz.x*dwy.y*dwx.z+dwy.x*dwx.y*dwz.z+dwy.z*dwz.y*dwx.x)+CTE.eta2;
 		dwxcorrg[p].x=float((dwy.y*dwz.z-dwy.z*dwz.y)/det);
 		dwxcorrg[p].y=-float((dwx.y*dwz.z-dwx.z*dwz.y)/det);
 		dwxcorrg[p].z=float((dwx.y*dwy.z-dwx.z*dwy.y)/det);
@@ -1583,7 +1583,7 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
     float divrp1=divr[p1];
 		double h=double(CTE.h);
 		double dp=double(CTE.dp);
-    //double umagn=-double(shiftcoef)*double(CTE.h)*dt*sqrt(velrhop[p1].x*velrhop[p1].x+velrhop[p1].y*velrhop[p1].y+velrhop[p1].z*velrhop[p1].z);
+    //double umagn=-double(shiftcoef)*h*dt*sqrt(velrhop[p1].x*velrhop[p1].x+velrhop[p1].y*velrhop[p1].y+velrhop[p1].z*velrhop[p1].z);
 		double umagn=-double(shiftcoef)*h*h;
 
 		float3 norm=make_float3(-rshiftpos.x,-rshiftpos.y,-rshiftpos.z);
