@@ -439,7 +439,8 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   //-For 2D simulations always overrides the 2nd component (Y axis)
   if(Simulate2D)cusph::ResetAcey(Np-Npb,Aceg);
   TmgStop(Timers,TMG_CfForces);
-  CheckCudaError(met,"Failed while executing kernels of interaction.");
+  if(tinter==1) CheckCudaError(met,"Failed while executing kernels of interaction. Predictor");
+	else CheckCudaError(met,"Failed while executing kernels of interaction. Corrector");
 }
 
 //==============================================================================
@@ -559,8 +560,12 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   TimerPart.Start();
   Log->Print(string("\n[Initialising simulation (")+RunCode+")  "+fun::GetDateTime()+"]");
   PrintHeadPart();
-	cudaMemset(MirrorPosg,0,sizeof(double3)*Npb);
-	MirrorBoundary();
+
+	if(Npb){
+		cudaMemset(MirrorPosg,0,sizeof(double3)*Npb);
+		MirrorBoundary();
+	}
+
 	while(TimeStep<TimeMax){
 		if(CaseNmoving)RunMotion(stepdt);
     stepdt=ComputeStep_Sym(stepdt);
@@ -707,6 +712,43 @@ void JSphGpuSingle::FinishRun(bool stop){
   if(SvRes)SaveRes(tsim,ttot,hinfo,dinfo);
 }
 
+void JSphGpuSingle::SaveVtkSchwaigerTest(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const double *m2g,const double *m3g,const double *m4g)const{
+  //-Allocate memory.
+  tdouble2 *pxy=new tdouble2[np];
+  double *pz=new double[np];
+  tfloat3 *pos=new tfloat3[np];
+  double *m2=new double[np];
+	double *m3=new double[np];
+	double *m4=new double[np];
+
+  //-Copies memory to CPU.
+  cudaMemcpy(pxy,posxy,sizeof(double2)*np,cudaMemcpyDeviceToHost);
+  cudaMemcpy(pz,posz,sizeof(double)*np,cudaMemcpyDeviceToHost);
+  cudaMemcpy(m2,m2g,sizeof(double)*np,cudaMemcpyDeviceToHost);
+	cudaMemcpy(m3,m3g,sizeof(double)*np,cudaMemcpyDeviceToHost);
+	cudaMemcpy(m4,m4g,sizeof(double)*np,cudaMemcpyDeviceToHost);
+  for(unsigned p=0;p<np;p++){
+		pos[p]=ToTFloat3(TDouble3(pxy[p].x,pxy[p].y,pz[p]));
+  }
+
+  //-Creates VTK file.
+  JFormatFiles2::StScalarData fields[20];
+  unsigned nfields=0;
+	if(m2){  fields[nfields]=JFormatFiles2::DefineField("M2",JFormatFiles2::Double64,1,m2); nfields++; }
+	if(m3){  fields[nfields]=JFormatFiles2::DefineField("M3",JFormatFiles2::Double64,1,m3); nfields++; }
+	if(m4){  fields[nfields]=JFormatFiles2::DefineField("M4",JFormatFiles2::Double64,1,m4); nfields++; }
+  string file=Log->GetDirOut()+fun::FileNameSec(fname,Part);
+  JFormatFiles2::SaveVtk(file,np,pos,nfields,fields);
+
+  //-Frees memory.
+  delete[] pxy;
+  delete[] pz;
+  delete[] pos;
+  delete[] m2;
+	delete[] m3;
+  delete[] m4;
+}
+
 //==============================================================================
 /// Irelation - Dummy particles' respective Wall particle
 //==============================================================================
@@ -826,8 +868,18 @@ void JSphGpuSingle::SolvePPE(double dt){
   CheckCudaError(met,"FreeSurfaceMark");
 	TmgStop(Timers,TMG_Stage2a);
 	TmgStart(Timers,TMG_Stage2b);
-	cusph::SolverResultArrange(bsbound,bsfluid,npb,npbok,npf,Velrhopg,Xg);
-  cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Xg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
+
+	double *m2g; cudaMalloc((void**)&m2g,sizeof(double)*np); cudaMemset(m2g,0,sizeof(double)*np);
+	double *m3g; cudaMalloc((void**)&m3g,sizeof(double)*np); cudaMemset(m3g,0,sizeof(double)*np);
+	double *m4g; cudaMalloc((void**)&m4g,sizeof(double)*np); cudaMemset(m4g,0,sizeof(double)*np);
+	cusph::SchwaigerTest(PPEDim,npb,ag,Posxyg,Poszg,rowIndg,colIndg,m2g,m3g,m4g);
+	SaveVtkSchwaigerTest("SchwaigerTest.vtk",Nstep,Np,Posxyg,Poszg,m2g,m3g,m4g);
+	cudaFree(m2g); m2g=NULL; 
+	cudaFree(m3g); m3g=NULL; 
+	cudaFree(m4g); m4g=NULL; 
+
+	//cusph::SolverResultArrange(bsbound,bsfluid,npb,npbok,npf,Velrhopg,Xg);
+  //cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Xg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
   CheckCudaError(met,"Matrix Solve");
   cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Posxyg,Poszg,Velrhopg,Xg,Idpg,Codeg,MirrorPosg,PaddleAccel,wavegen,PistonPosX);
 

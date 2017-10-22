@@ -221,6 +221,7 @@ void CorrectShiftVelocity(TpKernel tkernel,TpCellMode cellmode,const unsigned bs
 
 void SolverResultArrange(const unsigned bsbound,const unsigned bsfluid,const unsigned npb,const unsigned npbok,const unsigned npf,float4 *velrhop,double *X);
 
+void SchwaigerTest(const unsigned ppedim,const unsigned npb,const double *a,const double2 *posxyg,const double *poszg,const unsigned *row,const unsigned *col,double *m2,double *m3,double *m4);
 }
 #endif
 

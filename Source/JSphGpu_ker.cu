@@ -1336,7 +1336,7 @@ template<TpKernel tker,TpFtMode ftmode,bool schwaiger> void Interaction_ForcesT
 		dim3 sgridb=GetGridSize(npbok,bsbound);
 		dim3 sgridf=GetGridSize(npf,bsfluid);
 
-		if(tinter==1){
+		if(tinter==1&&npbok){
 			if(simulate2d) KerMLSBoundary2D<tker> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,code,idp,mirrorPos,mirrorCell,mls);
 			else KerMLSBoundary3D<tker> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,code,idp,mirrorPos,mirrorCell,mls);
 			KerInteractionForcesBound<tker> <<<sgridb,bsbound>>> (simulate2d,tslipcond,npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,divr,mirrorPos,mirrorCell,mls,row,PistonPos);
@@ -1741,15 +1741,20 @@ void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb
 /// Computes new values for Pos, Check, Vel and Ros (using Symplectic-Corrector).
 /// The value of Vel always set to be reset.
 //------------------------------------------------------------------------------
-__device__ void KerDampingZone(const double xp1,float4 &rvelrhop,const double dampingpoint,const double dampinglength)
+__device__ void KerDampingZone(const double xp1,const double zp1,float4 &rvelrhop,const double dampingpoint,const double dampinglength)
 {
-	if(xp1>=dampingpoint){
+	if(xp1>dampingpoint){
 		double fx=1.0-exp(-2.0*(dampinglength-(xp1-dampingpoint)));
+		
 		rvelrhop.x=rvelrhop.x*fx;
-		rvelrhop.y=rvelrhop.y*fx;
-		rvelrhop.z=rvelrhop.z*fx;
+		//rvelrhop.y=rvelrhop.y*fx;
+		if(zp1<0.5){
+			double fz=1.0-exp(-10.0*(0.5-(0.5-zp1)));
+			rvelrhop.z=rvelrhop.z*fz;
+		}
 	}
 }
+
 __device__ void KerCorrectVelocity(const unsigned p1,const unsigned nearestBound,const double2 *posxy,const double *posz,float4 &rvelrhop,float4 *velrhop,const unsigned *idpg,const double3 *mirrorPos)
 {
 	float3 NormDir=make_float3(0,0,0), NormVelWall=make_float3(0,0,0), NormVelp1=make_float3(0,0,0);
@@ -1803,7 +1808,8 @@ template<bool floating> __global__ void KerComputeStepSymplecticCor
 			if(row[p1]!=npb) KerCorrectVelocity(p1,row[p1],posxy,posz,rvelrhop,velrhop,idp,mirrorPos);
 			if(wavegen){
 				const double xp1=posxy[p1].x;
-				KerDampingZone(xp1,rvelrhop,dampingpoint,dampinglength);
+				const double zp1=posz[p1];
+				KerDampingZone(xp1,zp1,rvelrhop,dampingpoint,dampinglength);
 			}
 			//-Computes and stores position displacement.
       double dx=(double(rvelp.x)+double(rvelrhop.x))*dtm;
@@ -3086,7 +3092,7 @@ void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,cons
   const unsigned npf=np-npb;
 	const unsigned matOrder=npb-npbok;
 	if(npf){
-    kerMatrixASetup <<<1,1>>> (npbok,0,0,ppedim,row,nnz,numfreesurface,divr,freesurface);
+    if(npbok) kerMatrixASetup <<<1,1>>> (npbok,0,0,ppedim,row,nnz,numfreesurface,divr,freesurface);
 		kerMatrixASetup <<<1,1>>> (np,npb,matOrder,ppedim,row,nnz,numfreesurface,divr,freesurface);
   }
 }
@@ -3297,12 +3303,12 @@ void PopulateMatrix(TpKernel tkernel,bool schwaiger,TpCellMode cellmode,const un
 		if(tkernel==KERNEL_Quintic){    const TpKernel tker=KERNEL_Quintic;
 			if(!schwaiger) KerPopulateMatrixAFluid<tker,false> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos,dt,matOrder,NULL,boundaryfs,NULL,paddleaccel,wavegen,PistonPos); 
 			else KerPopulateMatrixAFluid<tker,true> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos,dt,matOrder,SumFr,boundaryfs,tao,paddleaccel,wavegen,PistonPos); 
-			KerPopulateMatrixABound<tker> <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder);
+			if(npbok) KerPopulateMatrixABound<tker> <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder);
 		}
 		else if(tkernel==KERNEL_Wendland){    const TpKernel tker=KERNEL_Wendland;
 			if(!schwaiger) KerPopulateMatrixAFluid<tker,false> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos,dt,matOrder,NULL,boundaryfs,NULL,paddleaccel,wavegen,PistonPos); 
 			else KerPopulateMatrixAFluid<tker,true> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos,dt,matOrder,SumFr,boundaryfs,tao,paddleaccel,wavegen,PistonPos); 
-			KerPopulateMatrixABound<tker> <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder);
+			if(npbok) KerPopulateMatrixABound<tker> <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder);
 		}
 	}
 }
@@ -3466,13 +3472,13 @@ void PressureAssign(const unsigned bsbound,const unsigned bsfluid,unsigned np,un
 	,const word *code,const double3 *mirrorPos,const float paddleAccel,const bool wavegen,const double PistonPos){
   const unsigned npf=np-npb;
 
-  if(np){
+  if(npf){
     dim3 sgridf=GetGridSize(npf,bsfluid);
     dim3 sgridb=GetGridSize(npb,bsbound);
 		
 		const unsigned matOrder=npb-npbok;
 		KerPressureAssignFluid <<<sgridf,bsfluid>>> (npf,npb,matOrder,velrhop,press);
-		KerPressureAssignBound <<<sgridb,bsbound>>> (npbok,gravity,posxy,posz,velrhop,press,idp,code,mirrorPos,paddleAccel,wavegen,PistonPos); 
+		if(npbok) KerPressureAssignBound <<<sgridb,bsbound>>> (npbok,gravity,posxy,posz,velrhop,press,idp,code,mirrorPos,paddleAccel,wavegen,PistonPos); 
   }
 }
 
@@ -3947,4 +3953,37 @@ void CorrectShiftVelocity(TpKernel tkernel,TpCellMode cellmode,const unsigned bs
 	}
 }
 
+ __global__ void KerSchwaigerTest
+  (const unsigned ppedim,const unsigned npb,const double *a,const double2 *posxyg,const double *poszg,const unsigned *row
+	,const unsigned *col,double *m2,double *m3,double *m4)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<ppedim){
+		unsigned p1=p+npb;
+		unsigned row_start=row[p];
+		unsigned row_end=row[p+1];
+		double m2temp=0;
+		double m3temp=0;
+		double m4temp=0;
+		for(int index=row_start;index<row_end;index++){
+			unsigned p2=col[index]+npb;
+			double3 posp2=make_double3(posxyg[p2].x,0,poszg[p2]);
+			double posp2x2=posp2.x*posp2.x; double posp2z2=posp2.z*posp2.z;
+			double phim2p2=posp2x2+posp2z2;
+			double phim3p2=posp2x2*posp2.x+posp2z2*posp2.z;
+			double phim4p2=posp2x2*posp2x2+posp2z2*posp2z2;
+			m2temp+=a[index]*phim2p2;
+			m3temp+=a[index]*phim3p2;
+			m4temp+=a[index]*phim4p2;
+		}
+		m2[p1]=m2temp;
+		m3[p1]=m3temp;
+		m4[p1]=m4temp;
+	}
+}
+
+ void SchwaigerTest(const unsigned ppedim,const unsigned npb,const double *a,const double2 *posxyg,const double *poszg,const unsigned *row,const unsigned *col,double *m2,double *m3,double *m4){
+	 dim3 grid=GetGridSize(ppedim,SPHBSIZE);
+	 KerSchwaigerTest<<<grid,SPHBSIZE>>>(ppedim,npb,a,posxyg,poszg,row,col,m2,m3,m4);
+ }
 }

@@ -61,7 +61,7 @@ protected:
   void KernelCorrection();
   void SolvePPE(double dt);
   void RunShifting(double dt);
-
+	void SaveVtkSchwaigerTest(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const double *m2g,const double *m3g,const double *m4g)const;
 public:
   JSphGpuSingle();
   ~JSphGpuSingle();
