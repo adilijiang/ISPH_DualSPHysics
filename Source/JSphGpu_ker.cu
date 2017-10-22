@@ -1141,8 +1141,8 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesFlui
 template<TpKernel tker,TpFtMode ftmode> __device__ void KerViscousSchwaigerCalc
   (bool boundp2,unsigned p1,const unsigned &pini,const unsigned &pfin
   ,const float *ftomassp,const double2 *posxy,const double *posz,const float4 *velrhop,const word *code,const unsigned *idp
-  ,float massp2,float ftmassp1,bool ftp1,double3 posdp1,float3 velp1,float3 &sumfr,float3 &dud,float3 &dvd
-	,float3 &dwd,float3 dwxp1,float3 dwyp1,float3 dwzp1,const float *divr,const float boundaryfs,float3 &taop1)
+  ,float massp2,float ftmassp1,bool ftp1,double3 posdp1,float3 velp1,double3 &sumfr,double3 &dud,double3 &dvd
+	,double3 &dwd,float3 dwxp1,float3 dwyp1,float3 dwzp1,const float *divr,const float boundaryfs,double3 &taop1)
 {
 	const float volume=massp2/CTE.rhopzero; //Volume of particle j 
 
@@ -1196,11 +1196,11 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerViscousSchwaiger
   if(p<npf){
     unsigned p1=p+npb;      //-Nº de particula. //-NI of particle
 		const unsigned Correctp1=p;
-		float3 sumfr=make_float3(0,0,0);
-		float3 taop1=make_float3(0,0,0);
-    float3 dud=make_float3(0,0,0);
-		float3 dvd=make_float3(0,0,0);
-		float3 dwd=make_float3(0,0,0);
+		double3 sumfr=make_double3(0,0,0);
+		double3 taop1=make_double3(0,0,0);
+    double3 dud=make_double3(0,0,0);
+		double3 dvd=make_double3(0,0,0);
+		double3 dwd=make_double3(0,0,0);
 		float3 dwxp1=dwxcorrg[Correctp1];
 		float3 dwyp1=dwycorrg[Correctp1];
 		float3 dwzp1=dwzcorrg[Correctp1];
@@ -1269,11 +1269,11 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerViscousSchwaiger
 		r.y-=mu2*(dvd.x*sumfr.x+dvd.y*sumfr.y+dvd.z*sumfr.z); 
 		r.z-=mu2*(dwd.x*sumfr.x+dwd.y*sumfr.y+dwd.z*sumfr.z);
 		taop1.x=1.0/(taop1.x+CTE.eta2); taop1.z=1.0/(taop1.z+CTE.eta2);
-		float taoFinal=-0.5*(taop1.x+taop1.z);
+		double taoFinal=-0.5*(taop1.x+taop1.z);
     ace[Correctp1]=r;
 		if(divr[p1]>freesurface){ ace[Correctp1].x=ace[Correctp1].x*taoFinal; ace[Correctp1].z=ace[Correctp1].z*taoFinal;}
-		tao[Correctp1]=taoFinal;
-		SumFr[Correctp1].x+=sumfr.x; SumFr[Correctp1].y+=sumfr.y; SumFr[Correctp1].z+=sumfr.z;
+		tao[Correctp1]=float(taoFinal);
+		SumFr[Correctp1].x+=float(sumfr.x); SumFr[Correctp1].y+=float(sumfr.y); SumFr[Correctp1].z+=float(sumfr.z);
 	}
 }
 
