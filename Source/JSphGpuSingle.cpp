@@ -869,17 +869,18 @@ void JSphGpuSingle::SolvePPE(double dt){
 	TmgStop(Timers,TMG_Stage2a);
 	TmgStart(Timers,TMG_Stage2b);
 
-	double *m2g; cudaMalloc((void**)&m2g,sizeof(double)*np); cudaMemset(m2g,0,sizeof(double)*np);
+	/*double *m2g; cudaMalloc((void**)&m2g,sizeof(double)*np); cudaMemset(m2g,0,sizeof(double)*np);
 	double *m3g; cudaMalloc((void**)&m3g,sizeof(double)*np); cudaMemset(m3g,0,sizeof(double)*np);
 	double *m4g; cudaMalloc((void**)&m4g,sizeof(double)*np); cudaMemset(m4g,0,sizeof(double)*np);
 	cusph::SchwaigerTest(PPEDim,npb,ag,Posxyg,Poszg,rowIndg,colIndg,m2g,m3g,m4g);
 	SaveVtkSchwaigerTest("SchwaigerTest.vtk",Nstep,Np,Posxyg,Poszg,m2g,m3g,m4g);
 	cudaFree(m2g); m2g=NULL; 
 	cudaFree(m3g); m3g=NULL; 
-	cudaFree(m4g); m4g=NULL; 
+	cudaFree(m4g); m4g=NULL; */
 
-	//cusph::SolverResultArrange(bsbound,bsfluid,npb,npbok,npf,Velrhopg,Xg);
-  //cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Xg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
+	cusph::SolverResultArrange(bsbound,bsfluid,npb,npbok,npf,Velrhopg,Xg);
+  cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Xg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
+	//cusph::PreBiCGSTAB(Tolerance,Iterations,ag,Xg,bg,rowIndg,colIndg,Nnz,PPEDim,Npb);
   CheckCudaError(met,"Matrix Solve");
   cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Posxyg,Poszg,Velrhopg,Xg,Idpg,Codeg,MirrorPosg,PaddleAccel,wavegen,PistonPosX);
 
@@ -912,6 +913,7 @@ void JSphGpuSingle::RunShifting(double dt){
 	cudaMemset(dWzCorrg,0,sizeof(float3)*npf);
 	cudaMemset(MLSg,0,sizeof(float4)*npb);
   cudaMemset(Aceg,0,sizeof(float3)*npf);
+	cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
 
   //-Cambia datos a variables Pre para calcular nuevos datos.
   //-Changes data of predictor variables for calculating the new data

@@ -823,7 +823,7 @@ template<TpKernel tker> __global__ void KerInteractionForcesBound
 			BitangVel.z=BitangDir.z*BitangProdVel;
 			const float dp05=0.5*CTE.dp;
 
-			if(posz[p1]<dp05&&posxy[p1].x>12.0-dp05){
+			if(posz[p1]<dp05&&posxy[p1].x>14.0-dp05){
 				velrhop[p1].x=-Sum.x;
 				velrhop[p1].z=-Sum.z;
 			}
@@ -1573,7 +1573,7 @@ void Interaction_ForcesDem(bool psimple,TpCellMode cellmode,unsigned bsize
 //------------------------------------------------------------------------------
 __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,double dt
   ,float shiftcoef,float freesurface,float4 *velrhop,const float *divr,float3 *shiftpos
-	,const float ShiftOffset,const double alphashift,const bool maxShift,float3 *sumtensile,const double beta0,const double beta1)
+	,const float ShiftOffset,const bool maxShift,float3 *sumtensile,const double alpha0,const double alpha1,const double alpha2,const double beta0,const double beta1,const double beta2,const unsigned *nearFS)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
   if(p<n){
@@ -1583,7 +1583,6 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
     float divrp1=divr[p1];
 		double h=double(CTE.h);
 		double dp=double(CTE.dp);
-    //double umagn=-double(shiftcoef)*h*dt*sqrt(velrhop[p1].x*velrhop[p1].x+velrhop[p1].y*velrhop[p1].y+velrhop[p1].z*velrhop[p1].z);
 		double umagn=-double(shiftcoef)*h*h;
 
 		float3 norm=make_float3(-rshiftpos.x,-rshiftpos.y,-rshiftpos.z);
@@ -1636,17 +1635,21 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 
     if(divrp1<freesurface){
 			dcdn-=beta0;
-			double factorNormShift=alphashift;
-      rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+(dcdn*norm.x)*factorNormShift);
-      if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift);
-      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+(dcdn*norm.z)*factorNormShift);
+      rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*alpha0);
+      if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*alpha0);
+      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*alpha0);
     }
-    else if(divrp1<=freesurface+ShiftOffset){ 
+    else if(nearFS[p1]==1){ 
 			dcdn-=beta1;
-			double factorNormShift=alphashift;
-			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*factorNormShift);
-      if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+(dcdn*norm.y)*factorNormShift);
-      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*factorNormShift);
+			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*alpha1);
+      if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*alpha1);
+      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*alpha1);
+    }
+		else if(nearFS[p1]==2){ 
+			dcdn-=beta2;
+			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*alpha2);
+      if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*alpha2);
+      rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*alpha2);
     }
 
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
@@ -1656,16 +1659,14 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
     //Max Shifting
 		if(maxShift){
       float absShift=sqrtf(rshiftpos.x*rshiftpos.x+rshiftpos.y*rshiftpos.y+rshiftpos.z*rshiftpos.z);
-			float spacing=0.2*h;
-			float velocity=sqrtf(velrhop[p1].x*velrhop[p1].x+velrhop[p1].y*velrhop[p1].y+velrhop[p1].z*velrhop[p1].z);
-			velocity=10.0f*velocity*dt;
-			const float maxDist=spacing;//(velocity<spacing? velocity:spacing);
+			const float maxDist=0.2*h;
       if(fabs(rshiftpos.x)>maxDist) rshiftpos.x=float(maxDist*rshiftpos.x/absShift);
       if(fabs(rshiftpos.y)>maxDist) rshiftpos.y=float(maxDist*rshiftpos.y/absShift);
       if(fabs(rshiftpos.z)>maxDist) rshiftpos.z=float(maxDist*rshiftpos.z/absShift);
 		}
 
     shiftpos[Correctp1]=rshiftpos;
+		velrhop[p1].w=nearFS[p1];
   }
 }
 
@@ -1675,11 +1676,11 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 //==============================================================================
 void RunShifting(const bool simulate2d,unsigned np,unsigned npb,double dt
   ,double shiftcoef,float freesurface,float4 *velrhop,const float *divr,float3 *shiftpos
-	,bool maxShift,float3 *sumtensile,const float shiftoffset,const double alphashift,const double betashift0,const double betashift1){
+	,bool maxShift,float3 *sumtensile,const float shiftoffset,const double alpha0,const double alpha1,const double alpha2,const double beta0,const double beta1,const double beta2,const unsigned *nearFS){
   const unsigned npf=np-npb;
   if(npf){
     dim3 sgrid=GetGridSize(npf,SPHBSIZE);
-    KerRunShifting <<<sgrid,SPHBSIZE>>> (simulate2d,npf,npb,dt,shiftcoef,freesurface,velrhop,divr,shiftpos,shiftoffset,alphashift,maxShift,sumtensile,betashift0,betashift1);
+    KerRunShifting <<<sgrid,SPHBSIZE>>> (simulate2d,npf,npb,dt,shiftcoef,freesurface,velrhop,divr,shiftpos,shiftoffset,maxShift,sumtensile,alpha0,alpha1,alpha2,beta0,beta1,beta2,nearFS);
   }
 }
 
@@ -1745,13 +1746,9 @@ __device__ void KerDampingZone(const double xp1,const double zp1,float4 &rvelrho
 {
 	if(xp1>dampingpoint){
 		double fx=1.0-exp(-2.0*(dampinglength-(xp1-dampingpoint)));
-		
 		rvelrhop.x=rvelrhop.x*fx;
-		//rvelrhop.y=rvelrhop.y*fx;
-		if(zp1<0.5){
-			double fz=1.0-exp(-10.0*(0.5-(0.5-zp1)));
-			rvelrhop.z=rvelrhop.z*fz;
-		}
+		rvelrhop.y=rvelrhop.y*fx;
+		rvelrhop.z=rvelrhop.z*fx;
 	}
 }
 
@@ -3760,6 +3757,69 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesShif
   }
 }
 
+__device__ void KerFindFSVicinityCalc
+  (unsigned p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
+  ,double3 posdp1,const float *divr,const float freesurface,const double layer1,const double layer2,float &nearestFS)
+{
+	for(int p2=pini;p2<pfin;p2++)if(divr[p2]<freesurface){
+    float drx,dry,drz;
+		KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+    float rr2=drx*drx+dry*dry+drz*drz;
+		if(rr2<=nearestFS) nearestFS=rr2;
+  }
+}
+ 
+ template<TpKernel tker> __global__ void KerFindFSVicinity
+   (unsigned n,unsigned pinit,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero
+ 	,const unsigned *dcell,const double2 *posxy,const double *posz,const float *divr,const float freesurface
+ 	,const float boundaryfs,unsigned *row,const unsigned np)
+ {
+   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+   if(p<n){
+     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
+ 		if(divr[p1]>=freesurface){
+ 			double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
+			float nearestFS=CTE.fourh2;
+			double layer1, layer2;
+			if(tker==KERNEL_Quintic){
+				layer1=CTE.h*CTE.h;
+				layer2=4.0*CTE.h*CTE.h;
+			}
+			else if(tker==KERNEL_Wendland){
+				layer1=CTE.h*CTE.h;
+				layer2=0;
+			}
+ 			//-Obtiene limites de interaccion
+ 		//-Obtains interaction limits
+ 			int cxini,cxfin,yini,yfin,zini,zfin;
+ 			KerGetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+ 
+ 			//-Interaccion con Fluidas.
+ 		//-Interaction with fluids.
+ 			for(int z=zini;z<zfin;z++){
+ 				int zmod=(nc.w)*z+cellfluid; //-Le suma donde empiezan las celdas de fluido. //-The sum showing where fluid cells start
+ 				for(int y=yini;y<yfin;y++){
+ 					int ymod=zmod+nc.x*y;
+ 					unsigned pini,pfin=0;
+ 					for(int x=cxini;x<cxfin;x++){
+ 						int2 cbeg=begincell[x+ymod];
+ 						if(cbeg.y){
+ 							if(!pfin)pini=cbeg.x;
+ 							pfin=cbeg.y;
+ 						}
+ 					}
+ 					if(pfin){
+ 						KerFindFSVicinityCalc(p1,pini,pfin,posxy,posz,posdp1,divr,freesurface,layer1,layer2,nearestFS);
+ 					}
+ 				}
+ 			}
+
+			if(nearestFS<=layer1)	row[p1]=1;
+			else if(nearestFS<=layer2) row[p1]=2;
+     }
+   }
+ }
+
 void Interaction_Shifting
   (TpKernel tkernel,TpSlipCond tslipcond,bool simulate2d,bool floating,bool usedem,TpCellMode cellmode,float viscob,float viscof,unsigned bsfluid,unsigned bsbound
   ,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
@@ -3793,6 +3853,8 @@ void Interaction_Shifting
 			
 			if(simulate2d) KerInverseKernelCor2D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwzcorrg,code);
 			else KerInverseKernelCor3D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwycorrg,dwzcorrg,code);
+
+			KerFindFSVicinity<tker> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,divr,freesurface,boundaryfs,row,np);
 		}
 		else if(tkernel==KERNEL_Wendland){    const TpKernel tker=KERNEL_Wendland;
 			if(simulate2d) KerMLSBoundary2D<tker> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,code,idp,mirrorPos,mirrorCell,mls);
@@ -3806,6 +3868,8 @@ void Interaction_Shifting
 			
 			if(simulate2d) KerInverseKernelCor2D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwzcorrg,code);
 			else KerInverseKernelCor3D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwycorrg,dwzcorrg,code);
+
+			KerFindFSVicinity<tker> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,divr,freesurface,boundaryfs,row,np);
 		}
 	}
 }
@@ -3986,4 +4050,229 @@ void CorrectShiftVelocity(TpKernel tkernel,TpCellMode cellmode,const unsigned bs
 	 dim3 grid=GetGridSize(ppedim,SPHBSIZE);
 	 KerSchwaigerTest<<<grid,SPHBSIZE>>>(ppedim,npb,a,posxyg,poszg,row,col,m2,m3,m4);
  }
+
+ __global__ void MakeJacobi
+  (double *M,const double *A,const unsigned *rowInd,const unsigned n)
+{
+  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+		const unsigned diag=rowInd[p];
+		M[p]=A[diag];
+	}
+}
+
+__global__ void AVecMult
+  (double *AVec,const double *A,const double *Vec,const unsigned *rowInd,const unsigned *col,const unsigned n)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+		unsigned row_start=rowInd[p];
+		unsigned row_end=rowInd[p+1];
+		double temp=0;
+		for(int index=row_start;index<row_end;index++){
+			unsigned column=col[index];
+			temp+=A[index]*Vec[column];
+		}
+		AVec[p]=temp;
+	}
+}
+
+__global__ void FindResidual
+  (double *residual,const double *Vec1,const double *Vec2,const unsigned n)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+		residual[p]=Vec1[p]-Vec2[p];
+	}
+}
+
+__global__ void dotProductMult
+  (double *temp,const double *Vec1,const double *Vec2,const unsigned n)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+			temp[p]=Vec1[p]*Vec2[p];
+	}
+}
+
+__global__ void dotProductAdd
+  (double *value,const unsigned valuePos,const double *temp,const unsigned n)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<1){
+		double sum=0.0;
+		for(int i=0;i<int(n);i++)  sum+=temp[i];
+		value[valuePos]=sum;
+	}
+}
+
+__global__ void VecVecModAdd
+  (double *result,const double *Vec1,const double *Vec2,const double *Vec3,const double var1,const double var2, const unsigned n)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+			result[p]=Vec1[p]+var1*(Vec2[p]+var2*Vec3[p]);
+	}
+}
+
+__global__ void VecVecModAdd
+  (double *result,const double *Vec1,const double *Vec2,const double var1, const unsigned n)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+			result[p]=Vec1[p]+var1*Vec2[p];
+	}
+}
+
+__global__ void inverse
+  (double *inverse,const double *Vec1,const double *Vec2,const unsigned n)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+		inverse[p]=Vec1[p]/(Vec2[p]+1.0e-15);
+	}
+}
+
+__global__ void findX
+  (double *x,const double *Vec1,const double *Vec2,const double var1,const double var2, const unsigned n)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<n){
+			x[p]+=var1*Vec1[p]+var2*Vec2[p];
+	}
+}
+
+void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double *X,const double *B,const unsigned *rowInd,const unsigned *col,const unsigned Nnz,const unsigned n,const unsigned npb)
+{
+	dim3 grid=GetGridSize(n,SPHBSIZE);
+	unsigned iterNumber=0;
+	double Tol2=Tol*Tol;
+	double residual=0;
+	double norm2_s0=0;
+	double norm2_r0=0;
+
+	double *r; cudaMalloc((void**)&r,sizeof(double)*n); cudaMemset(r,0,sizeof(double)*n);
+	double *rbar; cudaMalloc((void**)&rbar,sizeof(double)*n); cudaMemset(rbar,0,sizeof(double)*n);
+	double *v; cudaMalloc((void**)&v,sizeof(double)*n); cudaMemset(v,0,sizeof(double)*n);
+	double *p; cudaMalloc((void**)&p,sizeof(double)*n); cudaMemset(p,0,sizeof(double)*n);
+	double *pI; cudaMalloc((void**)&pI,sizeof(double)*n); cudaMemset(pI,0,sizeof(double)*n);
+	double *s; cudaMalloc((void**)&s,sizeof(double)*n); cudaMemset(s,0,sizeof(double)*n);
+	double *sI; cudaMalloc((void**)&sI,sizeof(double)*n); cudaMemset(sI,0,sizeof(double)*n);
+	double *AX; cudaMalloc((void**)&AX,sizeof(double)*n); cudaMemset(AX,0,sizeof(double)*n);
+	double *M; cudaMalloc((void**)&M,sizeof(double)*n); cudaMemset(M,0,sizeof(double)*n);
+	double *t; cudaMalloc((void**)&t,sizeof(double)*n); cudaMemset(t,0,sizeof(double)*n);
+	double *tempVec; cudaMalloc((void**)&tempVec,sizeof(double)*n); cudaMemset(tempVec,0,sizeof(double)*n);
+
+	double *valuesH=new double[7]; 
+	valuesH[0]=0; valuesH[1]=1.0; valuesH[2]=1.0; valuesH[3]=1.0; valuesH[4]=0.0; valuesH[5]=0.0; valuesH[6]=0.0;// 0=temp, 1=rho0, 2=alpha, 3=omega, 4=rho, 5=beta, 6=norm
+	
+	double *values; cudaMalloc((void**)&values,sizeof(double)*7); cudaMemcpy(values,valuesH,sizeof(double)*7,cudaMemcpyHostToDevice);
+
+	MakeJacobi<<<grid,SPHBSIZE>>>(M,A,rowInd,n); //M=A_diag
+
+	AVecMult<<<grid,SPHBSIZE>>>(AX,A,X,rowInd,col,n); //AX=AX
+
+	FindResidual<<<grid,SPHBSIZE>>>(r,B,AX,n); //r=B-AX
+
+	cudaMemcpy(rbar,r,sizeof(double)*n,cudaMemcpyDeviceToDevice); //rbar=r
+
+	for(int iter=1;iter<=iterMax;iter++){
+		iterNumber=iter;
+
+		dotProductMult<<<grid,SPHBSIZE>>>(tempVec,rbar,r,n); //rho=rbar.r multiply
+		dotProductAdd<<<1,1>>>(values,4,tempVec,n); //rho=rbar.r add
+		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
+
+		if(valuesH[4]==0) break;
+		if(iter==1) cudaMemcpy(p,r,sizeof(double)*n,cudaMemcpyDeviceToDevice); //p=r
+		else{
+			valuesH[5]=(valuesH[4]/(valuesH[1]+1.0e-15))*(valuesH[2]/(valuesH[3]+1.0e-15)); //beta=(rho/rho0)*(alpha/omega)
+			cudaMemcpy(values,valuesH,sizeof(double)*7,cudaMemcpyHostToDevice);
+			cudaMemcpy(tempVec,p,sizeof(double)*n,cudaMemcpyDeviceToDevice);
+			VecVecModAdd<<<grid,SPHBSIZE>>>(p,r,tempVec,v,valuesH[5],-valuesH[3],n); //p=r+beta*(p-omega*v)
+		}
+
+		inverse<<<grid,SPHBSIZE>>>(pI,p,M,n); //pI=p/M
+
+		AVecMult<<<grid,SPHBSIZE>>>(v,A,pI,rowInd,col,n); //v=ApI
+
+		dotProductMult<<<grid,SPHBSIZE>>>(tempVec,rbar,v,n); //temp=rbar.v multiply
+		dotProductAdd<<<1,1>>>(values,0,tempVec,n); //temp=rbar.v add
+		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
+
+		valuesH[2]=valuesH[4]/(valuesH[0]+1.0e-15); //alpha=rho/(rbar.v)
+		cudaMemcpy(values,valuesH,sizeof(double)*7,cudaMemcpyHostToDevice);
+
+		VecVecModAdd<<<grid,SPHBSIZE>>>(s,r,v,-valuesH[2],n); //s=r-alpha*v
+
+		dotProductMult<<<grid,SPHBSIZE>>>(tempVec,s,s,n); //norm2s multiply
+		dotProductAdd<<<1,1>>>(values,6,tempVec,n); //norm2s add
+		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
+
+		double norm2_s=valuesH[6];
+		if(iter==1){
+			if(norm2_s <=1e-6) norm2_s0=1.0;
+			else norm2_s0=norm2_s;
+		}
+
+		if(norm2_s<=Tol2*norm2_s0){
+			cudaMemcpy(tempVec,X,sizeof(double)*n,cudaMemcpyDeviceToDevice);
+			VecVecModAdd<<<grid,SPHBSIZE>>>(X,tempVec,pI,valuesH[2],n); //x=x+alpha*pI
+			residual=sqrt(norm2_s/norm2_s0);
+			break;
+		}
+
+		inverse<<<grid,SPHBSIZE>>>(sI,s,M,n); //sI=s/M
+
+		AVecMult<<<grid,SPHBSIZE>>>(t,A,sI,rowInd,col,n); //t=AsI
+
+		dotProductMult<<<grid,SPHBSIZE>>>(tempVec,s,t,n); //temp=s.t multiply
+		dotProductAdd<<<1,1>>>(values,0,tempVec,n); //temp=s.t add
+		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
+
+		dotProductMult<<<grid,SPHBSIZE>>>(tempVec,t,t,n); //norm2t multiply
+		dotProductAdd<<<1,1>>>(values,6,tempVec,n); //norm2t add
+		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
+
+		double norm2_t=valuesH[6];
+
+		valuesH[3]=valuesH[0]/(norm2_t+1.0e-15); //omega=temp/norm2_t
+		cudaMemcpy(values,valuesH,sizeof(double)*7,cudaMemcpyHostToDevice);
+
+		findX<<<grid,SPHBSIZE>>>(X,pI,sI,valuesH[2],valuesH[3],n); //x=x+alpha*pI+omega*sI
+		
+		VecVecModAdd<<<grid,SPHBSIZE>>>(r,s,t,-valuesH[3],n); //r=s-omega*t
+
+		dotProductMult<<<grid,SPHBSIZE>>>(tempVec,r,r,n); //norm2r multiply
+		dotProductAdd<<<1,1>>>(values,6,tempVec,n); //norm2r add
+		cudaMemcpy(valuesH,values,sizeof(double)*7,cudaMemcpyDeviceToHost);
+
+		double norm2_r=valuesH[6];
+		if(iter==1){
+			if(norm2_r <=1e-6) norm2_r0=1.0;
+			else norm2_r0=norm2_r;
+		}
+
+		residual=sqrt(norm2_r/norm2_r0);
+		if(norm2_r<=Tol2*norm2_r0) break;
+		valuesH[1]=valuesH[4];
+		cudaMemcpy(values,valuesH,sizeof(double)*7,cudaMemcpyHostToDevice);
+	}
+	
+	cudaFree(r); r=NULL;
+	cudaFree(rbar); rbar=NULL;
+	cudaFree(v); v=NULL;
+	cudaFree(p); p=NULL;
+	cudaFree(pI); pI=NULL;
+	cudaFree(s); s=NULL;
+	cudaFree(sI); sI=NULL;
+	cudaFree(AX); AX=NULL;
+	cudaFree(M); M=NULL;
+	cudaFree(t); t=NULL;
+	cudaFree(tempVec); tempVec=NULL;
+	cudaFree(values); values=NULL;
+	delete[] valuesH; valuesH=NULL;
+	std::cout<<iterNumber<<"\t"<<residual<<"\n";
+}
+
 }

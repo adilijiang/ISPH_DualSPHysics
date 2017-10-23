@@ -163,11 +163,14 @@ protected:
   float ShiftCoef;      //-Coefficient for shifting computation.
   float ShiftOffset;    //-Coefficient for shifting near-free-surface and marking pressure near free-surface
 	float FreeSurface;    //-Threshold to detect free surface.
-	double	AlphaShift;		//-Coefficient for amount of allowable shifting to the normal of the free-surface
+	double	AlphaShift0;		//-Coefficient for amount of allowable shifting to the normal of the free-surface
+	double	AlphaShift1;		//-Coefficient for amount of allowable shifting to the normal of the near free-surface
+	double	AlphaShift2;		//-Coefficient for amount of allowable shifting to the normal of the near free-surface
   float TensileN;       //-Tensile Instability Coefficient
   float TensileR;       //-Tensile Instability Coefficient
 	double BetaShift0;			//-Beta value for free-surface shifting
 	double BetaShift1;			//-Beta value for near free-surface shifting
+	double BetaShift2;			//-Beta value for near free-surface shifting
 	float BoundaryFS; 
 
   TpSlipCond TSlipCond;
