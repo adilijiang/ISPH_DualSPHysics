@@ -166,6 +166,8 @@ protected:
 	double	AlphaShift0;		//-Coefficient for amount of allowable shifting to the normal of the free-surface
 	double	AlphaShift1;		//-Coefficient for amount of allowable shifting to the normal of the near free-surface
 	double	AlphaShift2;		//-Coefficient for amount of allowable shifting to the normal of the near free-surface
+	bool HydrodynamicCorrection;
+	bool SkillenFSPressure;
   float TensileN;       //-Tensile Instability Coefficient
   float TensileR;       //-Tensile Instability Coefficient
 	double BetaShift0;			//-Beta value for free-surface shifting

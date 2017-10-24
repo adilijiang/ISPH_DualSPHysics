@@ -3441,7 +3441,6 @@ void FreeSurfaceMark(const unsigned bsbound,const unsigned bsfluid,unsigned np,u
 
   if(npf){
     dim3 sgridf=GetGridSize(npf,bsfluid);
-    dim3 sgridb=GetGridSize(npbok,bsbound);
 		const unsigned matOrder=npb-npbok;
     KerFreeSurfaceMark <<<sgridf,bsfluid>>> (npf,npb,matOrder,divr,matrixInd,matrixb,row,code,pi,freesurface,shiftoffset);
   }
@@ -3535,7 +3534,7 @@ void SolverResultArrange(const unsigned bsbound,const unsigned bsfluid,const uns
 	if(npf){
 		dim3 sgridb=GetGridSize(npbok,bsbound);
 		dim3 sgridf=GetGridSize(npf,bsfluid);
-    KerArrangePressureTemp <<<sgridb,bsbound>>> (0,0,npbok,velrhop,pressure);
+    if(npbok) KerArrangePressureTemp <<<sgridb,bsbound>>> (0,0,npbok,velrhop,pressure);
     KerArrangePressureTemp <<<sgridf,bsfluid>>> (npbok,npb,npf,velrhop,pressure);
   }
 }
@@ -4289,4 +4288,22 @@ void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double 
 	std::cout<<iterNumber<<"\t"<<residual<<"\n";
 }
 
+
+
+  __global__ void KerSquarePatchVel
+  (const unsigned npf,const unsigned npb,const double2 *posxy,const double *posz,float4 *velrhop)
+{
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
+  if(p<npf){
+		unsigned p1=p+npb;
+		velrhop[p1].x=posz[p1]-2.0;
+		velrhop[p1].z=-(posxy[p1].x-2.0);
+	}
+}
+
+void SquarePatchVel(const unsigned bsfluid,const unsigned np,const unsigned npb,const double2 *posxy,const double *posz,float4 *velrhop){
+	const unsigned npf=np-npb;
+	dim3 sgridf=GetGridSize(npf,bsfluid);
+	KerSquarePatchVel<<<sgridf,bsfluid>>>(npf,npb,posxy,posz,velrhop);
+}
 }

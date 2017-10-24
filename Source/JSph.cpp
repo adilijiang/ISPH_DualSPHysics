@@ -104,6 +104,8 @@ void JSph::InitVars(){
   TVisco=VISCO_None;
   TShifting=SHIFT_None; ShiftCoef=0;
   FreeSurface=0;
+	SkillenFSPressure=false;
+	HydrodynamicCorrection=false;
   TensileN=0;
   TensileR=0;
   TPrecond=PRECOND_Jacobi;
@@ -334,8 +336,8 @@ void JSph::LoadConfig(const JCfgRun *cfg){
     }
     if(TShifting!=SHIFT_None){
       ShiftCoef=-2;
-      TensileN=0.1f;
-      TensileR=3.0f;
+      TensileN=4.0f;
+      TensileR=0.2f;
     }
     else ShiftCoef=0;
   }
@@ -403,6 +405,18 @@ void JSph::LoadCaseConfig(){
     case 0:  Schwaiger=false;  break;
 		case 1:  Schwaiger=true;  break;
     default: RunException(met,"Laplacian operator choice is not valid.");
+  }
+
+	switch(eparms.GetValueInt("SkillenFSPressure",true,0)){
+    case 0:  SkillenFSPressure=false;  break;
+		case 1:  SkillenFSPressure=true;  break;
+    default: RunException(met,"SkillenFSPressure choice is not valid.");
+  }
+
+	switch(eparms.GetValueInt("HydrodynamicCorrection",true,0)){
+    case 0:  HydrodynamicCorrection=false;  break;
+		case 1:  HydrodynamicCorrection=true;  break;
+    default: RunException(met,"HydrodynamicCorrection choice is not valid.");
   }
 
   switch(eparms.GetValueInt("ViscoTreatment",true,1)){

@@ -1031,8 +1031,9 @@ void JSphGpu::RunMotion(double stepdt){
  		wS0=wH*temp1/temp2;
  		wOmega=sqrt(-Gravity.z*k*tanh(kd));
  		double PistonVel=(wS0/2.0)*wOmega*sin(wOmega*TimeStep);
-		PaddleAccel=0;//float((wS0/2.0)*wOmega*wOmega*cos(wOmega*TimeStep));
- 		PistonPosX=0.5*Dp+(wS0/2.0)*(1.0-cos(wOmega*TimeStep));
+		PaddleAccel=float((wS0/2.0)*wOmega*wOmega*cos(wOmega*TimeStep));
+ 		double PistonPosX0=PistonPosX;
+		PistonPosX=0.5*Dp+(wS0/2.0)*(1.0-cos(wOmega*TimeStep));
 
     if(!nmove)cusph::CalcRidp(PeriActive!=0,Npb,0,CaseNfixed,CaseNfixed+CaseNmoving,Codeg,Idpg,RidpMoveg);
     BoundChanged=true;
@@ -1049,7 +1050,7 @@ void JSphGpu::RunMotion(double stepdt){
         mvsimple=OrderCode(mvsimple);
         if(Simulate2D)mvsimple.y=0;
         tfloat3 mvvel=ToTFloat3(mvsimple/TDouble3(stepdt));
-				mvsimple.x=PistonVel*stepdt;
+				mvsimple.x=PistonPosX-PistonPosX0;
 				mvvel.x=float(PistonVel);
         cusph::MoveLinBound(PeriActive,nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg,Idpg,MirrorPosg,MirrorCellg);
       }
