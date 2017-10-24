@@ -1571,9 +1571,22 @@ void Interaction_ForcesDem(bool psimple,TpCellMode cellmode,unsigned bsize
 /// Calcula Shifting final para posicion de particulas.
 /// Computes final shifting for the particle position.
 //------------------------------------------------------------------------------
-__global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,double dt
+
+__device__ void KerDampingZone(const double xp1,float3 &shift,const double dampingpoint,const double dampinglength)
+{
+	if(xp1>dampingpoint){
+		double fx=1.0-exp(-2.0*(dampinglength-(xp1-dampingpoint)));
+		shift.x=shift.x*fx;
+		shift.y=shift.y*fx;
+		shift.z=shift.z*fx;
+	}
+}
+
+__global__ void KerRunShifting(const bool wavegen,const bool simulate2d,unsigned n,unsigned pini,double dt
   ,float shiftcoef,float freesurface,float4 *velrhop,const float *divr,float3 *shiftpos
-	,const float ShiftOffset,const bool maxShift,float3 *sumtensile,const double alpha0,const double alpha1,const double alpha2,const double beta0,const double beta1,const double beta2,const unsigned *nearFS)
+	,const float ShiftOffset,const bool maxShift,float3 *sumtensile,const double alpha0
+	,const double alpha1,const double alpha2,const double beta0,const double beta1
+	,const double beta2,const unsigned *nearFS,const double2 *posxy,const double dampingpoint,const double dampinglength)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
   if(p<n){
@@ -1664,9 +1677,10 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
       if(fabs(rshiftpos.y)>maxDist) rshiftpos.y=float(maxDist*rshiftpos.y/absShift);
       if(fabs(rshiftpos.z)>maxDist) rshiftpos.z=float(maxDist*rshiftpos.z/absShift);
 		}
+		
+		if(wavegen) KerDampingZone(posxy[p1].x,rshiftpos,dampingpoint,dampinglength);
 
     shiftpos[Correctp1]=rshiftpos;
-		velrhop[p1].w=nearFS[p1];
   }
 }
 
@@ -1674,13 +1688,13 @@ __global__ void KerRunShifting(const bool simulate2d,unsigned n,unsigned pini,do
 /// Calcula Shifting final para posicion de particulas.
 /// Computes final shifting for the particle position.
 //==============================================================================
-void RunShifting(const bool simulate2d,unsigned np,unsigned npb,double dt
+void RunShifting(const bool wavegen,const bool simulate2d,unsigned np,unsigned npb,double dt
   ,double shiftcoef,float freesurface,float4 *velrhop,const float *divr,float3 *shiftpos
-	,bool maxShift,float3 *sumtensile,const float shiftoffset,const double alpha0,const double alpha1,const double alpha2,const double beta0,const double beta1,const double beta2,const unsigned *nearFS){
+	,bool maxShift,float3 *sumtensile,const float shiftoffset,const double alpha0,const double alpha1,const double alpha2,const double beta0,const double beta1,const double beta2,const unsigned *nearFS,const double2 *posxy,const double dampingpoint,const double dampinglength){
   const unsigned npf=np-npb;
   if(npf){
     dim3 sgrid=GetGridSize(npf,SPHBSIZE);
-    KerRunShifting <<<sgrid,SPHBSIZE>>> (simulate2d,npf,npb,dt,shiftcoef,freesurface,velrhop,divr,shiftpos,shiftoffset,maxShift,sumtensile,alpha0,alpha1,alpha2,beta0,beta1,beta2,nearFS);
+    KerRunShifting <<<sgrid,SPHBSIZE>>> (wavegen,simulate2d,npf,npb,dt,shiftcoef,freesurface,velrhop,divr,shiftpos,shiftoffset,maxShift,sumtensile,alpha0,alpha1,alpha2,beta0,beta1,beta2,nearFS,posxy,dampingpoint,dampinglength);
   }
 }
 
