@@ -1601,8 +1601,6 @@ __global__ void KerRunShifting(const bool ops,const bool wavegen,const bool simu
 		if(ops){
 			if(divrp1<freesurface||nearFS[p1]){
 				float3 N=opsN[Correctp1];
-				float magN=sqrtf(N.x*N.x+N.z*N.z);
-				N.x=N.x/magN; N.z=N.z/magN;
 				float3 direction=make_float3(0,0,0);
 				float3 tProdx=make_float3(0,0,0);
  				float3 tPrody=make_float3(0,0,0);
@@ -3103,10 +3101,10 @@ void MirrorBoundary(const bool simulate2d,const unsigned bsbound,unsigned npb,co
 //==============================================================================
 ///Matrix A Setup
 //==============================================================================
-__global__ void kerMatrixASetup(const unsigned end,const unsigned start,const unsigned matOrder,const unsigned ppedim,unsigned int *row,unsigned *nnz,unsigned *numfreesurface,const float *divr,const float freesurface){
+__global__ void kerMatrixASetup(const bool bound,const unsigned end,const unsigned start,const unsigned matOrder,const unsigned ppedim,unsigned int *row,unsigned *nnz,unsigned *numfreesurface,const float *divr,const float freesurface,const float boundaryfs){
    unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
    if(p==0){
-	   for(int p1=int(start);p1<int(end);p1++){
+	   for(int p1=int(start);p1<int(end);p1++)/*if(!(bound&&divr[p1]<boundaryfs))*/{
 			 const unsigned oi=p1-matOrder;
 			 if(divr[p1]<=freesurface){
 				 row[oi]=0;
@@ -3120,12 +3118,12 @@ __global__ void kerMatrixASetup(const unsigned end,const unsigned start,const un
    }
 }
 
-void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim,unsigned int*row,unsigned *nnz,unsigned *numfreesurface,const float *divr,const float freesurface){
+void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim,unsigned int*row,unsigned *nnz,unsigned *numfreesurface,const float *divr,const float freesurface,const float boundaryfs){
   const unsigned npf=np-npb;
 	const unsigned matOrder=npb-npbok;
 	if(npf){
-    if(npbok) kerMatrixASetup <<<1,1>>> (npbok,0,0,ppedim,row,nnz,numfreesurface,divr,freesurface);
-		kerMatrixASetup <<<1,1>>> (np,npb,matOrder,ppedim,row,nnz,numfreesurface,divr,freesurface);
+    if(npbok) kerMatrixASetup <<<1,1>>> (true,npbok,0,0,ppedim,row,nnz,numfreesurface,divr,freesurface,boundaryfs);
+		kerMatrixASetup <<<1,1>>> (false,np,npb,matOrder,ppedim,row,nnz,numfreesurface,divr,freesurface,boundaryfs);
   }
 }
 
@@ -3271,12 +3269,12 @@ template<TpKernel tker> __device__ void KerMatrixABound
 
 template<TpKernel tker> __global__ void KerPopulateMatrixABound
   (unsigned npbok,unsigned npb,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero,const unsigned *dcell
-  ,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,unsigned int *row,unsigned int *col,double *matrixInd,const double3 *mirrorPos,const unsigned *mirrorCell,const float4 *mls,const unsigned matOrder)
+  ,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,unsigned int *row,unsigned int *col,double *matrixInd,const double3 *mirrorPos,const unsigned *mirrorCell,const float4 *mls,const unsigned matOrder,const float *divr,const float boundaryfs)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<npbok){
     unsigned p1=p;      //-Nº de particula. //-NI of particle
-    if(CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
+    if(CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC)/*if(divr[p1]>=boundaryfs)*/{
 			const unsigned idpg1=idp[p1];
       unsigned oi=p1;
 			const float4 mlsp1=mls[p1];
@@ -3317,9 +3315,11 @@ template<TpKernel tker> __global__ void KerPopulateMatrixABound
   }
 }
 
-void PopulateMatrix(TpKernel tkernel,bool schwaiger,TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
-	,const unsigned *dcell,tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *velrhop,const float3 *dwxCorr,const float3 *dwyCorr,const float3 *dwzCorr,double *matrixInd,double *matrixb
-  ,unsigned int *row,unsigned int *col,const unsigned *idp,const float *divr,const word *code,const float freesurface,const double3 *mirrorPos,const unsigned *mirrorCell,const float4 *mls,const double dt,const float3 *SumFr,const float boundaryfs,const float *tao,const float paddleaccel,const bool wavegen,const double PistonPos){
+void PopulateMatrix(TpKernel tkernel,bool schwaiger,TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
+	,const int2 *begincell,tuint3 cellmin,const unsigned *dcell,tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *velrhop,const float3 *dwxCorr
+	,const float3 *dwyCorr,const float3 *dwzCorr,double *matrixInd,double *matrixb,unsigned int *row,unsigned int *col,const unsigned *idp,const float *divr,const word *code
+	,const float freesurface,const double3 *mirrorPos,const unsigned *mirrorCell,const float4 *mls,const double dt,const float3 *SumFr,const float boundaryfs,const float *tao
+	,const float paddleaccel,const bool wavegen,const double PistonPos){
   const unsigned npf=np-npb;
   const int hdiv=(cellmode==CELLMODE_H? 2: 1);
   const uint4 nc=make_uint4(ncells.x,ncells.y,ncells.z,ncells.x*ncells.y);
@@ -3335,12 +3335,12 @@ void PopulateMatrix(TpKernel tkernel,bool schwaiger,TpCellMode cellmode,const un
 		if(tkernel==KERNEL_Quintic){    const TpKernel tker=KERNEL_Quintic;
 			if(!schwaiger) KerPopulateMatrixAFluid<tker,false> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos,dt,matOrder,NULL,boundaryfs,NULL,paddleaccel,wavegen,PistonPos); 
 			else KerPopulateMatrixAFluid<tker,true> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos,dt,matOrder,SumFr,boundaryfs,tao,paddleaccel,wavegen,PistonPos); 
-			if(npbok) KerPopulateMatrixABound<tker> <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder);
+			if(npbok) KerPopulateMatrixABound<tker> <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder,divr,boundaryfs);
 		}
 		else if(tkernel==KERNEL_Wendland){    const TpKernel tker=KERNEL_Wendland;
 			if(!schwaiger) KerPopulateMatrixAFluid<tker,false> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos,dt,matOrder,NULL,boundaryfs,NULL,paddleaccel,wavegen,PistonPos); 
 			else KerPopulateMatrixAFluid<tker,true> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,gravity,posxy,posz,velrhop,dwxCorr,dwyCorr,dwzCorr,divr,code,idp,row,col,matrixInd,matrixb,freesurface,mirrorPos,dt,matOrder,SumFr,boundaryfs,tao,paddleaccel,wavegen,PistonPos); 
-			if(npbok) KerPopulateMatrixABound<tker> <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder);
+			if(npbok) KerPopulateMatrixABound<tker> <<<sgridb,bsbound>>> (npbok,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,idp,row,col,matrixInd,mirrorPos,mirrorCell,mls,matOrder,divr,boundaryfs);
 		}
 	}
 }
@@ -3484,23 +3484,26 @@ __global__ void KerPressureAssignFluid
 }
 
 __global__ void KerPressureAssignBound
-  (unsigned npbok,const tfloat3 gravity,const double2 *posxy,const double *posz
-  ,float4 *velrhop,double *press,const unsigned *idp,const word *code,const double3 *mirrorPos,const float paddleAccel,const bool wavegen,const double PistonPos)
+  (unsigned npbok,const tfloat3 gravity,const double2 *posxy,const double *posz,float4 *velrhop,double *press,const unsigned *idp,const word *code,const double3 *mirrorPos,
+	const float paddleAccel,const bool wavegen,const double PistonPos,const float *divr,const float boundaryfs)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<npbok){
     unsigned p1=p;      //-Nº de particula. //-NI of particle
-		double distz=posz[p1]-mirrorPos[idp[p1]].z;
-		double distx=0;
-		if(wavegen&&posxy[p1].x<PistonPos) distx=posxy[p1].x-mirrorPos[idp[p1]].x;
-		double Neumann=double(CTE.rhopzero)*(gravity.z*distz-paddleAccel*distx);
-		velrhop[p1].w=float(press[p1]+Neumann);
+		if(divr[p1]>=boundaryfs){
+			double distz=posz[p1]-mirrorPos[idp[p1]].z;
+			double distx=0;
+			if(wavegen&&posxy[p1].x<PistonPos) distx=posxy[p1].x-mirrorPos[idp[p1]].x;
+			double Neumann=double(CTE.rhopzero)*(gravity.z*distz-paddleAccel*distx);
+			velrhop[p1].w=float(press[p1]+Neumann);
+		}
+		else velrhop[p1].w=0;
   }
 }
 
-void PressureAssign(const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
-  ,const tfloat3 gravity,const double2 *posxy,const double *posz,float4 *velrhop,double *press,const unsigned *idp
-	,const word *code,const double3 *mirrorPos,const float paddleAccel,const bool wavegen,const double PistonPos){
+void PressureAssign(const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,const tfloat3 gravity,const double2 *posxy,const double *posz
+	,float4 *velrhop,double *press,const unsigned *idp,const word *code,const double3 *mirrorPos,const float paddleAccel,const bool wavegen,const double PistonPos,const float *divr
+	,const float boundaryfs){
   const unsigned npf=np-npb;
 
   if(npf){
@@ -3509,7 +3512,7 @@ void PressureAssign(const unsigned bsbound,const unsigned bsfluid,unsigned np,un
 		
 		const unsigned matOrder=npb-npbok;
 		KerPressureAssignFluid <<<sgridf,bsfluid>>> (npf,npb,matOrder,velrhop,press);
-		if(npbok) KerPressureAssignBound <<<sgridb,bsbound>>> (npbok,gravity,posxy,posz,velrhop,press,idp,code,mirrorPos,paddleAccel,wavegen,PistonPos); 
+		if(npbok) KerPressureAssignBound <<<sgridb,bsbound>>> (npbok,gravity,posxy,posz,velrhop,press,idp,code,mirrorPos,paddleAccel,wavegen,PistonPos,divr,boundaryfs); 
   }
 }
 
@@ -3795,16 +3798,28 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesShif
 		if(ops){
 			double3 Bx; Bx.x=bxp1.x; Bx.z=bxp1.z;
 			double3 Bz; Bz.x=bzp1.x; Bz.z=bzp1.z;
-			const double det=1.0/(Bx.x*Bz.z-Bz.x*Bx.z);
-
+			double det=Bx.x*Bz.z-Bz.x*Bx.z+CTE.eta2;
+			
 			if(det){
+				const double trace=0.5*(Bx.x+Bz.z);
+				const double temp=sqrt(trace*trace-det);
+				const double eigen1=-temp-trace;
+				const double eigen2=temp-trace;
+				const double minEigen=(eigen1<eigen2?eigen1:eigen2);
+
+				if(minEigen<0.4){
+					shiftpos[Correctp1]=make_float3(0,0,0);
+					sumtensile[Correctp1]=make_float3(0,0,0);
+				}
+
+				det=1.0/(det);
 				bxp1.x=Bz.z*det; bxp1.z=-Bx.z*det;
 				bzp1.x=-Bz.x*det; bzp1.z=Bx.x*det;
 
 				double3 BC=make_double3(0,0,0);
 				BC.x=bxp1.x*shiftpos[Correctp1].x+bxp1.z*shiftpos[Correctp1].z;
  				BC.z=bzp1.x*shiftpos[Correctp1].x+bzp1.z*shiftpos[Correctp1].z;
- 				double absB=sqrt(BC.x*BC.x+BC.z*BC.z);
+ 				const double absB=sqrt(BC.x*BC.x+BC.z*BC.z+CTE.eta2);
  				opsN[Correctp1].x=float(-BC.x/absB);
  				opsN[Correctp1].z=float(-BC.z/absB);
 			}

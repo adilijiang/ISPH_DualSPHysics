@@ -1093,12 +1093,12 @@ void JSphGpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
 ///Matrix storage
 //===============================================================================
 void JSphGpu::MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,
-		const unsigned ppedim,unsigned int *row,const float *divr,const float freesurface,unsigned &nnz,unsigned &numFreeSurface){
+		const unsigned ppedim,unsigned int *row,const float *divr,const float freesurface,unsigned &nnz,unsigned &numFreeSurface,const float boundaryfs){
  
   cudaMemset(counterNnzGPU, 0, sizeof(unsigned));
 	cudaMemset(NumFreeSurfaceGPU, 0, sizeof(unsigned));
 
-  cusph::MatrixASetup(np,npb,npbok,ppedim,row,counterNnzGPU,NumFreeSurfaceGPU,divr,freesurface);
+  cusph::MatrixASetup(np,npb,npbok,ppedim,row,counterNnzGPU,NumFreeSurfaceGPU,divr,freesurface,boundaryfs);
 	
 	cudaMemcpy(counterNnzCPU,counterNnzGPU,sizeof(unsigned),cudaMemcpyDeviceToHost);
 	cudaMemcpy(NumFreeSurfaceCPU,NumFreeSurfaceGPU,sizeof(unsigned),cudaMemcpyDeviceToHost);
