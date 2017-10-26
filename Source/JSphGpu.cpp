@@ -94,6 +94,7 @@ void JSphGpu::InitVars(){
 	ShiftPosg=NULL; Tensileg=NULL;
 	MLSg=NULL;
 	Taog=NULL;
+	OPSN=NULL;
 	sumFrg=NULL;
 	PaddleAccel=NULL;
   Divrg=NULL;
@@ -144,6 +145,7 @@ void JSphGpu::FreeGpuMemoryFixed(){
 	if(sumFrg) cudaFree(sumFrg);										sumFrg=NULL;
 	if(Taog)	 cudaFree(Taog);											Taog=NULL;
 	if(Aceg)cudaFree(Aceg);													Aceg=NULL;
+	if(OPSN)cudaFree(OPSN);													OPSN=NULL;
 	if(dWxCorrg)cudaFree(dWxCorrg);									dWxCorrg=NULL;
 	if(dWzCorrg)cudaFree(dWzCorrg);									dWzCorrg=NULL;
 	if(ShiftPosg)cudaFree(ShiftPosg);								ShiftPosg=NULL;
@@ -183,6 +185,7 @@ void JSphGpu::AllocGpuMemoryFixed(){
 															cudaMalloc((void**)&dWzCorrg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&ShiftPosg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&Tensileg,m);					MemGpuFixed+=m;
+															cudaMalloc((void**)&OPSN,m);							MemGpuFixed+=m;
   m=sizeof(unsigned);					cudaMalloc((void**)&counterNnzGPU,m);			MemGpuFixed+=m;
 															cudaMalloc((void**)&NumFreeSurfaceGPU,m);	MemGpuFixed+=m;
 
@@ -980,7 +983,7 @@ void JSphGpu::RunShifting(double dt){
 	bool maxShift=false;
 	if(TShifting==SHIFT_Max) maxShift=true;
 	const bool wavegen=(WaveGen?true:false);
-  cusph::RunShifting(wavegen,Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velrhopg,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift0,AlphaShift1,AlphaShift2,BetaShift0,BetaShift1,BetaShift2,rowIndg,Posxyg,DampingPointX,DampingLengthX);
+  cusph::RunShifting(OPS,wavegen,Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velrhopg,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift0,AlphaShift1,AlphaShift2,BetaShift0,BetaShift1,BetaShift2,rowIndg,Posxyg,DampingPointX,DampingLengthX,OPSN);
 }
 
 //==============================================================================

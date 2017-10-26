@@ -119,11 +119,11 @@ void AddDelta(unsigned n,const float *delta,float *ar);
 
 //# Kernels para Shifting
 //# Kernels for Shifting
-void RunShifting(const bool wavegen,const bool simulate2d,unsigned np,unsigned npb,double dt
+void RunShifting(const bool ops,const bool wavegen,const bool simulate2d,unsigned np,unsigned npb,double dt
   ,double shiftcoef,float freesurface,float4 *velrhop,const float *divr,float3 *shiftpos
 	,const bool maxShift,float3 *sumtensile,const float shiftoffset,const double alpha0
 	,const double alpha1,const double alpha2,const double beta0,const double beta1
-	,const double beta2,const unsigned *nearFS,const double2 *posxy,const double dampingpoint,const double dampinglength);
+	,const double beta2,const unsigned *nearFS,const double2 *posxy,const double dampingpoint,const double dampinglength,float3 *opsN);
 
 void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb
   ,const float4 *velrhoppre,const float3 *ace,double dtm,float rhopoutmin,float rhopoutmax
@@ -204,15 +204,13 @@ void InitArrayCol(unsigned n,unsigned int *v,int value);
 void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,int restart,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,int coarselevels,double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned nnz,const unsigned ppedim,const unsigned numfreesurface);
 
 //Kernels for shifting
-void Interaction_Shifting(TpKernel tkernel,TpSlipCond tslipcond,bool simulate2d,bool floating,bool usedem,TpCellMode cellmode
-  ,float viscob,float viscof,unsigned bsfluid,unsigned bsbound
-  ,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
-  ,const int2 *begincell,tuint3 cellmin,const unsigned *dcell
-  ,const double2 *posxy,const double *posz
-  ,float4 *velrhop,const word *code,const float *ftomassp
-  ,TpShifting tshifting,float3 *shiftpos,float *divr,const float tensilen,const float tensiler,float3 *sumtensile
-	,const float freesurface,const float boundaryfs,const unsigned *idp,const double3 *mirrorPos,const unsigned *mirrorCell
-	,float3 *dwxcorrg,float3 *dwycorrg,float3 *dwzcorrg,float4 *mls,unsigned *row,const double PistonPos);
+void Interaction_Shifting(TpKernel tkernel,TpSlipCond tslipcond,bool simulate2d,bool floating,bool usedem,bool ops,TpCellMode cellmode
+  ,float viscob,float viscof,unsigned bsfluid,unsigned bsbound,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells
+	,const int2 *begincell,tuint3 cellmin,const unsigned *dcell,const double2 *posxy,const double *posz,float4 *velrhop
+	,const word *code,const float *ftomassp,TpShifting tshifting,float3 *shiftpos,float *divr,const float tensilen
+	,const float tensiler,float3 *sumtensile,const float freesurface,const float boundaryfs,const unsigned *idp
+	,const double3 *mirrorPos,const unsigned *mirrorCell,float3 *dwxcorrg,float3 *dwycorrg,float3 *dwzcorrg,float4 *mls
+	,unsigned *row,const double PistonPos,float3 *opsN);
 
 void ComputeShift(bool floating,const unsigned bsfluid,unsigned np,unsigned npb
   ,const float3 *shiftpos,word *code,double2 *movxy,double *movz);

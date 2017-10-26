@@ -174,7 +174,7 @@ protected:
 	double BetaShift1;			//-Beta value for near free-surface shifting
 	double BetaShift2;			//-Beta value for near free-surface shifting
 	float BoundaryFS; 
-
+	bool OPS;
   TpSlipCond TSlipCond;
 
 	bool Schwaiger;

@@ -112,6 +112,7 @@ void JSph::InitVars(){
   TAMGInter=AMGINTER_AG;
   Iterations=0;
   Tolerance=0;
+	OPS=false;
 	VariableTimestep=false;
   StrongConnection=0; JacobiWeight=0; Presmooth=0; Postsmooth=0; CoarseCutoff=0;
 	PistonPosX=0; PistonPosZ=0;
@@ -417,6 +418,12 @@ void JSph::LoadCaseConfig(){
     case 0:  HydrodynamicCorrection=false;  break;
 		case 1:  HydrodynamicCorrection=true;  break;
     default: RunException(met,"HydrodynamicCorrection choice is not valid.");
+  }
+
+	switch(eparms.GetValueInt("OPS",true,0)){
+    case 0:  OPS=false;  break;
+		case 1:  OPS=true;  break;
+    default: RunException(met,"OPS choice is not valid.");
   }
 
   switch(eparms.GetValueInt("ViscoTreatment",true,1)){
