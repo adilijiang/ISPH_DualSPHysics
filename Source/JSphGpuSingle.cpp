@@ -578,7 +578,8 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
         TimeMax=TimeStep;
       }
       SaveData();
-      Part++;
+      SaveVtknormals("Normals.vtk",Nstep,Np,Posxyg,Poszg,Normal,smoothNormal);
+			Part++;
       PartNstep=Nstep;
       TimeStepM1=TimeStep;
 			TimePartNext=TimeOut->GetNextTime(TimeStep);
@@ -749,6 +750,48 @@ void JSphGpuSingle::SaveVtkSchwaigerTest(std::string fname,unsigned fnum,unsigne
   delete[] m4;
 }
 
+void JSphGpuSingle::SaveVtknormals(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const float3 *normals,const float3 *smoothnormals)const{
+  //-Allocate memory.
+  tdouble2 *pxy=new tdouble2[np];
+  double *pz=new double[np];
+  tfloat3 *pos=new tfloat3[np];
+  tfloat3 *norm=new tfloat3[Np-Npb];
+	tfloat3 *normNp=new tfloat3[np];
+	tfloat3 *smoothnorm=new tfloat3[Np-Npb];
+	tfloat3 *smoothnormNp=new tfloat3[np];
+
+  //-Copies memory to CPU.
+  cudaMemcpy(pxy,posxy,sizeof(double2)*np,cudaMemcpyDeviceToHost);
+  cudaMemcpy(pz,posz,sizeof(double)*np,cudaMemcpyDeviceToHost);
+  cudaMemcpy(norm,normals,sizeof(tfloat3)*(Np-Npb),cudaMemcpyDeviceToHost);
+	cudaMemcpy(smoothnorm,smoothnormals,sizeof(tfloat3)*(Np-Npb),cudaMemcpyDeviceToHost);
+  for(unsigned p=0;p<np;p++){
+		pos[p]=ToTFloat3(TDouble3(pxy[p].x,pxy[p].y,pz[p]));
+
+		if(p<Npb) normNp[p]=TFloat3(0,0,0);
+		else normNp[p]=TFloat3(norm[p-Npb].x,0,norm[p-Npb].z);
+		if(p<Npb) smoothnormNp[p]=TFloat3(0,0,0);
+		else smoothnormNp[p]=TFloat3(smoothnorm[p-Npb].x,0,smoothnorm[p-Npb].z);
+  }
+
+  //-Creates VTK file.
+  JFormatFiles2::StScalarData fields[20];
+  unsigned nfields=0;
+	if(normNp){  fields[nfields]=JFormatFiles2::DefineField("Normals",JFormatFiles2::Float32,3,normNp); nfields++; }
+	if(smoothnormNp){  fields[nfields]=JFormatFiles2::DefineField("smoothNormals",JFormatFiles2::Float32,3,smoothnormNp); nfields++; }
+  string file=Log->GetDirOut()+fun::FileNameSec(fname,Part);
+  JFormatFiles2::SaveVtk(file,np,pos,nfields,fields);
+
+  //-Frees memory.
+  delete[] pxy;
+  delete[] pz;
+  delete[] pos;
+  delete[] norm;
+	delete[] normNp;
+	delete[] smoothnorm;
+	delete[] smoothnormNp;
+}
+
 //==============================================================================
 /// Irelation - Dummy particles' respective Wall particle
 //==============================================================================
@@ -913,7 +956,8 @@ void JSphGpuSingle::RunShifting(double dt){
 	cudaMemset(dWzCorrg,0,sizeof(float3)*npf);
 	cudaMemset(MLSg,0,sizeof(float4)*npb);
   cudaMemset(Aceg,0,sizeof(float3)*npf);
-	cudaMemset(OPSN,0,sizeof(float3)*npf);
+	cudaMemset(Normal,0,sizeof(float3)*npf);
+	cudaMemset(smoothNormal,0,sizeof(float3)*npf);
 	cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
 
   //-Cambia datos a variables Pre para calcular nuevos datos.
@@ -933,10 +977,10 @@ void JSphGpuSingle::RunShifting(double dt){
   const unsigned bsbound=BlockSizes.forcesbound;
   const unsigned bsfluid=BlockSizes.forcesfluid;
 
-  cusph::Interaction_Shifting(TKernel,TSlipCond,Simulate2D,WithFloating,UseDEM,OPS,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,bsbound,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,FtoMasspg,TShifting,ShiftPosg,Divrg,TensileN,TensileR,Tensileg,FreeSurface,BoundaryFS,Idpg,MirrorPosg,MirrorCellg,dWxCorrg,dWyCorrg,dWzCorrg,MLSg,rowIndg,PistonPosX,OPSN);
+  cusph::Interaction_Shifting(TKernel,TSlipCond,Simulate2D,WithFloating,UseDEM,OPS,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,bsbound,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,FtoMasspg,TShifting,ShiftPosg,Divrg,TensileN,TensileR,Tensileg,FreeSurface,BoundaryFS,Idpg,MirrorPosg,MirrorCellg,dWxCorrg,dWyCorrg,dWzCorrg,MLSg,rowIndg,PistonPosX,Normal,smoothNormal);
 
   CheckCudaError(met,"Failed in calculating concentration");
-
+	
   JSphGpu::RunShifting(dt);
   TmgStop(Timers,TMG_SuShifting);
   CheckCudaError(met,"Failed in calculating shifting distance");

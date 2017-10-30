@@ -228,7 +228,8 @@ protected:
 	float3 *ShiftPosg;
 	float3 *Tensileg;
 	float *Taog;
-	float3 *OPSN;
+	float3 *Normal;
+	float3 *smoothNormal;
   //matrix variables 
   double *bg;
   double *ag;

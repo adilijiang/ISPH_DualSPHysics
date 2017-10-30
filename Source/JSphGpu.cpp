@@ -94,7 +94,8 @@ void JSphGpu::InitVars(){
 	ShiftPosg=NULL; Tensileg=NULL;
 	MLSg=NULL;
 	Taog=NULL;
-	OPSN=NULL;
+	Normal=NULL;
+	smoothNormal=NULL;
 	sumFrg=NULL;
 	PaddleAccel=NULL;
   Divrg=NULL;
@@ -145,7 +146,8 @@ void JSphGpu::FreeGpuMemoryFixed(){
 	if(sumFrg) cudaFree(sumFrg);										sumFrg=NULL;
 	if(Taog)	 cudaFree(Taog);											Taog=NULL;
 	if(Aceg)cudaFree(Aceg);													Aceg=NULL;
-	if(OPSN)cudaFree(OPSN);													OPSN=NULL;
+	if(Normal)cudaFree(Normal);											Normal=NULL;
+	if(smoothNormal)cudaFree(smoothNormal);					smoothNormal=NULL;
 	if(dWxCorrg)cudaFree(dWxCorrg);									dWxCorrg=NULL;
 	if(dWzCorrg)cudaFree(dWzCorrg);									dWzCorrg=NULL;
 	if(ShiftPosg)cudaFree(ShiftPosg);								ShiftPosg=NULL;
@@ -185,7 +187,8 @@ void JSphGpu::AllocGpuMemoryFixed(){
 															cudaMalloc((void**)&dWzCorrg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&ShiftPosg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&Tensileg,m);					MemGpuFixed+=m;
-															cudaMalloc((void**)&OPSN,m);							MemGpuFixed+=m;
+															cudaMalloc((void**)&Normal,m);						MemGpuFixed+=m;
+															cudaMalloc((void**)&smoothNormal,m);			MemGpuFixed+=m;
   m=sizeof(unsigned);					cudaMalloc((void**)&counterNnzGPU,m);			MemGpuFixed+=m;
 															cudaMalloc((void**)&NumFreeSurfaceGPU,m);	MemGpuFixed+=m;
 
@@ -983,7 +986,7 @@ void JSphGpu::RunShifting(double dt){
 	bool maxShift=false;
 	if(TShifting==SHIFT_Max) maxShift=true;
 	const bool wavegen=(WaveGen?true:false);
-  cusph::RunShifting(OPS,wavegen,Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velrhopg,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift0,AlphaShift1,AlphaShift2,BetaShift0,BetaShift1,BetaShift2,rowIndg,Posxyg,DampingPointX,DampingLengthX,OPSN);
+  cusph::RunShifting(OPS,wavegen,Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velrhopg,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift0,AlphaShift1,AlphaShift2,BetaShift0,BetaShift1,BetaShift2,rowIndg,Posxyg,DampingPointX,DampingLengthX,smoothNormal);
 }
 
 //==============================================================================
@@ -1034,7 +1037,7 @@ void JSphGpu::RunMotion(double stepdt){
  		wS0=wH*temp1/temp2;
  		wOmega=sqrt(-Gravity.z*k*tanh(kd));
  		double PistonVel=(wS0/2.0)*wOmega*sin(wOmega*TimeStep);
-		PaddleAccel=float((wS0/2.0)*wOmega*wOmega*cos(wOmega*TimeStep));
+		PaddleAccel=0;//-float((wS0/2.0)*wOmega*wOmega*cos(wOmega*TimeStep));
  		double PistonPosX0=PistonPosX;
 		PistonPosX=0.5*Dp+(wS0/2.0)*(1.0-cos(wOmega*TimeStep));
 

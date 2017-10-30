@@ -123,7 +123,7 @@ void RunShifting(const bool ops,const bool wavegen,const bool simulate2d,unsigne
   ,double shiftcoef,float freesurface,float4 *velrhop,const float *divr,float3 *shiftpos
 	,const bool maxShift,float3 *sumtensile,const float shiftoffset,const double alpha0
 	,const double alpha1,const double alpha2,const double beta0,const double beta1
-	,const double beta2,const unsigned *nearFS,const double2 *posxy,const double dampingpoint,const double dampinglength,float3 *opsN);
+	,const double beta2,const unsigned *nearFS,const double2 *posxy,const double dampingpoint,const double dampinglength,float3 *normal);
 
 void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb
   ,const float4 *velrhoppre,const float3 *ace,double dtm,float rhopoutmin,float rhopoutmax
@@ -210,7 +210,7 @@ void Interaction_Shifting(TpKernel tkernel,TpSlipCond tslipcond,bool simulate2d,
 	,const word *code,const float *ftomassp,TpShifting tshifting,float3 *shiftpos,float *divr,const float tensilen
 	,const float tensiler,float3 *sumtensile,const float freesurface,const float boundaryfs,const unsigned *idp
 	,const double3 *mirrorPos,const unsigned *mirrorCell,float3 *dwxcorrg,float3 *dwycorrg,float3 *dwzcorrg,float4 *mls
-	,unsigned *row,const double PistonPos,float3 *opsN);
+	,unsigned *row,const double PistonPos,float3 *normal,float3 *smoothNormal);
 
 void ComputeShift(bool floating,const unsigned bsfluid,unsigned np,unsigned npb
   ,const float3 *shiftpos,word *code,double2 *movxy,double *movz);
