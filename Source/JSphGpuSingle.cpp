@@ -566,6 +566,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 		MirrorBoundary();
 	}
 	//cusph::SquarePatchVel(BlockSizes.forcesfluid,Np,Npb,Posxyg,Poszg,Velrhopg);
+	Normal=ArraysGpu->ReserveFloat3(); cudaMemset(Normal,0,sizeof(float3)*Np); 
 	while(TimeStep<TimeMax){
 		if(CaseNmoving)RunMotion(stepdt);
     stepdt=ComputeStep_Sym(stepdt);
@@ -755,7 +756,6 @@ void JSphGpuSingle::SaveVtknormals(std::string fname,unsigned fnum,unsigned np,c
   tdouble2 *pxy=new tdouble2[np];
   double *pz=new double[np];
   tfloat3 *pos=new tfloat3[np];
-  tfloat3 *norm=new tfloat3[Np-Npb];
 	tfloat3 *normNp=new tfloat3[np];
 	tfloat3 *smoothnorm=new tfloat3[Np-Npb];
 	tfloat3 *smoothnormNp=new tfloat3[np];
@@ -763,13 +763,12 @@ void JSphGpuSingle::SaveVtknormals(std::string fname,unsigned fnum,unsigned np,c
   //-Copies memory to CPU.
   cudaMemcpy(pxy,posxy,sizeof(double2)*np,cudaMemcpyDeviceToHost);
   cudaMemcpy(pz,posz,sizeof(double)*np,cudaMemcpyDeviceToHost);
-  cudaMemcpy(norm,normals,sizeof(tfloat3)*(Np-Npb),cudaMemcpyDeviceToHost);
+  cudaMemcpy(normNp,normals,sizeof(tfloat3)*np,cudaMemcpyDeviceToHost);
 	cudaMemcpy(smoothnorm,smoothnormals,sizeof(tfloat3)*(Np-Npb),cudaMemcpyDeviceToHost);
   for(unsigned p=0;p<np;p++){
 		pos[p]=ToTFloat3(TDouble3(pxy[p].x,pxy[p].y,pz[p]));
 
-		if(p<Npb) normNp[p]=TFloat3(0,0,0);
-		else normNp[p]=TFloat3(norm[p-Npb].x,0,norm[p-Npb].z);
+		normNp[p]=TFloat3(normNp[p].x,0,normNp[p].z);
 		if(p<Npb) smoothnormNp[p]=TFloat3(0,0,0);
 		else smoothnormNp[p]=TFloat3(smoothnorm[p-Npb].x,0,smoothnorm[p-Npb].z);
   }
@@ -786,7 +785,6 @@ void JSphGpuSingle::SaveVtknormals(std::string fname,unsigned fnum,unsigned np,c
   delete[] pxy;
   delete[] pz;
   delete[] pos;
-  delete[] norm;
 	delete[] normNp;
 	delete[] smoothnorm;
 	delete[] smoothnormNp;
@@ -956,9 +954,10 @@ void JSphGpuSingle::RunShifting(double dt){
 	cudaMemset(dWzCorrg,0,sizeof(float3)*npf);
 	cudaMemset(MLSg,0,sizeof(float4)*npb);
   cudaMemset(Aceg,0,sizeof(float3)*npf);
-	cudaMemset(Normal,0,sizeof(float3)*npf);
+	cudaMemset(Normal,0,sizeof(float3)*np);
 	cudaMemset(smoothNormal,0,sizeof(float3)*npf);
 	cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
+
 
   //-Cambia datos a variables Pre para calcular nuevos datos.
   //-Changes data of predictor variables for calculating the new data
