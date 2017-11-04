@@ -579,7 +579,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
         TimeMax=TimeStep;
       }
       SaveData();
-      SaveVtknormals("Normals.vtk",Nstep,Np,Posxyg,Poszg,Normal,smoothNormal);
+      //SaveVtknormals("Normals.vtk",Nstep,Np,Posxyg,Poszg,Normal,smoothNormal);
 			Part++;
       PartNstep=Nstep;
       TimeStepM1=TimeStep;
@@ -821,8 +821,9 @@ void JSphGpuSingle::InitAdvection(double dt){
     
     double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*np);
     double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*np);
-    
-    cusph::ComputeRStar(WithFloating,npf,npb,VelrhopPreg,dt,Codeg,movxyg,movzg);
+
+    const bool wavegen=(WaveGen? true:false);
+    cusph::ComputeRStar(WithFloating,wavegen,npf,npb,VelrhopPreg,dt,Codeg,movxyg,movzg,Posxyg,PistonPosX);
 	  cusph::ComputeStepPos2(PeriActive,WithFloating,np,npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
 
     ArraysGpu->Free(movxyg);   movxyg=NULL;
@@ -923,7 +924,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Xg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
 	//cusph::PreBiCGSTAB(Tolerance,Iterations,ag,Xg,bg,rowIndg,colIndg,Nnz,PPEDim,Npb);
   CheckCudaError(met,"Matrix Solve");
-  cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Posxyg,Poszg,Velrhopg,Xg,Idpg,Codeg,MirrorPosg,PaddleAccel,wavegen,PistonPosX,Divrg,BoundaryFS);
+  cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Posxyg,Poszg,Velrhopg,Xg,Idpg,Codeg,MirrorPosg,PaddleAccel,wavegen,PistonPosX,Divrg,BoundaryFS,FreeSurface);
 
   CheckCudaError(met,"Pressure assign");
   
