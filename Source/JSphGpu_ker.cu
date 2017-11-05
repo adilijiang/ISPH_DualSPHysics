@@ -577,7 +577,6 @@ template<TpKernel tker> __global__ void KerMLSBoundary3D
 		det-=(b12*b21*b33*b44 + b12*b23*b34*b41 + b12*b24*b31*b43);
 		det-=(b13*b21*b34*b42 + b13*b22*b31*b44 + b13*b24*b32*b41);
 		det-=(b14*b21*b32*b43 + b14*b22*b33*b41 + b14*b23*b31*b42);
-	  det+=CTE.eta2;
 
 		if(det){
 			mls[p1].w=float((b22*b33*b44+b23*b34*b42+b24*b32*b43-b22*b34*b43-b23*b32*b44-b24*b33*b42)/det);
@@ -645,7 +644,7 @@ template<TpKernel tker> __global__ void KerMLSBoundary2D
 
 		b21=b12; b31=b13; b32=b23;
 		
-		double det = (b11*b22*b33+b12*b23*b31+b21*b32*b13)-(b31*b22*b13+b21*b12*b33+b23*b32*b11)+CTE.eta2;
+		double det = (b11*b22*b33+b12*b23*b31+b21*b32*b13)-(b31*b22*b13+b21*b12*b33+b23*b32*b11);
 		
 		if(det){
 			mls[p1].w=float((b22*b33-b23*b32)/det);
@@ -3470,7 +3469,7 @@ __global__ void KerPressureAssignBound
 			double distz=posz[p1]-mirrorPos[idp[p1]].z;
 			double distx=0;
 			if(wavegen&&posxy[p1].x<PistonPos.x/*&&divr[p1]>=freesurface*/) distx=posxy[p1].x-mirrorPos[idp[p1]].x;
-			double Neumann=0;//double(CTE.rhopzero)*(gravity.z*distz-paddleAccel*distx);
+			double Neumann=double(CTE.rhopzero)*(gravity.z*distz-paddleAccel*distx);
 			velrhop[p1].w=float(press[p1]+Neumann);
 		}
 		else velrhop[p1].w=0;

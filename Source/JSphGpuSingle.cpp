@@ -470,24 +470,24 @@ double JSphGpuSingle::ComputeStep_Sym(double dt){
   //-Predictor
   //----------- 
 	TmgStart(Timers,TMG_Stage1);
-  InitAdvection(dt);std::cout<<"advect\n";
+  InitAdvection(dt);
 	RunCellDivide(true);
-	Interaction_Forces(INTER_Forces,dt); std::cout<<"force\n";       //-Interaction
-	ComputeSymplecticPre(dt);      std::cout<<"pre\n";             //-Applies Symplectic-Predictor to the particles
+	Interaction_Forces(INTER_Forces,dt);      //-Interaction
+	ComputeSymplecticPre(dt);                 //-Applies Symplectic-Predictor to the particles
 	//-Pressure Poisson equation
   //-----------
 	TmgStop(Timers,TMG_Stage1);
-	SolvePPE(dt);              std::cout<<"ppe\n";                 //-Solve pressure Poisson equation
+	SolvePPE(dt);															//-Solve pressure Poisson equation
   //-Corrector
   //-----------
 	TmgStart(Timers,TMG_Stage3);
-  Interaction_Forces(INTER_ForcesCorr,dt); std::cout<<"force\n";   //-Interaccion //-interaction
-  ComputeSymplecticCorr(dt);     std::cout<<"corr\n";             //Applies Symplectic-Corrector to the particles
+  Interaction_Forces(INTER_ForcesCorr,dt);  //-Interaccion //-interaction
+  ComputeSymplecticCorr(dt);								//Applies Symplectic-Corrector to the particles
 	TmgStop(Timers,TMG_Stage3);
 	//-Shifting
 	//-----------
 	TmgStart(Timers,TMG_Stage4);
-  if(TShifting)RunShifting(dt);   std::cout<<"shift\n";            //-Shifting
+  if(TShifting)RunShifting(dt);			        //-Shifting
 	TmgStop(Timers,TMG_Stage4);
 	if(VariableTimestep) dt=ComputeVariable();
   return(dt);
@@ -564,15 +564,11 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 	if(Npb){
 		cudaMemset(MirrorPosg,0,sizeof(double3)*Npb);
 		MirrorBoundary();
-		tdouble3 *mir=new tdouble3[Npb]; cudaMemcpy(mir,MirrorPosg,sizeof(tdouble3)*Npb,cudaMemcpyDeviceToHost);
-		std::cout<< mir[21449].x<<"\t"<<mir[21449].y<<"\t"<<mir[21449].z<<"\n";
-		std::cout<< mir[22346].x<<"\t"<<mir[22346].y<<"\t"<<mir[22346].z<<"\n";
-		std::cout<< mir[23243].x<<"\t"<<mir[23243].y<<"\t"<<mir[23243].z<<"\n";
 	}
 	//cusph::SquarePatchVel(BlockSizes.forcesfluid,Np,Npb,Posxyg,Poszg,Velrhopg);
 	Normal=ArraysGpu->ReserveFloat3(); cudaMemset(Normal,0,sizeof(float3)*Np); 
 	while(TimeStep<TimeMax){
-		if(CaseNmoving)RunMotion(stepdt);std::cout<<"motion\n";
+		if(CaseNmoving)RunMotion(stepdt);
     stepdt=ComputeStep_Sym(stepdt);
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
     TimeStep+=stepdt;
