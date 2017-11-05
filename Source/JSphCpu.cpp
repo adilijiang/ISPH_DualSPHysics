@@ -1533,27 +1533,27 @@ void JSphCpu::MoveMatBound(unsigned np,unsigned ini,tmatrix4d m,double dt
   }
 }
 
-void JSphCpu::PistonCorner(unsigned npb,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code,const double pistonx, const double pistonz)const
+/*void JSphCpu::PistonCorner(unsigned npb,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code,const double pistonx, const double pistonz)const
 {
 	#ifdef _WITHOMP
 			#pragma omp parallel for schedule (guided)
 		#endif
 		for(int p1=0;p1<int(npb);p1++)if(CODE_GetType(code[p1])!=CODE_TYPE_MOVING){
 			const tdouble3 posp1=pos[p1];	
-			if(posp1.x<=pistonx&&posp1.z<=pistonz){
+			if(posp1.x<=pistonx){
 				const double drx=pistonx-posp1.x;
 				const double drz=pistonz-posp1.z;
 				const double rr2=drx*drx+drz*drz;
 				if(rr2<=2.0*Fourh2){ //if fixed boundary particle is near corner of piston
 					const unsigned idp1=idpc[p1];
 				
-					mirrorPos[idp1].x=2.0*PistonPosX-pos[p1].x;
-					mirrorPos[idp1].y=pos[p1].y;
+					mirrorPos[idp1].x=2.0*PistonPos.x-pos[p1].x;
+					mirrorPos[idp1].y=2.0*PistonPos.y-pos[p1].y;
 					mirrorPos[idp1].z=2.0*PistonPosZ-pos[p1].z;
 				}
 			}
 		}
-}
+}*/
 
 //==============================================================================
 /// Procesa movimiento de boundary particles
@@ -1612,8 +1612,8 @@ void JSphCpu::RunMotion(double stepdt){
         MoveMatBound(nparts,idbegin-CaseNfixed,mvmatrix,stepdt,RidpMove,Posc,Dcellc,Velrhopc,Codec);
       }
     }
-		PistonPosX+=mvPistonX;
-		PistonCorner(Npb,Posc,Idpc,MirrorPosc,Codec,PistonPosX,PistonPosZ);
+		//PistonPosX+=mvPistonX;
+		//PistonCorner(Npb,Posc,Idpc,MirrorPosc,Codec,PistonPosX,PistonPosZ);
   }
   TmcStop(Timers,TMC_SuMotion);
 }
@@ -1822,7 +1822,7 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 		#endif
 		for(int p1=0;p1<int(npb);p1++)if(CODE_GetType(code[p1])==CODE_TYPE_MOVING){
 			const unsigned idp1=idpc[p1];
-			mirrorPos[idp1].x=2.0*PistonPosX-pos[p1].x;
+//			mirrorPos[idp1].x=2.0*PistonPosX-pos[p1].x;
 			mirrorPos[idp1].y=pos[p1].y;
 			mirrorPos[idp1].z=pos[p1].z;
 		}

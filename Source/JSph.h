@@ -193,10 +193,8 @@ protected:
   int CoarseLevels;
 	bool VariableTimestep;
 
-	double PistonPosX; //Starting x-position of piston for wave generation
-	double PistonPosZ; //Bottom of piston for wave generation
-	double PistonYmin; //Min y-position of piston for wave generation
-	double PistonYmax; //Max y-position of piston for wave generation
+	tdouble3 PistonPos; //Starting position of piston for wave generation
+	tdouble3 TankDim; //Tank dimension for wave generation
 	double DampingPointX; //Start of dampingZone
 	double DampingLengthX; //Length of dampingZone
 

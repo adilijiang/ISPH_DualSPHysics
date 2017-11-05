@@ -115,7 +115,7 @@ void JSph::InitVars(){
 	OPS=false;
 	VariableTimestep=false;
   StrongConnection=0; JacobiWeight=0; Presmooth=0; Postsmooth=0; CoarseCutoff=0;
-	PistonPosX=0; PistonPosZ=0;
+	PistonPos=TDouble3(0);
   Visco=0; ViscoBoundFactor=1;
   UseDEM=false;  //(DEM)
   DemDtForce=0;  //(DEM)
@@ -579,13 +579,16 @@ void JSph::LoadCaseConfig(){
   //-Configuration of WaveGen.
   if(xml.GetNode("case.execution.special.wavepaddles",false)){
     WaveGen=new JWaveGen(Log,DirCase,&xml,"case.execution.special.wavepaddles");
-		PistonPosX=eparms.GetValueDouble("PistonPosX",true,0.0f)+0.5*Dp;
-		PistonPosZ=eparms.GetValueDouble("PistonPosZ",true,0.0f)+0.5*Dp;
-		PistonYmin=eparms.GetValueDouble("PistonYmin",true,0.0f)+0.5*Dp;
-		PistonYmax=eparms.GetValueDouble("PistonYmax",true,0.0f)-0.5*Dp;
 		DampingPointX=eparms.GetValueDouble("DampingPointX",true,0.0f);
 		DampingLengthX=eparms.GetValueDouble("DampingLengthX",true,0.0f);
   }
+
+	PistonPos.x=eparms.GetValueDouble("PistonPosX",true,0.0f)+0.5*Dp;
+	PistonPos.z=eparms.GetValueDouble("PistonPosZ",true,0.0f)+0.5*Dp;
+	PistonPos.y=eparms.GetValueDouble("PistonPosY",true,0.0f)+0.5*Dp; if(Simulate2D) PistonPos.y=0;
+	TankDim.x=eparms.GetValueDouble("TankDimX",true,0.0f)-0.5*Dp;
+	TankDim.z=eparms.GetValueDouble("TankDimZ",true,0.0f)-0.5*Dp;
+	TankDim.y=eparms.GetValueDouble("TankDimY",true,0.0f)-0.5*Dp; if(Simulate2D) TankDim.y=0;
 
   //-Configuration of AccInput.
   if(xml.GetNode("case.execution.special.accinputs",false)){
