@@ -466,7 +466,9 @@ void JSph::LoadCaseConfig(){
   }
 
   FreeSurface=eparms.GetValueFloat("FreeSurface",true,1.6f);
-	BoundaryFS=eparms.GetValueFloat("BoundaryFS",true,1.4f);
+	BoundaryFS=eparms.GetValueFloat("BoundaryFS",true,1.2f);
+	SkillenFreeSurface=eparms.GetValueFloat("SkillenFreeSurface",true,1.4f);
+	SkillenOffset=eparms.GetValueFloat("SkillenOffset",true,0.2f);
 
   Tolerance=eparms.GetValueDouble("Solver Tolerance",true,1e-5f);
   Iterations=eparms.GetValueInt("Max Iterations",true,100);
