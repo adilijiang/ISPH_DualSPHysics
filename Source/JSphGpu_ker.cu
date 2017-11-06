@@ -2834,7 +2834,7 @@ void ComputeRStar(bool floating,const bool wavegen,unsigned npf,unsigned npb,con
 ///Find Irelation
 //==============================================================================
 __global__ void KerWaveGenBoundary
-  (unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,const tdouble3 PistonPos)
+  (unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,const tdouble3 PistonPos,const tdouble3 TankDim)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
@@ -2843,6 +2843,18 @@ __global__ void KerWaveGenBoundary
 			mirrorPos[idp1].x=2.0*PistonPos.x-posxy[p1].x;
 			mirrorPos[idp1].y=posxy[p1].y;
 			mirrorPos[idp1].z=posz[p1];
+		}
+		else if(posxy[p1].x<PistonPos.x){
+			const unsigned idp1=idp[p1];
+
+			double3 mirPoint=make_double3(PistonPos.x,PistonPos.y,PistonPos.z);
+			if(posz[p1]>PistonPos.z) mirPoint.z=posz[p1];
+			if(posxy[p1].y>TankDim.y) mirPoint.y=TankDim.y;
+			else if(posxy[p1].y>PistonPos.y) mirPoint.y=posxy[p1].y;
+
+			mirrorPos[idp1].x=2.0*mirPoint.x-posxy[p1].x;
+			mirrorPos[idp1].y=2.0*mirPoint.y-posxy[p1].y;
+			mirrorPos[idp1].z=2.0*mirPoint.z-posz[p1];
 		}
 	}
 }
@@ -3057,14 +3069,14 @@ __global__ void KerConnectBoundary
 }
 
 void MirrorBoundary(const bool simulate2d,const unsigned bsbound,unsigned npb,const double2 *posxy
-  ,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,unsigned *Physrelation,const bool wavegen,const tdouble3 PistonPos){
+  ,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,unsigned *Physrelation,const bool wavegen,const tdouble3 PistonPos,const tdouble3 TankDim){
   if(npb){
     dim3 sgridb=GetGridSize(npb,bsbound);
 		KerConnectBoundary<<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,Physrelation,wavegen);
 		KerFindMirrorPoints<<<sgridb,bsbound>>> (simulate2d,npb,posxy,posz,code,idp,mirrorPos,Physrelation,wavegen);
     KerCreateMirrorsCodeNonZero <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,Physrelation,wavegen);
 		KerCreateMirrorsCodeZero <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,Physrelation,wavegen);
-		if(wavegen) KerWaveGenBoundary <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,PistonPos);
+		if(wavegen) KerWaveGenBoundary <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,PistonPos,TankDim);
 		KerMirrorCell <<<sgridb,bsbound>>> (npb,idp,mirrorPos,Physrelation);
 	}
 }

@@ -797,7 +797,7 @@ void JSphGpuSingle::MirrorBoundary(){
 	const char met[]="MirrorBoundary";
   const unsigned bsbound=BlockSizes.forcesbound;
 	const bool wavegen=(WaveGen? true:false);
-  cusph::MirrorBoundary(Simulate2D,bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,MirrorPosg,MirrorCellg,wavegen,PistonPos);
+  cusph::MirrorBoundary(Simulate2D,bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,MirrorPosg,MirrorCellg,wavegen,PistonPos,TankDim);
   CheckCudaError(met,"findIrelation");
 }
 
@@ -893,9 +893,11 @@ void JSphGpuSingle::SolvePPE(double dt){
   }
 
   for(int i=npb;i<np;i++){
-    FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << (i-npb)+npbok << "\t b " << b[(i-npb)+npbok] << "\n";
-    for(int j=rowInd[(i-npb)+npbok];j<rowInd[(i-npb)+npbok+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\t"<<Idpc[colInd[j]]<<"\n";
-  }
+		if(Idpc[i]==208956||Idpc[i]==492056||Idpc[i]==492956||Idpc[i]==209856){
+			FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << (i-npb)+npbok << "\t b " << b[(i-npb)+npbok] << "\n";
+			for(int j=rowInd[(i-npb)+npbok];j<rowInd[(i-npb)+npbok+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\t"<<Idpc[colInd[j]]<<"\n";
+		}
+	}
   FileOutput.close();
 	count++;*/
 
