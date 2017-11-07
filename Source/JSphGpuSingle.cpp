@@ -765,12 +765,12 @@ void JSphGpuSingle::SaveVtknormals(std::string fname,unsigned fnum,unsigned np,c
   cudaMemcpy(pz,posz,sizeof(double)*np,cudaMemcpyDeviceToHost);
   cudaMemcpy(normNp,normals,sizeof(tfloat3)*np,cudaMemcpyDeviceToHost);
 	cudaMemcpy(smoothnorm,smoothnormals,sizeof(tfloat3)*(Np-Npb),cudaMemcpyDeviceToHost);
-  for(unsigned p=0;p<np;p++){
-		pos[p]=ToTFloat3(TDouble3(pxy[p].x,pxy[p].y,pz[p]));
+  for(unsigned p=0;p<(Np-Npb);p++){
+		unsigned p1=p+Npb;
+		pos[p]=ToTFloat3(TDouble3(pxy[p1].x,pxy[p1].y,pz[p1]));
 
-		normNp[p]=TFloat3(normNp[p].x,0,normNp[p].z);
-		if(p<Npb) smoothnormNp[p]=TFloat3(0,0,0);
-		else smoothnormNp[p]=TFloat3(smoothnorm[p-Npb].x,0,smoothnorm[p-Npb].z);
+		normNp[p]=TFloat3(normNp[p1].x,normNp[p1].y,normNp[p1].z);
+		smoothnormNp[p]=TFloat3(smoothnorm[p].x,smoothnorm[p].y,smoothnorm[p].z);
   }
 
   //-Creates VTK file.
@@ -779,7 +779,7 @@ void JSphGpuSingle::SaveVtknormals(std::string fname,unsigned fnum,unsigned np,c
 	if(normNp){  fields[nfields]=JFormatFiles2::DefineField("Normals",JFormatFiles2::Float32,3,normNp); nfields++; }
 	if(smoothnormNp){  fields[nfields]=JFormatFiles2::DefineField("smoothNormals",JFormatFiles2::Float32,3,smoothnormNp); nfields++; }
   string file=Log->GetDirOut()+fun::FileNameSec(fname,Part);
-  JFormatFiles2::SaveVtk(file,np,pos,nfields,fields);
+  JFormatFiles2::SaveVtk(file,Np-Npb,pos,nfields,fields);
 
   //-Frees memory.
   delete[] pxy;
