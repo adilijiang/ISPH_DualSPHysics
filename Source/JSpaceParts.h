@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -15,50 +15,6 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
-//#############################################################################
-//# ES:
-//# Cambios:
-//# =========
-//# - Se guarda el MkBoundFirst y el MkFluidFirst para poder establecer una
-//#   relacion con el mk de los poligonos creados. (27/11/2010)
-//# - Nuevos metodos LoadFileXml() y SaveFileXml() para cargar o generar un
-//#   fichero xml de forma directa. (27/11/2010)
-//# - Se guarda el Mk absoluto para cada bloque de particulas para facilitar
-//#   su utilizacion en herramientas de postprocesing. (21/01/2011)
-//# - Se añadieron dos nuevas variables para los floating bodies: Velini y 
-//#   Omegaini. (25/01/2011)
-//# - Cambio de nombre, de JParticles a JSpaceParts. (09/02/2012)
-//# - Traduccion de comentarios al ingles. (10/02/2012)
-//# - El MK pasa a ser de tipo word. (23/11/2013)
-//# - Las variables float pasan a ser double. (23/11/2013)
-//# - Clase JSpacePartsGetMk para calcular Mk a partir de Id. (23/11/2013)
-//# - Gestiona Properties para bloques de particulas. (14/12/2013)
-//# - Introduccion de valores por defecto en metodos GetSubValue(). (24/07/2014)
-//# - Permite cambiar el numero de particulas de cada bloque. (13/08/2014)
-//# - JSpacePartsGetMk devuelve el ultimo mk de fluido para las particulas 
-//#   creadas con splitting. (12/05/2015)
-//# - EN:
-//# Changes:
-//# =========
-//# - Saves the MkBoundFirst and MkFluidFirst to establish a
-//#   relation with the mk of the created polygons. (27/11/2010)
-//# - New methods LoadFileXml() and SaveFileXml() to load or generate a
-//#   xml file directly. (27/11/2010)
-//# - Saves the absolute Mk for each block of particles to facilitate
-//#   their use in postprocesing tools. (21/01/2011)
-//# - Two new variables to the floating bodies are added: Velini and 
-//#   Omegaini. (25/01/2011)
-//# - Renaming of JParticles to JSpaceParts. (09/02/2012)
-//# - Comment English translation. (10/02/2012)
-//# - The MK type becomes word. (23/11/2013)
-//# - The float variables become double. (23/11/2013)
-//# - Class JSpacePartsGetMk to calculate Mk from Id (23/11/2013).
-//# - Manages properties to block particles. (12.14.2013)
-//# - Introduction of defaults in GetSubValue methods(). (07.24.2014)
-//# - Change the number of particles of each block. (13.08.2014)
-//# - JSpacePartsGetMk returns the last mk fluid particles
-//#   created with splitting. (05.12.2015)
-//#############################################################################
 
 /// \file JSpaceParts.h \brief Declares the class \ref JSpaceParts.
 
@@ -87,11 +43,11 @@ class JSpacePartBlock : public JObject
 {
 private:
   const JSpaceProperties* Properties;   ///<Pointer to properties object.
-  std::string Props;					///<Assigned properties.
-  word Mk;								///<Absolute label.
-  word MkType;							///<Label of block fluid or bound.
-  unsigned Begin;						///<Id of the first particle of the block.
-  unsigned Count;						///<Number of particles.
+  std::string Props;                    ///<Assigned properties.
+  word Mk;                              ///<Absolute label.
+  word MkType;                          ///<Label of block fluid or bound.
+  unsigned Begin;                       ///<Id of the first particle of the block.
+  unsigned Count;                       ///<Number of particles.
 
 public:
   const TpParticles Type;    ///<Type of particle.

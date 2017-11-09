@@ -26,6 +26,7 @@
 class JPartsOut;
 class JArraysGpu;
 class JCellDivGpu;
+class JBlockSizeAuto;
 
 class JSphGpu : public JSph
 {
@@ -36,21 +37,15 @@ public:
   typedef struct {
     unsigned forcesfluid;
     unsigned forcesbound;
-    unsigned forcessps;
     unsigned forcesdem;
-    unsigned forcesfluid_zoleft;
-    unsigned forcesfluidcorr_zoleft;
-    unsigned forcesbound_zoleft;
-    unsigned forcesfluid_zoright;
-    unsigned forcesfluidcorr_zoright;
-    unsigned forcesbound_zoright;
   }StBlockSizes;
 
 protected:
-  std::string PtxasFile;      ///<ES: Fichero con informacion de ptxas. EN: File with register information for optimising the code
-  StBlockSizes BlockSizes;    ///<ES: Almacena configuracion de BlockSizes. EN: Stores configuration of BlockSizes
-  std::string BlockSizesStr;  ///<ES: Almacena configuracion de BlockSizes en texto. EN: Stores configuration of BlockSizes in text form
-
+  StBlockSizes BlockSizes;        ///<Almacena configuracion de BlockSizes. Stores configuration of BlockSizes
+  std::string BlockSizesStr;      ///<Almacena configuracion de BlockSizes en texto. Stores configuration of BlockSizes in text form
+  TpBlockSizeMode BlockSizeMode;  ///<Modes for BlockSize selection.
+  JBlockSizeAuto *BsAuto;         ///<Object to calculate the optimum BlockSize for particle interactions.
+  
   //-Vars. con informacion del hardware GPU.
   //-Variables with information for the GPU hardware
   int GpuSelect;          ///<ES: Gpu seleccionada (-1:sin seleccion). EN: GPU Selection (-1:no selection)
@@ -111,18 +106,13 @@ protected:
   unsigned *Dcellg; ///<ES: Celda dentro de DomCells codificada con DomCellCode. EN: Cell within DomCells encoded within DomCellCode
   double2 *Posxyg;
   double *Poszg;
-  double4 *Velrhopg;
+  float4 *Velrhopg;
     
-  //-Vars. para compute step: VERLET
-  //-Variables for compute step: Verlet
-  float4 *VelrhopM1g;  ///<ES: Verlet: para guardar valores anteriores EN: Verlet: for maintaining previous values
-  int VerletStep;
-
   //-Vars. para compute step: SYMPLECTIC
   //-Variables for compute step: Symplectic
   double2 *PosxyPreg;  ///<ES: Sympletic: para guardar valores en predictor EN: Symplectic: for maintaining predictor values
   double *PoszPreg;
-  double4 *VelrhopPreg;
+  float4 *VelrhopPreg;
   double DtPre;   
 
   //-Variables for floating bodies.
@@ -144,27 +134,16 @@ protected:
 
   //-Vars. para computo de fuerzas.
   //-Variables for computing forces
-  float4 *PsPospressg; ///<ES: Posicion y press para interaccion Pos-Simple. press=cteb*(powf(rhop/rhopzero,gamma)-1.0f); EN: Position and pressure for the interaction Pos-Simple press=cteb*(powf(rhop/rhopzero,gamma)-1.0f);
-
-  float *ViscDtg;
-  double3 *Aceg;      ///<ES: Acumula fuerzas de interaccion EN: Accumulates acceleration of the particles
-  float *Arg; 
-  float *Deltag;     ///<ES: Acumula ajuste de Delta-SPH con DELTA_DynamicExt EN: Accumulates adjustment of Delta-SPH with DELTA_DynamicExt
-
-  double3 *ShiftPosg;    ///<Particle displacement using Shifting.
+ 
+  //float *ViscDtg;
+  float3 *Aceg;      ///<ES: Acumula fuerzas de interaccion EN: Accumulates acceleration of the particles
 
   double VelMax;      ///<Maximum value of Vel[] sqrt(vel.x^2 + vel.y^2 + vel.z^2) computed in PreInteraction_Forces().
   double AceMax;      ///<Maximum value of Ace[] (ace.x^2 + ace.y^2 + ace.z^2) computed in Interaction_Forces().
   float ViscDtMax;    ///<ES: Valor maximo de ViscDt calculado en Interaction_Forces(). EN: Maximum value of ViscDt computed in Interaction_Forces()
 
-  //-Variables for Laminar+SPS viscosity.  
-  tsymatrix3f *SpsTaug;       ///<SPS sub-particle stress tensor.
-  tsymatrix3f *SpsGradvelg;   ///<Velocity gradients.
-
-
   TimersGpu Timers;
-
-
+  
   void InitVars();
   void RunExceptionCuda(const std::string &method,const std::string &msg,cudaError_t error);
   void CheckCudaError(const std::string &method,const std::string &msg);
@@ -186,7 +165,6 @@ protected:
   float4*      SaveArrayGpu(unsigned np,const float4      *datasrc)const{ return(TSaveArrayGpu<float4>     (np,datasrc)); }
   double*      SaveArrayGpu(unsigned np,const double      *datasrc)const{ return(TSaveArrayGpu<double>     (np,datasrc)); }
   double2*     SaveArrayGpu(unsigned np,const double2     *datasrc)const{ return(TSaveArrayGpu<double2>    (np,datasrc)); }
-  double4*     SaveArrayGpu(unsigned np,const double4     *datasrc)const{ return(TSaveArrayGpu<double4>    (np,datasrc)); }
   tsymatrix3f* SaveArrayGpu(unsigned np,const tsymatrix3f *datasrc)const{ return(TSaveArrayGpu<tsymatrix3f>(np,datasrc)); }
   unsigned*    SaveArrayGpu_Uint(unsigned np,const unsigned *datasrc)const;
   template<class T> void TRestoreArrayGpu(unsigned np,T *data,T *datanew)const;
@@ -196,7 +174,6 @@ protected:
   void RestoreArrayGpu(unsigned np,float4      *data,float4      *datanew)const{ TRestoreArrayGpu<float4>     (np,data,datanew); }
   void RestoreArrayGpu(unsigned np,double      *data,double      *datanew)const{ TRestoreArrayGpu<double>     (np,data,datanew); }
   void RestoreArrayGpu(unsigned np,double2     *data,double2     *datanew)const{ TRestoreArrayGpu<double2>    (np,data,datanew); }
-  void RestoreArrayGpu(unsigned np,double4      *data,double4      *datanew)const{ TRestoreArrayGpu<double4>     (np,data,datanew); }
   void RestoreArrayGpu(unsigned np,tsymatrix3f *data,tsymatrix3f *datanew)const{ TRestoreArrayGpu<tsymatrix3f>(np,data,datanew); }
   void RestoreArrayGpu_Uint(unsigned np,unsigned *data,unsigned *datanew)const;
 
@@ -209,8 +186,6 @@ protected:
   unsigned ParticlesDataDown(unsigned n,unsigned pini,bool code,bool cellorderdecode,bool onlynormal);
   
   void SelecDevice(int gpuid);
-  static unsigned OptimizeBlockSize(unsigned compute,unsigned nreg);
-  unsigned BlockSizeConfig(const std::string& opname,unsigned compute,tuint2 data);
   void ConfigBlockSizes(bool usezone,bool useperi);
 
   void ConfigRunMode(std::string preinfo);
@@ -218,13 +193,11 @@ protected:
   void InitFloating();
   void InitRun();
 
-  void AddVarAcc();
+  void AddAccInput();
 
   void PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb);
   void PreInteraction_Forces(TpInter tinter,double dt);
-  void PosInteraction_Forces(TpInter tinter);
   
-  void ComputeVerlet(double dt);
   void ComputeSymplecticPre(double dt);
   void ComputeSymplecticCorr(double dt);
   double DtVariable(bool final);
@@ -244,22 +217,30 @@ protected:
   ///////////////////////////////////////////////
   //PPE Functions, variables, Kernel Correction//
   ///////////////////////////////////////////////
-  unsigned *Irelationg; //The closest fluid particle, j, for a boundary particle, i
-  //unsigned int *rowCpu;
-  unsigned *POrderg;
-  double3 *dWxCorrg; //Kernel correction in the x direction
-  double3 *dWzCorrg; //Kernel correction in the z direction
-  double *Divrg; //Divergence of position
+  unsigned *MirrorCellg;
+	double3 *MirrorPosg;
+  float3 *dWxCorrgShiftPos; //Kernel correction in the x direction
+  float3 *dWyCorrg; //Kernel correction in the y direction
+  float3 *dWzCorrgTensile; //Kernel correction in the z direction
+  float4 *MLSg;
+
+	float *Divrg; //Divergence of position
+	
   //matrix variables 
-  double *b;
-  double *a;
-  unsigned int *colInd;
-  unsigned int *rowInd;
-  double *X;
-  int count;
-  void MatrixOrder(unsigned n,unsigned pinit,unsigned bsbound,unsigned bsfluid,unsigned *porder,tuint3 ncells,const int2 *begincell,tuint3 cellmin,
-    const unsigned *dcell,const unsigned *idpg,const unsigned *irelation,const word *code, unsigned &ppedim);
-  unsigned MatrixASetup(const unsigned ppedim,unsigned int *rowGpu);
+  double *bg;
+  double *ag;
+  unsigned PPEDim;
+  unsigned *colIndg;
+  unsigned *rowIndg;
+  double *Xg;
+
+  unsigned *counterNnzGPU;
+  unsigned *counterNnzCPU;
+	unsigned *NumFreeSurfaceGPU;
+	unsigned *NumFreeSurfaceCPU;
+
+  void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,
+		const unsigned ppedim,unsigned int *rowGpu,const float *divr,const float freesurface,unsigned &nnz,unsigned &numFreeSurface);
 
   void Shift(double dt,const unsigned bsfluid);
 public:

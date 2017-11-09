@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -15,7 +15,7 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
-/// \file JBinaryData.cpp \brief Implements the class \ref JBinaryData
+/// \file JBinaryData.cpp \brief Implements the class \ref JBinaryData.
 
 #include "JBinaryData.h"
 #include "Functions.h"
@@ -26,6 +26,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 
 using namespace std;
 
@@ -86,6 +87,37 @@ size_t JBinaryDataDef::SizeOfType(TpData type){
     case JBinaryDataDef::DatUint3:    ret=sizeof(tuint3);          break;
     case JBinaryDataDef::DatFloat3:   ret=sizeof(tfloat3);         break;
     case JBinaryDataDef::DatDouble3:  ret=sizeof(tdouble3);        break;
+  }
+  return(ret);
+}
+
+//==============================================================================
+/// Devuelve true cuando el tipo es triple.
+/// Returns true when the type is triple.
+//==============================================================================
+bool JBinaryDataDef::TypeIsTriple(TpData type){
+  bool ret=false;
+  switch(type){
+    //case JBinaryDataDef::DatText:
+    case JBinaryDataDef::DatBool:
+    case JBinaryDataDef::DatChar:
+    case JBinaryDataDef::DatUchar:
+    case JBinaryDataDef::DatShort:
+    case JBinaryDataDef::DatUshort:
+    case JBinaryDataDef::DatInt:
+    case JBinaryDataDef::DatUint:
+    case JBinaryDataDef::DatLlong:
+    case JBinaryDataDef::DatUllong:
+    case JBinaryDataDef::DatFloat:
+    case JBinaryDataDef::DatDouble:   
+      ret=false;
+    break;
+    case JBinaryDataDef::DatInt3:
+    case JBinaryDataDef::DatUint3:
+    case JBinaryDataDef::DatFloat3:
+    case JBinaryDataDef::DatDouble3:
+      ret=true;
+    break;
   }
   return(ret);
 }
@@ -206,7 +238,7 @@ void JBinaryDataArray::CheckMemory(unsigned count,bool resize){
   const char met[]="CheckMemory";
   if(count){
     //-Reserva memoria si fuese necesario.
-	//-Allocates memory if necessary.
+    //-Allocates memory if necessary.
     if(!Pointer){
       if(!resize)RunException(met,"Memory no allocated.");
       AllocMemory(count);
@@ -320,8 +352,12 @@ void JBinaryDataArray::ClearFileData(){
 //==============================================================================
 void JBinaryDataArray::ReadFileData(bool resize){
   const char met[]="ReadFileData";
+  //printf("ReadFileData Parent_name:[%s] p:%p\n",Parent->GetName().c_str(),Parent);
+  //printf("ReadFileData Parent2_name:[%s] p:%p\n",(Parent->GetParent()? Parent->GetParent()->GetName().c_str(): "none"),Parent->GetParent());
+  //printf("ReadFileData root_name:[%s] p:%p\n",Parent->GetItemRoot()->GetName().c_str(),Parent->GetItemRoot());
   ifstream *pf=Parent->GetItemRoot()->GetFileStructure();
   if(!pf||!pf->is_open())RunException(met,"The file with data is not available.");
+  //printf("ReadFileData[%s]> fpos:%llu count:%u size:%u\n",Name.c_str(),FileDataPos,FileDataCount,FileDataSize);
   if(FileDataPos<0)RunException(met,"The access information to data file is not available.");
   pf->seekg(FileDataPos,ios::beg);
   ReadData(FileDataCount,FileDataSize,pf,resize);
@@ -364,10 +400,10 @@ void JBinaryDataArray::ReadData(unsigned count,unsigned size,std::ifstream *pf,b
 void JBinaryDataArray::AddData(unsigned count,const void* data,bool resize){
   if(count){
     //-Reserva memoria si fuese necesario.
-	//-Allocates memory if necessary.
+    //-Allocates memory if necessary.
     CheckMemory(count,resize);
     //-Añade datos al puntero.
-	//-Add data to the pointer.
+    //-Add data to the pointer.
     if(Type==JBinaryDataDef::DatText){
       string *strings=(string*)Pointer;
       string *strings2=(string*)data;
@@ -409,10 +445,10 @@ void JBinaryDataArray::AddText(const std::string &str,bool resize){
   unsigned count=1;
   if(count){
     //-Reserva memoria si fuese necesario.
-	//-Allocates memory if necessary.
+    //-Allocates memory if necessary.
     CheckMemory(count,resize);
     //-Añade string al array.
-	//-Add string to array.
+    //-Add string to array.
     string *strings=(string*)Pointer;
     strings[Count]=str;
     Count+=count;
@@ -579,6 +615,7 @@ void JBinaryData::ValuesCachePrepare(bool down){
 int JBinaryData::CheckGetValue(const std::string &name,bool optional,JBinaryDataDef::TpData type)const{
   const char met[]="CheckGetValue";
   int idx=GetValueIndex(name);
+  //if(idx<0&&GetArrayIndex(name)>=0)RunException(met,string("The value ")+name+" is an array.");
   if(!optional&&idx<0)RunException(met,string("Value ")+name+" not found.");
   if(idx>=0&&Values[idx].type!=type)RunException(met,string("Type of value ")+name+" invalid.");
   return(idx);
@@ -870,11 +907,11 @@ void JBinaryData::OutArrayData(unsigned &count,unsigned size,const byte *ptr,JBi
   }
   else{
     //-Comprueba que los datos del array estan disponibles.
-	//-Checks that the data array is available.
+    //-Checks that the data array is available.
     unsigned count2=count+sizedata;
     if(count2>size)RunException("OutArrayData","Overflow in reading data.");
     //-Extrae datos para el array.
-	//-Extracts the data for the array.
+    //-Extracts the data for the array.
     ar->AddData(countdata,ptr+count,true);
     count=count2;
   }
@@ -1156,7 +1193,8 @@ void JBinaryData::CheckHead(const std::string &file,const StHeadFmtBin &head,con
     unsigned c=0;
     for(;head.titu[c]==head2.titu[c]&&c<60;c++);
     if(c<9)err=2;
-    else if(!filecode.empty()&&c<60)err=3;
+    //else if(!filecode.empty()&&c<60)err=3;
+    else if(!filecode.empty()&&c<50)err=3;    //<----- Preliminary solution for strange error on some Linux...
   }
   //-Coprueba orden de bytes.
   //-Check byte order.
@@ -1201,7 +1239,7 @@ unsigned JBinaryData::CheckFileListHead(const std::string &file,std::fstream *pf
   //-Obtiene size del fichero.
   //-Gets file size.
   pf->seekg(0,ios::end);
-  const unsigned fsize=(unsigned)pf->tellg();
+  const unsigned fsize=(unsigned)pf->tellg();   //printf("CheckFileHead> FileSize:%u\n",fsize);
   pf->seekg(0,ios::beg);
   //-Lee cabecera basica y comprueba validez.
   //-Reads basic header and checks validity.
@@ -1428,8 +1466,10 @@ void JBinaryData::SaveFileData(std::fstream *pf,bool head,const std::string &fil
   //-Graba datos. Save data.
   if(memory){//-Graba datos desde memoria. Write data from memory.
     const unsigned sbuf=GetSizeDataConst(all);
+    //printf("SaveFile> sbuf:%u\n",sbuf);
     byte *buf=new byte[sbuf];
     unsigned sbuf2=SaveDataConst(sbuf,buf,all);
+    //printf("SaveFile> sbuf2:%u\n",sbuf2);
     pf->write((char*)buf,sbuf);
     delete[] buf;
   }
@@ -1481,6 +1521,7 @@ void JBinaryData::LoadFile(const std::string &file,const std::string &filecode,b
     //-Carga datos.
     if(memory){//-Carga datos desde memoria. Write data from memory.
       const unsigned sbuf=fsize-sizeof(StHeadFmtBin);
+      //printf("LoadFile> sbuf:%u\n",sbuf);
       byte *buf=new byte[sbuf];
       pf.read((char*)buf,sbuf);
       LoadData(sbuf,buf);
@@ -1547,6 +1588,7 @@ void JBinaryData::LoadFileListApp(const std::string &file,const std::string &fil
       //-Carga datos.
       if(memory){//-Carga datos desde memoria. Loads data from memory.
         const unsigned sbuf=fsize-sizeof(StHeadFmtBin);
+        //printf("LoadFile> sbuf:%u\n",sbuf);
         byte *buf=new byte[sbuf];
         pf.read((char*)buf,sbuf);
         unsigned cbuf=0;

@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -15,12 +15,12 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
+/// \file JSphVisco.cpp \brief Implements the class \ref JSphVisco.
+
 #include "JSphVisco.h"
 #include "Functions.h"
+#include "JReadDatafile.h"
 #include <cstring>
-#include <sstream>
-#include <iostream>
-#include <fstream>
 #include <float.h>
 
 using namespace std;
@@ -43,7 +43,7 @@ JSphVisco::~JSphVisco(){
 }
 
 //==============================================================================
-/// Initialization of variables.
+/// Initialisation of variables.
 //==============================================================================
 void JSphVisco::Reset(){
   delete[] Times;  Times=NULL;
@@ -57,8 +57,6 @@ void JSphVisco::Reset(){
 /// Resizes allocated space for values.
 //==============================================================================
 void JSphVisco::Resize(unsigned size){
-  if(size>SIZEMAX)size=SIZEMAX;
-  if(size==Size)RunException("Resize","It has reached the maximum size allowed.");
   Times=fun::ResizeAlloc(Times,Count,size);
   Values=fun::ResizeAlloc(Values,Count,size);
   Size=size;
@@ -76,38 +74,22 @@ unsigned JSphVisco::GetAllocMemory()const{
 }
 
 //==============================================================================
-/// Carga valores de dt (EN MILISEGUNDOS) para diferentes instantes (en segundos).
-/// Loads dt values (in milliseconds) for different instances (in secods).
+/// Carga valores de viscosidad para diferentes instantes (en segundos).
+/// Loads viscosity values for different instants (in secods).
 //==============================================================================
 void JSphVisco::LoadFile(std::string file){
   const char met[]="LoadFile";
   Reset();
-  ifstream pf;
-  pf.open(file.c_str());
-  if(pf){
-    pf.seekg(0,ios::end);
-    unsigned len=(unsigned)pf.tellg();
-    pf.seekg(0,ios::beg);
-    Resize(SIZEINITIAL);
-    Count=0;
-    while(!pf.eof()){
-      float time,value;
-      pf >> time;
-      pf >> value;
-      if(!pf.fail()){
-        if(Count>=Size){
-          unsigned newsize=unsigned(float(len)/float(pf.tellg())*1.05f*(Count+1))+100;
-          Resize(newsize);
-        } 
-        Times[Count]=time; Values[Count]=value;
-        printf("[%u]>  t:%f  v:%f\n",Count,time,value);
-        Count++;
-      }
-    }
-    //if(pf.fail())RunException(met,"Error leyendo datos de fichero.",fname);
-    pf.close();
+  JReadDatafile rdat;
+  rdat.LoadFile(file,FILESIZEMAX);
+  const unsigned rows=rdat.Lines()-rdat.RemLines();
+  Resize(rows);
+  for(unsigned r=0;r<rows;r++){
+    Times[r]=rdat.ReadNextFloat(false);
+    Values[r]=rdat.ReadNextFloat(true);
+    //printf("FileData[%u]>  t:%f  ang:%f\n",r,Times[r],Values[r]);
   }
-  else RunException(met,"Cannot open the file.",file);
+  Count=rows;
   if(Count<2)RunException(met,"Cannot be less than two values.",file);
   File=file;
 }

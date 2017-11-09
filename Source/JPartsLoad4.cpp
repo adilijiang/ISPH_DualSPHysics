@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -14,6 +14,8 @@
 
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
+
+/// \file JPartsLoad4.cpp \brief Implements the class \ref JPartsLoad4.
 
 #include "JPartsLoad4.h"
 #include "Functions.h"
@@ -41,7 +43,7 @@ JPartsLoad4::~JPartsLoad4(){
 }
 
 //==============================================================================
-// Initialization of variables.
+// Initialisation of variables.
 //==============================================================================
 void JPartsLoad4::Reset(){
   Simulate2D=false;
@@ -204,7 +206,7 @@ void JPartsLoad4::LoadParticles(const std::string &casedir,const std::string &ca
         pd.Get_Idp(npok,Idp+ntot);  
         pd.Get_Vel(npok,auxf3);  
         pd.Get_Rhop(npok,auxf);  
-        for(unsigned p=0;p<npok;p++)VelRhop[ntot+p]=TFloat4(auxf3[p].x,auxf3[p].y,auxf3[p].z,auxf[p]);
+        for(unsigned p=0;p<npok;p++)VelRhop[ntot+p]=TFloat4(auxf3[p].x,auxf3[p].y,auxf3[p].z,0);
       }
       ntot+=npok;
     }
@@ -269,7 +271,7 @@ void JPartsLoad4::GetMapSize(tdouble3 &mapmin,tdouble3 &mapmax)const{
 // Calcula limites de las particulas cargadas.
 //==============================================================================
 void JPartsLoad4::CalculateCasePos(){
-  if(!PartBegin)RunException("CalculateCasePos","The limits of the initial case can not be calculated from a file PART.");
+  if(!PartBegin)RunException("CalculateCasePos","The limits of the initial case cannot be calculated from a file PART.");
   tdouble3 pmin=TDouble3(DBL_MAX),pmax=TDouble3(-DBL_MAX);
   //-Calcula posicion minima y maxima. 
   for(unsigned p=0;p<Count;p++){

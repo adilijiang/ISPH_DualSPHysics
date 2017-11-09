@@ -48,9 +48,6 @@ void JCellDivGpuSingle::CalcCellDomain(const unsigned *dcellg,const word* codeg)
   //-Calcula dominio ajustando al contorno y al fluido (con halo de 2h). 
   //-Computes the domain adjusting to the boundary and the fluid ( with 2h halo)
   MergeMapCellBoundFluid(celbmin,celbmax,celfmin,celfmax,CellDomainMin,CellDomainMax);
-  celfmin=CellDomainMin;
-  celfmax=CellDomainMax;
-  MergeMapCellBoundFluid(celbmin,celbmax,celfmin,celfmax,CellDomainMin,CellDomainMax);
 }
 
 //==============================================================================
@@ -68,8 +65,9 @@ void JCellDivGpuSingle::CalcCellDomain(const unsigned *dcellg,const word* codeg)
 /// If the domain is null CellDomainMin=CellDomainMax=(0,0,0).
 //==============================================================================
 void JCellDivGpuSingle::MergeMapCellBoundFluid(const tuint3 &celbmin,const tuint3 &celbmax,const tuint3 &celfmin,const tuint3 &celfmax,tuint3 &celmin,tuint3 &celmax)const{
-  celmin=TUint3(max(min(celbmin.x,celfmin.x),(celfmin.x>=Hdiv? celfmin.x-Hdiv: 0)),max(min(celbmin.y,celfmin.y),(celfmin.y>=Hdiv? celfmin.y-Hdiv: 0)),max(min(celbmin.z,celfmin.z),(celfmin.z>=Hdiv? celfmin.z-Hdiv: 0)));
-  celmax=TUint3(min(max(celbmax.x,celfmax.x),celfmax.x+Hdiv),min(max(celbmax.y,celfmax.y),celfmax.y+Hdiv),min(max(celbmax.z,celfmax.z),celfmax.z+Hdiv));
+  const unsigned hdiv=Hdiv*2;
+	celmin=TUint3(max(min(celbmin.x,celfmin.x),(celfmin.x>=hdiv? celfmin.x-hdiv: 0)),max(min(celbmin.y,celfmin.y),(celfmin.y>=hdiv? celfmin.y-hdiv: 0)),max(min(celbmin.z,celfmin.z),(celfmin.z>=hdiv? celfmin.z-hdiv: 0)));
+  celmax=TUint3(min(max(celbmax.x,celfmax.x),celfmax.x+hdiv),min(max(celbmax.y,celfmax.y),celfmax.y+hdiv),min(max(celbmax.z,celfmax.z),celfmax.z+hdiv));
   if(celmax.x>=DomCells.x)celmax.x=DomCells.x-1;
   if(celmax.y>=DomCells.y)celmax.y=DomCells.y-1;
   if(celmax.z>=DomCells.z)celmax.z=DomCells.z-1;
@@ -177,26 +175,21 @@ void JCellDivGpuSingle::Divide(unsigned npb1,unsigned npf1,unsigned npb2,unsigne
     BoundDivideOk=true; BoundDivideCellMin=CellDomainMin; BoundDivideCellMax=CellDomainMax;
   }
   else DivideFull=false;
-
   //-Calcula CellPart[] y asigna valores consecutivos a SortPart[].
   //-Computes CellPart[] and assigns consecutive values to SortPart[].
   TmgStart(timers,TMG_NlPreSort);
   PreSort(dcellg,codeg);
   TmgStop(timers,TMG_NlPreSort);
-
   //-Ordena CellPart y SortPart en funcion de la celda.
   //-Sorts CellPart and SortPart as a function of the cell.
   TmgStart(timers,TMG_NlRadixSort);
-  if(DivideFull){cudiv::Sort(CellPart,SortPart,Nptot,Stable);
-  }
+  if(DivideFull)cudiv::Sort(CellPart,SortPart,Nptot,Stable);
   else cudiv::Sort(CellPart+Npb1,SortPart+Npb1,Nptot-Npb1,Stable);
   TmgStop(timers,TMG_NlRadixSort);
-
   //-Calcula particula inicial y final de cada celda (BeginEndCell).
   //-Computes the initial and the last paeticle of each cell (BeginEndCell).
   TmgStart(timers,TMG_NlCellBegin);
   cudiv::CalcBeginEndCell(DivideFull,Nptot,Npb1,unsigned(SizeBeginEndCell(Nct)),BoxFluid,CellPart,BeginEndCell);
-
   //-Calcula numeros de particulas.
   //-Computes number of particles.
   NpbIgnore=CellSize(BoxIgnore);
@@ -215,5 +208,13 @@ void JCellDivGpuSingle::Divide(unsigned npb1,unsigned npf1,unsigned npb2,unsigne
   CheckCudaError(met,"Error in NL construction.");
 }
 
+void JCellDivGpuSingle::MirrorDCellSingle(unsigned bsbound,unsigned npb,const word *codeg,const unsigned *idpg,const double3 *mirrorPos,unsigned *mirrorCell,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode){
+	cudiv::MirrorDCell(bsbound,npb,codeg,idpg,mirrorPos,mirrorCell,domrealposmin,domrealposmax,domposmin,scell,domcellcode);
+}
 
+void JCellDivGpuSingle::MatrixMirrorDCellSingle(const unsigned bsbound,const unsigned bsfluid,const unsigned npf,const unsigned npb,const unsigned npbok,const double2 *posxy,const double *posz
+	,const word *code,const unsigned *idpg,unsigned int *row,unsigned int *col,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell
+	,int domcellcode,const bool PeriActive,const tdouble3 MapRealPosMin,const tdouble3 MapRealSize,const tdouble3 PeriXinc,const tdouble3 PeriYinc,const tdouble3 PeriZinc){
+	cudiv::MatrixMirrorDCell(bsbound,bsfluid,npf,npb,npbok,posxy,posz,code,idpg,row,col,domrealposmin,domrealposmax,domposmin,scell,domcellcode,PeriActive,MapRealPosMin,MapRealSize,PeriXinc,PeriYinc,PeriZinc);
+}
 

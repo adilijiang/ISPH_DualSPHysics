@@ -22,8 +22,6 @@
 #include <algorithm>
 
 
-#define HIDE_AWAS      //-Mantiene compatibilidad sin AWAS.//-Maintain compatibility without AWAS
-
 //#define DISABLE_TIMERS           //-Compilado sin timers. //-Compiles without timers
 
 #define CELLDIV_OVERMEMORYNP 0.05f  //-Mermoria que se reserva de mas para la gestion de particulas en JCellDivGpu. //-Memory that is reserved for the particle management in JCellDivGpu.
@@ -40,9 +38,8 @@
 #define LIMIT_COMPUTEMEDIUM_OMP 10000
 #define LIMIT_COMPUTELIGHT_OMP 100000
 //#define LIMIT_COMPUTEHEAVY_OMP 20000
-#define LIMIT_PREINTERACTION_OMP 100000
 
-#define BORDER_MAP 0.001
+#define BORDER_MAP 0.05
 
 #define ALMOSTZERO 1e-18f
 
@@ -121,19 +118,17 @@ typedef enum{ SDAT_Binx=1,SDAT_Vtk=2,SDAT_Csv=4,SDAT_Info=8,SDAT_None=0 }TpSaveD
 ///Types of step algorithm.
 typedef enum{ 
   STEP_Symplectic=2,         ///<Symplectic algorithm.
-  STEP_Verlet=1,             ///<Verlet algorithm.
   STEP_None=0 
 }TpStep;                    
 
 ///Types of kernel function.
 typedef enum{ 
   KERNEL_Wendland=1,         ///<Wendland kernel.
-  KERNEL_None=0 
+  KERNEL_Quintic=0 
 }TpKernel;                  
 
 ///Types of viscosity treatment.
 typedef enum{ 
-  VISCO_LaminarSPS=2,        ///<Laminar viscosity and Sub-Partice Scale Turbulence.
   VISCO_Artificial=1,        ///<Artificial viscosity.
   VISCO_None=0 
 }TpVisco;            
@@ -153,9 +148,8 @@ typedef enum{
 }TpSlipCond; //Slip/NoSlip Conditions for boundary velocity interpolation
 
 typedef enum{
-  SHIFT_Full=3,
-  SHIFT_NoFixed=2,
-  SHIFT_NoBound=1,
+  SHIFT_Max=2,
+  SHIFT_Full=1,
   SHIFT_None=0
 }TpShifting; //-Modos de Shifting. //-Shifting modes.
 
@@ -358,6 +352,26 @@ inline const char* GetNameCellMode(TpCellMode cellmode){
   }
   return("???");
 }
+
+//Modes of BlockSize selection.
+#define BSIZE_FIXED 128
+typedef enum{ 
+   BSIZEMODE_Fixed=0       ///<Uses fixed value (BSIZE_FIXED).
+  ,BSIZEMODE_Occupancy=1   ///<Uses Occupancy calculator of CUDA.
+  ,BSIZEMODE_Empirical=2   ///<Calculated empirically.
+}TpBlockSizeMode; 
+
+///Devuelve el nombre de CellMode en texto.
+///Returns the name of the CellMode in text format.
+inline const char* GetNameBlockSizeMode(TpBlockSizeMode bsizemode){
+  switch(bsizemode){
+    case BSIZEMODE_Fixed:      return("Fixed");
+    case BSIZEMODE_Occupancy:  return("Occupancy Calculator");
+    case BSIZEMODE_Empirical:  return("Empirical calculation");
+  }
+  return("???");
+}
+
 
 ///Codificacion de celdas para posicion.
 ///Codification of cells for position.

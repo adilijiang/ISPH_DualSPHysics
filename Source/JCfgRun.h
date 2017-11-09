@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -32,7 +32,7 @@
 //##############################################################################
 //# JCfgRun
 //##############################################################################
-/// \brief Defines the class responsible of collecting the execution parameters by command line.
+/// \brief Defines the class responsible for collecting the execution parameters by command line.
 
 class JCfgRun : protected JObject
 {
@@ -52,25 +52,24 @@ public:
   int GpuId;
   bool GpuFree;
   bool Stable;
-  bool Psimple;
+  int PosDouble;  ///<Precision in particle interaction. 0:Simple, 1:Double, 2:Uses and save double (default=0).
 
   int OmpThreads;
+  TpBlockSizeMode BlockSizeMode;
 
   TpCellOrder CellOrder;
   TpCellMode  CellMode;
   TpStep TStep;
   int VerletSteps;
+  TpKernel TKernel;
   TpVisco TVisco;
   float Visco;
   float ViscoBoundFactor;
   double TimeMax,TimePart;
   float DeltaSph;
-  float RenCorrection;
   int Shifting; //-Shifting mode -1:sin definir, 0:none, 1:nobound, 2:nofixed, 3:full
   bool SvRes,SvTimers,SvDomainVtk;
-  float SvTimersStep;
   bool Sv_Binx,Sv_Info,Sv_Csv,Sv_Vtk;
-  bool SvDouble;
   std::string CaseName,RunName,DirOut;
   std::string PartBeginDir;
   unsigned PartBegin,PartBeginFirst;
@@ -78,12 +77,12 @@ public:
   bool RhopOutModif;              ///<Indicates whether \ref RhopOutMin or RhopOutMax is changed.
   float RhopOutMin,RhopOutMax;    ///<Limits for \ref RhopOut density correction.
 
-  byte DomainMode; //0:Sin configurar, 1:Particles, 2:Fixed
+  byte DomainMode; //0:No configured, 1:Particles, 2:Fixed
   tdouble3 DomainParticlesMin,DomainParticlesMax;
   tdouble3 DomainParticlesPrcMin,DomainParticlesPrcMax;
   tdouble3 DomainFixedMin,DomainFixedMax;
 
-  std::string PtxasFile;           ///<File with ptxas information.
+
 
   JCfgRun();
   void Reset();

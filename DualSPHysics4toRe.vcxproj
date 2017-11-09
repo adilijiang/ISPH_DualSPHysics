@@ -369,7 +369,7 @@ IF EXIST cg_variables.h move cg_variables.h $(Configuration)\
       </OmitFramePointers>
       <EnableFiberSafeOptimizations>false</EnableFiberSafeOptimizations>
       <WholeProgramOptimization>true</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(CULASPARSE_INC_PATH);$(CUDA_PATH_V5_5)/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\ViennaCLLibrary;$(CULASPARSE_INC_PATH);$(CUDA_PATH_V7_5)/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_WITHGPU;WIN32;_CONSOLE;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
@@ -382,9 +382,9 @@ IF EXIST cg_variables.h move cg_variables.h $(Configuration)\
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>cudart.lib;JWaveGen_$(PlatformName).lib;JFormatFiles2_$(PlatformName).lib;JSphMotion_$(PlatformName).lib;JXml_$(PlatformName).lib;cula_sparse.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>cudart.lib;JWaveGen_$(PlatformName)_$(PlatformToolset)_Release.lib;JFormatFiles2_$(PlatformName)_$(PlatformToolset)_Release.lib;JSphMotion_$(PlatformName)_$(PlatformToolset)_Release.lib;JXml_$(PlatformName)_$(PlatformToolset)_Release.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
-      <AdditionalLibraryDirectories>$(CUDA_PATH_V5_5)/lib/$(PlatformName);Libs;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(CUDA_PATH_V7_5)/lib/$(PlatformName);Libs;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -565,7 +565,7 @@ IF EXIST cg_variables.h move cg_variables.h $(Configuration)\
       </OmitFramePointers>
       <EnableFiberSafeOptimizations>false</EnableFiberSafeOptimizations>
       <WholeProgramOptimization>true</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(CULASPARSE_INC_PATH);$(CUDA_PATH_V5_5)/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\ViennaCLLibrary;$(CULASPARSE_INC_PATH);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_CONSOLE;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <OpenMPSupport>true</OpenMPSupport>
@@ -584,7 +584,7 @@ IF EXIST cg_variables.h move cg_variables.h $(Configuration)\
       <SubSystem>Console</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>false</EnableCOMDATFolding>
-      <AdditionalDependencies>OpenCL.lib;JWaveGen_$(PlatformName).lib;JFormatFiles2_$(PlatformName).lib;JSphMotion_$(PlatformName).lib;JXml_$(PlatformName).lib;cula_sparse.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>JWaveGen_$(PlatformName)_$(PlatformToolset)_Release.lib;JFormatFiles2_$(PlatformName)_$(PlatformToolset)_Release.lib;JSphMotion_$(PlatformName)_$(PlatformToolset)_Release.lib;JXml_$(PlatformName)_$(PlatformToolset)_Release.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>IF EXIST cg_variables.h move cg_variables.h $(Configuration)\</Command>
@@ -594,7 +594,7 @@ IF EXIST cg_variables.h move cg_variables.h $(Configuration)\
     <CustomBuild Include="Source\JCellDivGpu_ker.cu">
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">rem ***Vars de compilacion
-set CudaPath=$(CUDA_PATH_V5_5)
+set CudaPath=$(CUDA_PATH_V7_5)
 set CudaNvcc="%CudaPath%\bin\nvcc.exe"
 set CudaInc="%CudaPath%\include"
 rem ***Seleccion de GPU hardware para compilacion
@@ -606,7 +606,7 @@ rem ***Activa la visualizacion de registros por kernel
 set ptxinfo=--ptxas-options -v
 set ptxinfo=
 rem ***Sentencia de compilacion
-%CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -use_fast_math -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension)
+%CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension)
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Intermediate\$(Configuration)\%(Filename).obj</Outputs>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
@@ -630,7 +630,7 @@ rem ***Sentencia de compilacion
     <CustomBuild Include="Source\JCellDivGpuSingle_ker.cu">
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">rem ***Vars de compilacion
-set CudaPath=$(CUDA_PATH_V5_5)
+set CudaPath=$(CUDA_PATH_V7_5)
 set CudaNvcc="%CudaPath%\bin\nvcc.exe"
 set CudaInc="%CudaPath%\include"
 rem ***Seleccion de GPU hardware para compilacion
@@ -643,7 +643,7 @@ rem ***Activa la visualizacion de registros por kernel
 set ptxinfo=--ptxas-options -v
 set ptxinfo=
 rem ***Sentencia de compilacion
-%CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -use_fast_math -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension)
+%CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension)
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Intermediate\$(Configuration)\%(Filename).obj</Outputs>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
@@ -667,9 +667,10 @@ rem ***Sentencia de compilacion
     <CustomBuild Include="Source\JSphGpu_ker.cu">
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">rem ***Vars de compilacion
-set CudaPath=$(CUDA_PATH_V5_5)
+set CudaPath=$(CUDA_PATH_V7_5)
 set CudaNvcc="%CudaPath%\bin\nvcc.exe"
 set CudaInc="%CudaPath%\include"
+set CudaInc=$(ProjectDir)..\ViennaCLLibrary
 rem ***Seleccion de GPU hardware para compilacion
 set gpuhw=-gencode=arch=compute_30,code=\"sm_30,compute_30\"
 set gpuhw=-gencode=arch=compute_13,code=\"sm_13,compute_13\" -gencode=arch=compute_20,code=\"sm_20,compute_20\"
@@ -680,9 +681,9 @@ rem ***Activa la visualizacion de registros por kernel y creacion de _ptxasinfo
 set ptxinfo=--ptxas-options -v
 rem set ptxinfo=
 rem ***Sentencia de compilacion sin salida _ptxasinfo
-rem %CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -use_fast_math -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension) -D _CRT_SECURE_NO_DEPRECATE 
+rem %CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension) -D _CRT_SECURE_NO_DEPRECATE 
 rem ***Sentencia de compilacion con salida _ptxasinfo
-%CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -use_fast_math -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension) -D _CRT_SECURE_NO_DEPRECATE 1&gt;$(OutDir)$(ProjectName)_$(Configuration)64_ptxasinfo
+%CudaNvcc% -ccbin "$(VCInstallDir)bin" %gpuhw% -c %ptxinfo% -DWIN32 -D_CONSOLE -D_MBCS -Xcompiler /EHsc,/W3,/nologo,/O2,/Zi,/MT -m 64 -I%CudaInc% -I./ -o Intermediate\$(Configuration)\%(Filename).obj Source\%(Filename)%(Extension) -D _CRT_SECURE_NO_DEPRECATE 1&gt;$(OutDir)$(ProjectName)_$(Configuration)64_ptxasinfo
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Intermediate\$(Configuration)\%(Filename).obj</Outputs>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
@@ -712,6 +713,9 @@ rem ***Sentencia de compilacion con salida _ptxasinfo
     <ClInclude Include="Source\FunctionsMath.h" />
     <ClInclude Include="Source\JArraysCpu.h" />
     <ClInclude Include="Source\JBinaryData.h" />
+    <ClInclude Include="Source\JBlockSizeAuto.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="Source\JCellDivCpu.h" />
     <ClInclude Include="Source\JCellDivCpuSingle.h" />
     <ClInclude Include="Source\JCellDivGpu.h">
@@ -735,7 +739,10 @@ rem ***Sentencia de compilacion con salida _ptxasinfo
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|Win32'">true</ExcludedFromBuild>
     </ClInclude>
-    <ClInclude Include="Source\JLinearValue.h" />
+    <ClInclude Include="Source\JMatrix4.h" />
+    <ClInclude Include="Source\JMeanValues.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="Source\JPartDataBi4.h" />
     <ClInclude Include="Source\JPartFloatBi4.h" />
     <ClInclude Include="Source\JPartOutBi4Save.h" />
@@ -744,10 +751,12 @@ rem ***Sentencia de compilacion con salida _ptxasinfo
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|Win32'">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="Source\JPartsLoad4.h" />
+    <ClInclude Include="Source\JReadDatafile.h" />
     <ClInclude Include="Source\JSaveDt.h" />
     <ClInclude Include="Source\JRadixSort.h" />
     <ClInclude Include="Source\JRangeFilter.h" />
     <ClInclude Include="Source\JSpaceProperties.h" />
+    <ClInclude Include="Source\JSphAccInput.h" />
     <ClInclude Include="Source\JSphDtFixed.h" />
     <ClInclude Include="Source\JSphGpuSingle.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
@@ -758,11 +767,10 @@ rem ***Sentencia de compilacion con salida _ptxasinfo
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|Win32'">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="Source\JSphMotion.h" />
-    <ClInclude Include="Source\JSphVarAcc.h" />
     <ClInclude Include="Source\JSphVisco.h" />
     <ClInclude Include="Source\JPartsOut.h" />
     <ClInclude Include="Source\JSphCpuSingle.h" />
-    <ClInclude Include="Source\JTimersStep.h" />
+    <ClInclude Include="Source\JTimeOut.h" />
     <ClInclude Include="Source\JWaveGen.h" />
     <ClInclude Include="Source\randomc.h" />
     <ClInclude Include="Source\Types.h" />
@@ -790,10 +798,6 @@ rem ***Sentencia de compilacion con salida _ptxasinfo
     <ClInclude Include="Source\JLog2.h" />
     <ClInclude Include="Source\JObject.h" />
     <ClInclude Include="Source\JSpaceParts.h" />
-    <ClInclude Include="Source\JPtxasInfo.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|Win32'">true</ExcludedFromBuild>
-    </ClInclude>
     <ClInclude Include="Source\JSpaceCtes.h" />
     <ClInclude Include="Source\JSpaceEParms.h" />
     <ClInclude Include="Source\JSph.h" />
@@ -816,6 +820,9 @@ rem ***Sentencia de compilacion con salida _ptxasinfo
     <ClCompile Include="Source\FunctionsMath.cpp" />
     <ClCompile Include="Source\JArraysCpu.cpp" />
     <ClCompile Include="Source\JBinaryData.cpp" />
+    <ClCompile Include="Source\JBlockSizeAuto.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="Source\JCellDivCpu.cpp" />
     <ClCompile Include="Source\JCellDivCpuSingle.cpp" />
     <ClCompile Include="Source\JCellDivGpu.cpp">
@@ -830,7 +837,9 @@ rem ***Sentencia de compilacion con salida _ptxasinfo
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|Win32'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="Source\JLinearValue.cpp" />
+    <ClCompile Include="Source\JMeanValues.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="Source\JPartDataBi4.cpp" />
     <ClCompile Include="Source\JPartFloatBi4.cpp" />
     <ClCompile Include="Source\JPartOutBi4Save.cpp" />
@@ -839,30 +848,27 @@ rem ***Sentencia de compilacion con salida _ptxasinfo
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="Source\JPartsLoad4.cpp" />
+    <ClCompile Include="Source\JReadDatafile.cpp" />
     <ClCompile Include="Source\JSaveDt.cpp" />
     <ClCompile Include="Source\JRadixSort.cpp" />
     <ClCompile Include="Source\JRangeFilter.cpp" />
     <ClCompile Include="Source\JSpaceProperties.cpp" />
+    <ClCompile Include="Source\JSphAccInput.cpp" />
     <ClCompile Include="Source\JSphDtFixed.cpp" />
     <ClCompile Include="Source\JSphGpuSingle.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|Win32'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="Source\JSphVarAcc.cpp" />
     <ClCompile Include="Source\JSphVisco.cpp" />
     <ClCompile Include="Source\JPartsOut.cpp" />
     <ClCompile Include="Source\JSphCpuSingle.cpp" />
-    <ClCompile Include="Source\JTimersStep.cpp" />
+    <ClCompile Include="Source\JTimeOut.cpp" />
     <ClCompile Include="Source\Functions.cpp" />
     <ClCompile Include="Source\JCfgRun.cpp" />
     <ClCompile Include="Source\JException.cpp" />
     <ClCompile Include="Source\JLog2.cpp" />
     <ClCompile Include="Source\JObject.cpp" />
     <ClCompile Include="Source\JSpaceParts.cpp" />
-    <ClCompile Include="Source\JPtxasInfo.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="Source\JSpaceCtes.cpp" />
     <ClCompile Include="Source\JSpaceEParms.cpp" />
     <ClCompile Include="Source\JSph.cpp" />

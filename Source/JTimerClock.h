@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -15,27 +15,20 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
+/// \file JTimerClock.h \brief Declares the class \ref JTimerClock.
+
 #ifndef _JTimerClock_
 #define _JTimerClock_
 
-//#############################################################################
-//# ES:
-//# Cambios:
-//# =========
-//# - Implementacion de una clase para medir intervalos de tiempo con la
-//#   precision (~ milisegundos) que proporciona clock(). (10/01/2011)
-//# - EN:
-//# Changes:
-//# =========
-//# - Implementing a class to measure time intervals with the
-//# precision (~ milliseconds) that clock() provides. (10/01/2011)
-//#############################################################################
 
 #include <ctime>
 
-//==============================================================================
+
 //##############################################################################
-//==============================================================================
+//# JTimerClock
+//##############################################################################
+/// \brief Defines a class to measure time intervals with precision of clock().
+
 class JTimerClock
 {
 private:

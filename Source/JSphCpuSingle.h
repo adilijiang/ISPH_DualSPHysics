@@ -40,10 +40,8 @@ protected:
   void ResizeParticlesSize(unsigned newsize,float oversize,bool updatedivide);
   unsigned PeriodicMakeList(unsigned n,unsigned pini,bool stable,unsigned nmax,tdouble3 perinc,const tdouble3 *pos,const word *code,unsigned *listp)const;
   void PeriodicDuplicatePos(unsigned pnew,unsigned pcopy,bool inverse,double dx,double dy,double dz,tuint3 cellmax,tdouble3 *pos,unsigned *dcell)const;
-  void PeriodicDuplicateVerlet(unsigned n,unsigned pini,tuint3 cellmax,tdouble3 perinc,const unsigned *listp
-    ,unsigned *idp,word *code,unsigned *dcell,tdouble3 *pos,tfloat4 *velrhop,tsymatrix3f *spstau,tfloat4 *velrhopm1)const;
-  void PeriodicDuplicateSymplectic(unsigned n,unsigned pini,tuint3 cellmax,tdouble3 perinc,const unsigned *listp
-    ,unsigned *idp,word *code,unsigned *dcell,tdouble3 *pos,tfloat4 *velrhop,tsymatrix3f *spstau,tdouble3 *pospre,tfloat4 *velrhoppre)const;
+   void PeriodicDuplicateSymplectic(unsigned n,unsigned pini,tuint3 cellmax,tdouble3 perinc,const unsigned *listp
+    ,unsigned *idp,word *code,unsigned *dcell,tdouble3 *pos,tfloat4 *velrhop,tdouble3 *pospre,tfloat4 *velrhoppre)const;
   void RunPeriodic();
 
   void RunCellDivide(bool updateperiodic);
@@ -52,12 +50,11 @@ protected:
     ,int hdiv,const tint4 &nc,const tint3 &cellzero
     ,int &cxini,int &cxfin,int &yini,int &yfin,int &zini,int &zfin)const;
 
-  void RunRenCorrection();
-  void Interaction_Forces(TpInter tinter);
-  double ComputeAceMax();
+  void Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond);
 
-  //double ComputeStep(){ return(TStep==STEP_Verlet? ComputeStep_Ver(): ComputeStep_Sym()); }
-  //double ComputeStep_Ver();
+  double ComputeAceMaxSeq(const bool checkcodenormal,unsigned np,const tfloat3* ace,const word* code)const;
+  double ComputeAceMaxOmp(const bool checkcodenormal,unsigned np,const tfloat3* ace,const word* code)const;
+
   double ComputeStep_Sym();
 
   inline tfloat3 FtPeriodicDist(const tdouble3 &pos,const tdouble3 &center,float radius)const;
@@ -69,9 +66,6 @@ protected:
 
   void PreparePosSimple();
   void SolvePPE(double dt);
-  void FindIrelation();
-  void BoundaryVelocity(TpSlipCond TSlipCond);
-  void KernelCorrection(bool boundary);
   void RunShifting(double dt);
 
 public:

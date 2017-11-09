@@ -24,12 +24,12 @@
 #include "JPartsLoad4.h"
 #include "JSphVisco.h"
 #include "JWaveGen.h"
+#include "JTimeOut.h"
 
 #include <climits>
-#include <time.h>
 
 #include <vector>
-
+ 
 using namespace std;
 
 //==============================================================================
@@ -82,8 +82,8 @@ void JSphCpuSingle::LoadConfig(JCfgRun *cfg){
   ConfigOmp(cfg);
   //-Load basic general configuraction / Carga configuracion basica general
   JSph::LoadConfig(cfg);
+
   //-Checks compatibility of selected options.
-  if(RenCorrection && UseDEM)RunException(met,"Ren correction is not implemented with Floatings-DEM.");
   Log->Print("**Special case configuration is loaded");
 }
 
@@ -151,7 +151,7 @@ void JSphCpuSingle::ConfigDomain(){
   memcpy(Velrhopc,PartsLoaded->GetVelRhop(),sizeof(tfloat4)*Np);
 
   //-Calculate floating radius / Calcula radio de floatings.
-  if(CaseNfloat && PeriActive!=0)CalcFloatingRadius(Np,Posc,Idpc);
+  if(CaseNfloat && PeriActive!=0 && !PartBegin)CalcFloatingRadius(Np,Posc,Idpc);
 
   //-Load particle data / Carga code de particulas.
   LoadCodeParticles(Np,Idpc,Codec);
@@ -280,36 +280,8 @@ void JSphCpuSingle::PeriodicDuplicatePos(unsigned pnew,unsigned pcopy,bool inver
 /// Assume that all the particles are valid.
 /// This kernel works for single-cpu & multi-cpu because it uses domposmin.
 //==============================================================================
-void JSphCpuSingle::PeriodicDuplicateVerlet(unsigned n,unsigned pini,tuint3 cellmax,tdouble3 perinc,const unsigned *listp
-  ,unsigned *idp,word *code,unsigned *dcell,tdouble3 *pos,tfloat4 *velrhop,tsymatrix3f *spstau,tfloat4 *velrhopm1)const
-{
-  for(unsigned p=0;p<n;p++){
-    const unsigned pnew=p+pini;
-    const unsigned rp=listp[p];
-    const unsigned pcopy=(rp&0x7FFFFFFF);
-    //-Adjust position and cell of new particle / Ajusta posicion y celda de nueva particula.
-    PeriodicDuplicatePos(pnew,pcopy,(rp>=0x80000000),perinc.x,perinc.y,perinc.z,cellmax,pos,dcell);
-    //-Copy the rest of the values / Copia el resto de datos.
-    idp[pnew]=idp[pcopy];
-    code[pnew]=CODE_SetPeriodic(code[pcopy]);
-    velrhop[pnew]=velrhop[pcopy];
-    velrhopm1[pnew]=velrhopm1[pcopy];
-    if(spstau)spstau[pnew]=spstau[pcopy];
-  }
-}
-
-//==============================================================================
-/// (ES):
-/// Crea particulas periodicas a partir de una lista con las particulas a duplicar.
-/// Se presupone que todas las particulas son validas.
-/// Este kernel vale para single-cpu y multi-cpu porque usa domposmin. 
-/// (ES):
-/// Create periodic particles starting from a list of the particles to duplicate.
-/// Assume that all the particles are valid.
-/// This kernel works for single-cpu & multi-cpu because it uses domposmin.
-//==============================================================================
 void JSphCpuSingle::PeriodicDuplicateSymplectic(unsigned n,unsigned pini,tuint3 cellmax,tdouble3 perinc,const unsigned *listp
-  ,unsigned *idp,word *code,unsigned *dcell,tdouble3 *pos,tfloat4 *velrhop,tsymatrix3f *spstau,tdouble3 *pospre,tfloat4 *velrhoppre)const
+  ,unsigned *idp,word *code,unsigned *dcell,tdouble3 *pos,tfloat4 *velrhop,tdouble3 *pospre,tfloat4 *velrhoppre)const
 {
   for(unsigned p=0;p<n;p++){
     const unsigned pnew=p+pini;
@@ -323,7 +295,6 @@ void JSphCpuSingle::PeriodicDuplicateSymplectic(unsigned n,unsigned pini,tuint3 
     velrhop[pnew]=velrhop[pcopy];
     if(pospre)pospre[pnew]=pospre[pcopy];
     if(velrhoppre)velrhoppre[pnew]=velrhoppre[pcopy];
-    if(spstau)spstau[pnew]=spstau[pcopy];
   }
 }
 
@@ -393,12 +364,10 @@ void JSphCpuSingle::RunPeriodic(){
             run=false;
             //-Crea nuevas particulas periodicas duplicando las particulas de la lista.
             //-Create new duplicate periodic particles in the list
-            if(TStep==STEP_Verlet)PeriodicDuplicateVerlet(count,Np,DomCells,perinc,listp,Idpc,Codec,Dcellc,Posc,Velrhopc,SpsTauc,VelrhopM1c);
             if(TStep==STEP_Symplectic){
               if((PosPrec || VelrhopPrec) && (!PosPrec || !VelrhopPrec))RunException(met,"Symplectic data is invalid.") ;
-              PeriodicDuplicateSymplectic(count,Np,DomCells,perinc,listp,Idpc,Codec,Dcellc,Posc,Velrhopc,SpsTauc,PosPrec,VelrhopPrec);
+              PeriodicDuplicateSymplectic(count,Np,DomCells,perinc,listp,Idpc,Codec,Dcellc,Posc,Velrhopc,PosPrec,VelrhopPrec);
             }
-
             //-Free the list and update the number of particles / Libera lista y actualiza numero de particulas.
             ArraysCpu->Free(listp); listp=NULL;
             Np+=count;
@@ -432,15 +401,11 @@ void JSphCpuSingle::RunCellDivide(bool updateperiodic){
   CellDivSingle->SortArray(Dcellc);
   CellDivSingle->SortArray(Posc);
   CellDivSingle->SortArray(Velrhopc);
-  if(TStep==STEP_Verlet){
-    CellDivSingle->SortArray(VelrhopM1c);
-  }
-  else if(TStep==STEP_Symplectic && (PosPrec || VelrhopPrec)){//In reality, this is only necessary in divide for corrector, not in predictor??? / En realidad solo es necesario en el divide del corrector, no en el predictor???
+  if(TStep==STEP_Symplectic && (PosPrec || VelrhopPrec)){//In reality, this is only necessary in divide for corrector, not in predictor??? / En realidad solo es necesario en el divide del corrector, no en el predictor???
     if(!PosPrec || !VelrhopPrec)RunException(met,"Symplectic data is invalid.") ;
     CellDivSingle->SortArray(PosPrec);
     CellDivSingle->SortArray(VelrhopPrec);
   }
-  if(TVisco==VISCO_LaminarSPS)CellDivSingle->SortArray(SpsTauc);
   
   //-Collect divide data / Recupera datos del divide.
   Np=CellDivSingle->GetNpFinal();
@@ -492,50 +457,62 @@ void JSphCpuSingle::GetInteractionCells(unsigned rcell
 }
 
 //==============================================================================
-/// Aplica correccion de Ren a la presion y densidad del contorno.
-/// Apply Ren correction to pressure and density in boundary.
-//==============================================================================
-void JSphCpuSingle::RunRenCorrection(){
-  //-Calculate pressure in boundary starting from fluid / Calcula presion en contorno a partir de fluido.
-  float *presskf=ArraysCpu->ReserveFloat();
-  Interaction_Ren(NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell()
-    ,CellDivSingle->GetCellDomainMin(),Dcellc,Posc,PsPosc,Velrhopc,Idpc,Codec,Pressc,presskf);
-  //-Recalculate pressure & density in boundary according to RenBeta / Recalcula valores de presion y densidad en contorno segun RenBeta.
-  ComputeRenPress(NpbOk,RenCorrection,presskf,Velrhopc,Pressc);
-  ArraysCpu->Free(presskf); presskf=NULL;
-}
-
-//==============================================================================
 /// Interaccion para el calculo de fuerzas.
 /// Interaction to calculate forces.
 //==============================================================================
-void JSphCpuSingle::Interaction_Forces(TpInter tinter){
+void JSphCpuSingle::Interaction_Forces(TpInter tinter,TpSlipCond TSlipCond){
   const char met[]="Interaction_Forces";	
-  	
-  TmcStart(Timers,TMC_CfForces);
-  if(RenCorrection)RunRenCorrection();
+	const unsigned np=Np;
+	const unsigned npb=Npb;
+	const unsigned npf=np-npb;
+  if(tinter==1){
+		memset(dWxCorrShiftPos,0,sizeof(tfloat3)*npf);
+		dWyCorr=ArraysCpu->ReserveFloat3(); memset(dWyCorr,0,sizeof(tfloat3)*npf);
+		memset(dWzCorrTensile,0,sizeof(tfloat3)*npf);
 
+		Divr=ArraysCpu->ReserveFloat(); memset(Divr,0,sizeof(float)*np);
+
+		memset(MLS,0,sizeof(tfloat4)*npb);
+		memset(rowInd,0,sizeof(int)*(np+1));
+  }
+	else{
+			#ifdef _WITHOMP
+      #pragma omp parallel for schedule (static)
+    #endif
+    for(int i=0;i<int(Np+1);i++)rowInd[i]=Npb;
+	}
+	
+  //-Assign memory / Asigna memoria.
+  memset(Acec,0,sizeof(tfloat3)*npf);
+	//-Initialize Arrays / Inicializa arrays.
+  //PreInteractionVars_Forces(tinter,np,npb);
+  TmcStart(Timers,TMC_CfForces);
+	
   //-Interaction of Fluid-Fluid/Bound & Bound-Fluid (forces and DEM) / Interaccion Fluid-Fluid/Bound & Bound-Fluid (forces and DEM).
   float viscdt=0;
-  if(Psimple)JSphCpu::InteractionSimple_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,PsPosc,Velrhopc,Idpc,dWxCorr,dWzCorr,Codec,Pressc,viscdt,Arc,Acec,Deltac,SpsTauc,SpsGradvelc,ShiftPosc);
-  else JSphCpu::Interaction_Forces(tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,dWxCorr,dWzCorr,Codec,Pressc,viscdt,Arc,Acec,Deltac,SpsTauc,SpsGradvelc,ShiftPosc);
 
-  //-For 2-D simulations zero the 2nd component / Para simulaciones 2D anula siempre la 2º componente
-  if(Simulate2D)for(unsigned p=Npb;p<Np;p++)Acec[p].y=0;
+	JSphCpu::Interaction_Forces(tinter,TKernel,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,dWxCorrShiftPos,dWyCorr,dWzCorrTensile,Codec,Acec,Divr,MirrorPosc,MirrorCell,MLS,rowInd);
 
-  //-Add Delta-SPH correction to Arg[] / Añade correccion de Delta-SPH a Arg[].
-  /*if(Deltac){
-    const int ini=int(Npb),fin=int(Np),npf=int(Np-Npb);
-    #ifdef _WITHOMP
-      #pragma omp parallel for schedule (static) if(npf>LIMIT_COMPUTELIGHT_OMP)
+	//-For 2-D simulations zero the 2nd component / Para simulaciones 2D anula siempre la 2º componente
+  if(Simulate2D)for(unsigned p=0;p<npf;p++)Acec[p].y=0;
+
+	if(tinter==2){
+		 #ifdef _WITHOMP
+      #pragma omp parallel for schedule (static)
     #endif
-    for(int p=ini;p<fin;p++)if(Deltac[p]!=FLT_MAX)Arc[p]+=Deltac[p];
-  }*/
+    for(int i=0;i<int(Npb);i++){
+      Velrhopc[i].x=VelrhopPrec[i].x; //Put value of Velrhop[] in VelrhopPre[] / Es decir... VelrhopPre[] <= Velrhop[]
+			Velrhopc[i].y=VelrhopPrec[i].y;
+			Velrhopc[i].z=VelrhopPrec[i].z;
+    }
+
+		ArraysCpu->Free(dWyCorr);	dWyCorr=NULL;
+	}
 
   //-Calculates maximum value of ViscDt.
-  ViscDtMax=viscdt;
+  //ViscDtMax=viscdt;
   //-Calculates maximum value of Ace.
-  AceMax=ComputeAceMax();	
+  //AceMax=ComputeAceMaxOmp(PeriActive!=0,Np-Npb,Acec+Npb,Codec+Npb);
   TmcStop(Timers,TMC_CfForces);
 }
 
@@ -546,52 +523,57 @@ void JSphCpuSingle::Interaction_Forces(TpInter tinter){
 /// Return max value of (ace.x^2 + ace.y^2 + ace.z^2) starting from Acec[].
 /// The use of OpenMP here is not efficient.
 //==============================================================================
-double JSphCpuSingle::ComputeAceMax(){
+double JSphCpuSingle::ComputeAceMaxSeq(const bool checkcodenormal,unsigned np,const tfloat3* ace,const word* code)const{
   float acemax=0;
-  const int ini=int(Npb),fin=int(Np),npf=int(Np-Npb);
-  if(!PeriActive){//-Without periodic conditions / Sin condiciones periodicas.
-    for(int p=ini;p<fin;p++){
-      const float ace=Acec[p].x*Acec[p].x+Acec[p].y*Acec[p].y+Acec[p].z*Acec[p].z;
-      acemax=max(acemax,ace);
-    }
-  }
-  else{//-With periodic conditions ignore periodic particles / Con condiciones periodicas ignora las particulas periodicas.
-    for(int p=ini;p<fin;p++)if(CODE_GetSpecialValue(Codec[p])==CODE_NORMAL){
-      const float ace=Acec[p].x*Acec[p].x+Acec[p].y*Acec[p].y+Acec[p].z*Acec[p].z;
-      acemax=max(acemax,ace);
-    }
+  const int n=int(np);
+  //-With periodic conditions ignore periodic particles / Con condiciones periodicas ignora las particulas periodicas.
+  for(int p=0;p<n;p++)if(!checkcodenormal || CODE_GetSpecialValue(code[p])==CODE_NORMAL){
+    const tfloat3 a=ace[p];
+    const float a2=a.x*a.x+a.y*a.y+a.z*a.z;
+    acemax=max(acemax,a2);
   }
   return(sqrt(double(acemax)));
 }
 
 //==============================================================================
-/// (ES):
-/// Realiza interaccion y actualizacion de particulas segun las fuerzas 
-/// calculadas en la interaccion usando Verlet.
-/// (ES):
-/// Perform interactions and updates of particles according to forces 
-/// calculated in the interaction using Verlet.
+/// Devuelve el valor maximo de ace (modulo) using OpenMP.
+/// Returns maximum value of ace (modulus) using OpenMP.
 //==============================================================================
-/*double JSphCpuSingle::ComputeStep_Ver(){
-  Interaction_Forces(INTER_Forces);    //-Interaction / Interaccion
-  const double dt=DtVariable(true);    //-Calculate new dt / Calcula nuevo dt
-  DemDtForce=dt;                       //(DEM)
-  if(TShifting)RunShifting(dt);        //-Shifting
-  ComputeVerlet(dt);                   //-Update particles using Verlet / Actualiza particulas usando Verlet
-  if(CaseNfloat)RunFloating(dt,false); //-Control of floating bodies / Gestion de floating bodies
-  PosInteraction_Forces();             //-Free memory used for interaction / Libera memoria de interaccion
-  return(dt);
-}*/
-
-void JSphCpuSingle::PreparePosSimple(){
-  //-Prepare values for interaction  Pos-Simpe / Prepara datos para interaccion Pos-Simple.
-  PsPosc=ArraysCpu->ReserveFloat3();
-  const int np=int(Np);
-  /*#ifdef _WITHOMP
-    #pragma omp parallel for schedule (static) if(np>LIMIT_PREINTERACTION_OMP)
-  #endif*/
-  for(int p=0;p<np;p++){ PsPosc[p]=ToTFloat3(Posc[p]); }
+double JSphCpuSingle::ComputeAceMaxOmp(const bool checkcodenormal,unsigned np,const tfloat3* ace,const word* code)const{
+  const char met[]="ComputeAceMaxOmp";
+  double acemax=0;
+  #ifdef _WITHOMP
+    if(np>LIMIT_COMPUTELIGHT_OMP){
+      const int n=int(np);
+      if(n<0)RunException(met,"Number of values is too big.");
+      float amax=0;
+      #pragma omp parallel 
+      {
+        float amax2=0;
+        #pragma omp for nowait
+        for(int p=0;p<n;++p){
+          //-With periodic conditions ignore periodic particles / Con condiciones periodicas ignora las particulas periodicas.
+          if(!checkcodenormal || CODE_GetSpecialValue(code[p])==CODE_NORMAL){
+            const tfloat3 a=ace[p];
+            const float a2=a.x*a.x+a.y*a.y+a.z*a.z;
+            if(amax2<a2)amax2=a2;
+          }
+        }
+        #pragma omp critical 
+        {
+          if(amax<amax2)amax=amax2;
+        }
+      }
+      //-Guarda resultado.
+      acemax=sqrt(double(amax));
+    }
+    else if(np)acemax=ComputeAceMaxSeq(checkcodenormal,np,ace,code);
+  #else
+    if(np)acemax=ComputeAceMaxSeq(checkcodenormal,np,ace,code);
+  #endif
+  return(acemax);
 }
+
 //==============================================================================
 /// (ES):
 /// Realiza interaccion y actualizacion de particulas segun las fuerzas 
@@ -600,36 +582,32 @@ void JSphCpuSingle::PreparePosSimple(){
 /// Perform interactions and updates of particles according to forces 
 /// calculated in the interaction using Symplectic.
 //==============================================================================
+#include <iomanip>
 double JSphCpuSingle::ComputeStep_Sym(){
   const double dt=DtPre;
   //-Predictor
   //-----------
+	TmcStart(Timers,TMC_Stage1);
   PreInteraction_Forces(INTER_Forces);
   RunCellDivide(true);
-  if(Psimple)PreparePosSimple();
-  if(TSlipCond)BoundaryVelocity(TSlipCond);
-  Interaction_Forces(INTER_Forces);      //-Interaction / Interaccion
-  if(TSlipCond)memset(Velrhopc,0,sizeof(tfloat4)*Npb);
-  //const double ddt_p=DtVariable(false);   //-Calculate dt of predictor step / Calcula dt del predictor
-  //if(TShifting)RunShifting(dt*.5);        //-Shifting
+	if(CaseNmoving)JSphCpu::MirrorDCell(Npb,Codec,MirrorPosc,MirrorCell,Idpc);
+  Interaction_Forces(INTER_Forces,TSlipCond);      //-Interaction / Interaccion
   ComputeSymplecticPre(dt);               //-Apply Symplectic-Predictor to particles / Aplica Symplectic-Predictor a las particulas
-  //if(CaseNfloat)RunFloating(dt*.5,true);  //-Control of floating bodies / Gestion de floating bodies
-  PosInteraction_Forces(INTER_Forces);          //-Free memory used for interaction / Libera memoria de interaccion
   //-Pressure Poisson equation
   //-----------
-  KernelCorrection(false);
+	TmcStop(Timers,TMC_Stage1);
   SolvePPE(dt); //-Solve pressure Poisson equation
   //-Corrector
   //-----------
-  //DemDtForce=dt;                          //(DEM)
-  PreInteraction_Forces(INTER_ForcesCorr);
-  Interaction_Forces(INTER_ForcesCorr);   //Interaction / Interaccion
-  //const double ddt_c=DtVariable(true);    //-Calculate dt of corrector step / Calcula dt del corrector
+	TmcStart(Timers,TMC_Stage3);
+  Interaction_Forces(INTER_ForcesCorr,TSlipCond);   //Interaction / Interaccion
   ComputeSymplecticCorr(dt);              //-Apply Symplectic-Corrector to particles / Aplica Symplectic-Corrector a las particulas
-  //if(CaseNfloat)RunFloating(dt,false);    //-Control of floating bodies / Gestion de floating bodies
-  PosInteraction_Forces(INTER_ForcesCorr);             //-Free memory used for interaction / Libera memoria de interaccion
-  if(TShifting)RunShifting(dt);           //-Shifting
-  // DtPre=min(ddt_p,ddt_c);                 //-Calcula el dt para el siguiente ComputeStep
+	TmcStop(Timers,TMC_Stage3);
+	//-Shifting
+	//-----------
+	TmcStart(Timers,TMC_Stage4);
+	if(TShifting)RunShifting(dt);
+	TmcStop(Timers,TMC_Stage4);
   return(dt);
 }
 
@@ -813,10 +791,6 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   //-------------------
   TmcCreation(Timers,cfg->SvTimers);
   TmcStart(Timers,TMC_Init);
-  if(cfg->SvTimersStep>0){
-    TimersStep=new JTimersStep(cfg->DirOut,cfg->SvTimersStep,0,0);
-    for(unsigned ct=0;ct<TimerGetCount();ct++)if(TimerIsActive(ct))TimersStep->AddTimer(TimerGetName(ct),TimerGetPtrValue(ct));
-  }
 
   //-Load parameters and values of input / Carga de parametros y datos de entrada
   //-----------------------------------------
@@ -845,18 +819,16 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   PrintHeadPart();
 
   //-finding dummy particle relations to wall particles
-  count=1;
-  FindIrelation(); 
+	memset(MirrorPosc,0,sizeof(tdouble3)*Npb);
+	JSphCpu::MirrorBoundary(Npb,Posc,Idpc,MirrorPosc,Codec,MirrorCell);  
+	JSphCpu::MirrorDCell(Npb,Codec,MirrorPosc,MirrorCell,Idpc);
   while(TimeStep<TimeMax){
-    clock_t start = clock(); 
-    //if(ViscoTime)Visco=ViscoTime->GetVisco(float(TimeStep));
+		if(CaseNmoving)RunMotion(DtPre);
     double stepdt=ComputeStep_Sym();
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
-    if(CaseNmoving)RunMotion(stepdt);
-    //RunCellDivide(true);
     TimeStep+=stepdt;
     partoutstop=(Np<NpMinimum || !Np);
-    if((TimeStep-TimeStepIni)-TimePart*((Part-PartIni)-1)>=TimePart || partoutstop){
+    if(TimeStep>=TimePartNext || partoutstop){
       if(partoutstop){
         Log->Print("\n**** Particles OUT limit reached...\n");
         TimeMax=TimeStep;
@@ -865,15 +837,12 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
       Part++;
       PartNstep=Nstep;
       TimeStepM1=TimeStep;
+      TimePartNext=TimeOut->GetNextTime(TimeStep);
       TimerPart.Start();
     }
     UpdateMaxValues();
     Nstep++;
-    if(TimersStep&&TimersStep->Check(float(TimeStep)))SaveTimersStep(Np,Npb,NpbOk,CellDivSingle->GetNct());
     //if(Nstep>=3)break;
-    clock_t stop = clock();   
-    double dif = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
-    cout<<"Timestep Time = " << dif << "ms\n";
   }
   TimerSim.Stop(); TimerTot.Stop();
 
@@ -928,8 +897,7 @@ void JSphCpuSingle::SaveData(){
   ArraysCpu->Free(pos);
   ArraysCpu->Free(vel);
   ArraysCpu->Free(rhop);
-  //-Record execution information / Graba informacion de ejecucion.
-  if(TimersStep)TimersStep->SaveData();
+
   TmcStop(Timers,TMC_SuSavePart);
 }
 
@@ -939,7 +907,6 @@ void JSphCpuSingle::SaveData(){
 //==============================================================================
 void JSphCpuSingle::FinishRun(bool stop){
   float tsim=TimerSim.GetElapsedTimeF()/1000.f,ttot=TimerTot.GetElapsedTimeF()/1000.f;
-  if(TimersStep)TimersStep->SaveData();
   JSph::ShowResume(stop,tsim,ttot,true,"");
   string hinfo=";RunMode",dinfo=string(";")+RunMode;
   if(SvTimers){
@@ -950,55 +917,6 @@ void JSphCpuSingle::FinishRun(bool stop){
   if(SvRes)SaveRes(tsim,ttot,hinfo,dinfo);
 }
 
-void JSphCpuSingle::FindIrelation(){
-  tuint3 cellmin=CellDivSingle->GetCellDomainMin();
-  tuint3 ncells=CellDivSingle->GetNcells();
-  const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
-  const unsigned cellfluid=nc.w*nc.z+1;
-  const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
-  const int hdiv=(CellMode==CELLMODE_H? 2: 1);
-  const unsigned *begincell = CellDivSingle->GetBeginCell();
-  JSphCpu::FindIrelation(Npb,0,Posc,Idpc,Irelationc,Codec); 
-}
-
-void JSphCpuSingle::BoundaryVelocity(TpSlipCond TSlipCond){
-  tuint3 cellmin=CellDivSingle->GetCellDomainMin();
-  tuint3 ncells=CellDivSingle->GetNcells();
-  const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
-  const unsigned cellfluid=nc.w*nc.z+1;
-  const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
-  const int hdiv=(CellMode==CELLMODE_H? 2: 1);
-  const unsigned *begincell = CellDivSingle->GetBeginCell();
-  JSphCpu::Boundary_Velocity(TSlipCond,Psimple,NpbOk,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Codec);
-}
-
-void JSphCpuSingle::KernelCorrection(bool boundary){ 
-  tuint3 cellmin=CellDivSingle->GetCellDomainMin();
-  tuint3 ncells=CellDivSingle->GetNcells();
-  const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
-  const unsigned cellfluid=nc.w*nc.z+1;
-  const tint3 cellzero=TInt3(cellmin.x,cellmin.y,cellmin.z);
-  const int hdiv=(CellMode==CELLMODE_H? 2: 1);
-  const unsigned *begincell = CellDivSingle->GetBeginCell();
-
-  const unsigned np=Np;
-  const unsigned npbok=NpbOk;
-  const unsigned npb=Npb;
-  const unsigned npf=np-npb;
-
-  dWxCorr=ArraysCpu->ReserveFloat3();
-  dWzCorr=ArraysCpu->ReserveFloat3();
-
-  memset(dWxCorr,0,sizeof(tfloat3)*np);						
-  memset(dWzCorr,0,sizeof(tfloat3)*np);								
-
-  JSphCpu::KernelCorrection(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Fluid-Fluid
-  JSphCpu::KernelCorrection(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Fluid-Bound
-  JSphCpu::KernelCorrection(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Bound-Fluid
-  JSphCpu::KernelCorrection(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,dWxCorr,dWzCorr); //-Bound-Bound
-  JSphCpu::InverseCorrection(npf,npb,dWxCorr,dWzCorr);
-  JSphCpu::InverseCorrection(npbok,0,dWxCorr,dWzCorr);
-}
 //==============================================================================
 /// PPE Solver
 //==============================================================================
@@ -1006,6 +924,9 @@ void JSphCpuSingle::KernelCorrection(bool boundary){
 #include <sstream>
 #include <iomanip>
 void JSphCpuSingle::SolvePPE(double dt){ 
+	const char* met="SolvePPE";
+
+	TmcStart(Timers,TMC_Stage2a);
   tuint3 cellmin=CellDivSingle->GetCellDomainMin();
   tuint3 ncells=CellDivSingle->GetNcells();
   const tint4 nc=TInt4(int(ncells.x),int(ncells.y),int(ncells.z),int(ncells.x*ncells.y));
@@ -1018,50 +939,31 @@ void JSphCpuSingle::SolvePPE(double dt){
   const unsigned npb=Npb;
   const unsigned npbok=NpbOk;
   const unsigned npf=np-npb;
-  unsigned PPEDim=0;
-  unsigned PPEDimDummy=0;
+	const unsigned PPEDim=npbok+npf;
+	unsigned Nnz=0;
+	unsigned NumFreeSurface=0;
+	const unsigned matOrder=npb-npbok;
 
-  //Matrix Order and Free Surface
-  POrder=ArraysCpu->ReserveUint(); memset(POrder,np,sizeof(unsigned)*np);
-  Divr=ArraysCpu->ReserveDouble(); memset(Divr,0,sizeof(double)*np);
-  MatrixOrder(np,0,POrder,Idpc,Irelationc,Codec,PPEDim);
-
-  FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Fluid
-  FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Bound
-  FreeSurfaceFind(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Bound-Fluid
-  FreeSurfaceFind(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Bound-Bound
-  
-  //RHS
-  b.resize(PPEDim,0);
-  PopulateMatrixB(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Fluid-Fluid
-  PopulateMatrixB(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Fluid-Bound
-  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Bound-Fluid
-  PopulateMatrixB(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,dWxCorr,dWzCorr,b,POrder,Idpc,dt,PPEDim,Divr,FreeSurface); //-Bound-Bound
-  rowInd.resize(PPEDim+1,0);
-    
-  unsigned Nnz=0;
-
-  //Organising storage for parallelism
-  MatrixStorage(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface);//-Fluid-Fluid
-  MatrixStorage(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface);//-Fluid-Bound
-  MatrixStorage(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface);//-Bound-Fluid
-  MatrixStorage(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,rowInd,POrder,Idpc,Codec,PPEDim,FreeSurface);//-Bound-Bound
-  MatrixASetup(PPEDim,Nnz,rowInd); 
-  colInd.resize(Nnz,PPEDim); 
-  a.resize(Nnz,0);
+	//Create matrix
+	b=ArraysCpu->ReserveDouble(); memset(b,0,sizeof(double)*PPEDim);
+	x=ArraysCpu->ReserveDouble(); memset(x,0,sizeof(double)*PPEDim);
+	
+	MatrixASetup(np,npb,npbok,PPEDim,Nnz,rowInd,Divr,FreeSurface,NumFreeSurface);
+	if(Nnz>MatrixMemory*np) RunException(met,fun::PrintStr("MatrixMemory too small"));
+  memset(colInd,0,sizeof(int)*Nnz);
+  memset(a,0,sizeof(double)*Nnz);
   //LHS
-  PopulateMatrixA(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Irelationc,b,Idpc,Codec,PPEDim,FreeSurface,GravityDbl,RhopZero);//-Fluid-Fluid
-  //PopulateMatrixAInteractBound(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,FreeSurface);//-Fluid-Bound
-  PopulateMatrixA(Psimple,npbok,0,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,POrder,Irelationc,b,Idpc,Codec,PPEDim,FreeSurface,GravityDbl,RhopZero); //-Fluid-Fluid
-  //PopulateMatrixAInteractBound(Psimple,npbok,0,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Velrhopc,Divr,a,rowInd,colInd,b,POrder,Idpc,Codec,Irelationc,PPEDim,FreeSurface); //-Fluid-Bound
-  //FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
-  //FreeSurfaceMark(npbok,0,Divr,a,b,rowInd,POrder,Idpc,Codec,PPEDim);
-  // allocate vectors
-  x.resize(PPEDim,0);
-  
-   ofstream FileOutput;
-    string TimeFile;
+	PopulateMatrix(TKernel,np,npb,npbok,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,Velrhopc,dWxCorrShiftPos,dWyCorr,dWzCorrTensile,Divr,a,rowInd,colInd,b,Idpc,Codec,FreeSurface,RhopZero,matOrder,dt,MirrorPosc,MirrorCell,MLS,Gravity);
+ 
+	/*if(PeriActive){
+		PopulatePeriodic(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,Dcellc);
+		PopulatePeriodic(npbok,0,nc,hdiv,0,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,Dcellc);
+	}*/
+	FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,Idpc,Codec,ShiftOffset,matOrder,FreeSurface);
 
+	/*ofstream FileOutput;
+    string TimeFile;
+		unsigned count=1;
     ostringstream TimeNum;
     TimeNum << count;
     ostringstream FileNum;
@@ -1072,40 +974,30 @@ void JSphCpuSingle::SolvePPE(double dt){
     FileOutput.open(TimeFile.c_str());
 
   for(int i=0;i<npbok;i++){
-    FileOutput << fixed << setprecision(19) << "particle "<< Idpc[i] << "\t Order " << POrder[i] << "\t b " << b[POrder[i]] << "\n";
-    if(POrder[i]!=np)for(int j=rowInd[POrder[i]];j<rowInd[POrder[i]+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\n";
+    FileOutput << fixed << setprecision(19) << "particle "<< Idpc[i] << "\t Order " << i << "\t b " << b[i] << "\n";
+    for(int j=rowInd[i];j<rowInd[i+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j]  << "\t"<<Idpc[colInd[j]]<< "\n";
   }
 
   for(int i=npb;i<np;i++){
-    FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << POrder[i] << "\t b " << b[POrder[i]] << "\n";
-    if(POrder[i]!=np) for(int j=rowInd[POrder[i]];j<rowInd[POrder[i]+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\n";
+    FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << (i-npb)+npbok << "\t b " << b[(i-npb)+npbok] << "\n";
+    for(int j=rowInd[(i-npb)+npbok];j<rowInd[(i-npb)+npbok+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\t"<<Idpc[colInd[j]]<<"\n";
   }
   FileOutput.close();
+	count++;*/
 
-  count++; 
   //solvers
+	TmcStop(Timers,TMC_Stage2a);
+	TmcStart(Timers,TMC_Stage2b);
 #ifndef _WITHGPU
-  solveVienna(a,b,x,rowInd,colInd,PPEDim,Nnz); 
+  solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,b,x,rowInd,colInd,PPEDim,Nnz,NumFreeSurface); 
 #endif
-  TimeFile =  "Pressure" + FileNum.str() + ", T = " + TimeNum.str() + ".txt";
-
-    FileOutput.open(TimeFile.c_str());
-
-  for(int i=0;i<PPEDim;i++){
-    FileOutput << fixed << setprecision(10) << i << "\t" << x[i] <<"\n";
-  }
-
-  FileOutput.close();
-
-  count++; 
-
-  PressureAssign(Psimple,np,0,Posc,PsPosc,Velrhopc,Idpc,Irelationc,POrder,x,Codec,npb,Divr,GravityDbl);
   
-  b.clear();
-  a.clear();
-  x.clear();
-  rowInd.clear();
-  colInd.clear();
+	PressureAssign(np,npbok,Posc,Velrhopc,Idpc,x,Codec,npb,Divr,Gravity);
+	
+	ArraysCpu->Free(Divr);	 Divr=NULL;
+  ArraysCpu->Free(b);      b=NULL;
+  ArraysCpu->Free(x);      x=NULL;
+	TmcStop(Timers,TMC_Stage2b);
 }
 
 //==============================================================================
@@ -1119,17 +1011,16 @@ void JSphCpuSingle::RunShifting(double dt){
   PosPrec=ArraysCpu->ReserveDouble3();
   VelrhopPrec=ArraysCpu->ReserveFloat4();
 
-  ShiftPosc=ArraysCpu->ReserveFloat3();
-  Divr=ArraysCpu->ReserveDouble();
-  memset(ShiftPosc,0,sizeof(tfloat3)*np);               //ShiftPosc[]=0
-  memset(Divr,0,sizeof(double)*np);           //Divr[]=0   
+ 	memset(dWxCorrShiftPos,0,sizeof(tfloat3)*npf);
+	memset(dWzCorrTensile,0,sizeof(tfloat3)*npf);
+	Divr=ArraysCpu->ReserveFloat();					memset(Divr,0,sizeof(float)*np);	
 
   #ifdef _WITHOMP
       #pragma omp parallel for schedule (static)
-    #endif
-    for(int i=0;i<int(Np);i++){
-      PosPrec[i]=Posc[i];
-      VelrhopPrec[i]=Velrhopc[i];
+	#endif
+  for(int i=0;i<int(Np);i++){
+		PosPrec[i]=Posc[i];
+		VelrhopPrec[i]=Velrhopc[i];
   }
 
   RunCellDivide(true);
@@ -1142,19 +1033,13 @@ void JSphCpuSingle::RunShifting(double dt){
   const int hdiv=(CellMode==CELLMODE_H? 2: 1);
   const unsigned *begincell = CellDivSingle->GetBeginCell();
 
-  PreparePosSimple();
-  FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Fluid
-  FreeSurfaceFind(Psimple,npf,npb,nc,hdiv,0,begincell,cellzero,Dcellc,Posc,PsPosc,Divr,Codec); //-Fluid-Bound
-
-  JSphCpu::Interaction_Shifting(Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,PsPosc,Velrhopc,Idpc,Codec,ShiftPosc,Divr,TensileN,TensileR);
-
+	JSphCpu::Interaction_Shifting(TKernel,Np,Npb,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellc,Posc,Velrhopc,Idpc,Codec,dWxCorrShiftPos,dWzCorrTensile,Divr,TensileN,TensileR);
+	
   JSphCpu::RunShifting(dt);
 
   Shift(dt);
-  
-  ArraysCpu->Free(PosPrec);      PosPrec=NULL;
-  ArraysCpu->Free(PsPosc);       PsPosc=NULL;
-  ArraysCpu->Free(ShiftPosc);    ShiftPosc=NULL;
-  ArraysCpu->Free(Divr); Divr=NULL;
-  ArraysCpu->Free(VelrhopPrec);  VelrhopPrec=NULL;
+
+  ArraysCpu->Free(PosPrec);			PosPrec=NULL;
+  ArraysCpu->Free(VelrhopPrec);	VelrhopPrec=NULL;
+	ArraysCpu->Free(Divr);				Divr=NULL;
 }

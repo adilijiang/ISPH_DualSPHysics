@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -14,25 +14,6 @@
 
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
-
-//#############################################################################
-//# ES:
-//# Cambios:
-//# =========
-//# - Implementacion de una clase para medir con precision (~ microsegundos)
-//#   pequeños intervalos de tiempo en Windows usando QueryPerformanceCounter()
-//#   y en Linux usando gettimeofday(). (10/01/2011)
-//# - Traduccion de comentarios al ingles. (10/02/2012)
-//# - Se añadio el flag Started para controlar si estaba inicializado. (22/05/2012)
-//# - EN:
-//# Changes:
-//# =========
-//# - Implementing a class to measure accurately (~ microseconds)
-//#   small time intervals in Windows using QueryPerformanceCounter()
-//#   and Linux using gettimeofday(). (10/01/2011)
-//# - Comment English translation. (10/02/2012)
-//# - Added the flag Started to control if it was initialized. (22/05/2012)
-//#############################################################################
 
 
 /// \file JTimer.h \brief Declares the class \ref JTimer.

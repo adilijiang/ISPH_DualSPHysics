@@ -44,22 +44,19 @@ protected:
   void RunPeriodic();
   void RunCellDivide(bool updateperiodic);
 
-  void RunRenCorrection();
   void Interaction_Forces(TpInter tinter,double dt);
   double ComputeAceMax(float *auxmem);
 
-  //double ComputeStep(){ return(TStep==STEP_Verlet? ComputeStep_Ver(): ComputeStep_Sym()); }
-
-  //double ComputeStep_Ver();
   double ComputeStep_Sym();
 
   void RunFloating(double dt,bool predictor);
 
+  void SaveVtkData(std::string fname,unsigned num,unsigned np,const double2 *posxy,const double *posz,const unsigned *idp,const float4 *velrhop)const;
   void SaveData();
   void FinishRun(bool stop);
 
   void InitAdvection(double dt);
-  void FindIrelation();
+  void MirrorBoundary();
   void BoundaryVelocity(TpSlipCond TSlipCond);
   void KernelCorrection();
   void SolvePPE(double dt);

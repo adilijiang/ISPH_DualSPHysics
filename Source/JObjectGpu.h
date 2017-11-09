@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -27,7 +27,7 @@
 //##############################################################################
 //# JObject
 //##############################################################################
-/// \brief Defines objects with methods that throws exceptions for interaction with gpu.
+/// \brief Defines objects with methods that throw exceptions for tasks on the GPU.
 class JObjectGpu : protected JObject
 {
 protected:

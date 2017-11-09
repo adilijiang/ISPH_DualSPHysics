@@ -3,12 +3,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">
     <LocalDebuggerEnvironment>%CULASPARSE_BIN_PATH_64%(LocalDebuggerEnvironment)</LocalDebuggerEnvironment>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>C:/Users/AlexPC/Documents/BitBucketCodes/TEST/CaseStillWaterISPH_CPU/CaseStillWaterISPH_CPU_out/CaseStillWaterISPH_CPU</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>C:\Users\alexc\Documents\GitHubCodes\Test\CaseDamBreak2D_CPU\CaseDamBreak2D_CPU_out\CaseDamBreak2D_CPU</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerEnvironment>%(LocalDebuggerEnvironment)</LocalDebuggerEnvironment>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>C:/Users/AlexPC/Documents/BitBucketCodes/TEST/CaseDamBreakISPH_GPU/CaseDamBreakISPH_GPU_out/CaseDamBreakISPH_GPU</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>C:/Users/AlexPC/Documents/GitHubCodes/TEST/CaseDamBreakISPH_GPU/CaseDamBreakISPH_GPU_out/CaseDamBreakISPH_GPU</LocalDebuggerCommandArguments>
     <ShowAllFiles>false</ShowAllFiles>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

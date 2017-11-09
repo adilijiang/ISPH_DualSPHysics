@@ -186,6 +186,11 @@ inline tint3 ToTInt3(const tuint3& v){ return(TInt3(int(v.x),int(v.y),int(v.z)))
 ///Converts \ref tint3 to \ref tuint3.
 inline tuint3 ToTUint3(const tint3& v){ return(TUint3(unsigned(v.x),unsigned(v.y),unsigned(v.z))); }
 
+///Converts \ref tdouble2 to \ref tfloat2.
+inline tfloat2 ToTFloat2(const tdouble2& v){ return(TFloat2(float(v.x),float(v.y))); }
+///Converts \ref tfloat2 to \ref tdouble2.
+inline tdouble2 ToTDouble2(const tfloat2& v){ return(TDouble2(v.x,v.y)); }
+ 
 ///Converts \ref tdouble3 to \ref tfloat3.
 inline tfloat3 ToTFloat3(const tdouble3& v){ return(TFloat3(float(v.x),float(v.y),float(v.z))); }
 ///Converts \ref tfloat3 to \ref tdouble3.

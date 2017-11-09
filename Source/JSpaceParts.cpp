@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -194,11 +194,12 @@ void JSpacePartBlock_Floating::ReadXml(JXml *sxml,TiXmlElement* ele){
 //==============================================================================
 TiXmlElement* JSpacePartBlock_Floating::WriteXml(JXml *sxml,TiXmlElement* ele)const{
   ele=JSpacePartBlock::WriteXml(sxml,ele);
-  sxml->AddElementAttrib(ele,"massbody","value",Massbody);
-  sxml->AddElementDouble3(ele,"center",Center);
-  sxml->AddElementDouble3(ele,"inertia",Inertia);
-  if(Velini!=TDouble3(0))sxml->AddElementDouble3(ele,"velini",Velini);
-  if(Omegaini!=TDouble3(0))sxml->AddElementDouble3(ele,"omegaini",Omegaini);
+  sxml->AddAttribute(sxml->AddElementAttrib(ele,"massbody","value",Massbody),"units_comment","kg");
+  sxml->AddAttribute(sxml->AddElementAttrib(ele,"masspart","value",Massbody/GetCount()),"units_comment","kg");
+  sxml->AddAttribute(sxml->AddElementDouble3(ele,"center",Center),"units_comment","metres (m)");
+  sxml->AddAttribute(sxml->AddElementDouble3(ele,"inertia",Inertia),"units_comment","kg*m^2");
+  if(Velini!=TDouble3(0))sxml->AddAttribute(sxml->AddElementDouble3(ele,"velini",Velini),"units_comment","m/s");
+  if(Omegaini!=TDouble3(0))sxml->AddAttribute(sxml->AddElementDouble3(ele,"omegaini",Omegaini),"units_comment","radians/s");
   return(ele);
 }
 

@@ -29,9 +29,10 @@
 #include "JFormatFiles2.h"
 #include "JSphDtFixed.h"
 #include "JSaveDt.h"
+#include "JTimeOut.h"
 #include "JSphVisco.h"
 #include "JWaveGen.h"
-#include "JSphVarAcc.h"
+#include "JSphAccInput.h"
 #include "JPartDataBi4.h"
 #include "JPartOutBi4Save.h"
 #include "JPartFloatBi4.h"
@@ -56,12 +57,12 @@ JSph::JSph(bool cpu,bool withmpi):Cpu(cpu),WithMpi(withmpi){
   ViscoTime=NULL;
   DtFixed=NULL;
   SaveDt=NULL;
+  TimeOut=NULL;
   MkList=NULL;
   Motion=NULL;
   FtObjs=NULL;
   WaveGen=NULL;
-  VarAcc=NULL;
-  TimersStep=NULL;
+  AccInput=NULL;
   InitVars();
 }
 
@@ -76,12 +77,12 @@ JSph::~JSph(){
   delete ViscoTime;
   delete DtFixed;
   delete SaveDt;
+  delete TimeOut;
   ResetMkInfo();
   delete Motion;
   AllocMemoryFloating(0);
   delete WaveGen;
-  delete VarAcc;
-  delete TimersStep;
+  delete AccInput;
 }
 
 //==============================================================================
@@ -92,17 +93,14 @@ void JSph::InitVars(){
   OutPosCount=OutRhopCount=OutMoveCount=0;
   Simulate2D=false;
   Stable=false;
-  Psimple=true;
   SvDouble=false;
   RunCode=CalcRunCode();
   RunTimeDate="";
   CaseName=""; DirCase=""; DirOut=""; RunName="";
   TStep=STEP_None;
-  VerletSteps=40;
   TKernel=KERNEL_Wendland;
   Awen=Bwen=0;
   TVisco=VISCO_None;
-  TDeltaSph=DELTA_None; DeltaSph=0;
   TShifting=SHIFT_None; ShiftCoef=0;
   FreeSurface=0;
   TensileN=0;
@@ -112,7 +110,7 @@ void JSph::InitVars(){
   Iterations=0;
   Tolerance=0;
   StrongConnection=0; JacobiWeight=0; Presmooth=0; Postsmooth=0; CoarseCutoff=0;
-  RenCorrection=0;
+	NegativePressureBound=true;
   Visco=0; ViscoBoundFactor=1;
   UseDEM=false;  //(DEM)
   DemDtForce=0;  //(DEM)
@@ -135,7 +133,6 @@ void JSph::InitVars(){
   MassFluid=MassBound=0;
   Gravity=TFloat3(0);
   Dosh=H2=Fourh2=Eta2=0;
-  SpsSmag=SpsBlin=0;
 
   CasePosMin=CasePosMax=TDouble3(0);
   CaseNp=CaseNbound=CaseNfixed=CaseNmoving=CaseNfloat=CaseNfluid=CaseNpb=0;
@@ -158,6 +155,7 @@ void JSph::InitVars(){
 
   FtCount=0;
   FtPause=0;
+
   AllocMemoryFloating(0);
 
   CellOrder=ORDER_None;
@@ -190,12 +188,13 @@ void JSph::InitVars(){
 
   TimeStepIni=0;
   TimeStep=TimeStepM1=0;
+  TimePartNext=0;
 }
 
 //==============================================================================
 /// Generates a random code to identify the file of the results of the execution.
 //==============================================================================
-std::string JSph::CalcRunCode()const{ 
+std::string JSph::CalcRunCode()const{
   srand((unsigned)time(NULL));
   const unsigned len=8;
   char code[len+1];
@@ -267,10 +266,9 @@ llong JSph::GetAllocMemoryCpu()const{
   if(FtObjs)s+=sizeof(StFloatingData)*FtCount;
   //-Allocated in other objects.
   if(PartsOut)s+=PartsOut->GetAllocMemory();
-  if(TimersStep)s+=TimersStep->GetAllocMemory();
   if(ViscoTime)s+=ViscoTime->GetAllocMemory();
   if(DtFixed)s+=DtFixed->GetAllocMemory();
-  if(VarAcc)s+=VarAcc->GetAllocMemory();
+  if(AccInput)s+=AccInput->GetAllocMemory();
   return(s);
 }
 
@@ -281,8 +279,7 @@ void JSph::LoadConfig(const JCfgRun *cfg){
   const char* met="LoadConfig";
   TimerTot.Start();
   Stable=cfg->Stable;
-  Psimple=cfg->Psimple;
-  SvDouble=cfg->SvDouble;
+  SvDouble=false;
   DirOut=fun::GetDirWithSlash(cfg->DirOut);
   CaseName=cfg->CaseName; 
   DirCase=fun::GetDirWithSlash(fun::GetDirParent(CaseName));
@@ -317,17 +314,12 @@ void JSph::LoadConfig(const JCfgRun *cfg){
   LoadCaseConfig();
 
   //-Aplies configuration using command line.
+  if(cfg->PosDouble==0){      SvDouble=false; }
+  else if(cfg->PosDouble==1){ SvDouble=false; }
+  else if(cfg->PosDouble==2){ SvDouble=true;  }
   if(cfg->TStep)TStep=cfg->TStep;
-  if(cfg->VerletSteps>=0)VerletSteps=cfg->VerletSteps;
   if(cfg->TVisco){ TVisco=cfg->TVisco; Visco=cfg->Visco; }
   if(cfg->ViscoBoundFactor>=0)ViscoBoundFactor=cfg->ViscoBoundFactor;
-  if(cfg->DeltaSph>=0){
-    DeltaSph=cfg->DeltaSph;
-    TDeltaSph=(DeltaSph? DELTA_Dynamic: DELTA_None);
-  }
-  if(TDeltaSph==DELTA_Dynamic && Cpu)TDeltaSph=DELTA_DynamicExt; //-It is necessary because the interaction is divided in two steps: fluid-fluid/float and fluid-bound.
-
-  if(cfg->RenCorrection>=0)RenCorrection=cfg->RenCorrection;
 
   if(cfg->Shifting>=0){
     switch(cfg->Shifting){
@@ -348,7 +340,13 @@ void JSph::LoadConfig(const JCfgRun *cfg){
 
   if(cfg->FtPause>=0)FtPause=cfg->FtPause;
   if(cfg->TimeMax>0)TimeMax=cfg->TimeMax;
-  if(cfg->TimePart>=0)TimePart=cfg->TimePart;
+  //-Configuration of JTimeOut with TimePart.
+  TimeOut=new JTimeOut();
+  if(cfg->TimePart>=0){
+    TimePart=cfg->TimePart;
+    TimeOut->Config(TimePart);
+  }
+  else TimeOut->Config(FileXml,"case.execution.special.timeout",TimePart);
 
   CellOrder=cfg->CellOrder;
   CellMode=cfg->CellMode;
@@ -362,7 +360,6 @@ void JSph::LoadConfig(const JCfgRun *cfg){
   }
   RhopOut=(RhopOutMin<RhopOutMax);
   if(!RhopOut){ RhopOutMin=-FLT_MAX; RhopOutMax=FLT_MAX; }
-  //MapMove=cfg->MapMove;
 }
 
 //==============================================================================
@@ -378,21 +375,30 @@ void JSph::LoadCaseConfig(){
   JSpaceParts parts;   parts.LoadXml(&xml,"case.execution.particles");
 
   //-Execution parameters.
+  switch(eparms.GetValueInt("PosDouble",true,0)){
+    case 0:  SvDouble=false;  break;
+    case 1:  SvDouble=false;  break;
+    case 2:  SvDouble=true;   break;
+    default: RunException(met,"PosDouble value is not valid.");
+  }
   switch(eparms.GetValueInt("RigidAlgorithm",true,1)){ //(DEM)
     case 1:  UseDEM=false;  break;
     case 2:  UseDEM=true;   break;
     default: RunException(met,"Rigid algorithm is not valid.");
   }
-  switch(eparms.GetValueInt("StepAlgorithm",true,1)){
-    case 1:  TStep=STEP_Verlet;      break;
+  switch(eparms.GetValueInt("StepAlgorithm",true,2)){
     case 2:  TStep=STEP_Symplectic;  break;
     default: RunException(met,"Step algorithm is not valid.");
   }
-  VerletSteps=eparms.GetValueInt("VerletSteps",true,40);
-  if(eparms.GetValueInt("Kernel",true,1)!=1)RunException(met,"Kernel choice is not valid. Only Wendland is valid.");
+
+	switch(eparms.GetValueInt("Kernel",true,0)){
+    case 0:  TKernel=KERNEL_Quintic;  break;
+		case 1:  TKernel=KERNEL_Wendland;  break;
+    default: RunException(met,"Kernel choice is not valid.");
+  }
+
   switch(eparms.GetValueInt("ViscoTreatment",true,1)){
     case 1:  TVisco=VISCO_Artificial;  break;
-    case 2:  TVisco=VISCO_LaminarSPS;  break;
     default: RunException(met,"Viscosity treatment is not valid.");
   }
   Visco=eparms.GetValueFloat("Visco");
@@ -402,8 +408,6 @@ void JSph::LoadCaseConfig(){
     ViscoTime=new JSphVisco();
     ViscoTime->LoadFile(DirCase+filevisco);
   }
-  DeltaSph=eparms.GetValueFloat("DeltaSPH",true,0);
-  TDeltaSph=(DeltaSph? DELTA_Dynamic: DELTA_None);
 
   switch(eparms.GetValueInt("Slip/No Slip Conditions",true,0)){
     case 0:  TSlipCond=SLIPCOND_None;     break;
@@ -412,25 +416,27 @@ void JSph::LoadCaseConfig(){
     default: RunException(met,"Slip/No Slip Condition mode is not valid.");
   }
 
-  switch(eparms.GetValueInt("Shifting",true,0)){
+  switch(eparms.GetValueInt("Shifting",true,1)){
     case 0:  TShifting=SHIFT_None;     break;
     case 1:  TShifting=SHIFT_Full;     break;
-    /*case 1:  TShifting=SHIFT_NoBound;  break;
-    case 2:  TShifting=SHIFT_NoFixed;  break;
-    case 3:  TShifting=SHIFT_Full;     break;*/
+		case 2:	 TShifting=SHIFT_Max;			 break;
     default: RunException(met,"Shifting mode is not valid.");
   }
 
   if(TShifting!=SHIFT_None){
     ShiftCoef=eparms.GetValueFloat("ShiftCoef",true,0.1f);
+    ShiftOffset=eparms.GetValueFloat("ShiftOffset",true,0.2f);
     TensileN=eparms.GetValueFloat("TensileN",true,0.1f);
     TensileR=eparms.GetValueFloat("TensileR",true,3.0f);
   }
 
-  FreeSurface=eparms.GetValueDouble("FreeSurface",true,1.6);
+  FreeSurface=eparms.GetValueFloat("FreeSurface",true,1.6f);
+	FactorNormShift=eparms.GetValueDouble("FactorNormShift",true,0.0f);
 
   Tolerance=eparms.GetValueDouble("Solver Tolerance",true,1e-5f);
   Iterations=eparms.GetValueInt("Max Iterations",true,100);
+	Restart=eparms.GetValueInt("Restart",true,50);
+	MatrixMemory=eparms.GetValueInt("MatrixMemory",true,80);
 
   switch(eparms.GetValueInt("Preconditioner",true,0)){
     case 0:  TPrecond=PRECOND_Jacobi;   break;
@@ -443,16 +449,20 @@ void JSph::LoadCaseConfig(){
       case 0:  TAMGInter=AMGINTER_AG;   break;
       case 1:  TAMGInter=AMGINTER_SAG;  break;
       default: RunException(met,"AMG Interpolation is not valid.");
-    }
+  }
     StrongConnection=eparms.GetValueFloat("Strong Connection Threshold",true,0.3f);
-    JacobiWeight=eparms.GetValueFloat("Jacobi Weight",true,0.7f);
-    Presmooth=eparms.GetValueInt("Presmooth Steps",true,1);
-    Postsmooth=eparms.GetValueInt("Postsmooth Steps",true,1);
+    JacobiWeight=eparms.GetValueFloat("Jacobi Weight",true,0.9999999f);
+    Presmooth=eparms.GetValueInt("Presmooth Steps",true,0);
+    Postsmooth=eparms.GetValueInt("Postsmooth Steps",true,0);
     CoarseCutoff=eparms.GetValueInt("Coarsening Cutoff",true,2500);
+    CoarseLevels=eparms.GetValueInt("Coarse Levels",true,0);
   }
 
-  RenCorrection=eparms.GetValueFloat("RenCorrection",true,0);
-  if(RenCorrection<0 || RenCorrection>1)RunException(met,"Value of RenCorrection is invalid.");
+	switch(eparms.GetValueInt("NegativePressureBound",true,1)){
+    case 0:  NegativePressureBound=false;     break;
+    case 1:  NegativePressureBound=true;     break;
+    default: RunException(met,"NegativePressureBound can only be 0 (no) or 1 (yes)");
+  }
 
   FtPause=eparms.GetValueFloat("FtPause",true,0);
   TimeMax=eparms.GetValueDouble("TimeMax");
@@ -530,20 +540,15 @@ void JSph::LoadCaseConfig(){
 
   //-Loads and configures MK of particles.
   LoadMkInfo(&parts);
-
+	
   //-Configuration of WaveGen.
   if(xml.GetNode("case.execution.special.wavepaddles",false)){
     WaveGen=new JWaveGen(Log,DirCase,&xml,"case.execution.special.wavepaddles");
   }
 
-  //-Reads the values for the base file path and file count for the variable acceleration input file(s)
-  string accinput=eparms.GetValueStr("VarAccInput",true,"");
-  int accinputcount=eparms.GetValueInt("VarAccInputCount",true,0);
-  if(!accinput.empty() && accinputcount>0){
-    VarAcc=new JSphVarAcc();
-    if(int(accinput.find("/"))<0 && int(accinput.find("\\"))<0)accinput=DirCase+accinput; //-Only name of the file.
-    VarAcc->Config(accinput,unsigned(accinputcount),TimeMax);
-    Log->Print("Variable acceleration data successfully loaded.");
+  //-Configuration of AccInput.
+  if(xml.GetNode("case.execution.special.accinputs",false)){
+    AccInput=new JSphAccInput(Log,DirCase,&xml,"case.execution.special.accinputs");
   }
 
   //-Loads and configures MOTION.
@@ -615,6 +620,7 @@ void JSph::LoadCaseConfig(){
         DemObjs[tav].tau=(DemObjs[tav].young? (1-DemObjs[tav].poisson*DemObjs[tav].poisson)/DemObjs[tav].young: 0);
         DemObjs[tav].kfric=block.GetSubValueFloat("Kfric","value",true,0);
         DemObjs[tav].restitu=block.GetSubValueFloat("Restitution_Coefficient","value",true,0);
+        if(block.ExistsValue("Restitution_Coefficient_User"))DemObjs[tav].restitu=block.GetValueFloat("Restitution_Coefficient_User");
       }
     }
   }
@@ -624,13 +630,34 @@ void JSph::LoadCaseConfig(){
 }
 
 //==============================================================================
+// Shows coefficients used for DEM objects.
+//==============================================================================
+void JSph::VisuDemCoefficients()const{
+  //-Gets info for each block of particles.
+  Log->Printf("Coefficients for DEM:");
+  for(unsigned c=0;c<MkListSize;c++){
+    const word code=MkList[c].code;
+    const word type=CODE_GetType(code);
+    const unsigned tav=CODE_GetTypeAndValue(MkList[c].code);
+    if(type==CODE_TYPE_FIXED || type==CODE_TYPE_MOVING || type==CODE_TYPE_FLOATING){
+      Log->Printf("  Object %s  mkbound:%u  mk:%u",(type==CODE_TYPE_FIXED? "Fixed": (type==CODE_TYPE_MOVING? "Moving": "Floating")),MkList[c].mktype,MkList[c].mk);
+      //Log->Printf("    type: %u",type);
+      Log->Printf("    Young_Modulus: %g",DemObjs[tav].young);
+      Log->Printf("    PoissonRatio.: %g",DemObjs[tav].poisson);
+      Log->Printf("    Kfric........: %g",DemObjs[tav].kfric);
+      Log->Printf("    Restitution..: %g",DemObjs[tav].restitu);
+    }
+  }
+}
+
+//==============================================================================
 /// Initialisation of MK information.
 //==============================================================================
 void JSph::ResetMkInfo(){
   delete[] MkList; MkList=NULL;
   MkListSize=MkListFixed=MkListMoving=MkListFloat=MkListBound=MkListFluid=0;
 }
-#include <iostream>
+
 //==============================================================================
 /// Load MK information of particles.
 //==============================================================================
@@ -759,28 +786,39 @@ void JSph::ConfigConstants(bool simulate2d){
   const char* met="ConfigConstants";
   //-Computation of constants.
   const double h=H;
-  Delta2H=float(h*2*DeltaSph);
   Cs0=sqrt(double(Gamma)*double(CteB)/double(RhopZero));
   if(!DtIni)DtIni=h/Cs0;
-  if(!DtMin)DtMin=(h/Cs0)*CoefDtMin;
-  Dosh=float(h*2); 
-  H2=float(h*h);
-  Fourh2=float(h*h*4.0f); 
+  if(!DtMin)DtMin=(h/Cs0)*CoefDtMin; 
   Eta2=float((h*1.0e-5)*(h*1.0e-5));
-  if(simulate2d){
-    Awen=float(0.557f/(h*h));
-    Bwen=float(-2.7852f/(h*h*h));
-  }
-  else{
-    Awen=float(0.41778f/(h*h*h));
-    Bwen=float(-2.08891f/(h*h*h*h));
-  }
-  //-Constants for Laminar viscosity + SPS turbulence model.
-  if(TVisco==VISCO_LaminarSPS){  
-    double dp_sps=(Simulate2D? sqrt(Dp*Dp*2.)/2.: sqrt(Dp*Dp*3.)/3.);  
-    SpsSmag=float(pow((0.12*dp_sps),2));
-    SpsBlin=float((2./3.)*0.0066*dp_sps*dp_sps); 
-  }
+  H2=float(h*h);
+	
+	if(TKernel==KERNEL_Quintic){
+		//QUINTIC SPLINE
+		Dosh=float(h*3); 
+		Fourh2=float(h*h*9.0f); 
+		if(simulate2d){
+			Awen=float(7.0/(478.0*PI*h*h)); 
+			Bwen=float(7.0/(478.0*PI*h*h*h));
+		}
+		else{
+			Awen=float(1.0/(120.0*PI*h*h*h)); 
+			Bwen=float(1.0/(120.0*PI*h*h*h*h));
+		}
+	}
+	else if(TKernel==KERNEL_Wendland){
+		//WENDLAND KERNEL
+		Dosh=float(h*2); 
+		Fourh2=float(h*h*4.0f); 
+		if(simulate2d){
+			Awen=float(7.0/(4.0*PI*h*h)); 
+			Bwen=-float(35.0/(4.0*PI*h*h*h));
+		}
+		else{
+			Awen=float(0.41778/(h*h*h));
+			Bwen=-float(2.08891/(h*h*h*h));
+		}
+	}
+
   VisuConfig();
 }
 
@@ -794,17 +832,13 @@ void JSph::VisuConfig()const{
   Log->Print(fun::VarStr("RunName",RunName));
   Log->Print(fun::VarStr("SvDouble",SvDouble));
   Log->Print(fun::VarStr("SvTimers",SvTimers));
-  Log->Print(fun::VarStr("SvTimersStep",(TimersStep!=NULL? TimersStep->GetTimeInterval(): 0)));
   Log->Print(fun::VarStr("StepAlgorithm",GetStepName(TStep)));
   if(TStep==STEP_None)RunException(met,"StepAlgorithm value is invalid.");
-  if(TStep==STEP_Verlet)Log->Print(fun::VarStr("VerletSteps",VerletSteps));
   Log->Print(fun::VarStr("Kernel",GetKernelName(TKernel)));
   Log->Print(fun::VarStr("Viscosity",GetViscoName(TVisco)));
   Log->Print(fun::VarStr("Visco",Visco));
   Log->Print(fun::VarStr("ViscoBoundFactor",ViscoBoundFactor));
   if(ViscoTime)Log->Print(fun::VarStr("ViscoTime",ViscoTime->GetFile()));
-  Log->Print(fun::VarStr("DeltaSph",GetDeltaSphName(TDeltaSph)));
-  if(TDeltaSph!=DELTA_None)Log->Print(fun::VarStr("DeltaSphValue",DeltaSph));
   Log->Print(fun::VarStr("Shifting",GetShiftingName(TShifting)));
   if(TShifting!=SHIFT_None){
     Log->Print(fun::VarStr("ShiftCoef",ShiftCoef));
@@ -812,7 +846,6 @@ void JSph::VisuConfig()const{
     Log->Print(fun::VarStr("TensileR",TensileR));
   }
   Log->Print(fun::VarStr("FreeSurface",FreeSurface));
-  Log->Print(fun::VarStr("RenCorrection",RenCorrection));
   Log->Print(fun::VarStr("FloatingFormulation",(!FtCount? "None": (UseDEM? "SPH+DEM": "SPH"))));
   Log->Print(fun::VarStr("FloatingCount",FtCount));
   if(FtCount)Log->Print(fun::VarStr("FtPause",FtPause));
@@ -845,13 +878,9 @@ void JSph::VisuConfig()const{
   Log->Print(fun::VarStr("MassFluid",MassFluid));
   Log->Print(fun::VarStr("MassBound",MassBound));
   if(TKernel==KERNEL_Wendland){
-    if(RenCorrection)Log->Print(fun::VarStr("Awen (wendland)",Awen));
     Log->Print(fun::VarStr("Bwen (wendland)",Bwen));
   }
-  if(TVisco==VISCO_LaminarSPS){     
-    Log->Print(fun::VarStr("SpsSmag",SpsSmag));
-    Log->Print(fun::VarStr("SpsBlin",SpsBlin));
-  } 
+  if(UseDEM)VisuDemCoefficients();
   if(CaseNfloat)Log->Print(fun::VarStr("FtPause",FtPause));
   Log->Print(fun::VarStr("TimeMax",TimeMax));
   Log->Print(fun::VarStr("TimePart",TimePart));
@@ -862,8 +891,6 @@ void JSph::VisuConfig()const{
     Log->Print(fun::VarStr("RhopOutMin",RhopOutMin));
     Log->Print(fun::VarStr("RhopOutMax",RhopOutMax));
   }
-  if(VarAcc)Log->Print(fun::VarStr("VarAcc",VarAcc->GetBaseFile()+":"+fun::UintStr(VarAcc->GetCount())));
-  if(CteB==0)RunException(met,"Constant \'b\' can not be zero.\n\'b\' is zero when fluid height is zero (or fluid particles were not created)");
 }
 
 //==============================================================================
@@ -1168,7 +1195,7 @@ void JSph::PrintSizeNp(unsigned np,llong size)const{
 // Visualiza cabeceras de PARTs
 //==============================================================================
 void JSph::PrintHeadPart(){
-  Log->Print("PART       PartTime      TotalSteps    Steps    Time/Seg   Finish time        ");
+  Log->Print("PART       PartTime      TotalSteps    Steps    Time/Sec   Finish time        ");
   Log->Print("=========  ============  ============  =======  =========  ===================");
   fflush(stdout);
 }
@@ -1181,7 +1208,7 @@ void JSph::ConfigSaveData(unsigned piece,unsigned pieces,std::string div){
   //-Configura objeto para grabacion de particulas e informacion.
   if(SvData&SDAT_Info || SvData&SDAT_Binx){
     DataBi4=new JPartDataBi4();
-    DataBi4->ConfigBasic(piece,pieces,RunCode,AppName,Simulate2D,DirOut);
+    DataBi4->ConfigBasic(piece,pieces,RunCode,AppName,CaseName,Simulate2D,DirOut);
     DataBi4->ConfigParticles(CaseNp,CaseNfixed,CaseNmoving,CaseNfloat,CaseNfluid,CasePosMin,CasePosMax,NpDynamic,ReuseIds);
     DataBi4->ConfigCtes(Dp,H,CteB,RhopZero,Gamma,MassBound,MassFluid);
     DataBi4->ConfigSimMap(OrderDecode(MapRealPosMin),OrderDecode(MapRealPosMax));
@@ -1246,25 +1273,25 @@ void JSph::SavePartData(unsigned npok,unsigned nout,const unsigned *idp,const td
   if(DataBi4){
     tfloat3* posf3=NULL;
     TimerPart.Stop();
-    JBinaryData* bdat=DataBi4->AddPartInfo(Part,TimeStep,npok,nout,Nstep,TimerPart.GetElapsedTimeD()/1000.,vdom[0],vdom[1],TotalNp);
+    JBinaryData* bdpart=DataBi4->AddPartInfo(Part,TimeStep,npok,nout,Nstep,TimerPart.GetElapsedTimeD()/1000.,vdom[0],vdom[1],TotalNp);
     if(infoplus && SvData&SDAT_Info){
-      bdat->SetvDouble("dtmean",(!Nstep? 0: (TimeStep-TimeStepM1)/(Nstep-PartNstep)));
-      bdat->SetvDouble("dtmin",(!Nstep? 0: PartDtMin));
-      bdat->SetvDouble("dtmax",(!Nstep? 0: PartDtMax));
-      if(DtFixed)bdat->SetvDouble("dterror",DtFixed->GetDtError(true));
-      bdat->SetvDouble("timesim",infoplus->timesim);
-      bdat->SetvUint("nct",infoplus->nct);
-      bdat->SetvUint("npbin",infoplus->npbin);
-      bdat->SetvUint("npbout",infoplus->npbout);
-      bdat->SetvUint("npf",infoplus->npf);
-      bdat->SetvUint("npbper",infoplus->npbper);
-      bdat->SetvUint("npfper",infoplus->npfper);
-      bdat->SetvLlong("cpualloc",infoplus->memorycpualloc);
+      bdpart->SetvDouble("dtmean",(!Nstep? 0: (TimeStep-TimeStepM1)/(Nstep-PartNstep)));
+      bdpart->SetvDouble("dtmin",(!Nstep? 0: PartDtMin));
+      bdpart->SetvDouble("dtmax",(!Nstep? 0: PartDtMax));
+      if(DtFixed)bdpart->SetvDouble("dterror",DtFixed->GetDtError(true));
+      bdpart->SetvDouble("timesim",infoplus->timesim);
+      bdpart->SetvUint("nct",infoplus->nct);
+      bdpart->SetvUint("npbin",infoplus->npbin);
+      bdpart->SetvUint("npbout",infoplus->npbout);
+      bdpart->SetvUint("npf",infoplus->npf);
+      bdpart->SetvUint("npbper",infoplus->npbper);
+      bdpart->SetvUint("npfper",infoplus->npfper);
+      bdpart->SetvLlong("cpualloc",infoplus->memorycpualloc);
       if(infoplus->gpudata){
-        bdat->SetvLlong("nctalloc",infoplus->memorynctalloc);
-        bdat->SetvLlong("nctused",infoplus->memorynctused);
-        bdat->SetvLlong("npalloc",infoplus->memorynpalloc);
-        bdat->SetvLlong("npused",infoplus->memorynpused);
+        bdpart->SetvLlong("nctalloc",infoplus->memorynctalloc);
+        bdpart->SetvLlong("nctused",infoplus->memorynctused);
+        bdpart->SetvLlong("npalloc",infoplus->memorynpalloc);
+        bdpart->SetvLlong("npused",infoplus->memorynpused);
       }
     }
     if(SvData&SDAT_Binx){
@@ -1273,7 +1300,14 @@ void JSph::SavePartData(unsigned npok,unsigned nout,const unsigned *idp,const td
         posf3=GetPointerDataFloat3(npok,pos);
         DataBi4->AddPartData(npok,idp,posf3,vel,rhop);
       }
+      /*float *press=NULL;
+      if(0){//-Example saving a new array (Pressure) in files BI4.
+        press=new float[npok];
+        for(unsigned p=0;p<npok;p++)press[p]=(idp[p]>=CaseNbound? CteB*(pow(rhop[p]/RhopZero,Gamma)-1.0f): 0.f);
+        DataBi4->AddPartData("Pressure",npok,press);
+      }*/
       DataBi4->SaveFilePart();
+      //delete[] press; press=NULL;//-Memory must to be deallocated after saving file because DataBi4 uses this memory space.
     }
     if(SvData&SDAT_Info)DataBi4->SaveFileInfo();
     delete[] posf3;
@@ -1291,13 +1325,14 @@ void JSph::SavePartData(unsigned npok,unsigned nout,const unsigned *idp,const td
     //-Define campos a grabar.
     JFormatFiles2::StScalarData fields[8];
     unsigned nfields=0;
-    if(idp){   fields[nfields]=JFormatFiles2::DefineField("Id",JFormatFiles2::UInt32,1,idp);      nfields++; }
+    if(idp){   fields[nfields]=JFormatFiles2::DefineField("Idp",JFormatFiles2::UInt32,1,idp);      nfields++; }
     if(vel){   fields[nfields]=JFormatFiles2::DefineField("Vel",JFormatFiles2::Float32,3,vel);    nfields++; }
     if(rhop){  fields[nfields]=JFormatFiles2::DefineField("Rhop",JFormatFiles2::Float32,1,rhop);  nfields++; }
     if(type){  fields[nfields]=JFormatFiles2::DefineField("Type",JFormatFiles2::UChar8,1,type);   nfields++; }
     if(SvData&SDAT_Vtk)JFormatFiles2::SaveVtk(DirOut+fun::FileNameSec("PartVtk.vtk",Part),npok,posf3,nfields,fields);
     if(SvData&SDAT_Csv)JFormatFiles2::SaveCsv(DirOut+fun::FileNameSec("PartCsv.csv",Part),npok,posf3,nfields,fields);
     //-libera memoria.
+    //-release of memory.
     delete[] posf3;
     delete[] type; 
   }
@@ -1316,7 +1351,7 @@ void JSph::SavePartData(unsigned npok,unsigned nout,const unsigned *idp,const td
   if(DataFloatBi4){
     if(CellOrder==ORDER_XYZ)for(unsigned cf=0;cf<FtCount;cf++)DataFloatBi4->AddPartData(cf,FtObjs[cf].center,FtObjs[cf].fvel,FtObjs[cf].fomega);
     else                    for(unsigned cf=0;cf<FtCount;cf++)DataFloatBi4->AddPartData(cf,OrderDecodeValue(CellOrder,FtObjs[cf].center),OrderDecodeValue(CellOrder,FtObjs[cf].fvel),OrderDecodeValue(CellOrder,FtObjs[cf].fomega));
-    DataFloatBi4->SavePartFloat(Part,TimeStep,DemDtForce);
+    DataFloatBi4->SavePartFloat(Part,TimeStep,(UseDEM? DemDtForce: 0));
   }
 
   //-Vacia almacen de particulas excluidas.
@@ -1385,16 +1420,6 @@ void JSph::SaveMapCellsVtk(float scell)const{
 }
 
 //==============================================================================
-// Almacena informacion de timers en TimersStep.
-//==============================================================================
-void JSph::SaveTimersStep(unsigned np,unsigned npb,unsigned npbok,unsigned nct){
-  if(TimersStep&&TimersStep->Check(float(TimeStep))){
-    TimerSim.Stop();
-    TimersStep->AddStep(float(TimeStep),TimerSim.GetElapsedTimeD()/1000,Nstep,np,npb,npbok,nct);
-  }  
-}
-
-//==============================================================================
 // Añade la informacion basica de resumen a hinfo y dinfo.
 //==============================================================================
 void JSph::GetResInfo(float tsim,float ttot,const std::string &headplus,const std::string &detplus,std::string &hinfo,std::string &dinfo){
@@ -1406,7 +1431,7 @@ void JSph::GetResInfo(float tsim,float ttot,const std::string &headplus,const st
   dinfo=dinfo+ ";"+ fun::IntStr(Nstep)+ ";"+ fun::IntStr(Part)+ ";"+ fun::UintStr(nout);
   dinfo=dinfo+ ";"+ fun::UintStr(MaxParticles)+ ";"+ fun::UintStr(MaxCells);
   dinfo=dinfo+ ";"+ Hardware+ ";"+ GetStepName(TStep)+ ";"+ GetKernelName(TKernel)+ ";"+ GetViscoName(TVisco)+ ";"+ fun::FloatStr(Visco);
-  dinfo=dinfo+ ";"+ fun::FloatStr(DeltaSph,"%G")+ ";"+ fun::FloatStr(float(TimeMax));
+  dinfo=dinfo+ ";"+ fun::FloatStr(float(TimeMax));
   dinfo=dinfo+ ";"+ fun::UintStr(CaseNbound)+ ";"+ fun::UintStr(CaseNfixed)+ ";"+ fun::FloatStr(H);
   std::string rhopcad;
   if(RhopOut)rhopcad=fun::PrintStr("(%G-%G)",RhopOutMin,RhopOutMax); else rhopcad="None";
@@ -1475,8 +1500,7 @@ void JSph::ShowResume(bool stop,float tsim,float ttot,bool all,std::string infop
 //==============================================================================
 std::string JSph::GetStepName(TpStep tstep){
   string tx;
-  if(tstep==STEP_Verlet)tx="Verlet";
-  else if(tstep==STEP_Symplectic)tx="Symplectic";
+  if(tstep==STEP_Symplectic)tx="Symplectic";
   else tx="???";
   return(tx);
 }
@@ -1486,7 +1510,8 @@ std::string JSph::GetStepName(TpStep tstep){
 //==============================================================================
 std::string JSph::GetKernelName(TpKernel tkernel){
   string tx;
-  if(tkernel==KERNEL_Wendland)tx="Wendland";
+	if(tkernel==KERNEL_Quintic)tx="Quintic";
+  else if(tkernel==KERNEL_Wendland)tx="Wendland";
   else tx="???";
   return(tx);
 }
@@ -1497,7 +1522,6 @@ std::string JSph::GetKernelName(TpKernel tkernel){
 std::string JSph::GetViscoName(TpVisco tvisco){
   string tx;
   if(tvisco==VISCO_Artificial)tx="Artificial";
-  else if(tvisco==VISCO_LaminarSPS)tx="Laminar+SPS";
   else tx="???";
   return(tx);
 }

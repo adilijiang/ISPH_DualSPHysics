@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -241,7 +241,7 @@ void JSaveDt::AddValues(double timestep,double dtfinal,double dt1,double dt2,dou
       AddValueData(timestep,velmax,LastVelMax);
     }
     //-Gestion de AllDt.
-	//-Management of AllDt.
+    //-Management of AllDt.
     if(AllDt){
       if(CountAllDts>=SizeAllDts)SaveFileAllDts();
       AllDts[CountAllDts]=TDouble2(timestep,dtfinal);

@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -45,11 +45,11 @@ void JSpaceEParms::Reset(){
 //==============================================================================
 /// Adds element to the list.
 //==============================================================================
-void JSpaceEParms::Add(const std::string &key,const std::string &value,const std::string &comment){
+void JSpaceEParms::Add(const std::string &key,const std::string &value,const std::string &comment,const std::string &unitscomment){
   JSpaceEParmsItem* item=GetItemPointer(key);
-  if(item){ item->value=value; item->comment=comment; }
+  if(item){ item->value=value; item->comment=comment; item->unitscomment=unitscomment; }
   else{
-    JSpaceEParmsItem ite; ite.key=key; ite.value=value; ite.comment=comment;
+    JSpaceEParmsItem ite; ite.key=key; ite.value=value; ite.comment=comment; ite.unitscomment=unitscomment;
     List.push_back(ite);
   }
 }
@@ -148,6 +148,7 @@ std::string JSpaceEParms::ToString(unsigned pos)const{
     while(tx.length()<30)tx=tx+" ";
     tx=tx+"#"+ite.comment;
   }
+  if(!ite.unitscomment.empty())tx=tx+" #"+ite.unitscomment;
   return(tx);
 }
 //==============================================================================
@@ -199,7 +200,7 @@ void JSpaceEParms::SaveXml(JXml *sxml,const std::string &place)const{
 void JSpaceEParms::ReadXml(JXml *sxml,TiXmlElement* lis){
   TiXmlElement* ele=lis->FirstChildElement("parameter"); 
   while(ele){
-    Add(sxml->GetAttributeStr(ele,"key"),sxml->GetAttributeStr(ele,"value"),sxml->GetAttributeStr(ele,"comment",true));
+    Add(sxml->GetAttributeStr(ele,"key"),sxml->GetAttributeStr(ele,"value"),sxml->GetAttributeStr(ele,"comment",true),sxml->GetAttributeStr(ele,"units_comment",true));
     ele=ele->NextSiblingElement("parameter");
   }
 }
@@ -214,6 +215,7 @@ void JSpaceEParms::WriteXml(JXml *sxml,TiXmlElement* lis)const{
     JXml::AddAttribute(&item,"key",ite.key);
     JXml::AddAttribute(&item,"value",ite.value);
     if(!ite.comment.empty())JXml::AddAttribute(&item,"comment",ite.comment);
+    if(!ite.unitscomment.empty())JXml::AddAttribute(&item,"units_comment",ite.unitscomment);
     lis->InsertEndChild(item);
   }
 }

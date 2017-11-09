@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -15,24 +15,10 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
+/// \file JSphDtFixed.h \brief Declares the class \ref JSphDtFixed.
+
 #ifndef _JSphDtFixed_
 #define _JSphDtFixed_
-
-//#############################################################################
-//# ES:
-//# Cambios:
-//# =========
-//# - Gestiona el uso de un dt fijo (en milisegundos) a partir de los valores 
-//#   para determinados instantes en segundos, interpolando los valores 
-//#   intermedios. (10/11/2012)
-//# - Los datos float pasaron a double. (28/11/2013) 
-//# - EN:
-//# Changes:
-//# =========
-//# - Manage the use of a fixed dt (in milliseconds) from the values
-//# for certain moments in seconds, by interpolating intermediate values (10/11/2012)
-//# - The float data became double. (11.28.2013)
-//#############################################################################
 
 #include "JObject.h"
 #include "Types.h"
@@ -51,8 +37,7 @@
 class JSphDtFixed : protected JObject
 {
 protected:
-  static const unsigned SIZEMAX=100000;
-  static const unsigned SIZEINITIAL=500;
+  static const unsigned FILESIZEMAX=104857600; ///<Maximum file size (100mb).
 
   std::string File;
   unsigned Size;

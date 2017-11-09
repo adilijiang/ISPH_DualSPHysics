@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -30,7 +30,7 @@ using std::endl;
 //==============================================================================
 /// Constructor.
 //==============================================================================
-JLog2::JLog2(){
+JLog2::JLog2(TpMode_Out modeoutdef):ModeOutDef(modeoutdef){
   ClassName="JLog2";
   Pf=NULL;
   Reset();
@@ -70,10 +70,12 @@ void JLog2::Init(std::string fname,bool mpirun,int mpirank,int mpilaunch){
     if(!ext.empty())fname=fname+"."+ext;
   }
   FileName=fname;
-  Pf=new ofstream; 
-  Pf->open(fname.c_str());
-  if(Pf)Ok=true;
-  else RunException("Init","Cannot open the file.",fname);
+  if(ModeOutDef&Out_File){
+    Pf=new ofstream; 
+    Pf->open(fname.c_str());
+    if(Pf)Ok=true;
+    else RunException("Init","Cannot open the file.",fname);
+  }
 }
 
 //==============================================================================
@@ -87,6 +89,7 @@ std::string JLog2::GetDirOut()const{
 /// Visualises and/or stores information of the execution.
 //==============================================================================
 void JLog2::Print(const std::string &tx,TpMode_Out mode,bool flush){
+  if(mode==Out_Default)mode=ModeOutDef;
   if(mode&Out_Screen){
     if(MpiRun){
       int pos=0;
@@ -95,7 +98,7 @@ void JLog2::Print(const std::string &tx,TpMode_Out mode,bool flush){
     }
     else printf("%s\n",tx.c_str());
   }
-  if((mode&Out_File)&&Pf)(*Pf) << tx << endl;
+  if((mode&Out_File) && Pf)(*Pf) << tx << endl;
   if(flush)fflush(stdout);
 }
   

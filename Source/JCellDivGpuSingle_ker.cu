@@ -119,7 +119,91 @@ void PreSortFluid(unsigned npf,unsigned pini,unsigned cellcode,const unsigned *d
   }
 }
 
+__device__ void KerMirrorDCellSort(const double3 ps,const unsigned idp,tdouble3 domrealposmin,tdouble3 domrealposmax,
+	tdouble3 domposmin,float scell,int domcellcode,unsigned &mcell){
+	const double dx=ps.x-domposmin.x;
+	const double dy=ps.y-domposmin.y;
+	const double dz=ps.z-domposmin.z;
+	unsigned cx=unsigned(dx/scell),cy=unsigned(dy/scell),cz=unsigned(dz/scell);
+	mcell=PC__Cell(domcellcode,cx,cy,cz);
+}
 
+__global__ void KerMirrorDCell(unsigned npb,const word *code,const unsigned *idpg,const double3 *mirrorPos,
+	unsigned *mirrorCell,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode){
+	unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
+  if(p1<npb){
+		const unsigned idp=idpg[p1];
+		const double3 ps=mirrorPos[idp];
+		unsigned mcell;
+		KerMirrorDCellSort(ps,idp,domrealposmin,domrealposmax,domposmin,scell,domcellcode,mcell);
+		mirrorCell[idp]=mcell;
+	}
+}
+
+void MirrorDCell(const unsigned bsbound,unsigned npb,const word *code,const unsigned *idpg,const double3 *mirrorPos,
+	unsigned *mirrorCell,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode){
+	if(npb){
+    dim3 sgridb=GetGridSize(npb,bsbound);
+    KerMirrorDCell <<<sgridb,bsbound>>> (npb,code,idpg,mirrorPos,mirrorCell,domrealposmin,domrealposmax,domposmin,scell,domcellcode);
+	}
+}
+
+
+__global__ void KerMatrixMirrorDCell(const unsigned pfin,const unsigned pinit,const unsigned npb,const unsigned npbok,const double2 *posxy,const double *posz
+	,const word *code,const unsigned *idpg,unsigned int *row,unsigned int *col
+	,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode
+	,const bool PeriActive,const tdouble3 MapRealPosMin,const tdouble3 MapRealSize,const tdouble3 PeriXinc,const tdouble3 PeriYinc,const tdouble3 PeriZinc){
+	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
+  if(p<pfin){
+		const unsigned p1=p+pinit;
+		if(CODE_GetSpecialValue(code[p1])==CODE_PERIODIC){
+			const unsigned idp=idpg[p1];
+			double3 ps; ps.x=posxy[p1].x; ps.y=posxy[p1].y; ps.z=posz[p1];
+
+			unsigned oi=p1;
+			if(p1>=int(npb)) oi=(oi-npb)+npbok;
+      const unsigned diag=row[oi];
+
+			unsigned mcell;
+			double dx=ps.x-MapRealPosMin.x;
+			double dy=ps.y-MapRealPosMin.y;
+			double dz=ps.z-MapRealPosMin.z;
+		
+			//-Adjust position according to periodic conditions and compare domain limits / Ajusta posicion segun condiciones periodicas y vuelve a comprobar los limites del dominio.
+			bool xperi=((PeriActive&1)!=0),yperi=((PeriActive&2)!=0),zperi=((PeriActive&4)!=0);
+			if(xperi){
+				if(dx<0)             { dx-=PeriXinc.x; dy-=PeriXinc.y; dz-=PeriXinc.z; }
+				if(dx>=MapRealSize.x){ dx+=PeriXinc.x; dy+=PeriXinc.y; dz+=PeriXinc.z; }
+			}
+			if(yperi){
+				if(dy<0)             { dx-=PeriYinc.x; dy-=PeriYinc.y; dz-=PeriYinc.z; }
+				if(dy>=MapRealSize.y){ dx+=PeriYinc.x; dy+=PeriYinc.y; dz+=PeriYinc.z; }
+			}
+			if(zperi){
+				if(dz<0)             { dx-=PeriZinc.x; dy-=PeriZinc.y; dz-=PeriZinc.z; }
+				if(dz>=MapRealSize.z){ dx+=PeriZinc.x; dy+=PeriZinc.y; dz+=PeriZinc.z; }
+			}
+			ps.x=dx+MapRealPosMin.x;
+			ps.y=dy+MapRealPosMin.y;
+			ps.z=dz+MapRealPosMin.z;
+
+			KerMirrorDCellSort(ps,idp,domrealposmin,domrealposmax,domposmin,scell,domcellcode,mcell);
+			col[diag]=mcell;
+		}
+	}
+}
+
+void MatrixMirrorDCell(const unsigned bsbound,const unsigned bsfluid,const unsigned npf,const unsigned npb,const unsigned npbok,const double2 *posxy,const double *posz
+	,const word *code,const unsigned *idpg,unsigned int *row,unsigned int *col,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell
+	,int domcellcode,const bool PeriActive,const tdouble3 MapRealPosMin,const tdouble3 MapRealSize,const tdouble3 PeriXinc,const tdouble3 PeriYinc,const tdouble3 PeriZinc){
+	
+	if(npf){
+    dim3 sgridb=GetGridSize(npbok,bsbound);
+		dim3 sgridf=GetGridSize(npf,bsfluid);
+    KerMatrixMirrorDCell <<<sgridb,bsbound>>> (npbok,0,npb,npbok,posxy,posz,code,idpg,row,col,domrealposmin,domrealposmax,domposmin,scell,domcellcode,PeriActive,MapRealPosMin,MapRealSize,PeriXinc,PeriYinc,PeriZinc);
+		KerMatrixMirrorDCell <<<sgridf,bsfluid>>> (npf,npb,npb,npbok,posxy,posz,code,idpg,row,col,domrealposmin,domrealposmax,domposmin,scell,domcellcode,PeriActive,MapRealPosMin,MapRealSize,PeriXinc,PeriYinc,PeriZinc);
+	}
+}
 }
 
 

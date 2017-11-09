@@ -1,5 +1,5 @@
 /*
- <DUALSPHYSICS>  Copyright (c) 2015, Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
+ <DUALSPHYSICS>  Copyright (c) 2016, Dr Jose M. Dominguez et al. (see http://dual.sphysics.org/index.php/developers/). 
 
  EPHYSLAB Environmental Physics Laboratory, Universidade de Vigo, Ourense, Spain.
  School of Mechanical, Aerospace and Civil Engineering, University of Manchester, Manchester, U.K.
@@ -15,20 +15,6 @@
  You should have received a copy of the GNU General Public License, along with DualSPHysics. If not, see <http://www.gnu.org/licenses/>. 
 */
 
-//#############################################################################
-//# ES:
-//# Cambios:
-//# =========
-//# - Implementacion de una clase para medir con precision pequeños intervalos
-//#   de tiempo mediante la GPU usando cudaEvent de CUDA. (10/01/2011)
-//# - Traduccion de comentarios al ingles. (10/02/2012)
-//# - EN:
-//# Changes:
-//# =========
-//# - Implementing a class to accurately measure small intervals
-//#   of time in the GPU by using CUDA cudaEvent. (10/01/2011)
-// # - Comment English translation. (10/02/2012)
-//#############################################################################
 
 /// \file JTimerCuda.h \brief Declares the class \ref JTimerCuda.
 
@@ -40,7 +26,7 @@
 //##############################################################################
 //# JTimerCuda
 //##############################################################################
-/// \brief Defines a class to measure short time intervals in GPU using cudaEvent.
+/// \brief Defines a class to measure short time intervals on the GPU using cudaEvent.
 
 class JTimerCuda
 {

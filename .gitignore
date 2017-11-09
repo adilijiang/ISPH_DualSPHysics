@@ -31,8 +31,6 @@ Doxy/*
 !/Doxy/logoDSPH.png
 
 ## Excluye librerias y codigo temporal.
-Libs/
-LibsLinux/
 /Source/*.a
 /Source/JSaveCsv.*
 /Source/JDgKerPrint*.*

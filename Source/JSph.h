@@ -36,7 +36,6 @@
 #include "JCfgRun.h"
 #include "JLog2.h"
 #include "JTimer.h"
-#include "JTimersStep.h"
 #include <float.h>
 #include <string>
 #include <cmath>
@@ -52,13 +51,14 @@ class JSphDtFixed;
 class JSaveDt;
 class JSphVisco;
 class JWaveGen;
-class JSphVarAcc;
+class JSphAccInput;
 class JSpaceParts;
 class JPartDataBi4;
 class JPartOutBi4Save;
 class JPartFloatBi4Save;
 class JPartsOut;
 class JXml;
+class JTimeOut;
 
 class JSph : protected JObject
 {
@@ -142,7 +142,6 @@ protected:
 
   bool Simulate2D;  //-Activa o desactiva simulacion en 2D (anula fuerzas en eje Y).	//-Toggles 2D simulation (cancels forces in Y axis).
   bool Stable;
-  bool Psimple;
   bool SvDouble;  //-Indica si en los ficheros bi4 se guarda Pos como double.			//-Indicates whether Pos is saved as double in bi4 files.
 
   std::string AppName;
@@ -155,36 +154,37 @@ protected:
   //-Opciones de ejecucion.
   //-Execution options.
   TpStep TStep;               //-Algitmo de paso: Verlet o Symplectic.											//-Step Algorithm: Verlet or Symplectic.
-  int VerletSteps;            //-Number of steps to apply Eulerian equations
   TpKernel TKernel;           //-Tipo de kernel: Cubic o Wendland.												//-Kernel type: Cubic or Wendland.
-  double Awen;                 //-Constante para kernel wendland (awen).											//-Wendland kernel constant (awen).
-  double Bwen;                 //-Constante para kernel wendland (bwen).											//-Wendland kernel constant (bwen).
+  float Awen;                 //-Constante para kernel wendland (awen).											//-Wendland kernel constant (awen).
+  float Bwen;                 //-Constante para kernel wendland (bwen).											//-Wendland kernel constant (bwen).
   TpVisco TVisco;             //-Tipo de viscosidad: Artificial,...												//-Viscosity type: Artificial,...
-  TpDeltaSph TDeltaSph;       //-Tipo de Delta-SPH: None, Basic o Dynamic.										//-Delta-SPH type: None, Basic or Dynamic.
-  float DeltaSph;             //-Constante para DeltaSPH. El valor por defecto es 0.1f, con 0 no tiene efecto.	//-DeltaSPH constant. The default value is 0.1f, with 0 having no effect.
-
-  float RenCorrection;        //-Constant for Ren correction in DBC (0-1), with 0 disabled (def=0).
 
   TpShifting TShifting; //-Tipo de Shifting: None, NoBound, NoFixed, Full.										//-Shifting type: None, NoBound, NoFixed, Full.	
-  double ShiftCoef;      //-Coefficient for shifting computation.
-  double FreeSurface;    //-Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (def=0).
-  double TensileN;       //-Tensile Instability Coefficient
-  double TensileR;       //-Tensile Instability Coefficient
+  float ShiftCoef;      //-Coefficient for shifting computation.
+  float ShiftOffset;    //-Coefficient for shifting near-free-surface and marking pressure near free-surface
+	float FreeSurface;    //-Threshold to detect free surface.
+	double FactorNormShift;//-Coefficient for amount of allowable shifting to the normal of the free-surface
+  float TensileN;       //-Tensile Instability Coefficient
+  float TensileR;       //-Tensile Instability Coefficient
 
   TpSlipCond TSlipCond;
   
   TpPrecond TPrecond;
   TpAMGInter TAMGInter;
-  int Iterations;
+	unsigned MatrixMemory;
+	int Iterations;
+	int Restart;
   double Tolerance;
   float StrongConnection;
   float JacobiWeight;
   int Presmooth;
   int Postsmooth;
   int CoarseCutoff;
+  int CoarseLevels;
+	bool NegativePressureBound; //Allow negative pressure in the boundary
 
-  double Visco;  
-  double ViscoBoundFactor;     //-Para interaccion con contorno usa Visco*ViscoBoundFactor.						//-Forboundary interaction use Visco*ViscoBoundFactor.
+  float Visco;  
+  float ViscoBoundFactor;     //-Para interaccion con contorno usa Visco*ViscoBoundFactor.						//-Forboundary interaction use Visco*ViscoBoundFactor.
   JSphVisco* ViscoTime;       //-Proporciona un valor de viscosidad en funcion del instante de la simulacion.	//-Provides a viscosity value as a function of simulation time.
 
   bool RhopOut;                //Indica si activa la correccion de densidad RhopOut o no.						//-Indicates whether the RhopOut density correction is active or not.
@@ -192,6 +192,7 @@ protected:
 
   double TimeMax;
   double TimePart;
+  JTimeOut *TimeOut;
 
   double DtIni;       //-Dt inicial																				//-Initial Dt
   double DtMin;       //-Dt minimo permitido (si el calculado es menor se sustituye por DtMin).					//-Minimum allowed Dt (if the calculated is lower is replaced by DTmin).
@@ -220,8 +221,6 @@ protected:
   tfloat3 Gravity;
   tdouble3 GravityDbl;
   float Dosh,H2,Fourh2,Eta2;
-  float SpsSmag;             ///<Smagorinsky constant used in SPS turbulence model.
-  float SpsBlin;             ///<Blin constant used in the SPS turbulence model.
 
   //-Informacion general del caso.
   tdouble3 CasePosMin,CasePosMax;  //-Limites de particulas del caso en instante inicial.		//-Particle limits of the case in the initial instant.
@@ -281,7 +280,7 @@ protected:
 
   JWaveGen *WaveGen;      //-Objecto para generacion de oleaje.													//-Object for wave generation
 
-  JSphVarAcc *VarAcc;     ///<Object for variable acceleration functionality.
+  JSphAccInput *AccInput;     ///<Object for variable acceleration functionality.
 
   TpCellOrder CellOrder;  //-Orden de ejes en ordenacion de particulas en celdas.								//-Defines axes' ordination of particles in cells.
 
@@ -335,18 +334,19 @@ protected:
   double TimeStepIni; ///<Instante inicial de la simulación.								//-Initial instant of the simulation
   double TimeStep;    ///<Instante actual de la simulación.									//-Current instant of the simulation
   double TimeStepM1;  ///<Instante de la simulación en que se grabo el último PART.			//-Instant of the simulation when the last PART was stored.
+  double TimePartNext; ///<Instante para grabar siguiente fichero PART.                      ///<Instant to store next PART file.
 
   //-Control de tiempos de ejecucion.
   //-Control of the execution times.
   JTimer TimerTot,TimerSim,TimerPart;
-  JTimersStep* TimersStep;
-
 
   void AllocMemoryFloating(unsigned ftcount);
   llong GetAllocMemoryCpu()const;
 
   void LoadConfig(const JCfgRun *cfg);
   void LoadCaseConfig();
+
+  void VisuDemCoefficients()const;
 
   void ResetMkInfo();
   void LoadMkInfo(const JSpaceParts *parts);
@@ -393,7 +393,6 @@ protected:
   void SaveData(unsigned npok,const unsigned *idp,const tdouble3 *pos,const tfloat3 *vel,const float *rhop,unsigned ndom,const tdouble3 *vdom,const StInfoPartPlus *infoplus);
   void SaveDomainVtk(unsigned ndom,const tdouble3 *vdom)const;
   void SaveMapCellsVtk(float scell)const;
-  void SaveTimersStep(unsigned np,unsigned npb,unsigned npbok,unsigned nct);
 
   void GetResInfo(float tsim,float ttot,const std::string &headplus,const std::string &detplus,std::string &hinfo,std::string &dinfo);
   void SaveRes(float tsim,float ttot,const std::string &headplus="",const std::string &detplus="");
@@ -402,11 +401,12 @@ protected:
   unsigned GetOutPosCount()const{ return(OutPosCount); }
   unsigned GetOutRhopCount()const{ return(OutRhopCount); }
   unsigned GetOutMoveCount()const{ return(OutMoveCount); }
-  void solveVienna();
+
 public:
   JSph(bool cpu,bool withmpi);
   ~JSph();
 
+  static std::string GetPosDoubleName(bool psimple,bool svdouble);
   static std::string GetStepName(TpStep tstep);
   static std::string GetKernelName(TpKernel tkernel);
   static std::string GetViscoName(TpVisco tvisco);
