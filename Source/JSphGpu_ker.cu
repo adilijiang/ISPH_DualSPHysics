@@ -664,9 +664,10 @@ __global__ void KerInverseKernelCor2D(unsigned n,unsigned pinit,float3 *dwxcorrg
   if(p<n){
 		double3 dwx; dwx.x=dwxcorrg[p].x; dwx.y=dwxcorrg[p].y; dwx.z=dwxcorrg[p].z;
 		double3 dwz; dwz.x=dwzcorrg[p].x; dwz.y=dwzcorrg[p].y; dwz.z=dwzcorrg[p].z;
-		const double det=1.0/(dwx.x*dwz.z-dwz.x*dwx.z+CTE.eta2);
+		double det=dwx.x*dwz.z-dwz.x*dwx.z;
 	
     if(det){
+			det=1.0/(det+CTE.eta2);
       dwxcorrg[p].x=float(dwz.z*det);
 	    dwxcorrg[p].z=-float(dwx.z*det); 
 	    dwzcorrg[p].x=-float(dwz.x*det);
@@ -683,16 +684,20 @@ __global__ void KerInverseKernelCor3D(unsigned n,unsigned pinit,float3 *dwxcorrg
 		double3 dwy; dwy.x=dwycorrg[p].x; dwy.y=dwycorrg[p].y; dwy.z=dwycorrg[p].z; //  dwy.x   dwy.y   dwy.z
 		double3 dwz; dwz.x=dwzcorrg[p].x; dwz.y=dwzcorrg[p].y; dwz.z=dwzcorrg[p].z; //  dwz.x   dwz.y   dwz.z
 
-		const double det=(dwx.x*dwy.y*dwz.z+dwx.y*dwy.z*dwz.x+dwy.x*dwz.y*dwx.z)-(dwz.x*dwy.y*dwx.z+dwy.x*dwx.y*dwz.z+dwy.z*dwz.y*dwx.x)+CTE.eta2;
-		dwxcorrg[p].x=float((dwy.y*dwz.z-dwy.z*dwz.y)/det);
-		dwxcorrg[p].y=-float((dwx.y*dwz.z-dwx.z*dwz.y)/det);
-		dwxcorrg[p].z=float((dwx.y*dwy.z-dwx.z*dwy.y)/det);
-		dwycorrg[p].x=-float((dwy.x*dwz.z-dwy.z*dwz.x)/det);
-		dwycorrg[p].y=float((dwx.x*dwz.z-dwx.z*dwz.x)/det);
-		dwycorrg[p].z=-float((dwx.x*dwy.z-dwx.z*dwy.x)/det);
-		dwzcorrg[p].x=float((dwy.x*dwz.y-dwy.y*dwz.x)/det);
-		dwzcorrg[p].y=-float((dwx.x*dwz.y-dwx.y*dwz.x)/det);
-		dwzcorrg[p].z=float((dwx.x*dwy.y-dwx.y*dwy.x)/det);
+		double det=(dwx.x*dwy.y*dwz.z+dwx.y*dwy.z*dwz.x+dwy.x*dwz.y*dwx.z)-(dwz.x*dwy.y*dwx.z+dwy.x*dwx.y*dwz.z+dwy.z*dwz.y*dwx.x);
+
+		if(det){
+			det=1.0/(det+CTE.eta2);
+			dwxcorrg[p].x=float((dwy.y*dwz.z-dwy.z*dwz.y)*det);
+			dwxcorrg[p].y=-float((dwx.y*dwz.z-dwx.z*dwz.y)*det);
+			dwxcorrg[p].z=float((dwx.y*dwy.z-dwx.z*dwy.y)*det);
+			dwycorrg[p].x=-float((dwy.x*dwz.z-dwy.z*dwz.x)*det);
+			dwycorrg[p].y=float((dwx.x*dwz.z-dwx.z*dwz.x)*det);
+			dwycorrg[p].z=-float((dwx.x*dwy.z-dwx.z*dwy.x)*det);
+			dwzcorrg[p].x=float((dwy.x*dwz.y-dwy.y*dwz.x)*det);
+			dwzcorrg[p].y=-float((dwx.x*dwz.y-dwx.y*dwz.x)*det);
+			dwzcorrg[p].z=float((dwx.x*dwy.y-dwx.y*dwy.x)*det);
+		}
   }
 }
 
@@ -1863,7 +1868,7 @@ void ComputeStepSymplecticCor(bool floating,unsigned np,unsigned npb,const float
 //------------------------------------------------------------------------------
 template<bool periactive> __device__ void KerUpdatePos
   (double2 rxy,double rz,double movx,double movy,double movz
-  ,bool outrhop,unsigned p,double2 *posxy,double *posz,unsigned *dcell,word *code)
+  ,unsigned p,double2 *posxy,double *posz,unsigned *dcell,word *code)
 {
   //-Comprueba validez del desplazamiento.
   //-Checks validity of displacement.
@@ -1904,10 +1909,9 @@ template<bool periactive> __device__ void KerUpdatePos
   posz[p]=rpos.z;
   //-Guarda celda y check.
   //-Stores cell and checks.
-  if(outrhop || outmove || out){//-Particle out. Solo las particulas normales (no periodicas) se pueden marcar como excluidas. //-Particle out. Only brands as excluded normal particles (not periodic).
+  if(outmove || out){//-Particle out. Solo las particulas normales (no periodicas) se pueden marcar como excluidas. //-Particle out. Only brands as excluded normal particles (not periodic).
     word rcode=code[p];
-    if(outrhop)rcode=CODE_SetOutRhop(rcode);
-    else if(out)rcode=CODE_SetOutPos(rcode);
+    if(out)rcode=CODE_SetOutPos(rcode);
     else rcode=CODE_SetOutMove(rcode);
     code[p]=rcode;
     dcell[p]=0xFFFFFFFF;
@@ -1966,13 +1970,12 @@ template<bool periactive,bool floating> __global__ void KerComputeStepPos2(unsig
   if(pt<n){
     unsigned p=pt+pini;
     const word rcode=code[p];
-    const bool outrhop=(CODE_GetSpecialValue(rcode)==CODE_OUTRHOP);
     const bool fluid=(!floating || CODE_GetType(rcode)==CODE_TYPE_FLUID);
-    const bool normal=(!periactive || outrhop || CODE_GetSpecialValue(rcode)==CODE_NORMAL);
+    const bool normal=(!periactive || CODE_GetSpecialValue(rcode)==CODE_NORMAL);
     if(normal){//-No se aplica a particulas periodicas //-Does not apply to periodic particles.
       if(fluid){//-Solo se aplica desplazamiento al fluido. //-Only applied for fluid displacement.
         const double2 rmovxy=movxy[p];
-        KerUpdatePos<periactive>(posxypre[p],poszpre[p],rmovxy.x,rmovxy.y,movz[p],outrhop,p,posxy,posz,dcell,code);
+        KerUpdatePos<periactive>(posxypre[p],poszpre[p],rmovxy.x,rmovxy.y,movz[p],p,posxy,posz,dcell,code);
       }
       else{
         posxy[p]=posxypre[p];
@@ -2073,7 +2076,7 @@ template<bool periactive> __global__ void KerMoveLinBound(unsigned n,unsigned in
     if(pid>=0){
       //-Calcula desplazamiento y actualiza posicion.
 	  //-Computes displacement and updates position.
-      KerUpdatePos<periactive>(posxy[pid],posz[pid],mvpos.x,mvpos.y,mvpos.z,false,pid,posxy,posz,dcell,code);
+      KerUpdatePos<periactive>(posxy[pid],posz[pid],mvpos.x,mvpos.y,mvpos.z,pid,posxy,posz,dcell,code);
       //-Calcula velocidad.
 	  //-Computes velocity.
       velrhop[pid]=make_float4(mvvel.x,mvvel.y,mvvel.z,velrhop[pid].w);
@@ -2130,7 +2133,7 @@ template<bool periactive,bool simulate2d> __global__ void KerMoveMatBound(unsign
       const double dx=rpos2.x-rpos.x;
       const double dy=rpos2.y-rpos.y;
       const double dz=rpos2.z-rpos.z;
-      KerUpdatePos<periactive>(make_double2(rpos.x,rpos.y),rpos.z,dx,dy,dz,false,pid,posxy,posz,dcell,code);
+      KerUpdatePos<periactive>(make_double2(rpos.x,rpos.y),rpos.z,dx,dy,dz,pid,posxy,posz,dcell,code);
       //-Calcula velocidad.
 	  //-Computes velocity.
       velrhop[pid]=make_float4(float(dx/dt),float(dy/dt),float(dz/dt),velrhop[pid].w);
@@ -2443,7 +2446,7 @@ template<bool periactive> __global__ void KerFtUpdate(bool predictor,bool simula
         const double dx=dt*double(rvel.x);
         const double dy=dt*double(rvel.y);
         const double dz=dt*double(rvel.z);
-        KerUpdatePos<periactive>(rposxy,rposz,dx,dy,dz,false,p,posxy,posz,dcell,code);
+        KerUpdatePos<periactive>(rposxy,rposz,dx,dy,dz,p,posxy,posz,dcell,code);
         //-Calcula y graba nueva velocidad.
 		//-Computes and stores new velocity.
         float disx,disy,disz;

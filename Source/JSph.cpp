@@ -1513,6 +1513,7 @@ void JSph::ShowResume(bool stop,float tsim,float ttot,bool all,std::string infop
     Log->Printf("DTs adjusted to DtMin............: %d",DtModif);
     const unsigned nout=GetOutPosCount()+GetOutRhopCount()+GetOutMoveCount();
     Log->Printf("Excluded particles...............: %d",nout);
+		if(GetOutPosCount())Log->Printf("Excluded particles due to DomainPosition: %u",GetOutPosCount());
     if(GetOutRhopCount())Log->Printf("Excluded particles due to RhopOut: %u",GetOutRhopCount());
     if(GetOutMoveCount())Log->Printf("Excluded particles due to Velocity: %u",GetOutMoveCount());
   }
