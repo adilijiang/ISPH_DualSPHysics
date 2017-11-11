@@ -833,6 +833,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   CheckCudaError(met,"FreeSurfaceMark");
 	TmgStop(Timers,TMG_Stage2a);
 	TmgStart(Timers,TMG_Stage2b);
+	cusph::SolverResultArrange(bsbound,bsfluid,npb,npbok,npf,Velrhopg,Xg);
   cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Xg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
   CheckCudaError(met,"Matrix Solve");
 

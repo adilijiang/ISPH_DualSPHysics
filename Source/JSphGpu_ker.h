@@ -210,6 +210,8 @@ void Interaction_Shifting(TpKernel tkernel,bool floating,bool usedem,TpCellMode 
 void ComputeShift(bool floating,const unsigned bsfluid,unsigned np,unsigned npb
   ,const float3 *shiftpos,word *code,double2 *movxy,double *movz);
 
+void SolverResultArrange(const unsigned bsbound,const unsigned bsfluid,const unsigned npb,const unsigned npbok,const unsigned npf,float4 *velrhop,double *X);
+
 }
 #endif
 
