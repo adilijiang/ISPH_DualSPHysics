@@ -561,6 +561,19 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   Log->Print(string("\n[Initialising simulation (")+RunCode+")  "+fun::GetDateTime()+"]");
   PrintHeadPart();
 
+	if(WaveGen){
+		double wL,wH,wd,wOmega,wS0;
+		wL=2.0; wH=0.15; wd=0.5; 
+ 		double k=2*PI/wL;
+ 		double kd=k*wd, sinh2kd=sinh(kd);		
+ 		double kd2=2.0*kd;
+ 		double temp1=sinh(kd2)+kd2;
+ 		double temp2=2.0*(cosh(kd2)-1.0);
+ 		wS0=wH*temp1/temp2;
+ 		wOmega=sqrt(-Gravity.z*k*tanh(kd));
+		PistonPos.x=0.5*Dp+(wS0/2.0)*(1.0-cos(wOmega*TimeStep));
+	}
+
 	if(Npb){
 		cudaMemset(MirrorPosg,0,sizeof(double3)*Npb);
 		MirrorBoundary();
