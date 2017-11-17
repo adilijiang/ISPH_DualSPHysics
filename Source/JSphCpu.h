@@ -273,6 +273,8 @@ protected:
   
 	void Shift(double dt);
 
+	void SolverResultArrange(const unsigned matorder,const unsigned pinit,const unsigned pfin,tfloat4 *velrhop,double *X)const;
+
 public:
   JSphCpu(bool withmpi);
   ~JSphCpu();

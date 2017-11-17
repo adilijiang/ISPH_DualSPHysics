@@ -2311,9 +2311,15 @@ void JSphCpu::FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,double *matr
 //===============================================================================
 ///Reorder pressure for particles
 //===============================================================================
+void JSphCpu::SolverResultArrange(const unsigned matorder,const unsigned pinit,const unsigned pfin,tfloat4 *velrhop,double *X)const{
+	#ifdef _WITHOMP
+    #pragma omp parallel for schedule (guided)
+  #endif
+	for(int p1=int(pinit);p1<int(pfin);p1++) X[p1-matorder]=double(velrhop[p1].w);
+}
+
 void JSphCpu::PressureAssign(unsigned np,unsigned npbok,const tdouble3 *pos,tfloat4 *velrhop,
   const unsigned *idpc,double *x,const word *code,const unsigned npb,float *divr,tfloat3 gravity)const{
-
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
@@ -2334,10 +2340,16 @@ void JSphCpu::PressureAssign(unsigned np,unsigned npbok,const tdouble3 *pos,tflo
 template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
 void JSphCpu::run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,double *matrixx,const unsigned ppedim){ 
   VectorType result(rhs);
+	VectorType preResult(rhs);
+	#ifdef _WITHOMP
+			#pragma omp parallel for schedule (static)
+	#endif
+	for(int i=0;i<int(ppedim);i++) preResult[i]=matrixx[i];
+
   //VectorType residual(rhs);
   viennacl::tools::timer timer;
   timer.start();
-  result = viennacl::linalg::solve(matrix, rhs, solver, precond);
+  result = viennacl::linalg::solve(matrix, rhs, solver, precond,preResult);
   viennacl::backend::finish();    
   //Log->Printf("  > Solver time: %f",timer.get());   
   //residual -= viennacl::linalg::prod(matrix, result); 
@@ -2350,9 +2362,7 @@ void JSphCpu::run_solver(MatrixType const & matrix, VectorType const & rhs,Solve
 	#ifdef _WITHOMP
 			#pragma omp parallel for schedule (static)
 	#endif
-	for(int i=0;i<int(ppedim);i++){
-		matrixx[i]=result[i];
-	}
+	for(int i=0;i<int(ppedim);i++) matrixx[i]=result[i];
 }
 
 void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,double *matrixa,double *matrixb,double *matrixx,int *row,int *col,const unsigned ppedim,const unsigned nnz,const unsigned numfreesurface){
@@ -2493,7 +2503,7 @@ template <TpKernel tker,TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
 						float Wab;
 						if(tker==KERNEL_Quintic) Wab=GetKernelQuinticWab(rr2);
 						else if(tker==KERNEL_Wendland) Wab=GetKernelWendlandWab(rr2);
-						const float tensile=tensileN*powf((Wab/Wab1),tensileR);
+						const float tensile=tensileR*powf((Wab/Wab1),tensileN);
             
 						shiftposp1.x+=volumep2*frx; //-For boundary do not use shifting / Con boundary anula shifting.
             shiftposp1.y+=volumep2*fry;
