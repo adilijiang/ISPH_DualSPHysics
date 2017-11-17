@@ -837,9 +837,32 @@ template<TpKernel tker> __global__ void KerInteractionForcesBound
 			}
 		}
 		else if(tslipcond==SLIPCOND_NoSlip){
-			velrhop[p1].x=2.0f*velrhop[p1].x-Sum.x;
-			velrhop[p1].y=2.0f*velrhop[p1].y-Sum.y;
-			velrhop[p1].z=2.0f*velrhop[p1].z-Sum.z;
+			if(CODE_GetType(code[p1])==CODE_TYPE_MOVING){
+				float3 NormDir=make_float3(0,0,0), NormVel=make_float3(0,0,0), TangVel=make_float3(0,0,0);
+				NormDir.x=float(posmp1.x-posxy[p1].x);
+				if(!simulate2d)NormDir.y=float(posmp1.y-posxy[p1].y);
+				NormDir.z=float(posmp1.z-posz[p1]);
+
+				float MagNorm=NormDir.x*NormDir.x+NormDir.y*NormDir.y+NormDir.z*NormDir.z;
+				if(MagNorm){MagNorm=sqrtf(MagNorm); NormDir.x=NormDir.x/MagNorm; NormDir.y=NormDir.y/MagNorm; NormDir.z=NormDir.z/MagNorm;}
+		
+				float NormProdVel=Sum.x*NormDir.x+Sum.y*NormDir.y+Sum.z*NormDir.z;
+
+				NormVel.x=NormDir.x*NormProdVel;
+				NormVel.y=NormDir.y*NormProdVel;
+				NormVel.z=NormDir.z*NormProdVel;
+				TangVel.x=Sum.x-NormVel.x;
+				TangVel.y=Sum.y-NormVel.y;
+				TangVel.z=Sum.z-NormVel.z;
+				velrhop[p1].x=2.0f*velrhop[p1].x+TangVel.x-NormVel.x;
+				velrhop[p1].y=2.0f*velrhop[p1].y+TangVel.y-NormVel.y;
+				velrhop[p1].z=2.0f*velrhop[p1].z+TangVel.z-NormVel.z;
+			}
+			else{
+				velrhop[p1].x=2.0f*velrhop[p1].x-Sum.x;
+				velrhop[p1].y=2.0f*velrhop[p1].y-Sum.y;
+				velrhop[p1].z=2.0f*velrhop[p1].z-Sum.z;
+			}
 		}
 	}
 }
