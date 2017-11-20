@@ -489,7 +489,7 @@ double JSphGpuSingle::ComputeStep_Sym(double dt){
 	TmgStart(Timers,TMG_Stage4);
   if(TShifting)RunShifting(dt);			        //-Shifting
 	TmgStop(Timers,TMG_Stage4);
-	if(VariableTimestep) dt=ComputeVariable();
+	/*if(VariableTimestep)*/ 
   return(dt);
 }
 
@@ -545,7 +545,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   //-------------------------------------------
   InitRun();
   UpdateMaxValues();
-  PrintAllocMemory(GetAllocMemoryCpu(),GetAllocMemoryGpu());
+  PrintAllocMemory(GetAllocMemoryCpu(),GetAllocMemoryGpu(),MemGpuMatrix);
   SaveData(); 
   TmgResetValues(Timers);
   TmgStop(Timers,TMG_Init);
@@ -561,7 +561,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   Log->Print(string("\n[Initialising simulation (")+RunCode+")  "+fun::GetDateTime()+"]");
   PrintHeadPart();
 
-	if(WaveGen){
+	/*if(WaveGen){
 		double wL,wH,wd,wOmega,wS0;
 		wL=2.0; wH=0.15; wd=0.5; 
  		double k=2*PI/wL;
@@ -572,7 +572,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
  		wS0=wH*temp1/temp2;
  		wOmega=sqrt(-Gravity.z*k*tanh(kd));
 		PistonPos.x=0.5*Dp+(wS0/2.0)*(1.0-cos(wOmega*TimeStep));
-	}
+	}*/
 
 	if(Npb){
 		cudaMemset(MirrorPosg,0,sizeof(double3)*Npb);
@@ -599,6 +599,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 			TimePartNext=TimeOut->GetNextTime(TimeStep);
       TimerPart.Start();
     }
+		stepdt=ComputeVariable();
     UpdateMaxValues();
     Nstep++;
     //if(Nstep>=2)break;

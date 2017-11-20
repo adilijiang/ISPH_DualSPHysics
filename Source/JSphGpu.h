@@ -90,6 +90,7 @@ protected:
 
   unsigned GpuParticlesSize;  ///<ES: Numero de particulas para las cuales se reservo memoria en gpu. EN: Number of particles for which GPU memory was allocated
   llong MemGpuParticles;      ///<ES: Mermoria reservada para vectores de datos de particulas. EN: Allocated GPU memory for arrays with particle data
+	llong MemGpuMatrix;      ///<ES: Mermoria reservada para vectores de datos de particulas. EN: Allocated GPU Matrix memory for arrays with particle data
   llong MemGpuFixed;          ///<ES: Mermoria reservada en AllocGpuMemoryFixed. EN: Allocated memory in AllocGpuMemoryFixed
 
   //-Posicion de particula segun id para motion.
@@ -179,7 +180,7 @@ protected:
 
   llong GetAllocMemoryCpu()const;
   llong GetAllocMemoryGpu()const;
-  void PrintAllocMemory(llong mcpu,llong mgpu)const;
+  void PrintAllocMemory(llong mcpu,llong mgpu,llong mMatrixgpu)const;
 
   void ConstantDataUp();
   void ParticlesDataUp(unsigned n);

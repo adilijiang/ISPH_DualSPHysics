@@ -863,7 +863,6 @@ template<TpKernel tker,TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
 					const float drz=float(posp1.z-pos[p2].z);
 					const float rr2=drx*drx+dry*dry+drz*drz;
           if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-
             //-Wendland kernel.
             float frx,fry,frz;
             if(tker==KERNEL_Quintic) GetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);

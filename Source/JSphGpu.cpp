@@ -135,6 +135,7 @@ void JSphGpu::CheckCudaError(const std::string &method,const std::string &msg){
 //==============================================================================
 void JSphGpu::FreeGpuMemoryFixed(){
   MemGpuFixed=0;
+	MemGpuMatrix=0;
   if(rowIndg)cudaFree(rowIndg);										rowIndg=NULL;
   if(MirrorPosg)cudaFree(MirrorPosg);							MirrorPosg=NULL;
 	if(MirrorCellg)cudaFree(MirrorCellg);						MirrorCellg=NULL;
@@ -168,6 +169,7 @@ void JSphGpu::FreeGpuMemoryFixed(){
 void JSphGpu::AllocGpuMemoryFixed(){
 	const char* met="AllocGpuFixedParticles";
   MemGpuFixed=0;
+	MemGpuMatrix=0;
 	const unsigned np=Np;
 	const unsigned npb=Npb;
 	const unsigned npf=np-npb;
@@ -178,9 +180,9 @@ void JSphGpu::AllocGpuMemoryFixed(){
 	m=sizeof(double3)*npb;			cudaMalloc((void**)&MirrorPosg,m);				MemGpuFixed+=m;
 	m=sizeof(unsigned)*npb;			cudaMalloc((void**)&MirrorCellg,m);				MemGpuFixed+=m;
 	m=sizeof(float4)*npb;				cudaMalloc((void**)&MLSg,m);							MemGpuFixed+=m;
-	m=sizeof(unsigned)*(np+1);	cudaMalloc((void**)&rowIndg,m);						MemGpuFixed+=m;
- 	m=sizeof(double)*PPEMem;		cudaMalloc((void**)&ag,m);								MemGpuFixed+=m;
-  m=sizeof(unsigned)*PPEMem;	cudaMalloc((void**)&colIndg,m);						MemGpuFixed+=m;
+	m=sizeof(unsigned)*(np+1);	cudaMalloc((void**)&rowIndg,m);						MemGpuFixed+=m; MemGpuMatrix+=m;
+ 	m=sizeof(double)*PPEMem;		cudaMalloc((void**)&ag,m);								MemGpuFixed+=m; MemGpuMatrix+=m;
+  m=sizeof(unsigned)*PPEMem;	cudaMalloc((void**)&colIndg,m);						MemGpuFixed+=m; MemGpuMatrix+=m;
 	m=sizeof(float3)*npf;				cudaMalloc((void**)&Aceg,m);							MemGpuFixed+=m;
 															cudaMalloc((void**)&dWxCorrg,m);					MemGpuFixed+=m;
 															cudaMalloc((void**)&dWzCorrg,m);					MemGpuFixed+=m;
@@ -303,7 +305,7 @@ void JSphGpu::AllocGpuMemoryParticles(unsigned np,float over){
   ArraysGpu->SetArraySize(np2);
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_2B,2);  //-code*2
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,5);  //-idp*2,dcell*2,divr+npfout
-	ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,2);  //-b,x
+	ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,2); MemGpuMatrix+=sizeof(double)*np*2;//-b,x
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,2); //-Saving/dWyCorrg, Normals
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,2); //-velrhop,velrhoppre
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,3);  //-posz*2,poszpre
@@ -465,9 +467,10 @@ llong JSphGpu::GetAllocMemoryGpu()const{
 /// Visualiza la memoria reservada
 /// Displays the allocated memory
 //==============================================================================
-void JSphGpu::PrintAllocMemory(llong mcpu,llong mgpu)const{
+void JSphGpu::PrintAllocMemory(llong mcpu,llong mgpu,llong mMatrixgpu)const{
   Log->Printf("Allocated memory in CPU: %lld (%.2f MB)",mcpu,double(mcpu)/(1024*1024));
   Log->Printf("Allocated memory in GPU: %lld (%.2f MB)",mgpu,double(mgpu)/(1024*1024));
+	Log->Printf("Allocated matrix memory in GPU: %lld (%.2f MB)",mMatrixgpu,double(mgpu)/(1024*1024));
 }
 
 //==============================================================================
@@ -1025,7 +1028,7 @@ void JSphGpu::RunMotion(double stepdt){
   //-Procesa otros modos de motion.
   //-Processes other motion modes.
   if(WaveGen){
-		double wL,wH,wd,wOmega,wS0;
+		/*double wL,wH,wd,wOmega,wS0;
 		wL=2.0; wH=0.15; wd=0.5; 
  		double k=2*PI/wL;
  		double kd=k*wd, sinh2kd=sinh(kd);		
@@ -1037,7 +1040,7 @@ void JSphGpu::RunMotion(double stepdt){
  		double PistonVel=(wS0/2.0)*wOmega*sin(wOmega*TimeStep);
 		PaddleAccel=0;//float((wS0/2.0)*wOmega*wOmega*cos(wOmega*TimeStep));
  		double PistonPosX0=PistonPos.x;
-		PistonPos.x=0.5*Dp+(wS0/2.0)*(1.0-cos(wOmega*TimeStep));
+		PistonPos.x=0.5*Dp+(wS0/2.0)*(1.0-cos(wOmega*TimeStep));*/
 
     if(!nmove)cusph::CalcRidp(PeriActive!=0,Npb,0,CaseNfixed,CaseNfixed+CaseNmoving,Codeg,Idpg,RidpMoveg);
     BoundChanged=true;
@@ -1054,8 +1057,10 @@ void JSphGpu::RunMotion(double stepdt){
         mvsimple=OrderCode(mvsimple);
         if(Simulate2D)mvsimple.y=0;
         tfloat3 mvvel=ToTFloat3(mvsimple/TDouble3(stepdt));
-				mvsimple.x=PistonPos.x-PistonPosX0;
-				mvvel.x=float(PistonVel);
+				//mvsimple.x=PistonPos.x-PistonPosX0;
+				//mvvel.x=float(PistonVel);
+				mvPistonX=mvsimple.x;
+				pistonvel=mvvel.x;
         cusph::MoveLinBound(PeriActive,nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg,Idpg,MirrorPosg,MirrorCellg);
       }
       else{
@@ -1063,6 +1068,8 @@ void JSphGpu::RunMotion(double stepdt){
         cusph::MoveMatBound(PeriActive,Simulate2D,nparts,idbegin-CaseNfixed,mvmatrix,stepdt,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
       }
     }
+		PistonPos.x+=mvPistonX;
+		double PistonVel=pistonvel;
 		cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Idpg,MirrorPosg,Codeg,PistonPos,Simulate2D,MirrorCellg,Velrhopg,float(PistonVel));
   }
   TmgStop(Timers,TMG_SuMotion);
@@ -1137,9 +1144,13 @@ void JSphGpu::Shift(double dt,const unsigned bsfluid){
 //==============================================================================
 double JSphGpu::ComputeVariable(){
   const char met[]="VariableTimestep";
-  cusph::ComputeVelMod(Np-Npb,Velrhopg+Npb,Divrg); //Divrg is used to store the velocity magnitudes here
-  float velmax=cusph::ReduMaxFloat(Np-Npb,0,Divrg,CellDiv->GetAuxMem(cusph::ReduMaxFloatSize(Np-Npb)));
+	Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*Np);
+  cusph::ComputeVelMod(Np,Velrhopg,Divrg); //Divrg is used to store the velocity magnitudes here
+  float velmax=cusph::ReduMaxFloat(Np,0,Divrg,CellDiv->GetAuxMem(cusph::ReduMaxFloatSize(Np)));
+	ArraysGpu->Free(Divrg);         Divrg=NULL;
   VelMax=sqrt(velmax);
-	std::cout<<VelMax<<"\n";
-	return(CFLnumber*H/VelMax);
+	double dt=0.2*H/VelMax;
+	if(0.1*H*H/Visco<dt)dt=0.1*H*H/Visco;
+	if(dt>0.01) dt=0.01;
+	return dt;
 }
