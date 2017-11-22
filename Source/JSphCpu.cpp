@@ -2335,6 +2335,7 @@ template<typename MatrixType, typename VectorType, typename SolverTag, typename 
 void JSphCpu::run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,double *matrixx,const unsigned ppedim){ 
   VectorType result(rhs);
   VectorType residual(rhs);
+
   viennacl::tools::timer timer;
   timer.start();
   result = viennacl::linalg::solve(matrix, rhs, solver, precond);
@@ -2343,6 +2344,7 @@ void JSphCpu::run_solver(MatrixType const & matrix, VectorType const & rhs,Solve
   residual -= viennacl::linalg::prod(matrix, result); 
 	double normResidual=viennacl::linalg::norm_2(residual);
   if(normResidual){
+		Log->Printf("  > normResidual: %e",normResidual); 
 		Log->Printf("  > Relative residual: %e",normResidual / viennacl::linalg::norm_2(rhs));  
 		Log->Printf("  > Iterations: %u",solver.iters());
 	}
