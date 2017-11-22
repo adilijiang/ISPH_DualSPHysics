@@ -102,6 +102,7 @@ void JSph::InitVars(){
   Awen=Bwen=0;
   TVisco=VISCO_None;
   TShifting=SHIFT_None; ShiftCoef=0;
+	TSolver=SOLVER_BICGSTAB;
   FreeSurface=0;
   TensileN=0;
   TensileR=0;
@@ -416,7 +417,7 @@ void JSph::LoadCaseConfig(){
     default: RunException(met,"Slip/No Slip Condition mode is not valid.");
   }
 
-  switch(eparms.GetValueInt("Shifting",true,1)){
+  switch(eparms.GetValueInt("Shifting",true,0)){
     case 0:  TShifting=SHIFT_None;     break;
     case 1:  TShifting=SHIFT_Full;     break;
 		case 2:	 TShifting=SHIFT_Max;			 break;
@@ -435,7 +436,7 @@ void JSph::LoadCaseConfig(){
 
   Tolerance=eparms.GetValueDouble("Solver Tolerance",true,1e-5f);
   Iterations=eparms.GetValueInt("Max Iterations",true,100);
-	Restart=eparms.GetValueInt("Restart",true,50);
+	Restart=eparms.GetValueInt("Restart",true,20);
 	MatrixMemory=eparms.GetValueInt("MatrixMemory",true,80);
 
   switch(eparms.GetValueInt("Preconditioner",true,0)){
@@ -443,6 +444,12 @@ void JSph::LoadCaseConfig(){
     case 1:  TPrecond=PRECOND_AMG;      break;
     default: RunException(met,"Preconditioner is not valid.");
   }
+
+	switch(eparms.GetValueInt("Linear Solver",true,0)){
+    case 0:  TSolver=SOLVER_BICGSTAB;   break;
+    case 1:  TSolver=SOLVER_GMRES;  break;
+    default: RunException(met,"Linear solver choice is not valid.");
+	}
 
   if(TPrecond==PRECOND_AMG){   
     switch(eparms.GetValueInt("AMG Interpolation",true,0)){

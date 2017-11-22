@@ -983,7 +983,7 @@ void JSphCpuSingle::SolvePPE(double dt){
 	TmcStop(Timers,TMC_Stage2a);
 	TmcStart(Timers,TMC_Stage2b);
 #ifndef _WITHGPU
-  solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,b,x,rowInd,colInd,PPEDim,Nnz,NumFreeSurface); 
+  solveVienna(TSolver,TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,b,x,rowInd,colInd,PPEDim,Nnz,NumFreeSurface); 
 #endif
   
 	PressureAssign(np,npbok,Posc,Velrhopc,Idpc,x,Codec,npb,Divr,Gravity);

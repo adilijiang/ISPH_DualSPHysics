@@ -22,7 +22,7 @@
   #include "viennacl/linalg/bicgstab.hpp"
   #include "viennacl/linalg//jacobi_precond.hpp"
   #include "viennacl/linalg/norm_2.hpp"
-
+	#include "viennacl/linalg/gmres.hpp"
   #include "viennacl/linalg/amg.hpp" 
   #include "viennacl/tools/timer.hpp"
 #endif
@@ -2334,18 +2334,18 @@ void JSphCpu::PressureAssign(unsigned np,unsigned npbok,const tdouble3 *pos,tflo
 template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
 void JSphCpu::run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,double *matrixx,const unsigned ppedim){ 
   VectorType result(rhs);
-  //VectorType residual(rhs);
+  VectorType residual(rhs);
   viennacl::tools::timer timer;
   timer.start();
   result = viennacl::linalg::solve(matrix, rhs, solver, precond);
   viennacl::backend::finish();    
-  //Log->Printf("  > Solver time: %f",timer.get());   
-  //residual -= viennacl::linalg::prod(matrix, result); 
-	//double normResidual=viennacl::linalg::norm_2(residual);
-  /*if(normResidual){
+  Log->Printf("  > Solver time: %f",timer.get());   
+  residual -= viennacl::linalg::prod(matrix, result); 
+	double normResidual=viennacl::linalg::norm_2(residual);
+  if(normResidual){
 		Log->Printf("  > Relative residual: %e",normResidual / viennacl::linalg::norm_2(rhs));  
 		Log->Printf("  > Iterations: %u",solver.iters());
-	}*/
+	}
 
 	#ifdef _WITHOMP
 			#pragma omp parallel for schedule (static)
@@ -2355,7 +2355,7 @@ void JSphCpu::run_solver(MatrixType const & matrix, VectorType const & rhs,Solve
 	}
 }
 
-void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,double *matrixa,double *matrixb,double *matrixx,int *row,int *col,const unsigned ppedim,const unsigned nnz,const unsigned numfreesurface){
+void JSphCpu::solveVienna(TpSolver TSolver,TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,int restart,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,double *matrixa,double *matrixb,double *matrixx,int *row,int *col,const unsigned ppedim,const unsigned nnz,const unsigned numfreesurface){
     viennacl::context ctx;
    
     typedef double ScalarType;
@@ -2371,15 +2371,15 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
 			vcl_vec[i]=matrixb[i];
 		}
 
-    viennacl::linalg::bicgstab_tag bicgstab(tolerance,iterations);
-
-		if(viennacl::linalg::norm_2(vcl_vec)){
-			if(tprecond==PRECOND_Jacobi){
-				//Log->Printf("JACOBI PRECOND");
-				viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_compressed_matrix,viennacl::linalg::jacobi_tag());
-				run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_jacobi,matrixx,ppedim);
-			}
-			else if(tprecond==PRECOND_AMG){
+    if(TSolver==SOLVER_BICGSTAB){
+			viennacl::linalg::bicgstab_tag bicgstab(tolerance,iterations,restart);
+			if(viennacl::linalg::norm_2(vcl_vec)){
+				if(tprecond==PRECOND_Jacobi){
+					//Log->Printf("JACOBI PRECOND");
+					viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_compressed_matrix,viennacl::linalg::jacobi_tag());
+					run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_jacobi,matrixx,ppedim);
+				}
+				else if(tprecond==PRECOND_AMG){
 					//Log->Printf("AMG PRECOND");
 					viennacl::context host_ctx(viennacl::MAIN_MEMORY);
 					viennacl::context target_ctx = viennacl::traits::context(vcl_compressed_matrix);
@@ -2405,9 +2405,48 @@ void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double toleran
 					viennacl::backend::finish(); 
 					//Log->Printf("  > Setup time: %f",timer.get());
 					run_solver(vcl_compressed_matrix,vcl_vec,bicgstab,vcl_AMG,matrixx,ppedim);
+				}
 			}
+			else Log->Printf("norm(b)=0");
 		}
-		else Log->Printf("norm(b)=0");
+		else if(TSolver==SOLVER_GMRES){
+			viennacl::linalg::gmres_tag gmres(tolerance,iterations,restart);
+			if(viennacl::linalg::norm_2(vcl_vec)){
+				if(tprecond==PRECOND_Jacobi){
+					//Log->Printf("JACOBI PRECOND");
+					viennacl::linalg::jacobi_precond< viennacl::compressed_matrix<ScalarType> > vcl_jacobi(vcl_compressed_matrix,viennacl::linalg::jacobi_tag());
+					run_solver(vcl_compressed_matrix,vcl_vec,gmres,vcl_jacobi,matrixx,ppedim);
+				}
+				else if(tprecond==PRECOND_AMG){
+					//Log->Printf("AMG PRECOND");
+					viennacl::context host_ctx(viennacl::MAIN_MEMORY);
+					viennacl::context target_ctx = viennacl::traits::context(vcl_compressed_matrix);
+
+					viennacl::linalg::amg_tag amg_tag_agg_pmis;
+					amg_tag_agg_pmis.set_coarsening_method(viennacl::linalg::AMG_COARSENING_METHOD_AGGREGATION);
+					if(tamginter==AMGINTER_AG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_AGGREGATION);} //Log->Printf("INTERPOLATION: AGGREGATION ");}
+					else if(tamginter==AMGINTER_SAG){ amg_tag_agg_pmis.set_interpolation_method(viennacl::linalg::AMG_INTERPOLATION_METHOD_SMOOTHED_AGGREGATION);} //Log->Printf("INTERPOLATION: SMOOTHED AGGREGATION");}
+					amg_tag_agg_pmis.set_strong_connection_threshold(strongconnection);
+					amg_tag_agg_pmis.set_jacobi_weight(jacobiweight);
+					amg_tag_agg_pmis.set_presmooth_steps(presmooth);
+					amg_tag_agg_pmis.set_postsmooth_steps(postsmooth); 
+					amg_tag_agg_pmis.set_coarsening_cutoff(numfreesurface); 
+					amg_tag_agg_pmis.set_setup_context(host_ctx);
+					amg_tag_agg_pmis.set_target_context(target_ctx); 
+					viennacl::linalg::amg_precond<viennacl::compressed_matrix<double> > vcl_AMG(vcl_compressed_matrix,amg_tag_agg_pmis);
+					//Log->Printf(" * Setup phase (ViennaCL types)...");
+					viennacl::tools::timer timer;
+					timer.start();
+					vcl_AMG.setup(); 
+					//std::cout << "levels = " << vcl_AMG.levels() << "\n";
+					//for(int i =0; i< vcl_AMG.levels();i++) std::cout << "level " << i << "\t" << "size = " << vcl_AMG.size(i) << "\n";
+					viennacl::backend::finish(); 
+					//Log->Printf("  > Setup time: %f",timer.get());
+					run_solver(vcl_compressed_matrix,vcl_vec,gmres,vcl_AMG,matrixx,ppedim);
+				}
+			}
+			else Log->Printf("norm(b)=0");
+		}
 }    
 #endif
 

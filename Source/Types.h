@@ -131,7 +131,13 @@ typedef enum{
 typedef enum{ 
   VISCO_Artificial=1,        ///<Artificial viscosity.
   VISCO_None=0 
-}TpVisco;            
+}TpVisco;        
+
+///Types of linear solver
+typedef enum{ 
+  SOLVER_GMRES=1,        ///<Linear Solver
+  SOLVER_BICGSTAB=0 
+}TpSolver;  
 
 ///Types of interaction.
 typedef enum{ 

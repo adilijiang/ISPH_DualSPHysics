@@ -169,6 +169,7 @@ protected:
 
   TpSlipCond TSlipCond;
   
+	TpSolver TSolver;
   TpPrecond TPrecond;
   TpAMGInter TAMGInter;
 	unsigned MatrixMemory;

@@ -213,7 +213,7 @@ protected:
   template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
   void run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,double *matrixx,const unsigned ppedim); 
   
-	void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,double *matrixa,
+	void solveVienna(TpSolver TSolver,TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,int restart,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,double *matrixa,
     double *matrixb,double *matrixx,int *row,int *col,const unsigned ppedim,const unsigned nnz,const unsigned numfreesurface);
 #endif
   
