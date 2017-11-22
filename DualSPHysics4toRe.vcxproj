@@ -210,7 +210,7 @@
     <TargetName Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|Win32'">$(ProjectName)_$(Configuration)</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectName)_$(Configuration)</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectName)ISPH_$(Configuration)64</TargetName>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">$(ProjectName)ISPH_$(Configuration)64</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='ReleaseCPU|x64'">$(ProjectName)ISPH_$(Configuration)64Ahmed</TargetName>
     <PreBuildEventUseInBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</PreBuildEventUseInBuild>
     <PreLinkEventUseInBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</PreLinkEventUseInBuild>
     <PostBuildEventUseInBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</PostBuildEventUseInBuild>

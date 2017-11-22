@@ -1268,9 +1268,9 @@ template<bool shift> void JSphCpu::ComputeSymplecticPreT(double dt){
     if(!WithFloating || CODE_GetType(Codec[p])==CODE_TYPE_FLUID){//-Fluid Particles / Particulas: Fluid
       //-Update velocity
 			const unsigned correctp1=p-npb;
-      Velrhopc[p].x=float(double(VelrhopPrec[p].x)+double(Acec[correctp1].x)* dt);
-      Velrhopc[p].y=float(double(VelrhopPrec[p].y)+double(Acec[correctp1].y)* dt);
-      Velrhopc[p].z=float(double(VelrhopPrec[p].z)+double(Acec[correctp1].z)* dt);
+      //Velrhopc[p].x=float(double(VelrhopPrec[p].x)+double(Acec[correctp1].x)* dt);
+      //Velrhopc[p].y=float(double(VelrhopPrec[p].y)+double(Acec[correctp1].y)* dt);
+      //Velrhopc[p].z=float(double(VelrhopPrec[p].z)+double(Acec[correctp1].z)* dt);
     }
   }
 
@@ -1299,18 +1299,18 @@ template<bool shift> void JSphCpu::ComputeSymplecticCorrT(double dt){
     if(!WithFloating || CODE_GetType(Codec[p])==CODE_TYPE_FLUID){//-Particulas: Fluid
       //-Update velocity & density / Actualiza velocidad y densidad.
 			const unsigned correctp1=p-npb;
-      Velrhopc[p].x-=float((Acec[correctp1].x-Gravity.x)*dt); 
-      Velrhopc[p].y-=float((Acec[correctp1].y-Gravity.y)*dt);  
-      Velrhopc[p].z-=float((Acec[correctp1].z-Gravity.z)*dt);
+      //Velrhopc[p].x-=float((Acec[correctp1].x-Gravity.x)*dt); 
+      //Velrhopc[p].y-=float((Acec[correctp1].y-Gravity.y)*dt);  
+     // Velrhopc[p].z-=float((Acec[correctp1].z-Gravity.z)*dt);
 
-			if(rowInd[p]!=npb) CorrectVelocity(p,rowInd[p],Posc,Velrhopc,Idpc,MirrorPosc);
+			//if(rowInd[p]!=npb) CorrectVelocity(p,rowInd[p],Posc,Velrhopc,Idpc,MirrorPosc);
 
       //-Calculate displacement and update position / Calcula desplazamiento y actualiza posicion.
       double dx=(double(VelrhopPrec[p].x)+double(Velrhopc[p].x))*dt05; 
       double dy=(double(VelrhopPrec[p].y)+double(Velrhopc[p].y))*dt05; 
       double dz=(double(VelrhopPrec[p].z)+double(Velrhopc[p].z))*dt05;
       bool outrhop=false;//(rhopnew<RhopOutMin||rhopnew>RhopOutMax);
-      UpdatePos(PosPrec[p],dx,dy,dz,outrhop,p,Posc,Dcellc,Codec);
+      //UpdatePos(PosPrec[p],dx,dy,dz,outrhop,p,Posc,Dcellc,Codec);
     }
     else{//-Floating Particles / Particulas: Floating
       Velrhopc[p]=VelrhopPrec[p];

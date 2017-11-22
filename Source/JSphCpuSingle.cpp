@@ -606,7 +606,7 @@ double JSphCpuSingle::ComputeStep_Sym(){
 	//-Shifting
 	//-----------
 	TmcStart(Timers,TMC_Stage4);
-	if(TShifting)RunShifting(dt);
+	//if(TShifting)RunShifting(dt);
 	TmcStop(Timers,TMC_Stage4);
   return(dt);
 }
@@ -822,28 +822,22 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 	memset(MirrorPosc,0,sizeof(tdouble3)*Npb);
 	JSphCpu::MirrorBoundary(Npb,Posc,Idpc,MirrorPosc,Codec,MirrorCell);  
 	JSphCpu::MirrorDCell(Npb,Codec,MirrorPosc,MirrorCell,Idpc);
-  while(TimeStep<TimeMax){
-		if(CaseNmoving)RunMotion(DtPre);
-    double stepdt=ComputeStep_Sym();
-    if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
-    TimeStep+=stepdt;
-    partoutstop=(Np<NpMinimum || !Np);
-    if(TimeStep>=TimePartNext || partoutstop){
-      if(partoutstop){
-        Log->Print("\n**** Particles OUT limit reached...\n");
-        TimeMax=TimeStep;
-      }
-      SaveData();
-      Part++;
-      PartNstep=Nstep;
-      TimeStepM1=TimeStep;
-      TimePartNext=TimeOut->GetNextTime(TimeStep);
-      TimerPart.Start();
-    }
-    UpdateMaxValues();
-    Nstep++;
-    //if(Nstep>=3)break;
-  }
+	if(CaseNmoving)RunMotion(DtPre);
+  double stepdt=ComputeStep_Sym();
+  if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
+  TimeStep+=stepdt;
+  partoutstop=(Np<NpMinimum || !Np);
+  SaveData();
+  Part++;
+  PartNstep=Nstep;
+  TimeStepM1=TimeStep;
+  TimePartNext=TimeOut->GetNextTime(TimeStep);
+  TimerPart.Start();
+
+  UpdateMaxValues();
+  Nstep++;
+  //if(Nstep>=3)break;
+
   TimerSim.Stop(); TimerTot.Stop();
 
   //-End of Simulation / Fin de simulacion
@@ -959,7 +953,7 @@ void JSphCpuSingle::SolvePPE(double dt){
 		PopulatePeriodic(npf,npb,nc,hdiv,cellfluid,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,Dcellc);
 		PopulatePeriodic(npbok,0,nc,hdiv,0,begincell,cellzero,Posc,a,rowInd,colInd,Idpc,Codec,Dcellc);
 	}*/
-	FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,Idpc,Codec,ShiftOffset,matOrder,FreeSurface);
+	//FreeSurfaceMark(npf,npb,Divr,a,b,rowInd,Idpc,Codec,ShiftOffset,matOrder,FreeSurface);
 
 	/*ofstream FileOutput;
     string TimeFile;

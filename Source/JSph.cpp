@@ -401,8 +401,8 @@ void JSph::LoadCaseConfig(){
     case 1:  TVisco=VISCO_Artificial;  break;
     default: RunException(met,"Viscosity treatment is not valid.");
   }
-  Visco=eparms.GetValueFloat("Visco");
-  ViscoBoundFactor=eparms.GetValueFloat("ViscoBoundFactor",true,1.f);
+  Visco=0;//eparms.GetValueFloat("Visco");
+  ViscoBoundFactor=1.0;//eparms.GetValueFloat("ViscoBoundFactor",true,1.f);
   string filevisco=eparms.GetValueStr("ViscoTime",true);
   if(!filevisco.empty()){
     ViscoTime=new JSphVisco();
@@ -430,7 +430,7 @@ void JSph::LoadCaseConfig(){
     TensileR=eparms.GetValueFloat("TensileR",true,3.0f);
   }
 
-  FreeSurface=eparms.GetValueFloat("FreeSurface",true,1.6f);
+  FreeSurface=eparms.GetValueFloat("FreeSurface",true,1.5f);
 	FactorNormShift=eparms.GetValueDouble("FactorNormShift",true,0.0f);
 
   Tolerance=eparms.GetValueDouble("Solver Tolerance",true,1e-5f);
@@ -465,11 +465,11 @@ void JSph::LoadCaseConfig(){
   }
 
   FtPause=eparms.GetValueFloat("FtPause",true,0);
-  TimeMax=eparms.GetValueDouble("TimeMax");
-  TimePart=eparms.GetValueDouble("TimeOut");
+  TimeMax=0.01;//eparms.GetValueDouble("TimeMax");
+  TimePart=0.01;//eparms.GetValueDouble("TimeOut");
 
-  DtIni=eparms.GetValueDouble("DtIni",true,0);
-  DtMin=eparms.GetValueDouble("DtMin",true,0);
+  DtIni=0.01;//eparms.GetValueDouble("DtIni",true,0);
+  DtMin=0.01;//eparms.GetValueDouble("DtMin",true,0);
   CoefDtMin=eparms.GetValueFloat("CoefDtMin",true,0.05f);
   DtAllParticles=(eparms.GetValueInt("DtAllParticles",true,0)==1);
 
@@ -516,13 +516,13 @@ void JSph::LoadCaseConfig(){
   //-Predefined constantes.
   if(ctes.GetEps()!=0)Log->Print("\n*** Attention: Eps value is not used (this correction is deprecated).\n");
   H=(float)ctes.GetH();
-  CteB=(float)ctes.GetB();
-  Gamma=(float)ctes.GetGamma();
-  RhopZero=(float)ctes.GetRhop0();
-  CFLnumber=(float)ctes.GetCFLnumber();
+  //CteB=(float)ctes.GetB();
+  //Gamma=(float)ctes.GetGamma();
+  RhopZero=1000;
+  //CFLnumber=(float)ctes.GetCFLnumber();
   Dp=ctes.GetDp();
-  Gravity=ToTFloat3(ctes.GetGravity());
-  GravityDbl=ctes.GetGravity();
+  Gravity=TFloat3(0,0,-9.81f);
+  GravityDbl=TDouble3(0,0,-9.81);
   MassFluid=(float)ctes.GetMassFluid();
   MassBound=(float)ctes.GetMassBound();
 
