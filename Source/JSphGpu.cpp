@@ -964,7 +964,7 @@ void JSphGpu::ComputeSymplecticCorr(double dt){
   //-Computes displacement, velocity and density.
   const double dt05=dt*.5;
 	const bool wavegen=(WaveGen? true:false);
-  cusph::ComputeStepSymplecticCor(WithFloating,Np,Npb,VelrhopPreg,Aceg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velrhopg,Gravity,rowIndg,Posxyg,Poszg,Idpg,MirrorPosg,wavegen,DampingPointX,DampingLengthX,PistonPos);
+  cusph::ComputeStepSymplecticCor(WithFloating,Np,Npb,VelrhopPreg,Aceg,dt05,dt,RhopOutMin,RhopOutMax,Codeg,movxyg,movzg,Velrhopg,Gravity,rowIndg,Posxyg,Poszg,Idpg,MirrorPosg,wavegen,DampingPointX,DampingLengthX,PistonPos,TCylinderAxis,CylinderRadius,CylinderCentre);
   //-Aplica desplazamiento a las particulas fluid no periodicas.
   //-Applies displacement to non-periodic fluid particles.
   cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
@@ -1195,8 +1195,8 @@ double JSphGpu::ComputeVariable(){
   float velmax=cusph::ReduMaxFloat(Np,0,Divrg,CellDiv->GetAuxMem(cusph::ReduMaxFloatSize(Np)));
 	ArraysGpu->Free(Divrg);         Divrg=NULL;
   VelMax=sqrt(velmax);
-	double dt=0.2*H/VelMax;
-	if(0.1*H*H/Visco<dt)dt=0.1*H*H/Visco;
+	double dt=CFLnumber*H/VelMax;
+	if(0.1*H*H/Visco<dt)dt=0.5*CFLnumber*H*H/Visco;
 	if(dt>0.01) dt=0.01;
 	return dt;
 }

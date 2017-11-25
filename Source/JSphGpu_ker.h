@@ -118,46 +118,36 @@ void AddDelta(unsigned n,const float *delta,float *ar);
 
 //# Kernels para Shifting
 //# Kernels for Shifting
-void RunShifting(const bool ops,const bool wavegen,const bool simulate2d,unsigned np,unsigned npb,double dt,double shiftcoef,float freesurface,float4 *velrhop
-	,const float *divr,float3 *shiftpos,const bool maxShift,float3 *sumtensile,const float shiftoffset,const double alpha0,const double alpha1
-	,const double alpha2,const double beta0,const double beta1,const double beta2,const unsigned *nearFS,const double2 *posxy,const double dampingpoint
-	,const double dampinglength,float3 *normal,const tdouble3 PistonPos);
+void RunShifting(const bool ops,const bool wavegen,const bool simulate2d,unsigned np,unsigned npb,double dt,double shiftcoef,float freesurface,float4 *velrhop,const float *divr,float3 *shiftpos,const bool maxShift
+	,float3 *sumtensile,const float shiftoffset,const double alpha0,const double alpha1,const double alpha2,const double beta0,const double beta1,const double beta2,const unsigned *nearFS,const double2 *posxy
+	,const double dampingpoint,const double dampinglength,float3 *normal,const tdouble3 PistonPos);
 
-void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb,const float4 *velrhoppre,const float3 *ace,double dtm,float rhopoutmin,float rhopoutmax
-	,word *code,double2 *movxy,double *movz,float4 *velrhop);
+void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb,const float4 *velrhoppre,const float3 *ace,double dtm,float rhopoutmin,float rhopoutmax,word *code,double2 *movxy,double *movz,float4 *velrhop);
 
-void ComputeStepSymplecticCor(bool floating,unsigned np,unsigned npb,const float4 *velrhoppre,const float3 *ace,double dtm,double dt,float rhopoutmin
-	,float rhopoutmax,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity,const unsigned *row,const double2 *posxy,const double *posz
-	,const unsigned *idp,const double3 *mirrorPos,const bool WaveGen,const double dampingpoint,const double dampinglength,const tdouble3 PistonPos);
+void ComputeStepSymplecticCor(bool floating,unsigned np,unsigned npb,const float4 *velrhoppre,const float3 *ace,double dtm,double dt,float rhopoutmin,float rhopoutmax,word *code,double2 *movxy,double *movz
+	,float4 *velrhop,tfloat3 gravity,const unsigned *row,const double2 *posxy,const double *posz,const unsigned *idp,const double3 *mirrorPos,const bool WaveGen,const double dampingpoint,const double dampinglength
+	,const tdouble3 PistonPos,TpCylinder TCylinderAxis,const double Cylinder,const tdouble3 CylinderCentre);
 
 //# Kernels para ComputeStep (position)
 //# Kernels for ComputeStep (position)
-void ComputeStepPos(byte periactive,bool floating,unsigned np,unsigned npb,const double2 *movxy,const double *movz,double2 *posxy,double *posz,unsigned *dcell
-	,word *code);
-void ComputeStepPos2(byte periactive,bool floating,unsigned np,unsigned npb,const double2 *posxypre,const double *poszpre,const double2 *movxy
-	,const double *movz,double2 *posxy,double *posz,unsigned *dcell,word *code);
+void ComputeStepPos(byte periactive,bool floating,unsigned np,unsigned npb,const double2 *movxy,const double *movz,double2 *posxy,double *posz,unsigned *dcell,word *code);
+void ComputeStepPos2(byte periactive,bool floating,unsigned np,unsigned npb,const double2 *posxypre,const double *poszpre,const double2 *movxy,const double *movz,double2 *posxy,double *posz,unsigned *dcell,word *code);
 
 //# Kernels para Motion
 //# Kernels for Motion
 void CalcRidp(bool periactive,unsigned np,unsigned pini,unsigned idini,unsigned idfin,const word *code,const unsigned *idp,unsigned *ridp);
-void MoveLinBound(byte periactive,unsigned np,unsigned ini,tdouble3 mvpos,tfloat3 mvvel,const unsigned *ridp,double2 *posxy,double *posz,unsigned *dcell
-	,float4 *velrhop,word *code,const unsigned *idpg,double3 *mirrorPos,unsigned *mirrorCell);
-void MoveMatBound(byte periactive,bool simulate2d,unsigned np,unsigned ini,tmatrix4d m,double dt,const unsigned *ridpmv,double2 *posxy,double *posz
-	,unsigned *dcell,float4 *velrhop,word *code);
-void PistonCorner(const unsigned bsbound,const unsigned npb,double2 *posxy,const unsigned *idp,double3 *mirrorpos,word *code
-	,const tdouble3 PistonPos,const bool simulate2d,unsigned *mirrorCell
-	,float4 *velrhop,const float pistonvel);
+void MoveLinBound(byte periactive,unsigned np,unsigned ini,tdouble3 mvpos,tfloat3 mvvel,const unsigned *ridp,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code,const unsigned *idpg
+	,double3 *mirrorPos,unsigned *mirrorCell);
+void MoveMatBound(byte periactive,bool simulate2d,unsigned np,unsigned ini,tmatrix4d m,double dt,const unsigned *ridpmv,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code);
+void PistonCorner(const unsigned bsbound,const unsigned npb,double2 *posxy,const unsigned *idp,double3 *mirrorpos,word *code,const tdouble3 PistonPos,const bool simulate2d,unsigned *mirrorCell,float4 *velrhop
+	,const float pistonvel);
 
 //# Kernels para Floating bodies
 //# Kernels for Floating bodies
 void FtCalcForces(bool periactive,unsigned ftcount
-  ,tfloat3 gravity,const float4 *ftodata,const float *ftomassp,const double3 *ftocenter,const unsigned *ftridp
-  ,const double2 *posxy,const double *posz,const float3 *ace
-  ,float3 *ftoforces);
-void FtUpdate(bool periactive,bool predictor,bool simulate2d,unsigned ftcount
-  ,double dt,tfloat3 gravity,const float4 *ftodata,const unsigned *ftridp
-  ,const float3 *ftoforces,double3 *ftocenter,float3 *ftovel,float3 *ftoomega
-  ,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code);
+  ,tfloat3 gravity,const float4 *ftodata,const float *ftomassp,const double3 *ftocenter,const unsigned *ftridp,const double2 *posxy,const double *posz,const float3 *ace,float3 *ftoforces);
+void FtUpdate(bool periactive,bool predictor,bool simulate2d,unsigned ftcount,double dt,tfloat3 gravity,const float4 *ftodata,const unsigned *ftridp,const float3 *ftoforces,double3 *ftocenter,float3 *ftovel
+	,float3 *ftoomega,double2 *posxy,double *posz,unsigned *dcell,float4 *velrhop,word *code);
 
 //# Kernels para Periodic conditions
 //# Kernels for periodic conditions

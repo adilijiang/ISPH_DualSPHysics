@@ -592,7 +592,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 			TimePartNext=TimeOut->GetNextTime(TimeStep);
       TimerPart.Start();
     }
-		stepdt=ComputeVariable();
+		if(VariableTimestep) stepdt=ComputeVariable();
     UpdateMaxValues();
     Nstep++;
     //if(Nstep>=2)break;

@@ -1835,11 +1835,34 @@ __device__ void KerCorrectVelocity(const unsigned p1,const unsigned nearestBound
 	}
 }
 
+__device__ void KerCorrectCylinderVelocity(const unsigned p1,const double2 *posxy,const double *posz,float4 &rvelrhop,TpCylinder TCylinderAxis,const double CylinderRadius,const tdouble3 CylinderCentre)
+{
+	double3 posp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
+	double dx=posp1.x-CylinderCentre.x; if(TCylinderAxis==CYLINDER_X) dx=0;
+	double dy=posp1.y-CylinderCentre.y; if(TCylinderAxis==CYLINDER_Y) dy=0;
+	double dz=posp1.z-CylinderCentre.z; if(TCylinderAxis==CYLINDER_Z) dz=0;
+	const double rr2=dx*dx+dy*dy+dz*dz;
+	if(rr2<=CylinderRadius*CylinderRadius){
+		float3 NormDir=make_float3(0,0,0), NormVelWall=make_float3(0,0,0), NormVelp1=make_float3(0,0,0);
+		const double temp=sqrt(rr2);
+		NormDir.x=float(dx/temp);
+		NormDir.y=float(dy/temp);
+		NormDir.z=float(dz/temp);
+		float NormProdVelp1=rvelrhop.x*NormDir.x+rvelrhop.y*NormDir.y+rvelrhop.z*NormDir.z;
+		float VelNorm=NormDir.x*NormProdVelp1*NormDir.x+NormDir.y*NormProdVelp1*NormDir.y+NormDir.z*NormProdVelp1*NormDir.z;
+		if(VelNorm<0){
+			rvelrhop.x-=VelNorm*NormDir.x;
+			rvelrhop.y-=VelNorm*NormDir.y;
+			rvelrhop.z-=VelNorm*NormDir.z;
+		}
+	}
+}
+
 template<bool floating> __global__ void KerComputeStepSymplecticCor
   (unsigned npf,unsigned npb
   ,const float4 *velrhoppre,const float3 *ace,double dtm,double dt,float rhopoutmin,float rhopoutmax
   ,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity,const unsigned *row,const double2 *posxy,const double *posz,const unsigned *idp,const double3 *mirrorPos
-	,const bool wavegen,const double dampingpoint,const double dampinglength,const tdouble3 PistonPos)
+	,const bool wavegen,const double dampingpoint,const double dampinglength,const tdouble3 PistonPos,TpCylinder TCylinderAxis,const double CylinderRadius,const tdouble3 CylinderCentre)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
   if(p<npf){
@@ -1855,7 +1878,8 @@ template<bool floating> __global__ void KerComputeStepSymplecticCor
       rvelrhop.y-=float(double(race.y-gravity.y)*dt);
       rvelrhop.z-=float(double(race.z-gravity.z)*dt);
 
-			//if(row[p1]!=npb) KerCorrectVelocity(p1,row[p1],posxy,posz,rvelrhop,velrhop,idp,mirrorPos);
+			if(row[p1]!=npb) KerCorrectVelocity(p1,row[p1],posxy,posz,rvelrhop,velrhop,idp,mirrorPos);
+			if(TCylinderAxis) KerCorrectCylinderVelocity(p1,posxy,posz,rvelrhop,TCylinderAxis,CylinderRadius,CylinderCentre);
 			if(wavegen){
 				KerDampingZone(posxy[p1].x,rvelrhop,dampingpoint,dampinglength);
 			}
@@ -1879,13 +1903,13 @@ template<bool floating> __global__ void KerComputeStepSymplecticCor
 //==============================================================================   
 void ComputeStepSymplecticCor(bool floating,unsigned np,unsigned npb,const float4 *velrhoppre,const float3 *ace,double dtm,double dt,float rhopoutmin
 	,float rhopoutmax,word *code,double2 *movxy,double *movz,float4 *velrhop,tfloat3 gravity,const unsigned *row,const double2 *posxy,const double *posz
-	,const unsigned *idp,const double3 *mirrorPos,const bool wavegen,const double dampingpoint,const double dampinglength,const tdouble3 PistonPos)
+	,const unsigned *idp,const double3 *mirrorPos,const bool wavegen,const double dampingpoint,const double dampinglength,const tdouble3 PistonPos,TpCylinder TCylinderAxis,const double CylinderRadius,const tdouble3 CylinderCentre)
 {
   if(np){
     dim3 sgrid=GetGridSize(np,SPHBSIZE);
 		const unsigned npf=np-npb;
-    if(floating)KerComputeStepSymplecticCor<true>  <<<sgrid,SPHBSIZE>>> (npf,npb,velrhoppre,ace,dtm,dt,rhopoutmin,rhopoutmax,code,movxy,movz,velrhop,gravity,row,posxy,posz,idp,mirrorPos,wavegen,dampingpoint,dampinglength,PistonPos);
-    else        KerComputeStepSymplecticCor<false> <<<sgrid,SPHBSIZE>>> (npf,npb,velrhoppre,ace,dtm,dt,rhopoutmin,rhopoutmax,code,movxy,movz,velrhop,gravity,row,posxy,posz,idp,mirrorPos,wavegen,dampingpoint,dampinglength,PistonPos);
+    if(floating)KerComputeStepSymplecticCor<true>  <<<sgrid,SPHBSIZE>>> (npf,npb,velrhoppre,ace,dtm,dt,rhopoutmin,rhopoutmax,code,movxy,movz,velrhop,gravity,row,posxy,posz,idp,mirrorPos,wavegen,dampingpoint,dampinglength,PistonPos,TCylinderAxis,CylinderRadius,CylinderCentre);
+    else        KerComputeStepSymplecticCor<false> <<<sgrid,SPHBSIZE>>> (npf,npb,velrhoppre,ace,dtm,dt,rhopoutmin,rhopoutmax,code,movxy,movz,velrhop,gravity,row,posxy,posz,idp,mirrorPos,wavegen,dampingpoint,dampinglength,PistonPos,TCylinderAxis,CylinderRadius,CylinderCentre);
   }
 }
 
@@ -2881,7 +2905,7 @@ void ComputeRStar(bool floating,const bool wavegen,unsigned npf,unsigned npb,con
 ///Find Irelation
 //==============================================================================
 __global__ void KerWaveGenBoundary
-  (unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,const tdouble3 PistonPos,const tdouble3 TankDim,float3 *boundarynormal)
+  (const bool simulate2d,unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,const tdouble3 PistonPos,const tdouble3 TankDim,float3 *boundarynormal)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
@@ -2904,17 +2928,19 @@ __global__ void KerWaveGenBoundary
 				normal.z=0;
 			}
 
-			if(posxy[p1].y>TankDim.y){
-				mirPoint.y=TankDim.y;
-				normal.y=-dp05;
-			}
-			else if(posxy[p1].y>PistonPos.y){
-				mirPoint.y=posxy[p1].y;
-				normal.y=-dp05;
+			if(!simulate2d){
+				if(posxy[p1].y>TankDim.y){
+					mirPoint.y=TankDim.y;
+					normal.y=-dp05;
+				}
+				else if(posxy[p1].y>PistonPos.y){
+					mirPoint.y=posxy[p1].y;
+					normal.y=-dp05;
+				}
 			}
 
 			mirrorPos[idp1].x=2.0*mirPoint.x-posxy[p1].x;
-			mirrorPos[idp1].y=2.0*mirPoint.y-posxy[p1].y;
+			if(!simulate2d) mirrorPos[idp1].y=2.0*mirPoint.y-posxy[p1].y; 
 			mirrorPos[idp1].z=2.0*mirPoint.z-posz[p1];
 
 			double temp=sqrt(normal.x*normal.x+normal.y*normal.y+normal.z*normal.z);
@@ -2923,6 +2949,7 @@ __global__ void KerWaveGenBoundary
 		}
 	}
 }
+
 __global__ void KerMirrorCell
   (unsigned npb,const unsigned *idp,double3 *mirrorPos,unsigned *mirrorCell)
 {
@@ -3222,7 +3249,7 @@ __global__ void KerCylinder
 {
 	unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
-		if(CODE_GetTypeValue(code[p1])==2){
+		if(CODE_GetTypeValue(code[p1])==2||CODE_GetTypeValue(code[p1])==3){
 			const double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
 			const unsigned idp1=idp[p1];
 			double3 radialVector=make_double3(0,0,0);
@@ -3275,7 +3302,7 @@ void MirrorBoundary(TpKernel tkernel,const bool simulate2d,const unsigned bsboun
 		if(cylinderaxis) KerCylinder<<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,boundarynormal,CylinderRadius,CylinderCentre,CylinderLength,cylinderaxis);
 		KerCreateMirrorsCodeNonZero <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,Physrelation,wavegen,boundarynormal);
 		KerCreateMirrorsCodeZero <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,Physrelation,wavegen);
-		if(wavegen) KerWaveGenBoundary <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,PistonPos,TankDim,boundarynormal);
+		if(wavegen) KerWaveGenBoundary <<<sgridb,bsbound>>> (simulate2d,npb,posxy,posz,code,idp,mirrorPos,PistonPos,TankDim,boundarynormal);
 		KerMirrorCell <<<sgridb,bsbound>>> (npb,idp,mirrorPos,Physrelation);
 	}
 }

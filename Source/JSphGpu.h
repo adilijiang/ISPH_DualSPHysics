@@ -260,7 +260,7 @@ protected:
   void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,
 		const unsigned ppedim,unsigned int *rowGpu,const float *divr,const float freesurface,unsigned &nnz,unsigned &numFreeSurface,const float boundaryfs);
 
-  void Shift(double dt,const unsigned bsfluid);
+	void Shift(double dt,const unsigned bsfluid);
 	double ComputeVariable();
 
 public:
