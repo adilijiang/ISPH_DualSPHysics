@@ -177,9 +177,8 @@ void AddAccInput(unsigned n,unsigned pini,word codesel
 void ComputeRStar(bool floating,const bool wavegen,unsigned np,unsigned npb,const float4 *velrhoppre,double dtm,word *code,double2 *movxy,double *movz,const double2 *posxy,const tdouble3 PistonPos);
 
 //# Kernels for finding a dummy particles corresponding wall particle
-void MirrorBoundary(const bool simulate2d,const unsigned bsbound,unsigned npbok
-  ,const double2 *posxy,const double *posz
-  ,const word *code,const unsigned *idp,double3 *mirror,unsigned *Physrelation,const bool wavegen,const tdouble3 PistonPos,const tdouble3 TankDim);
+void MirrorBoundary(TpKernel tkernel,const bool simulate2d,const unsigned bsbound,unsigned npbok,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirror
+	,unsigned *Physrelation,const bool wavegen,const tdouble3 PistonPos,const tdouble3 TankDim,float3 *boundarynormal,double CylinderRadius,tdouble3 CylinderCentre,tdouble2 CylinderLength,TpCylinder cylinderaxis);
 
 //# Kernels for particle matrix order
 void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim,unsigned int*row,unsigned *nnz,unsigned *numfreesurface,const float *divr,const float freesurface,const float boundaryfs);
@@ -229,6 +228,14 @@ void SchwaigerTest(const unsigned ppedim,const unsigned npb,const double *a,cons
 void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double *X,const double *B,const unsigned *rowInd,const unsigned *col,const unsigned Nnz,const unsigned n,const unsigned npb);
 
 void SquarePatchVel(const unsigned bsfluid,const unsigned np,const unsigned npb,const double2 *Posxyg,const double *Poszg,float4 *velrhop);
+
+void CalculateSpectrum(double *fn,double *Sp,double *Ak,double *Stroke2,double *apm,double *FocussedSum,const unsigned nspec,const double f1,const double df,const double fp,const double D,const double gamma,tfloat3 gravity,const double AN);
+
+void AkToPhi(const unsigned nspec,const double *fn,double *Ak,const double TFocus,const double focalpoint);
+
+double FocussedVel(const unsigned nspec,double *FocussedSum,const double *Stroke2,const double *fn,const double T,const double *Ak);
+
+void BoundaryNormals(const unsigned bsbound,const unsigned npb,const unsigned *id,const double2 *Posxyg,const double *Poszg,const double3 *MirrorPosg,float3 *Normal);
 }
 #endif
 

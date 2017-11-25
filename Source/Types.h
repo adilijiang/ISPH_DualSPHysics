@@ -123,6 +123,14 @@ typedef enum{
 
 ///Types of kernel function.
 typedef enum{ 
+  CYLINDER_Z=3,
+  CYLINDER_Y=2,
+	CYLINDER_X=1,
+	CYLINDER_NONE=0
+}TpCylinder; 
+
+///Types of kernel function.
+typedef enum{ 
   KERNEL_Wendland=1,         ///<Wendland kernel.
   KERNEL_Quintic=0 
 }TpKernel;                  
@@ -140,6 +148,11 @@ typedef enum{
 }TpInter;   
 
 typedef enum{ DELTA_DynamicExt=3,DELTA_Dynamic=2,DELTA_None=0 }TpDeltaSph; //-Tipos de Delta-SPH. //-Types of Delta-SPH
+
+typedef enum{
+  WAVE_Regular=0,
+  WAVE_Focussed=1
+}TpWaveLoading; //Wave Loading type
 
 typedef enum{
   SLIPCOND_Slip=2,

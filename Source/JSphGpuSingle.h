@@ -62,7 +62,7 @@ protected:
   void SolvePPE(double dt);
   void RunShifting(double dt);
 	void SaveVtkSchwaigerTest(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const double *m2g,const double *m3g,const double *m4g)const;
-	void SaveVtknormals(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const float3 *normals,const float3 *smoothnormals)const;
+	void SaveVtknormals(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const float3 *normals,const float3 *smoothnormals,const float3* boundarynormal,const unsigned *idp,const double3 *mirrorpos)const;
 public:
   JSphGpuSingle();
   ~JSphGpuSingle();

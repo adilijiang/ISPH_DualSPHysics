@@ -112,6 +112,10 @@ void JSph::InitVars(){
   TAMGInter=AMGINTER_AG;
   Iterations=0;
   Tolerance=0;
+	CylinderRadius=0;
+	CylinderCentre=TDouble3(0,0,0);
+	CylinderLength=TDouble2(0,0);
+	TCylinderAxis=CYLINDER_NONE;
 	OPS=false;
 	VariableTimestep=false;
   StrongConnection=0; JacobiWeight=0; Presmooth=0; Postsmooth=0; CoarseCutoff=0;
@@ -445,12 +449,25 @@ void JSph::LoadCaseConfig(){
     default: RunException(met,"Slip/No Slip Condition mode is not valid.");
   }
 
-  switch(eparms.GetValueInt("Shifting",true,1)){
+	switch(eparms.GetValueInt("Shifting",true,2)){
     case 0:  TShifting=SHIFT_None;     break;
     case 1:  TShifting=SHIFT_Full;     break;
-		case 2:	 TShifting=SHIFT_Max;			 break;
+ 		case 2:	 TShifting=SHIFT_Max;			 break;
     default: RunException(met,"Shifting mode is not valid.");
+	}
+  switch(eparms.GetValueInt("WaveLoading",true,0)){
+    case 0:  TWaveLoading=WAVE_Regular;     break;
+    case 1:  TWaveLoading=WAVE_Focussed;     break;
+    default: RunException(met,"WaveLoading type is not valid.");
   }
+
+	wL=eparms.GetValueDouble("WaveLength",true,0.0);
+	wH=eparms.GetValueDouble("WaveHeight",true,0.0);
+	wD=eparms.GetValueDouble("WaterDepth",true,0.0);
+	Fp=eparms.GetValueDouble("PeakFrequency",true,0.0);
+	xFocus=eparms.GetValueDouble("FocalPoint",true,0.0);
+	wGamma=eparms.GetValueDouble("FocussedGamma",true,3.3);
+	NSpec=eparms.GetValueInt("NSpectrum",true,100);
 
   if(TShifting!=SHIFT_None){
     ShiftCoef=eparms.GetValueFloat("ShiftCoef",true,0.5f);
@@ -591,6 +608,22 @@ void JSph::LoadCaseConfig(){
 	TankDim.x=eparms.GetValueDouble("TankDimX",true,0.0f)-0.5*Dp;
 	TankDim.z=eparms.GetValueDouble("TankDimZ",true,0.0f)-0.5*Dp;
 	TankDim.y=eparms.GetValueDouble("TankDimY",true,0.0f)-0.5*Dp; if(Simulate2D) TankDim.y=0;
+
+	CylinderRadius=eparms.GetValueDouble("CylinderRadius",true,0.0)+Dp;
+	CylinderCentre.x=eparms.GetValueDouble("CylinderCentreX",true,0.0);
+	CylinderCentre.y=eparms.GetValueDouble("CylinderCentreY",true,0.0);
+	CylinderCentre.z=eparms.GetValueDouble("CylinderCentreZ",true,0.0);
+	CylinderLength.x=eparms.GetValueDouble("CylinderLength1",true,0.0)+0.5*Dp;
+	CylinderLength.y=eparms.GetValueDouble("CylinderLength2",true,0.0)-0.5*Dp;
+
+	switch(eparms.GetValueInt("CylinderAxis",true,0)){
+		case 0:  TCylinderAxis=CYLINDER_NONE;     break;
+    case 1:  TCylinderAxis=CYLINDER_X;     break;
+		case 2:  TCylinderAxis=CYLINDER_Y;     break;
+    case 3:  TCylinderAxis=CYLINDER_Z;     break;
+    default: RunException(met,"CylinderAxis type is not valid.");
+  }
+	if(Simulate2D) TCylinderAxis=CYLINDER_NONE;
 
   //-Configuration of AccInput.
   if(xml.GetNode("case.execution.special.accinputs",false)){

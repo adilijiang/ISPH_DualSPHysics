@@ -489,7 +489,6 @@ double JSphGpuSingle::ComputeStep_Sym(double dt){
 	TmgStart(Timers,TMG_Stage4);
   if(TShifting)RunShifting(dt);			        //-Shifting
 	TmgStop(Timers,TMG_Stage4);
-	/*if(VariableTimestep)*/ 
   return(dt);
 }
 
@@ -561,18 +560,11 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
   Log->Print(string("\n[Initialising simulation (")+RunCode+")  "+fun::GetDateTime()+"]");
   PrintHeadPart();
 
-	/*if(WaveGen){
-		double wL,wH,wd,wOmega,wS0;
-		wL=2.0; wH=0.15; wd=0.5; 
- 		double k=2*PI/wL;
- 		double kd=k*wd, sinh2kd=sinh(kd);		
- 		double kd2=2.0*kd;
- 		double temp1=sinh(kd2)+kd2;
- 		double temp2=2.0*(cosh(kd2)-1.0);
- 		wS0=wH*temp1/temp2;
- 		wOmega=sqrt(-Gravity.z*k*tanh(kd));
-		PistonPos.x=0.5*Dp+(wS0/2.0)*(1.0-cos(wOmega*TimeStep));
-	}*/
+	if(WaveGen){
+		double PistonVel;
+		if(TWaveLoading==WAVE_Regular) RegularWavePiston(wL,wH,wD,PistonVel);
+		else if(TWaveLoading==WAVE_Focussed) FocussedWavePistonSpectrum(wH,wD,Fp,xFocus,NSpec,wGamma);
+	}
 
 	if(Npb){
 		cudaMemset(MirrorPosg,0,sizeof(double3)*Npb);
@@ -592,7 +584,8 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
         TimeMax=TimeStep;
       }
       SaveData();
-      //SaveVtknormals("Normals.vtk",Nstep,Np,Posxyg,Poszg,Normal,smoothNormal);
+			//cusph::BoundaryNormals(BlockSizes.forcesbound,Npb,Idpg,Posxyg,Poszg,MirrorPosg,Normal);
+      //SaveVtknormals("Normals.vtk",Nstep,Np,Posxyg,Poszg,Normal,smoothNormal,BoundaryNormal,Idpg,MirrorPosg);
 			Part++;
       PartNstep=Nstep;
       TimeStepM1=TimeStep;
@@ -765,35 +758,45 @@ void JSphGpuSingle::SaveVtkSchwaigerTest(std::string fname,unsigned fnum,unsigne
   delete[] m4;
 }
 
-void JSphGpuSingle::SaveVtknormals(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const float3 *normals,const float3 *smoothnormals)const{
+void JSphGpuSingle::SaveVtknormals(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const float3 *normals,const float3 *smoothnormals,const float3* boundarynormal,const unsigned *idp,const double3 *mirrorpos)const{
   //-Allocate memory.
   tdouble2 *pxy=new tdouble2[np];
   double *pz=new double[np];
   tfloat3 *pos=new tfloat3[np];
-	tfloat3 *normNp=new tfloat3[np];
+	tfloat3 *normNp=new tfloat3[np]; memset(normNp,0,sizeof(float3)*Np);
 	tfloat3 *smoothnorm=new tfloat3[Np-Npb];
 	tfloat3 *smoothnormNp=new tfloat3[np];
+	tfloat3 *boundarynorm=new tfloat3[Npb];
+	tfloat3 *boundarynormp=new tfloat3[Np]; memset(boundarynormp,0,sizeof(float3)*Np);
+	tdouble3 *mirror=new tdouble3[Npb];
+	unsigned *id=new unsigned[np];
 
   //-Copies memory to CPU.
   cudaMemcpy(pxy,posxy,sizeof(double2)*np,cudaMemcpyDeviceToHost);
   cudaMemcpy(pz,posz,sizeof(double)*np,cudaMemcpyDeviceToHost);
   cudaMemcpy(normNp,normals,sizeof(tfloat3)*np,cudaMemcpyDeviceToHost);
 	cudaMemcpy(smoothnorm,smoothnormals,sizeof(tfloat3)*(Np-Npb),cudaMemcpyDeviceToHost);
-  for(unsigned p=0;p<(Np-Npb);p++){
-		unsigned p1=p+Npb;
-		pos[p]=ToTFloat3(TDouble3(pxy[p1].x,pxy[p1].y,pz[p1]));
+	cudaMemcpy(boundarynorm,boundarynormal,sizeof(tfloat3)*Npb,cudaMemcpyDeviceToHost);
+	cudaMemcpy(id,idp,sizeof(unsigned)*np,cudaMemcpyDeviceToHost);
+	cudaMemcpy(mirror,mirrorpos,sizeof(double3)*Npb,cudaMemcpyDeviceToHost);
 
-		normNp[p]=TFloat3(normNp[p1].x,normNp[p1].y,normNp[p1].z);
-		smoothnormNp[p]=TFloat3(smoothnorm[p].x,smoothnorm[p].y,smoothnorm[p].z);
+  for(unsigned p=0;p<(Npb);p++){
+		pos[p]=ToTFloat3(TDouble3(pxy[p].x,pxy[p].y,pz[p]));
+
+		normNp[p]=TFloat3(normNp[p].x,normNp[p].y,normNp[p].z);
+		boundarynormp[p]=boundarynorm[id[p]];
+		pos[p+Npb]=ToTFloat3(TDouble3(mirror[id[p]].x,mirror[id[p]].y,mirror[id[p]].z));
+		//smoothnormNp[p]=TFloat3(smoothnorm[p].x,smoothnorm[p].y,smoothnorm[p].z);
   }
 
   //-Creates VTK file.
   JFormatFiles2::StScalarData fields[20];
   unsigned nfields=0;
 	if(normNp){  fields[nfields]=JFormatFiles2::DefineField("Normals",JFormatFiles2::Float32,3,normNp); nfields++; }
-	if(smoothnormNp){  fields[nfields]=JFormatFiles2::DefineField("smoothNormals",JFormatFiles2::Float32,3,smoothnormNp); nfields++; }
+	if(boundarynormp){  fields[nfields]=JFormatFiles2::DefineField("BoundaryNormals",JFormatFiles2::Float32,3,boundarynormp); nfields++; }
+	//if(smoothnormNp){  fields[nfields]=JFormatFiles2::DefineField("smoothNormals",JFormatFiles2::Float32,3,smoothnormNp); nfields++; }
   string file=Log->GetDirOut()+fun::FileNameSec(fname,Part);
-  JFormatFiles2::SaveVtk(file,Np-Npb,pos,nfields,fields);
+  JFormatFiles2::SaveVtk(file,2*Npb,pos,nfields,fields);
 
   //-Frees memory.
   delete[] pxy;
@@ -811,7 +814,7 @@ void JSphGpuSingle::MirrorBoundary(){
 	const char met[]="MirrorBoundary";
   const unsigned bsbound=BlockSizes.forcesbound;
 	const bool wavegen=(WaveGen? true:false);
-  cusph::MirrorBoundary(Simulate2D,bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,MirrorPosg,MirrorCellg,wavegen,PistonPos,TankDim);
+  cusph::MirrorBoundary(TKernel,Simulate2D,bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,MirrorPosg,MirrorCellg,wavegen,PistonPos,TankDim,BoundaryNormal,CylinderRadius,CylinderCentre,CylinderLength,TCylinderAxis);
   CheckCudaError(met,"findIrelation");
 }
 

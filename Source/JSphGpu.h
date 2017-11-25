@@ -244,6 +244,19 @@ protected:
 	unsigned *NumFreeSurfaceGPU;
 	unsigned *NumFreeSurfaceCPU;
 
+	float3 *BoundaryNormal;
+
+	double TFocus;
+	double *fn;
+	double *Sp;
+	double *Ak;
+	double *Stroke2;
+	double *apm;
+	double *FocussedSum;
+
+	void RegularWavePiston(const double L,const double H,const double D,double &PistonVel);
+	void FocussedWavePistonSpectrum(const double H,const double D,const double fp,const double focalpoint,const unsigned nspec,const double gamma);
+
   void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,
 		const unsigned ppedim,unsigned int *rowGpu,const float *divr,const float freesurface,unsigned &nnz,unsigned &numFreeSurface,const float boundaryfs);
 

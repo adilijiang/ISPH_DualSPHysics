@@ -92,13 +92,16 @@ void JSphGpu::InitVars(){
   Xg=NULL;
   dWxCorrg=NULL; dWyCorrg=NULL; dWzCorrg=NULL;
 	ShiftPosg=NULL; Tensileg=NULL;
+	BoundaryNormal=NULL;
 	MLSg=NULL;
+	TFocus=NULL;
 	Taog=NULL;
 	Normal=NULL;
 	smoothNormal=NULL;
 	sumFrg=NULL;
 	PaddleAccel=NULL;
   Divrg=NULL;
+	fn=NULL; Sp=NULL; Ak=NULL; Stroke2=NULL; apm=NULL; FocussedSum=NULL;
 	MirrorPosg=NULL;
 	MirrorCellg=NULL;
   RidpMoveg=NULL;
@@ -145,22 +148,29 @@ void JSphGpu::FreeGpuMemoryFixed(){
 	if(NumFreeSurfaceGPU)cudaFree(NumFreeSurfaceGPU);	NumFreeSurfaceGPU=NULL;
 	if(MLSg)cudaFree(MLSg);													MLSg=NULL;
 	if(sumFrg) cudaFree(sumFrg);										sumFrg=NULL;
+	if(BoundaryNormal) cudaFree(BoundaryNormal);		BoundaryNormal=NULL;
 	if(Taog)	 cudaFree(Taog);											Taog=NULL;
 	if(Aceg)cudaFree(Aceg);													Aceg=NULL;
 	if(smoothNormal)cudaFree(smoothNormal);					smoothNormal=NULL;
 	if(dWxCorrg)cudaFree(dWxCorrg);									dWxCorrg=NULL;
 	if(dWzCorrg)cudaFree(dWzCorrg);									dWzCorrg=NULL;
 	if(ShiftPosg)cudaFree(ShiftPosg);								ShiftPosg=NULL;
-	if(Tensileg)cudaFree(Tensileg);								Tensileg=NULL;
+	if(Tensileg)cudaFree(Tensileg);									Tensileg=NULL;
   if(RidpMoveg)cudaFree(RidpMoveg);								RidpMoveg=NULL;
   if(FtRidpg)cudaFree(FtRidpg);										FtRidpg=NULL;
+	if(fn)cudaFree(fn);															fn=NULL;
+	if(Sp)cudaFree(Sp);															Sp=NULL;
+	if(Ak)cudaFree(Ak);															Ak=NULL;
+	if(Stroke2)cudaFree(Stroke2);										Stroke2=NULL;
+	if(apm)cudaFree(apm);														apm=NULL;
+	if(FocussedSum)cudaFree(FocussedSum);						FocussedSum=NULL;
   if(FtoMasspg)cudaFree(FtoMasspg);								FtoMasspg=NULL;
   if(FtoDatag)cudaFree(FtoDatag);									FtoDatag=NULL;
   if(FtoForcesg)cudaFree(FtoForcesg);							FtoForcesg=NULL;
-  if(FtoCenterg)cudaFree(FtoCenterg);		FtoCenterg=NULL;
-  if(FtoVelg)cudaFree(FtoVelg);					FtoVelg=NULL;
-  if(FtoOmegag)cudaFree(FtoOmegag);			FtoOmegag=NULL;
-  if(DemDatag)cudaFree(DemDatag);				DemDatag=NULL;
+  if(FtoCenterg)cudaFree(FtoCenterg);							FtoCenterg=NULL;
+  if(FtoVelg)cudaFree(FtoVelg);										FtoVelg=NULL;
+  if(FtoOmegag)cudaFree(FtoOmegag);								FtoOmegag=NULL;
+  if(DemDatag)cudaFree(DemDatag);									DemDatag=NULL;
 }
 
 //==============================================================================
@@ -178,6 +188,7 @@ void JSphGpu::AllocGpuMemoryFixed(){
   size_t m;
 	
 	m=sizeof(double3)*npb;			cudaMalloc((void**)&MirrorPosg,m);				MemGpuFixed+=m;
+	m=sizeof(float3)*npb;				cudaMalloc((void**)&BoundaryNormal,m);		MemGpuFixed+=m;
 	m=sizeof(unsigned)*npb;			cudaMalloc((void**)&MirrorCellg,m);				MemGpuFixed+=m;
 	m=sizeof(float4)*npb;				cudaMalloc((void**)&MLSg,m);							MemGpuFixed+=m;
 	m=sizeof(unsigned)*(np+1);	cudaMalloc((void**)&rowIndg,m);						MemGpuFixed+=m; MemGpuMatrix+=m;
@@ -195,6 +206,15 @@ void JSphGpu::AllocGpuMemoryFixed(){
 	if(Schwaiger){
 		m=sizeof(float3)*npf;			cudaMalloc((void**)&sumFrg,m);						MemGpuFixed+=m;
 		m=sizeof(float)*npf;			cudaMalloc((void**)&Taog,m);							MemGpuFixed+=m;
+	}
+
+	if(WaveGen&&TWaveLoading==WAVE_Focussed){
+		m=sizeof(double)*NSpec;		cudaMalloc((void**)&fn,m);								MemGpuFixed+=m;
+															cudaMalloc((void**)&Sp,m);								MemGpuFixed+=m;
+															cudaMalloc((void**)&Ak,m);								MemGpuFixed+=m;
+															cudaMalloc((void**)&Stroke2,m);						MemGpuFixed+=m;
+															cudaMalloc((void**)&apm,m);								MemGpuFixed+=m;
+		m=sizeof(double);					cudaMalloc((void**)&FocussedSum,m);				MemGpuFixed+=m;
 	}
 
   //-Allocates memory for moving objects.
@@ -994,6 +1014,38 @@ void JSphGpu::RunShifting(double dt){
 /// Procesa movimiento de boundary particles
 /// Processes boundary particle movement
 //==============================================================================
+void JSphGpu::RegularWavePiston(const double L,const double H,const double D,double &PistonVel){
+	double k=2*PI/L;
+ 	double kd=k*D, sinh2kd=sinh(kd);		
+ 	double kd2=2.0*kd;
+ 	double temp1=sinh(kd2)+kd2;
+ 	double temp2=2.0*(cosh(kd2)-1.0);
+ 	double S0=H*temp1/temp2;
+ 	double Omega=sqrt(-Gravity.z*k*tanh(kd));
+ 	PistonVel=(S0/2.0)*Omega*sin(Omega*TimeStep);
+	//PaddleAccel=0;//float((wS0/2.0)*wOmega*wOmega*cos(wOmega*TimeStep));
+	PistonPos.x=0.5*Dp+(S0/2.0)*(1.0-cos(Omega*TimeStep));
+}
+
+void JSphGpu::FocussedWavePistonSpectrum(const double H,const double D,const double fp,const double focalpoint,const unsigned nspec,const double gamma){
+	const double PI2=2.0*PI;
+	const double T=1.0/fp;
+	const double AN=H*0.5;
+	const double Omega=PI2*fp;
+	double k=Omega*Omega/abs(Gravity.z);
+	double temp=k;
+	for(unsigned n=0;n<nspec;n++) k=temp/tanh(k*D);
+	const double L=PI2/k;
+	const double ce=Omega/k;
+	const double cg=ce*(1.0+(2.0*k*D/sinh(2.0*k*D)))*0.5;
+	const double f1=0.5*fp;
+	const double f2=3.0*fp;
+	const double df=(f2-f1)/nspec;
+	cusph::CalculateSpectrum(fn,Sp,Ak,Stroke2,apm,FocussedSum,nspec,f1,df,fp,D,gamma,Gravity,AN);
+	TFocus=2.0*focalpoint/cg;
+	cusph::AkToPhi(NSpec,fn,Ak,TFocus,focalpoint);
+}
+
 void JSphGpu::RunMotion(double stepdt){
   const char met[]="RunMotion";
   TmgStart(Timers,TMG_SuMotion);
@@ -1028,24 +1080,18 @@ void JSphGpu::RunMotion(double stepdt){
   //-Procesa otros modos de motion.
   //-Processes other motion modes.
   if(WaveGen){
-		/*double wL,wH,wd,wOmega,wS0;
-		wL=2.0; wH=0.15; wd=0.5; 
- 		double k=2*PI/wL;
- 		double kd=k*wd, sinh2kd=sinh(kd);		
- 		double kd2=2.0*kd;
- 		double temp1=sinh(kd2)+kd2;
- 		double temp2=2.0*(cosh(kd2)-1.0);
- 		wS0=wH*temp1/temp2;
- 		wOmega=sqrt(-Gravity.z*k*tanh(kd));
- 		double PistonVel=(wS0/2.0)*wOmega*sin(wOmega*TimeStep);
-		PaddleAccel=0;//float((wS0/2.0)*wOmega*wOmega*cos(wOmega*TimeStep));
- 		double PistonPosX0=PistonPos.x;
-		PistonPos.x=0.5*Dp+(wS0/2.0)*(1.0-cos(wOmega*TimeStep));*/
-
+		double PistonPosX0=PistonPos.x;
+		double PistonVel;
+		if(TWaveLoading==WAVE_Regular) RegularWavePiston(wL,wH,wD,PistonVel);
+		else if(TWaveLoading==WAVE_Focussed){
+			PistonVel=cusph::FocussedVel(NSpec,FocussedSum,Stroke2,fn,TimeStep,Ak);
+			PistonPos.x+=PistonVel*stepdt;
+		}
+	
     if(!nmove)cusph::CalcRidp(PeriActive!=0,Npb,0,CaseNfixed,CaseNfixed+CaseNmoving,Codeg,Idpg,RidpMoveg);
     BoundChanged=true;
-		double mvPistonX=0;
-		float pistonvel=0;
+		//double mvPistonX=0;
+		//float pistonvel=0;
     //-Gestion de WaveGen.
 	//-Management of WaveGen.
     if(WaveGen)for(unsigned c=0;c<WaveGen->GetCount();c++){
@@ -1057,10 +1103,10 @@ void JSphGpu::RunMotion(double stepdt){
         mvsimple=OrderCode(mvsimple);
         if(Simulate2D)mvsimple.y=0;
         tfloat3 mvvel=ToTFloat3(mvsimple/TDouble3(stepdt));
-				//mvsimple.x=PistonPos.x-PistonPosX0;
-				//mvvel.x=float(PistonVel);
-				mvPistonX=mvsimple.x;
-				pistonvel=mvvel.x;
+				mvsimple.x=PistonPos.x-PistonPosX0;
+				mvvel.x=float(PistonVel);
+				//mvPistonX=mvsimple.x;
+				//pistonvel=mvvel.x;
         cusph::MoveLinBound(PeriActive,nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg,Idpg,MirrorPosg,MirrorCellg);
       }
       else{
@@ -1068,8 +1114,8 @@ void JSphGpu::RunMotion(double stepdt){
         cusph::MoveMatBound(PeriActive,Simulate2D,nparts,idbegin-CaseNfixed,mvmatrix,stepdt,RidpMoveg,Posxyg,Poszg,Dcellg,Velrhopg,Codeg);
       }
     }
-		PistonPos.x+=mvPistonX;
-		double PistonVel=pistonvel;
+		//PistonPos.x+=mvPistonX;
+		//double PistonVel=pistonvel;
 		cusph::PistonCorner(BlockSizes.forcesbound,Npb,Posxyg,Idpg,MirrorPosg,Codeg,PistonPos,Simulate2D,MirrorCellg,Velrhopg,float(PistonVel));
   }
   TmgStop(Timers,TMG_SuMotion);

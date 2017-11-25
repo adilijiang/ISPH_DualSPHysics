@@ -179,6 +179,11 @@ protected:
 	bool OPS;
   TpSlipCond TSlipCond;
 
+	double CylinderRadius;
+	tdouble3 CylinderCentre;
+	tdouble2 CylinderLength;
+	TpCylinder TCylinderAxis;
+
 	bool Schwaiger;
   
   TpPrecond TPrecond;
@@ -194,6 +199,15 @@ protected:
   int CoarseCutoff;
   int CoarseLevels;
 	bool VariableTimestep;
+
+	TpWaveLoading TWaveLoading;
+	double wL;
+	double wH;
+	double wD;
+	double Fp;
+	double xFocus;
+	unsigned NSpec;
+	double wGamma;
 
 	tdouble3 PistonPos; //Starting position of piston for wave generation
 	tdouble3 TankDim; //Tank dimension for wave generation
