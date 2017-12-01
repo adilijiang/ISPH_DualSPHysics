@@ -182,6 +182,7 @@ protected:
 	double CylinderRadius;
 	tdouble3 CylinderCentre;
 	tdouble2 CylinderLength;
+	tdouble2 FullCylinderLength;
 	TpCylinder TCylinderAxis;
 
 	bool Schwaiger;
@@ -385,7 +386,7 @@ protected:
   unsigned GetMkBlockByMk(word mk)const;
 
   word CodeSetType(word code,TpParticle type,unsigned value)const;
-  void LoadCodeParticles(unsigned np,const unsigned *idp,word *code)const;
+  void LoadCodeParticles(unsigned np,const unsigned *idp,word *code,tdouble3 *pos)const;
   void ResizeMapLimits();
 
   void ConfigConstants(bool simulate2d);
@@ -432,6 +433,7 @@ protected:
   unsigned GetOutPosCount()const{ return(OutPosCount); }
   unsigned GetOutRhopCount()const{ return(OutRhopCount); }
   unsigned GetOutMoveCount()const{ return(OutMoveCount); }
+	void CalcCylinder(unsigned &outerN,double &theta,const double radius)const;
 
 public:
   JSph(bool cpu,bool withmpi);

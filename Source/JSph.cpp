@@ -115,6 +115,7 @@ void JSph::InitVars(){
 	CylinderRadius=0;
 	CylinderCentre=TDouble3(0,0,0);
 	CylinderLength=TDouble2(0,0);
+	FullCylinderLength=TDouble2(0,0);
 	TCylinderAxis=CYLINDER_NONE;
 	OPS=false;
 	VariableTimestep=false;
@@ -609,12 +610,14 @@ void JSph::LoadCaseConfig(){
 	TankDim.z=eparms.GetValueDouble("TankDimZ",true,0.0f)-0.5*Dp;
 	TankDim.y=eparms.GetValueDouble("TankDimY",true,0.0f)-0.5*Dp; if(Simulate2D) TankDim.y=0;
 
-	CylinderRadius=eparms.GetValueDouble("CylinderRadius",true,0.0)+Dp;
+	CylinderRadius=eparms.GetValueDouble("CylinderRadius",true,0.0);//+Dp;
 	CylinderCentre.x=eparms.GetValueDouble("CylinderCentreX",true,0.0);
 	CylinderCentre.y=eparms.GetValueDouble("CylinderCentreY",true,0.0);
 	CylinderCentre.z=eparms.GetValueDouble("CylinderCentreZ",true,0.0);
 	CylinderLength.x=eparms.GetValueDouble("CylinderLength1",true,0.0)+0.5*Dp;
 	CylinderLength.y=eparms.GetValueDouble("CylinderLength2",true,0.0)-0.5*Dp;
+	FullCylinderLength.x=eparms.GetValueDouble("FullCylinderLength1",true,0.0);
+	FullCylinderLength.y=eparms.GetValueDouble("FullCylinderLength2",true,0.0);
 
 	switch(eparms.GetValueInt("CylinderAxis",true,0)){
 		case 0:  TCylinderAxis=CYLINDER_NONE;     break;
@@ -802,6 +805,11 @@ word JSph::CodeSetType(word code,TpParticle type,unsigned value)const{
   //-Returns the new code.
   return(code&(~CODE_MASKTYPEVALUE)|tp|v);
 }
+void JSph::CalcCylinder(unsigned &outerN,double &theta,const double radius)const{	
+	theta=2.0*asin(0.5*Dp/radius);
+	outerN=unsigned(ceil(2*PI/theta));
+	theta=2*PI/outerN;
+}
 
 //==============================================================================
 /// ES:
@@ -811,17 +819,57 @@ word JSph::CodeSetType(word code,TpParticle type,unsigned value)const{
 /// Loads the code of a particle group and flags the last "nout" 
 /// particles as excluded. 
 //==============================================================================
-void JSph::LoadCodeParticles(unsigned np,const unsigned *idp,word *code)const{
+void JSph::LoadCodeParticles(unsigned np,const unsigned *idp,word *code,tdouble3 *pos)const{
   const char met[]="LoadCodeParticles"; 
   //-Assigns code to each group of particles (moving & floating).
   const unsigned finfixed=CaseNfixed;
   const unsigned finmoving=finfixed+CaseNmoving;
   const unsigned finfloating=finmoving+CaseNfloat;
-  for(unsigned p=0;p<np;p++){
+	unsigned Nouter=0; unsigned Ninner=0;			//particles around circumference	
+	double Otheta=0; double Itheta=0;					//angle between particles
+	unsigned pOcyN=0; unsigned pIcyN=0;				//Current particle around circumference
+	unsigned OZlayer=0; unsigned IZlayer=0;		//Current height of layer
+	unsigned Blayer=1;												//Current internal boundary layers		
+	double BRadius=CylinderRadius-Blayer*Dp; //Current radius of boundary layers
+	unsigned CLayers=unsigned((FullCylinderLength.y-FullCylinderLength.x)/Dp)+1; //Number of vertical cylinder layers
+	if(TCylinderAxis!=CYLINDER_NONE){
+		CalcCylinder(Nouter,Otheta,CylinderRadius);
+		CalcCylinder(Ninner,Itheta,BRadius);
+	}
+	const double r=CylinderRadius+0.25*Dp;
+	for(unsigned p=0;p<np;p++){
     const unsigned id=idp[p];
     word cod=0;
     unsigned cmk=GetMkBlockById(id);
-    if(id<finfixed)cod=CodeSetType(cod,PART_BoundFx,cmk);
+    if(id<finfixed){
+			cod=CodeSetType(cod,PART_BoundFx,cmk);
+			if(TCylinderAxis!=CYLINDER_NONE){
+				if(cod==1||cod==0){
+					tdouble3 dr=TDouble3(pos[p].x-CylinderCentre.x,pos[p].y-CylinderCentre.y,0);
+					double temp=dr.x*dr.x+dr.y*dr.y+dr.z*dr.z;
+					if(temp<=r*r) pos[p]=TDouble3(CylinderCentre.x,CylinderCentre.y,FullCylinderLength.y);
+				}
+				else if(cod==2){
+					if(Blayer<3){
+						if(IZlayer<=CLayers){
+							pos[p]=TDouble3(CylinderCentre.x+BRadius*sin(Itheta*pIcyN),CylinderCentre.y+BRadius*cos(Itheta*pIcyN),FullCylinderLength.x+IZlayer*Dp);
+							pIcyN++;
+							if(pIcyN==Ninner){ pIcyN=0; IZlayer++;}
+						}
+						if(IZlayer>CLayers){IZlayer=0; pIcyN=0; Blayer++; BRadius=CylinderRadius-Blayer*Dp; CalcCylinder(Ninner,Itheta,BRadius);}
+					}
+					else pos[p]=TDouble3(CylinderCentre.x,CylinderCentre.y,FullCylinderLength.y);
+				}
+				else if(cod==3){
+					if(OZlayer<=CLayers){
+						pos[p]=TDouble3(CylinderCentre.x+CylinderRadius*sin(Otheta*pOcyN),CylinderCentre.y+CylinderRadius*cos(Otheta*pOcyN),FullCylinderLength.x+OZlayer*Dp);
+						pOcyN++;
+						if(pOcyN>Nouter){ pOcyN=0; OZlayer++;}
+					}
+					else pos[p]=TDouble3(CylinderCentre.x,CylinderCentre.y,FullCylinderLength.y);
+				}
+			}
+		}
     else if(id<finmoving){
       cod=CodeSetType(cod,PART_BoundMv,cmk-MkListFixed);
       if(cmk-MkListFixed>=MotionObjCount)RunException(met,"Motion code of particles was not found.");
@@ -833,6 +881,14 @@ void JSph::LoadCodeParticles(unsigned np,const unsigned *idp,word *code)const{
     else{
       cod=CodeSetType(cod,PART_Fluid,cmk-MkListBound);
       if(cmk-MkListBound>=MkListSize)RunException(met,"Fluid code of particles was not found.");
+			if(TCylinderAxis!=CYLINDER_NONE){
+				tdouble3 dr=TDouble3(pos[p].x-CylinderCentre.x,pos[p].y-CylinderCentre.y,0);
+				double temp=dr.x*dr.x+dr.y*dr.y+dr.z*dr.z;
+				if(temp<=r*r){
+					pos[p]=TDouble3(CylinderCentre.x,CylinderCentre.y,FullCylinderLength.y);
+					cod=CODE_SetOutPos(cod);
+				}
+			}
     }
     code[p]=cod;
   }

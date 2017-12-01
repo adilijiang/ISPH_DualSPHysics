@@ -213,12 +213,6 @@ void CorrectShiftVelocity(TpKernel tkernel,TpCellMode cellmode,const unsigned bs
 
 void SolverResultArrange(const unsigned bsbound,const unsigned bsfluid,const unsigned npb,const unsigned npbok,const unsigned npf,float4 *velrhop,double *X);
 
-void SchwaigerTest(const unsigned ppedim,const unsigned npb,const double *a,const double2 *posxyg,const double *poszg,const unsigned *row,const unsigned *col,double *m2,double *m3,double *m4);
-
-void PreBiCGSTAB(const double Tol,const unsigned iterMax,const double *A,double *X,const double *B,const unsigned *rowInd,const unsigned *col,const unsigned Nnz,const unsigned n,const unsigned npb);
-
-void SquarePatchVel(const unsigned bsfluid,const unsigned np,const unsigned npb,const double2 *Posxyg,const double *Poszg,float4 *velrhop);
-
 void CalculateSpectrum(double *fn,double *Sp,double *Ak,double *Stroke2,double *apm,double *FocussedSum,const unsigned nspec,const double f1,const double df,const double fp,const double D,const double gamma,tfloat3 gravity,const double AN);
 
 void AkToPhi(const unsigned nspec,const double *fn,double *Ak,const double TFocus,const double focalpoint);

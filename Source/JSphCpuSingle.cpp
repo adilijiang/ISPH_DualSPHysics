@@ -154,7 +154,7 @@ void JSphCpuSingle::ConfigDomain(){
   if(CaseNfloat && PeriActive!=0 && !PartBegin)CalcFloatingRadius(Np,Posc,Idpc);
 
   //-Load particle data / Carga code de particulas.
-  LoadCodeParticles(Np,Idpc,Codec);
+  LoadCodeParticles(Np,Idpc,Codec,Posc);
 
   //-Free memory of PartsLoaded / Libera memoria de PartsLoaded.
   delete PartsLoaded; PartsLoaded=NULL;
