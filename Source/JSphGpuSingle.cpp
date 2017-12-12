@@ -486,7 +486,8 @@ double JSphGpuSingle::ComputeStep_Sym(double dt){
 	//-Shifting
 	//-----------
 	TmgStart(Timers,TMG_Stage4);
-  if(TShifting)RunShifting(dt);			        //-Shifting
+
+	if(TShifting)RunShifting(dt);			        //-Shifting
 	TmgStop(Timers,TMG_Stage4);
   return(dt);
 }
@@ -562,14 +563,14 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 	if(WaveGen){
 		double PistonVel;
 		if(TWaveLoading==WAVE_Regular) RegularWavePiston(wL,wH,wD,PistonVel);
-		else if(TWaveLoading==WAVE_Focussed) FocussedWavePistonSpectrum(wH,wD,Fp,xFocus,NSpec,wGamma);
+		else if(TWaveLoading==WAVE_Focussed) FocussedWavePistonSpectrum(wH,wD,Fp,xFocus,NSpec,wGamma,Focussed_f,Focussed_K,Focussed_Sp,Focussed_Stroke,Focussed_Apm,Focussed_Phi);
 	}
 
 	if(Npb){
 		cudaMemset(MirrorPosg,0,sizeof(double3)*Npb);
 		MirrorBoundary();
 	}
-	
+
 	Normal=ArraysGpu->ReserveFloat3(); cudaMemset(Normal,0,sizeof(float3)*Np); 
 	while(TimeStep<TimeMax){
 		if(CaseNmoving)RunMotion(stepdt);

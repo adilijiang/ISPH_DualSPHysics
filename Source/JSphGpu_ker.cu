@@ -4568,7 +4568,7 @@ __global__ void KerFocussedVel
 		double temp=0;
 		for(unsigned n=0;n<nspec;n++){
 			const double Omega=2.0*PI*fn[n];
-			temp+=Stroke2[n]*Omega*cos(-Omega*T+Ak[n]);
+			temp+=Stroke2[n]*Omega*sin(-Omega*T+Ak[n]);
 		}
 		FocussedSum[0]=temp;
 	}
