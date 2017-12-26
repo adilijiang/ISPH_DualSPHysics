@@ -822,7 +822,7 @@ void JSphGpuSingle::MirrorBoundary(){
 /// Initial advection
 //==============================================================================
 void JSphGpuSingle::InitAdvection(double dt){
-    const char met[]="SolvePPE";
+    const char met[]="InitAdvection";
     PosxyPreg=ArraysGpu->ReserveDouble2();
     PoszPreg=ArraysGpu->ReserveDouble();
     VelrhopPreg=ArraysGpu->ReserveFloat4();
