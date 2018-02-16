@@ -1842,7 +1842,7 @@ __device__ void KerCorrectCylinderVelocity(const unsigned p1,const double2 *posx
 	double dy=posp1.y-CylinderCentre.y; if(TCylinderAxis==CYLINDER_Y) dy=0;
 	double dz=posp1.z-CylinderCentre.z; if(TCylinderAxis==CYLINDER_Z) dz=0;
 	const double rr2=dx*dx+dy*dy+dz*dz;
-	if(rr2<=CylinderRadius*CylinderRadius){
+	if(rr2<=(CylinderRadius+CTE.dp)*(CylinderRadius+CTE.dp)){
 		float3 NormDir=make_float3(0,0,0), NormVelWall=make_float3(0,0,0), NormVelp1=make_float3(0,0,0);
 		const double temp=sqrt(rr2);
 		NormDir.x=float(dx/temp);
