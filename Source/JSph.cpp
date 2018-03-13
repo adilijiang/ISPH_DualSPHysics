@@ -99,18 +99,28 @@ void JSph::InitVars(){
   CaseName=""; DirCase=""; DirOut=""; RunName="";
   TStep=STEP_None;
   TKernel=KERNEL_Wendland;
+	Schwaiger=false;
   Awen=Bwen=0;
   TVisco=VISCO_None;
   TShifting=SHIFT_None; ShiftCoef=0;
   FreeSurface=0;
+	SkillenFSPressure=false;
+	HydrodynamicCorrection=false;
   TensileN=0;
   TensileR=0;
   TPrecond=PRECOND_Jacobi;
   TAMGInter=AMGINTER_AG;
   Iterations=0;
   Tolerance=0;
+	CylinderRadius=0;
+	CylinderCentre=TDouble3(0,0,0);
+	CylinderLength=TDouble2(0,0);
+	FullCylinderLength=TDouble2(0,0);
+	TCylinderAxis=CYLINDER_NONE;
+	OPS=false;
+	VariableTimestep=false;
   StrongConnection=0; JacobiWeight=0; Presmooth=0; Postsmooth=0; CoarseCutoff=0;
-	NegativePressureBound=true;
+	PistonPos=TDouble3(0);
   Visco=0; ViscoBoundFactor=1;
   UseDEM=false;  //(DEM)
   DemDtForce=0;  //(DEM)
@@ -332,8 +342,8 @@ void JSph::LoadConfig(const JCfgRun *cfg){
     }
     if(TShifting!=SHIFT_None){
       ShiftCoef=-2;
-      TensileN=0.1f;
-      TensileR=3.0f;
+      TensileN=4.0f;
+      TensileR=0.2f;
     }
     else ShiftCoef=0;
   }
@@ -397,6 +407,30 @@ void JSph::LoadCaseConfig(){
     default: RunException(met,"Kernel choice is not valid.");
   }
 
+	switch(eparms.GetValueInt("LaplacianOperator",true,0)){
+    case 0:  Schwaiger=false;  break;
+		case 1:  Schwaiger=true;  break;
+    default: RunException(met,"Laplacian operator choice is not valid.");
+  }
+
+	switch(eparms.GetValueInt("SkillenFSPressure",true,0)){
+    case 0:  SkillenFSPressure=false;  break;
+		case 1:  SkillenFSPressure=true;  break;
+    default: RunException(met,"SkillenFSPressure choice is not valid.");
+  }
+
+	switch(eparms.GetValueInt("HydrodynamicCorrection",true,0)){
+    case 0:  HydrodynamicCorrection=false;  break;
+		case 1:  HydrodynamicCorrection=true;  break;
+    default: RunException(met,"HydrodynamicCorrection choice is not valid.");
+  }
+
+	switch(eparms.GetValueInt("OPS",true,0)){
+    case 0:  OPS=false;  break;
+		case 1:  OPS=true;  break;
+    default: RunException(met,"OPS choice is not valid.");
+  }
+
   switch(eparms.GetValueInt("ViscoTreatment",true,1)){
     case 1:  TVisco=VISCO_Artificial;  break;
     default: RunException(met,"Viscosity treatment is not valid.");
@@ -416,22 +450,43 @@ void JSph::LoadCaseConfig(){
     default: RunException(met,"Slip/No Slip Condition mode is not valid.");
   }
 
-  switch(eparms.GetValueInt("Shifting",true,1)){
+	switch(eparms.GetValueInt("Shifting",true,2)){
     case 0:  TShifting=SHIFT_None;     break;
     case 1:  TShifting=SHIFT_Full;     break;
-		case 2:	 TShifting=SHIFT_Max;			 break;
+ 		case 2:	 TShifting=SHIFT_Max;			 break;
     default: RunException(met,"Shifting mode is not valid.");
+	}
+  switch(eparms.GetValueInt("WaveLoading",true,0)){
+    case 0:  TWaveLoading=WAVE_Regular;     break;
+    case 1:  TWaveLoading=WAVE_Focussed;     break;
+    default: RunException(met,"WaveLoading type is not valid.");
   }
 
+	wL=eparms.GetValueDouble("WaveLength",true,0.0);
+	wH=eparms.GetValueDouble("WaveHeight",true,0.0);
+	wD=eparms.GetValueDouble("WaterDepth",true,0.0);
+	Fp=eparms.GetValueDouble("PeakFrequency",true,0.0);
+	xFocus=eparms.GetValueDouble("FocalPoint",true,0.0);
+	wGamma=eparms.GetValueDouble("FocussedGamma",true,3.3);
+	NSpec=eparms.GetValueInt("NSpectrum",true,100);
+
   if(TShifting!=SHIFT_None){
-    ShiftCoef=eparms.GetValueFloat("ShiftCoef",true,0.1f);
+    ShiftCoef=eparms.GetValueFloat("ShiftCoef",true,0.5f);
     ShiftOffset=eparms.GetValueFloat("ShiftOffset",true,0.2f);
-    TensileN=eparms.GetValueFloat("TensileN",true,0.1f);
-    TensileR=eparms.GetValueFloat("TensileR",true,3.0f);
+    TensileN=eparms.GetValueFloat("TensileN",true,4.0f);
+    TensileR=eparms.GetValueFloat("TensileR",true,0.2f);
+		BetaShift0=eparms.GetValueDouble("BetaShift0",true,0.0f);
+		BetaShift1=eparms.GetValueDouble("BetaShift1",true,0.0f);
+		BetaShift2=eparms.GetValueDouble("BetaShift2",true,0.0f);
+		AlphaShift0=eparms.GetValueDouble("AlphaShift0",true,0.0f);
+		AlphaShift1=eparms.GetValueDouble("AlphaShift1",true,0.0f);
+		AlphaShift2=eparms.GetValueDouble("AlphaShift2",true,0.0f);
   }
 
   FreeSurface=eparms.GetValueFloat("FreeSurface",true,1.6f);
-	FactorNormShift=eparms.GetValueDouble("FactorNormShift",true,0.0f);
+	BoundaryFS=eparms.GetValueFloat("BoundaryFS",true,1.2f);
+	SkillenFreeSurface=eparms.GetValueFloat("SkillenFreeSurface",true,1.4f);
+	SkillenOffset=eparms.GetValueFloat("SkillenOffset",true,0.2f);
 
   Tolerance=eparms.GetValueDouble("Solver Tolerance",true,1e-5f);
   Iterations=eparms.GetValueInt("Max Iterations",true,100);
@@ -442,6 +497,12 @@ void JSph::LoadCaseConfig(){
     case 0:  TPrecond=PRECOND_Jacobi;   break;
     case 1:  TPrecond=PRECOND_AMG;      break;
     default: RunException(met,"Preconditioner is not valid.");
+  }
+
+	switch(eparms.GetValueInt("VariableTimestep",true,0)){
+    case 0:  VariableTimestep=false;   break;
+    case 1:  VariableTimestep=true;    break;
+    default: RunException(met,"VariableTimestep is not valid.");
   }
 
   if(TPrecond==PRECOND_AMG){   
@@ -456,12 +517,6 @@ void JSph::LoadCaseConfig(){
     Postsmooth=eparms.GetValueInt("Postsmooth Steps",true,0);
     CoarseCutoff=eparms.GetValueInt("Coarsening Cutoff",true,2500);
     CoarseLevels=eparms.GetValueInt("Coarse Levels",true,0);
-  }
-
-	switch(eparms.GetValueInt("NegativePressureBound",true,1)){
-    case 0:  NegativePressureBound=false;     break;
-    case 1:  NegativePressureBound=true;     break;
-    default: RunException(met,"NegativePressureBound can only be 0 (no) or 1 (yes)");
   }
 
   FtPause=eparms.GetValueFloat("FtPause",true,0);
@@ -544,7 +599,34 @@ void JSph::LoadCaseConfig(){
   //-Configuration of WaveGen.
   if(xml.GetNode("case.execution.special.wavepaddles",false)){
     WaveGen=new JWaveGen(Log,DirCase,&xml,"case.execution.special.wavepaddles");
+		DampingPointX=eparms.GetValueDouble("DampingPointX",true,0.0f);
+		DampingLengthX=eparms.GetValueDouble("DampingLengthX",true,0.0f);
   }
+
+	PistonPos.x=eparms.GetValueDouble("PistonPosX",true,0.0f)+0.5*Dp;
+	PistonPos.z=eparms.GetValueDouble("PistonPosZ",true,0.0f)+0.5*Dp;
+	PistonPos.y=eparms.GetValueDouble("PistonPosY",true,0.0f)+0.5*Dp; if(Simulate2D) PistonPos.y=0;
+	TankDim.x=eparms.GetValueDouble("TankDimX",true,0.0f)-0.5*Dp;
+	TankDim.z=eparms.GetValueDouble("TankDimZ",true,0.0f)-0.5*Dp;
+	TankDim.y=eparms.GetValueDouble("TankDimY",true,0.0f)-0.5*Dp; if(Simulate2D) TankDim.y=0;
+
+	CylinderRadius=eparms.GetValueDouble("CylinderRadius",true,0.0);//+Dp;
+	CylinderCentre.x=eparms.GetValueDouble("CylinderCentreX",true,0.0);
+	CylinderCentre.y=eparms.GetValueDouble("CylinderCentreY",true,0.0);
+	CylinderCentre.z=eparms.GetValueDouble("CylinderCentreZ",true,0.0);
+	CylinderLength.x=eparms.GetValueDouble("CylinderLength1",true,0.0)+0.5*Dp;
+	CylinderLength.y=eparms.GetValueDouble("CylinderLength2",true,0.0)-0.5*Dp;
+	FullCylinderLength.x=eparms.GetValueDouble("FullCylinderLength1",true,0.0);
+	FullCylinderLength.y=eparms.GetValueDouble("FullCylinderLength2",true,0.0);
+
+	switch(eparms.GetValueInt("CylinderAxis",true,0)){
+		case 0:  TCylinderAxis=CYLINDER_NONE;     break;
+    case 1:  TCylinderAxis=CYLINDER_X;     break;
+		case 2:  TCylinderAxis=CYLINDER_Y;     break;
+    case 3:  TCylinderAxis=CYLINDER_Z;     break;
+    default: RunException(met,"CylinderAxis type is not valid.");
+  }
+	if(Simulate2D) TCylinderAxis=CYLINDER_NONE;
 
   //-Configuration of AccInput.
   if(xml.GetNode("case.execution.special.accinputs",false)){
@@ -723,6 +805,11 @@ word JSph::CodeSetType(word code,TpParticle type,unsigned value)const{
   //-Returns the new code.
   return(code&(~CODE_MASKTYPEVALUE)|tp|v);
 }
+void JSph::CalcCylinder(unsigned &outerN,double &theta,const double radius)const{	
+	theta=2.0*asin(0.5*Dp/radius);
+	outerN=unsigned(ceil(2*PI/theta));
+	theta=2*PI/outerN;
+}
 
 //==============================================================================
 /// ES:
@@ -732,17 +819,57 @@ word JSph::CodeSetType(word code,TpParticle type,unsigned value)const{
 /// Loads the code of a particle group and flags the last "nout" 
 /// particles as excluded. 
 //==============================================================================
-void JSph::LoadCodeParticles(unsigned np,const unsigned *idp,word *code)const{
+void JSph::LoadCodeParticles(unsigned np,const unsigned *idp,word *code,tdouble3 *pos)const{
   const char met[]="LoadCodeParticles"; 
   //-Assigns code to each group of particles (moving & floating).
   const unsigned finfixed=CaseNfixed;
   const unsigned finmoving=finfixed+CaseNmoving;
   const unsigned finfloating=finmoving+CaseNfloat;
-  for(unsigned p=0;p<np;p++){
+	unsigned Nouter=0; unsigned Ninner=0;			//particles around circumference	
+	double Otheta=0; double Itheta=0;					//angle between particles
+	unsigned pOcyN=0; unsigned pIcyN=0;				//Current particle around circumference
+	unsigned OZlayer=0; unsigned IZlayer=0;		//Current height of layer
+	unsigned Blayer=1;												//Current internal boundary layers		
+	double BRadius=CylinderRadius-Blayer*Dp; //Current radius of boundary layers
+	unsigned CLayers=unsigned((FullCylinderLength.y-FullCylinderLength.x)/Dp)+1; //Number of vertical cylinder layers
+	if(TCylinderAxis!=CYLINDER_NONE){
+		CalcCylinder(Nouter,Otheta,CylinderRadius);
+		CalcCylinder(Ninner,Itheta,BRadius);
+	}
+	const double r=CylinderRadius+0.25*Dp;
+	for(unsigned p=0;p<np;p++){
     const unsigned id=idp[p];
     word cod=0;
     unsigned cmk=GetMkBlockById(id);
-    if(id<finfixed)cod=CodeSetType(cod,PART_BoundFx,cmk);
+    if(id<finfixed){
+			cod=CodeSetType(cod,PART_BoundFx,cmk);
+			if(TCylinderAxis!=CYLINDER_NONE){
+				if(cod==1||cod==0){
+					tdouble3 dr=TDouble3(pos[p].x-CylinderCentre.x,pos[p].y-CylinderCentre.y,0);
+					double temp=dr.x*dr.x+dr.y*dr.y+dr.z*dr.z;
+					if(temp<=r*r) pos[p]=TDouble3(CylinderCentre.x,CylinderCentre.y,FullCylinderLength.y);
+				}
+				else if(cod==2){
+					if(Blayer<3){
+						if(IZlayer<=CLayers){
+							pos[p]=TDouble3(CylinderCentre.x+BRadius*sin(Itheta*pIcyN),CylinderCentre.y+BRadius*cos(Itheta*pIcyN),FullCylinderLength.x+IZlayer*Dp);
+							pIcyN++;
+							if(pIcyN==Ninner){ pIcyN=0; IZlayer++;}
+						}
+						if(IZlayer>CLayers){IZlayer=0; pIcyN=0; Blayer++; BRadius=CylinderRadius-Blayer*Dp; CalcCylinder(Ninner,Itheta,BRadius);}
+					}
+					else pos[p]=TDouble3(CylinderCentre.x,CylinderCentre.y,FullCylinderLength.y);
+				}
+				else if(cod==3){
+					if(OZlayer<=CLayers){
+						pos[p]=TDouble3(CylinderCentre.x+CylinderRadius*sin(Otheta*pOcyN),CylinderCentre.y+CylinderRadius*cos(Otheta*pOcyN),FullCylinderLength.x+OZlayer*Dp);
+						pOcyN++;
+						if(pOcyN==Nouter){ pOcyN=0; OZlayer++;}
+					}
+					else pos[p]=TDouble3(CylinderCentre.x,CylinderCentre.y,FullCylinderLength.y);
+				}
+			}
+		}
     else if(id<finmoving){
       cod=CodeSetType(cod,PART_BoundMv,cmk-MkListFixed);
       if(cmk-MkListFixed>=MotionObjCount)RunException(met,"Motion code of particles was not found.");
@@ -754,6 +881,14 @@ void JSph::LoadCodeParticles(unsigned np,const unsigned *idp,word *code)const{
     else{
       cod=CodeSetType(cod,PART_Fluid,cmk-MkListBound);
       if(cmk-MkListBound>=MkListSize)RunException(met,"Fluid code of particles was not found.");
+			if(TCylinderAxis!=CYLINDER_NONE){
+				tdouble3 dr=TDouble3(pos[p].x-CylinderCentre.x,pos[p].y-CylinderCentre.y,0);
+				double temp=dr.x*dr.x+dr.y*dr.y+dr.z*dr.z;
+				if(temp<=r*r){
+					pos[p]=TDouble3(CylinderCentre.x,CylinderCentre.y,FullCylinderLength.y);
+					cod=CODE_SetOutPos(cod);
+				}
+			}
     }
     code[p]=cod;
   }
@@ -810,12 +945,12 @@ void JSph::ConfigConstants(bool simulate2d){
 		Dosh=float(h*2); 
 		Fourh2=float(h*h*4.0f); 
 		if(simulate2d){
-			Awen=float(7.0/(4.0*PI*h*h)); 
-			Bwen=-float(35.0/(4.0*PI*h*h*h));
+			Awen=float(0.577/(h*h)); 
+			Bwen=float(-2.7852/(h*h*h));
 		}
 		else{
 			Awen=float(0.41778/(h*h*h));
-			Bwen=-float(2.08891/(h*h*h*h));
+			Bwen=float(-2.08891/(h*h*h*h));
 		}
 	}
 
@@ -1467,6 +1602,7 @@ void JSph::ShowResume(bool stop,float tsim,float ttot,bool all,std::string infop
     Log->Printf("DTs adjusted to DtMin............: %d",DtModif);
     const unsigned nout=GetOutPosCount()+GetOutRhopCount()+GetOutMoveCount();
     Log->Printf("Excluded particles...............: %d",nout);
+		if(GetOutPosCount())Log->Printf("Excluded particles due to DomainPosition: %u",GetOutPosCount());
     if(GetOutRhopCount())Log->Printf("Excluded particles due to RhopOut: %u",GetOutRhopCount());
     if(GetOutMoveCount())Log->Printf("Excluded particles due to Velocity: %u",GetOutMoveCount());
   }

@@ -47,7 +47,7 @@ protected:
   void Interaction_Forces(TpInter tinter,double dt);
   double ComputeAceMax(float *auxmem);
 
-  double ComputeStep_Sym();
+  double ComputeStep_Sym(double dt);
 
   void RunFloating(double dt,bool predictor);
 
@@ -61,7 +61,8 @@ protected:
   void KernelCorrection();
   void SolvePPE(double dt);
   void RunShifting(double dt);
-
+	void SaveVtkSchwaigerTest(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const double *m2g,const double *m3g,const double *m4g)const;
+	void SaveVtknormals(std::string fname,unsigned fnum,unsigned np,const double2 *posxy,const double *posz,const float3 *normals,const float3 *smoothnormals,const float3* boundarynormal,const unsigned *idp,const double3 *mirrorpos)const;
 public:
   JSphGpuSingle();
   ~JSphGpuSingle();

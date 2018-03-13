@@ -90,6 +90,7 @@ protected:
 
   unsigned GpuParticlesSize;  ///<ES: Numero de particulas para las cuales se reservo memoria en gpu. EN: Number of particles for which GPU memory was allocated
   llong MemGpuParticles;      ///<ES: Mermoria reservada para vectores de datos de particulas. EN: Allocated GPU memory for arrays with particle data
+	llong MemGpuMatrix;      ///<ES: Mermoria reservada para vectores de datos de particulas. EN: Allocated GPU Matrix memory for arrays with particle data
   llong MemGpuFixed;          ///<ES: Mermoria reservada en AllocGpuMemoryFixed. EN: Allocated memory in AllocGpuMemoryFixed
 
   //-Posicion de particula segun id para motion.
@@ -179,7 +180,7 @@ protected:
 
   llong GetAllocMemoryCpu()const;
   llong GetAllocMemoryGpu()const;
-  void PrintAllocMemory(llong mcpu,llong mgpu)const;
+  void PrintAllocMemory(llong mcpu,llong mgpu,llong mMatrixgpu)const;
 
   void ConstantDataUp();
   void ParticlesDataUp(unsigned n);
@@ -219,13 +220,17 @@ protected:
   ///////////////////////////////////////////////
   unsigned *MirrorCellg;
 	double3 *MirrorPosg;
-  float3 *dWxCorrgShiftPos; //Kernel correction in the x direction
+  float3 *dWxCorrg; //Kernel correction in the x direction
   float3 *dWyCorrg; //Kernel correction in the y direction
-  float3 *dWzCorrgTensile; //Kernel correction in the z direction
+  float3 *dWzCorrg; //Kernel correction in the z direction
   float4 *MLSg;
-
+	float3 *sumFrg;
 	float *Divrg; //Divergence of position
-	
+	float3 *ShiftPosg;
+	float3 *Tensileg;
+	float *Taog;
+	float3 *Normal;
+	float3 *smoothNormal;
   //matrix variables 
   double *bg;
   double *ag;
@@ -233,16 +238,31 @@ protected:
   unsigned *colIndg;
   unsigned *rowIndg;
   double *Xg;
-
+	float PaddleAccel;
   unsigned *counterNnzGPU;
   unsigned *counterNnzCPU;
 	unsigned *NumFreeSurfaceGPU;
 	unsigned *NumFreeSurfaceCPU;
 
-  void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,
-		const unsigned ppedim,unsigned int *rowGpu,const float *divr,const float freesurface,unsigned &nnz,unsigned &numFreeSurface);
+	float3 *BoundaryNormal;
+	double TFocus;
+	double *Focussed_f;
+	double *Focussed_Sp;
+	double *Focussed_K;
+	double *Focussed_Stroke;
+	double *Focussed_Apm;
+	double *Focussed_Phi;
 
-  void Shift(double dt,const unsigned bsfluid);
+	void RegularWavePiston(const double L,const double H,const double D,double &velocity);
+	void FocussedWavePiston(const unsigned nspec,const double *f,const double *stroke,const double *phi,const double T,double &velocity);
+	void FocussedWavePistonSpectrum(const double H,const double D,const double fp,const double focalpoint,const unsigned nspec,const double gamma,double *f,double *K,double *Sp,double *Stroke,double *Apm,double *Phi);
+
+  void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,
+		const unsigned ppedim,unsigned int *rowGpu,const float *divr,const float freesurface,unsigned &nnz,unsigned &numFreeSurface,const float boundaryfs);
+
+	void Shift(double dt,const unsigned bsfluid);
+	double ComputeVariable();
+
 public:
   JSphGpu(bool withmpi);
   ~JSphGpu();

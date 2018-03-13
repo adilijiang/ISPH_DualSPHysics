@@ -163,11 +163,29 @@ protected:
   float ShiftCoef;      //-Coefficient for shifting computation.
   float ShiftOffset;    //-Coefficient for shifting near-free-surface and marking pressure near free-surface
 	float FreeSurface;    //-Threshold to detect free surface.
-	double FactorNormShift;//-Coefficient for amount of allowable shifting to the normal of the free-surface
+	double	AlphaShift0;		//-Coefficient for amount of allowable shifting to the normal of the free-surface
+	double	AlphaShift1;		//-Coefficient for amount of allowable shifting to the normal of the near free-surface
+	double	AlphaShift2;		//-Coefficient for amount of allowable shifting to the normal of the near free-surface
+	bool HydrodynamicCorrection;
+	bool SkillenFSPressure;
+	float SkillenFreeSurface;
+	float SkillenOffset;
   float TensileN;       //-Tensile Instability Coefficient
   float TensileR;       //-Tensile Instability Coefficient
-
+	double BetaShift0;			//-Beta value for free-surface shifting
+	double BetaShift1;			//-Beta value for near free-surface shifting
+	double BetaShift2;			//-Beta value for near free-surface shifting
+	float BoundaryFS; 
+	bool OPS;
   TpSlipCond TSlipCond;
+
+	double CylinderRadius;
+	tdouble3 CylinderCentre;
+	tdouble2 CylinderLength;
+	tdouble2 FullCylinderLength;
+	TpCylinder TCylinderAxis;
+
+	bool Schwaiger;
   
   TpPrecond TPrecond;
   TpAMGInter TAMGInter;
@@ -181,7 +199,21 @@ protected:
   int Postsmooth;
   int CoarseCutoff;
   int CoarseLevels;
-	bool NegativePressureBound; //Allow negative pressure in the boundary
+	bool VariableTimestep;
+
+	TpWaveLoading TWaveLoading;
+	double wL;
+	double wH;
+	double wD;
+	double Fp;
+	double xFocus;
+	unsigned NSpec;
+	double wGamma;
+
+	tdouble3 PistonPos; //Starting position of piston for wave generation
+	tdouble3 TankDim; //Tank dimension for wave generation
+	double DampingPointX; //Start of dampingZone
+	double DampingLengthX; //Length of dampingZone
 
   float Visco;  
   float ViscoBoundFactor;     //-Para interaccion con contorno usa Visco*ViscoBoundFactor.						//-Forboundary interaction use Visco*ViscoBoundFactor.
@@ -354,7 +386,7 @@ protected:
   unsigned GetMkBlockByMk(word mk)const;
 
   word CodeSetType(word code,TpParticle type,unsigned value)const;
-  void LoadCodeParticles(unsigned np,const unsigned *idp,word *code)const;
+  void LoadCodeParticles(unsigned np,const unsigned *idp,word *code,tdouble3 *pos)const;
   void ResizeMapLimits();
 
   void ConfigConstants(bool simulate2d);
@@ -401,6 +433,7 @@ protected:
   unsigned GetOutPosCount()const{ return(OutPosCount); }
   unsigned GetOutRhopCount()const{ return(OutRhopCount); }
   unsigned GetOutMoveCount()const{ return(OutMoveCount); }
+	void CalcCylinder(unsigned &outerN,double &theta,const double radius)const;
 
 public:
   JSph(bool cpu,bool withmpi);

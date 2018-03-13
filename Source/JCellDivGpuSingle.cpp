@@ -207,14 +207,3 @@ void JCellDivGpuSingle::Divide(unsigned npb1,unsigned npf1,unsigned npb2,unsigne
   TmgStop(timers,TMG_NlCellBegin);
   CheckCudaError(met,"Error in NL construction.");
 }
-
-void JCellDivGpuSingle::MirrorDCellSingle(unsigned bsbound,unsigned npb,const word *codeg,const unsigned *idpg,const double3 *mirrorPos,unsigned *mirrorCell,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell,int domcellcode){
-	cudiv::MirrorDCell(bsbound,npb,codeg,idpg,mirrorPos,mirrorCell,domrealposmin,domrealposmax,domposmin,scell,domcellcode);
-}
-
-void JCellDivGpuSingle::MatrixMirrorDCellSingle(const unsigned bsbound,const unsigned bsfluid,const unsigned npf,const unsigned npb,const unsigned npbok,const double2 *posxy,const double *posz
-	,const word *code,const unsigned *idpg,unsigned int *row,unsigned int *col,tdouble3 domrealposmin,tdouble3 domrealposmax,tdouble3 domposmin,float scell
-	,int domcellcode,const bool PeriActive,const tdouble3 MapRealPosMin,const tdouble3 MapRealSize,const tdouble3 PeriXinc,const tdouble3 PeriYinc,const tdouble3 PeriZinc){
-	cudiv::MatrixMirrorDCell(bsbound,bsfluid,npf,npb,npbok,posxy,posz,code,idpg,row,col,domrealposmin,domrealposmax,domposmin,scell,domcellcode,PeriActive,MapRealPosMin,MapRealSize,PeriXinc,PeriYinc,PeriZinc);
-}
-

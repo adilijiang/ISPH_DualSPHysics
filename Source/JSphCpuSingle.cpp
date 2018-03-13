@@ -154,7 +154,7 @@ void JSphCpuSingle::ConfigDomain(){
   if(CaseNfloat && PeriActive!=0 && !PartBegin)CalcFloatingRadius(Np,Posc,Idpc);
 
   //-Load particle data / Carga code de particulas.
-  LoadCodeParticles(Np,Idpc,Codec);
+  LoadCodeParticles(Np,Idpc,Codec,Posc);
 
   //-Free memory of PartsLoaded / Libera memoria de PartsLoaded.
   delete PartsLoaded; PartsLoaded=NULL;
@@ -802,6 +802,7 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 
   //-Initialization of execution variables / Inicializacion de variables de ejecucion
   //-------------------------------------------
+
   InitRun();
   UpdateMaxValues();
   PrintAllocMemory(GetAllocMemoryCpu());
@@ -822,6 +823,7 @@ void JSphCpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 	memset(MirrorPosc,0,sizeof(tdouble3)*Npb);
 	JSphCpu::MirrorBoundary(Npb,Posc,Idpc,MirrorPosc,Codec,MirrorCell);  
 	JSphCpu::MirrorDCell(Npb,Codec,MirrorPosc,MirrorCell,Idpc);
+
   while(TimeStep<TimeMax){
 		if(CaseNmoving)RunMotion(DtPre);
     double stepdt=ComputeStep_Sym();
@@ -988,9 +990,6 @@ void JSphCpuSingle::SolvePPE(double dt){
   //solvers
 	TmcStop(Timers,TMC_Stage2a);
 	TmcStart(Timers,TMC_Stage2b);
-	SolverResultArrange(0,0,npbok,Velrhopc,x);
-	SolverResultArrange(matOrder,npb,np,Velrhopc,x);
-
 #ifndef _WITHGPU
   solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,a,b,x,rowInd,colInd,PPEDim,Nnz,NumFreeSurface); 
 #endif

@@ -273,7 +273,7 @@ protected:
   
 	void Shift(double dt);
 
-	void SolverResultArrange(const unsigned matorder,const unsigned pinit,const unsigned pfin,tfloat4 *velrhop,double *X)const;
+	void PistonCorner(unsigned npb,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code,const double pistonx, const double pistonz)const;
 
 public:
   JSphCpu(bool withmpi);

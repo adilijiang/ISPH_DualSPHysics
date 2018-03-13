@@ -863,7 +863,6 @@ template<TpKernel tker,TpFtMode ftmode> void JSphCpu::InteractionForcesFluid
 					const float drz=float(posp1.z-pos[p2].z);
 					const float rr2=drx*drx+dry*dry+drz*drz;
           if(rr2<=Fourh2 && rr2>=ALMOSTZERO){
-
             //-Wendland kernel.
             float frx,fry,frz;
             if(tker==KERNEL_Quintic) GetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
@@ -1436,9 +1435,9 @@ void JSphCpu::RunShifting(double dt){
 			rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z);
     }
     else if(divrp1<=FreeSurface+ShiftOffset){ 
-			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*FactorNormShift);
-			rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*FactorNormShift);
-			rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*FactorNormShift);
+			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*AlphaShift1);
+			rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*AlphaShift1);
+			rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*AlphaShift1);
     }
 
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
@@ -1533,6 +1532,28 @@ void JSphCpu::MoveMatBound(unsigned np,unsigned ini,tmatrix4d m,double dt
   }
 }
 
+/*void JSphCpu::PistonCorner(unsigned npb,const tdouble3 *pos,const unsigned *idpc,tdouble3 *mirrorPos,const word *code,const double pistonx, const double pistonz)const
+{
+	#ifdef _WITHOMP
+			#pragma omp parallel for schedule (guided)
+		#endif
+		for(int p1=0;p1<int(npb);p1++)if(CODE_GetType(code[p1])!=CODE_TYPE_MOVING){
+			const tdouble3 posp1=pos[p1];	
+			if(posp1.x<=pistonx){
+				const double drx=pistonx-posp1.x;
+				const double drz=pistonz-posp1.z;
+				const double rr2=drx*drx+drz*drz;
+				if(rr2<=2.0*Fourh2){ //if fixed boundary particle is near corner of piston
+					const unsigned idp1=idpc[p1];
+				
+					mirrorPos[idp1].x=2.0*PistonPos.x-pos[p1].x;
+					mirrorPos[idp1].y=2.0*PistonPos.y-pos[p1].y;
+					mirrorPos[idp1].z=2.0*PistonPosZ-pos[p1].z;
+				}
+			}
+		}
+}*/
+
 //==============================================================================
 /// Procesa movimiento de boundary particles
 /// Process movement of boundary particles
@@ -1571,6 +1592,7 @@ void JSphCpu::RunMotion(double stepdt){
   if(WaveGen){
     if(!nmove)CalcRidp(PeriActive!=0,Npb,0,CaseNfixed,CaseNfixed+CaseNmoving,Codec,Idpc,RidpMove);
     BoundChanged=true;
+		double mvPistonX=0;
     //-Control of WaveGeneration (WaveGen) / Gestion de WaveGen.
     if(WaveGen)for(unsigned c=0;c<WaveGen->GetCount();c++){
       tdouble3 mvsimple;
@@ -1581,13 +1603,16 @@ void JSphCpu::RunMotion(double stepdt){
         mvsimple=OrderCode(mvsimple);
         if(Simulate2D)mvsimple.y=0;
         const tfloat3 mvvel=ToTFloat3(mvsimple/TDouble3(stepdt));
-        //MoveLinBound(nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMove,Posc,Dcellc,Velrhopc,Codec);
+				mvPistonX=mvsimple.x;
+        MoveLinBound(nparts,idbegin-CaseNfixed,mvsimple,mvvel,RidpMove,Posc,Dcellc,Velrhopc,Codec,Idpc,MirrorPosc);
       }
       else{
         mvmatrix=OrderCode(mvmatrix);
         MoveMatBound(nparts,idbegin-CaseNfixed,mvmatrix,stepdt,RidpMove,Posc,Dcellc,Velrhopc,Codec);
       }
     }
+		//PistonPosX+=mvPistonX;
+		//PistonCorner(Npb,Posc,Idpc,MirrorPosc,Codec,PistonPosX,PistonPosZ);
   }
   TmcStop(Timers,TMC_SuMotion);
 }
@@ -1646,7 +1671,7 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 	#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=0;p1<int(npb);p1++)if(CODE_GetTypeValue(code[p1])!=0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
+  for(int p1=0;p1<int(npb);p1++)if(CODE_GetTypeValue(code[p1])!=0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC&&!(WaveGen&&CODE_GetType(code[p1])==CODE_TYPE_MOVING)){
 		const unsigned idp1=idpc[p1];
 		const tdouble3 posp1=pos[p1];	
 		double closestR=2.25*Fourh2;
@@ -1682,7 +1707,7 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 	#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=0;p1<int(npb);p1++)if(CODE_GetTypeValue(code[p1])==0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
+  for(int p1=0;p1<int(npb);p1++)if(CODE_GetTypeValue(code[p1])==0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC&&!(WaveGen&&CODE_GetType(code[p1])==CODE_TYPE_MOVING)){
 		const unsigned idp1=idpc[p1];
 		const tdouble3 posp1=pos[p1];
 		tdouble3 NormDir=TDouble3(0);
@@ -1756,7 +1781,7 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 	#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=0;p1<int(npb);p1++)if(CODE_GetTypeValue(code[p1])!=0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
+  for(int p1=0;p1<int(npb);p1++)if(CODE_GetTypeValue(code[p1])!=0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC&&!(WaveGen&&CODE_GetType(code[p1])==CODE_TYPE_MOVING)){
 		const unsigned idp1=idpc[p1];
 		const tdouble3 posp1=pos[p1];	
 		const unsigned Physparticle=Physrelation[p1];
@@ -1778,7 +1803,7 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 	#ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
-  for(int p1=0;p1<int(npb);p1++)if(CODE_GetTypeValue(code[p1])==0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC){
+  for(int p1=0;p1<int(npb);p1++)if(CODE_GetTypeValue(code[p1])==0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC&&!(WaveGen&&CODE_GetType(code[p1])==CODE_TYPE_MOVING)){
 		const unsigned idp1=idpc[p1];
 		const tdouble3 posp1=pos[p1];	
 		const unsigned Physparticle=Physrelation[p1];
@@ -1788,6 +1813,18 @@ void JSphCpu::MirrorBoundary(unsigned npb,const tdouble3 *pos,const unsigned *id
 		mirrorPos[idp1].x=2.0*mirrorPoint.x-posp1.x;
 		mirrorPos[idp1].y=2.0*mirrorPoint.y-posp1.y;
 		mirrorPos[idp1].z=2.0*mirrorPoint.z-posp1.z;
+	}
+
+	if(WaveGen){
+		#ifdef _WITHOMP
+			#pragma omp parallel for schedule (guided)
+		#endif
+		for(int p1=0;p1<int(npb);p1++)if(CODE_GetType(code[p1])==CODE_TYPE_MOVING){
+			const unsigned idp1=idpc[p1];
+//			mirrorPos[idp1].x=2.0*PistonPosX-pos[p1].x;
+			mirrorPos[idp1].y=pos[p1].y;
+			mirrorPos[idp1].z=pos[p1].z;
+		}
 	}
 }
 
@@ -2311,15 +2348,9 @@ void JSphCpu::FreeSurfaceMark(unsigned n,unsigned pinit,float *divr,double *matr
 //===============================================================================
 ///Reorder pressure for particles
 //===============================================================================
-void JSphCpu::SolverResultArrange(const unsigned matorder,const unsigned pinit,const unsigned pfin,tfloat4 *velrhop,double *X)const{
-	#ifdef _WITHOMP
-    #pragma omp parallel for schedule (guided)
-  #endif
-	for(int p1=int(pinit);p1<int(pfin);p1++) X[p1-matorder]=double(velrhop[p1].w);
-}
-
 void JSphCpu::PressureAssign(unsigned np,unsigned npbok,const tdouble3 *pos,tfloat4 *velrhop,
   const unsigned *idpc,double *x,const word *code,const unsigned npb,float *divr,tfloat3 gravity)const{
+
   #ifdef _WITHOMP
     #pragma omp parallel for schedule (guided)
   #endif
@@ -2327,7 +2358,6 @@ void JSphCpu::PressureAssign(unsigned np,unsigned npbok,const tdouble3 *pos,tflo
 		double dist=MirrorPosc[Idpc[p1]].z-Posc[p1].z;
 		double Neumann=double(RhopZero)*abs(Gravity.z)*dist;
 		velrhop[p1].w=float(x[p1]+Neumann);
-		if(!NegativePressureBound)if(velrhop[p1].w<0)velrhop[p1].w=0.0;
   }
 
 	 #ifdef _WITHOMP
@@ -2340,16 +2370,10 @@ void JSphCpu::PressureAssign(unsigned np,unsigned npbok,const tdouble3 *pos,tflo
 template<typename MatrixType, typename VectorType, typename SolverTag, typename PrecondTag>
 void JSphCpu::run_solver(MatrixType const & matrix, VectorType const & rhs,SolverTag const & solver, PrecondTag const & precond,double *matrixx,const unsigned ppedim){ 
   VectorType result(rhs);
-	VectorType preResult(rhs);
-	#ifdef _WITHOMP
-			#pragma omp parallel for schedule (static)
-	#endif
-	for(int i=0;i<int(ppedim);i++) preResult[i]=matrixx[i];
-
   //VectorType residual(rhs);
   viennacl::tools::timer timer;
   timer.start();
-  result = viennacl::linalg::solve(matrix, rhs, solver, precond,preResult);
+  result = viennacl::linalg::solve(matrix, rhs, solver, precond);
   viennacl::backend::finish();    
   //Log->Printf("  > Solver time: %f",timer.get());   
   //residual -= viennacl::linalg::prod(matrix, result); 
@@ -2362,7 +2386,9 @@ void JSphCpu::run_solver(MatrixType const & matrix, VectorType const & rhs,Solve
 	#ifdef _WITHOMP
 			#pragma omp parallel for schedule (static)
 	#endif
-	for(int i=0;i<int(ppedim);i++) matrixx[i]=result[i];
+	for(int i=0;i<int(ppedim);i++){
+		matrixx[i]=result[i];
+	}
 }
 
 void JSphCpu::solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,double *matrixa,double *matrixb,double *matrixx,int *row,int *col,const unsigned ppedim,const unsigned nnz,const unsigned numfreesurface){
@@ -2503,7 +2529,7 @@ template <TpKernel tker,TpFtMode ftmode> void JSphCpu::InteractionForcesShifting
 						float Wab;
 						if(tker==KERNEL_Quintic) Wab=GetKernelQuinticWab(rr2);
 						else if(tker==KERNEL_Wendland) Wab=GetKernelWendlandWab(rr2);
-						const float tensile=tensileR*powf((Wab/Wab1),tensileN);
+						const float tensile=tensileN*powf((Wab/Wab1),tensileR);
             
 						shiftposp1.x+=volumep2*frx; //-For boundary do not use shifting / Con boundary anula shifting.
             shiftposp1.y+=volumep2*fry;
