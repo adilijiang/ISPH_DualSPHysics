@@ -1308,7 +1308,8 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerViscousSchwaiger
 		r.z-=mu2*(dwd.x*sumfr.x+dwd.y*sumfr.y+dwd.z*sumfr.z);
 		taop1.x=1.0/(taop1.x+CTE.eta2); taop1.z=1.0/(taop1.z+CTE.eta2);
 		if(!simulate2d) taop1.y=1.0/(taop1.y+CTE.eta2);
-		double taoFinal=-0.5*(taop1.x+taop1.y+taop1.z);
+		double dimension=(simulate2d?2.0:3.0);
+		double taoFinal=-(taop1.x+taop1.y+taop1.z)/dimension;
     ace[Correctp1]=r;
 		if(divr[p1]>freesurface){ ace[Correctp1].x=ace[Correctp1].x*taoFinal; ace[Correctp1].z=ace[Correctp1].z*taoFinal;}
 		tao[Correctp1]=float(taoFinal);
