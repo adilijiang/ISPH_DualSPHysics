@@ -120,7 +120,7 @@ void AddDelta(unsigned n,const float *delta,float *ar);
 //# Kernels for Shifting
 void RunShifting(const bool ops,const bool wavegen,const bool simulate2d,unsigned np,unsigned npb,double dt,double shiftcoef,float freesurface,float4 *velrhop,const float *divr,float3 *shiftpos,const bool maxShift
 	,float3 *sumtensile,const float shiftoffset,const double alpha0,const double alpha1,const double alpha2,const double beta0,const double beta1,const double beta2,const unsigned *nearFS,const double2 *posxy
-	,const double dampingpoint,const double dampinglength,float3 *normal,const tdouble3 PistonPos);
+	,const double *posz,const double dampingpoint,const double dampinglength,float3 *normal,const tdouble3 PistonPos,const unsigned *row,const unsigned *idpg,const double3 *mirrorPos);
 
 void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb,const float4 *velrhoppre,const float3 *ace,double dtm,float rhopoutmin,float rhopoutmax,word *code,double2 *movxy,double *movz,float4 *velrhop);
 
