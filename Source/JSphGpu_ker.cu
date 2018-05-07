@@ -747,7 +747,7 @@ template<TpKernel tker> __device__ void KerCalculateMirrorVel
 template<TpKernel tker> __global__ void KerInteractionForcesBound
   (bool simulate2d,TpSlipCond tslipcond,unsigned n,int hdiv,uint4 nc,const int2 *begincell,int3 cellzero,const unsigned *dcell,const float *ftomassp
 	,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,const unsigned *idp,float *divr,const double3 *mirrorPos,const unsigned *mirrorCell
-	,const float4 *mls,unsigned *row,const tdouble3 PistonPos,const tdouble3 TankDim)
+	,const float4 *mls,unsigned *row,const tdouble3 PistonPos,const tdouble3 TankDim,const float freesurface)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<n){
@@ -788,7 +788,7 @@ template<TpKernel tker> __global__ void KerInteractionForcesBound
 		}
 
 		divr[p1]=divrp1;
-		row[p1]=rowCount;
+		row[p1+1]=(divrp1>freesurface?rowCount:0);
 
 		if(tslipcond==SLIPCOND_Slip){
 			float3 NormDir=make_float3(0,0,0), NormVel=make_float3(0,0,0), TangVel=make_float3(0,0,0);
@@ -1060,7 +1060,7 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesFlui
 template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesFluid
   (TpInter tinter,unsigned npf,unsigned npb,int hdiv,uint4 nc,unsigned cellfluid,float viscob,float viscof,const int2 *begincell,int3 cellzero
 	,const unsigned *dcell,const float *ftomassp,const double2 *posxy,const double *posz,const float4 *velrhop,const word *code,const unsigned *idp
-  ,float3 *dwxcorrg,float3 *dwycorrg,float3 *dwzcorrg,float3 *ace,float *divr,unsigned *row,const unsigned matOrder,const float boundaryfs)
+  ,float3 *dwxcorrg,float3 *dwycorrg,float3 *dwzcorrg,float3 *ace,float *divr,unsigned *row,const unsigned matOrder,const float boundaryfs,const float freesurface)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<npf){
@@ -1167,7 +1167,7 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesFlui
 				r.x+=acep1.x; r.y+=acep1.y; r.z+=acep1.z;
 				
 				divr[p1]+=divrp1;
-				row[p1-matOrder]=rowCount;
+				row[p1-matOrder+1]=(divr[p1]>freesurface?rowCount:0);
 				dwxcorrg[Correctp1].x+=float(dwxp1.x); dwxcorrg[Correctp1].y+=float(dwxp1.y); dwxcorrg[Correctp1].z+=float(dwxp1.z); 
 				dwycorrg[Correctp1].x+=float(dwyp1.x); dwycorrg[Correctp1].y+=float(dwyp1.y); dwycorrg[Correctp1].z+=float(dwyp1.z); 
 				dwzcorrg[Correctp1].x+=float(dwzp1.x); dwzcorrg[Correctp1].y+=float(dwzp1.y); dwzcorrg[Correctp1].z+=float(dwzp1.z); 
@@ -1325,7 +1325,7 @@ template<TpKernel tker,TpFtMode ftmode> void Interaction_ForcesT_KerInfo(StKerIn
 	#if CUDART_VERSION >= 6050
   {
     typedef void (*fun_ptr)(TpInter,unsigned,unsigned,int,uint4,unsigned,float,float,const int2*,int3,const unsigned*,const float*,const double2*,const double*
-			,const float4*,const word*,const unsigned*,float3*,float3*,float3*,float3*,float*,unsigned*,const unsigned,const float);
+			,const float4*,const word*,const unsigned*,float3*,float3*,float3*,float3*,float*,unsigned*,const unsigned,const float,const float);
     fun_ptr ptr=&KerInteractionForcesFluid<tker,ftmode>;
     int qblocksize=0,mingridsize=0;
     cudaOccupancyMaxPotentialBlockSize(&mingridsize,&qblocksize,(void*)ptr,0,0);
@@ -1338,7 +1338,7 @@ template<TpKernel tker,TpFtMode ftmode> void Interaction_ForcesT_KerInfo(StKerIn
   }
   {
     typedef void (*fun_ptr)(bool,TpSlipCond,unsigned,int,uint4,const int2*,int3,const unsigned*,const float*,const double2*,const double*,float4*,const word*
-			,const unsigned*,float*,const double3*,const unsigned*,const float4*,unsigned*,const tdouble3,const tdouble3);
+			,const unsigned*,float*,const double3*,const unsigned*,const float4*,unsigned*,const tdouble3,const tdouble3,const float);
     fun_ptr ptr=&KerInteractionForcesBound<tker>;
     int qblocksize=0,mingridsize=0;
     cudaOccupancyMaxPotentialBlockSize(&mingridsize,&qblocksize,(void*)ptr,0,0);
@@ -1381,14 +1381,14 @@ template<TpKernel tker,TpFtMode ftmode,bool schwaiger> void Interaction_ForcesT
 		if(tinter==1&&npbok){
 			if(simulate2d) KerMLSBoundary2D<tker> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,code,idp,mirrorPos,mirrorCell,mls);
 			else KerMLSBoundary3D<tker> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,code,idp,mirrorPos,mirrorCell,mls);
-			KerInteractionForcesBound<tker> <<<sgridb,bsbound>>> (simulate2d,tslipcond,npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,divr,mirrorPos,mirrorCell,mls,row,PistonPos,TankDim);
+			KerInteractionForcesBound<tker> <<<sgridb,bsbound>>> (simulate2d,tslipcond,npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,divr,mirrorPos,mirrorCell,mls,row,PistonPos,TankDim,freesurface);
 			KerInteractionCorrectBoundDivr<tker> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,divr,mirrorPos,mirrorCell,boundaryfs);
 		}
 		//-Interaccion Fluid-Fluid & Fluid-Bound
 		//-Interaction Fluid-Fluid & Fluid-Bound
 		const unsigned matOrder=npb-npbok;
 
-		KerInteractionForcesFluid<tker,ftmode> <<<sgridf,bsfluid>>> (tinter,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ace,divr,row,matOrder,boundaryfs);
+		KerInteractionForcesFluid<tker,ftmode> <<<sgridf,bsfluid>>> (tinter,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ace,divr,row,matOrder,boundaryfs,freesurface);
 
 		if(tinter==1){
 			if(simulate2d) KerInverseKernelCor2D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwzcorrg,code);
@@ -1398,6 +1398,7 @@ template<TpKernel tker,TpFtMode ftmode,bool schwaiger> void Interaction_ForcesT
 		if(schwaiger&&tinter==1) KerViscousSchwaiger<tker,ftmode> <<<sgridf,bsfluid>>> (simulate2d,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,dwxcorrg,dwycorrg,dwzcorrg,ace,SumFr,divr,boundaryfs,freesurface,tao);
 	}
 }
+
 //==============================================================================
 void Interaction_Forces(TpKernel tkernel,bool floating,bool usedem,TpSlipCond tslipcond,bool schwaiger,TpCellMode cellmode,float viscob,float viscof
 	,unsigned bsbound,unsigned bsfluid,TpInter tinter,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
@@ -3327,10 +3328,10 @@ void MirrorBoundary(TpKernel tkernel,const bool simulate2d,const unsigned bsboun
 //==============================================================================
 ///Matrix A Setup
 //==============================================================================
-__global__ void kerMatrixASetup(const bool bound,const unsigned end,const unsigned start,const unsigned matOrder,const unsigned ppedim,unsigned int *row,unsigned *nnz,unsigned *numfreesurface,const float *divr,const float freesurface,const float boundaryfs){
+__global__ void kerMatrixASetupSerial(const bool bound,const unsigned end,const unsigned start,const unsigned matOrder,const unsigned ppedim,unsigned int *row,unsigned *nnz,unsigned *numfreesurface,const float *divr,const float freesurface,const float boundaryfs){
    unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
    if(p==0){
-	   for(int p1=int(start);p1<int(end);p1++)/*if(!(bound&&divr[p1]<boundaryfs))*/{
+	   for(int p1=int(start);p1<int(end);p1++){
 			 const unsigned oi=p1-matOrder;
 			 if(divr[p1]<=freesurface){
 				 row[oi]=0;
@@ -3344,12 +3345,41 @@ __global__ void kerMatrixASetup(const bool bound,const unsigned end,const unsign
    }
 }
 
+__global__ void kerMatrixASetupParallel(unsigned *data, unsigned N,unsigned power){ 
+	unsigned i=blockIdx.x*blockDim.x+threadIdx.x;
+	if(i<N+1&&i>=power){
+		unsigned relativeID=i-power;
+		unsigned relativeblock=int(floor(double(relativeID/power)));
+		if(relativeblock%2==0){
+			unsigned add=relativeblock*power+power-1;
+			data[i]+=data[add]+1;
+		}
+	}
+}
+
+__global__ void kerMatrixATransferNnz(unsigned int *row,const unsigned ppedim,unsigned *nnz){
+   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
+   if(p==0) nnz[0]=row[ppedim];
+}
+
 void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim,unsigned int*row,unsigned *nnz,unsigned *numfreesurface,const float *divr,const float freesurface,const float boundaryfs){
-  const unsigned npf=np-npb;
-	const unsigned matOrder=npb-npbok;
-	if(npf){
-    if(npbok) kerMatrixASetup <<<1,1>>> (true,npbok,0,0,ppedim,row,nnz,numfreesurface,divr,freesurface,boundaryfs);
-		kerMatrixASetup <<<1,1>>> (false,np,npb,matOrder,ppedim,row,nnz,numfreesurface,divr,freesurface,boundaryfs);
+  //const unsigned npf=np-npb;
+	//const unsigned matOrder=npb-npbok;
+	if(ppedim){
+		//Serial works with AMG because of numfreesurface, also needs fixing due to changes in obtaining rowCount in interactionforcesfluid and interactionforcesbound
+    //if(npbok) kerMatrixASetupSerial <<<1,1>>> (true,npbok,0,0,ppedim,row,nnz,numfreesurface,divr,freesurface,boundaryfs);
+		//kerMatrixASetupSerial <<<1,1>>> (false,np,npb,matOrder,ppedim,row,nnz,numfreesurface,divr,freesurface,boundaryfs);
+		//Parallel works with Jacobi only, no numfreesurface for AMG
+		unsigned thread=512;
+		dim3 blockNew(thread,1,1);
+		unsigned BlocksInGrid=(ppedim+thread)/thread;
+		dim3 gridNew(BlocksInGrid,1,1);
+		unsigned runningPower=1;
+		while(runningPower<ppedim+1){
+			kerMatrixASetupParallel<<<gridNew,blockNew>>>(row,ppedim,runningPower);
+			runningPower*=2;
+		}
+		kerMatrixATransferNnz<<<1,1>>>(row,ppedim,nnz);
   }
 }
 
@@ -4270,7 +4300,7 @@ void Interaction_Shifting
 			if(npbok){
 				if(simulate2d) KerMLSBoundary2D<tker> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,code,idp,mirrorPos,mirrorCell,mls);
 				else KerMLSBoundary3D<tker> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,code,idp,mirrorPos,mirrorCell,mls);
-				KerInteractionForcesBound<tker> <<<sgridb,bsbound>>> (simulate2d,tslipcond,npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,divr,mirrorPos,mirrorCell,mls,row,PistonPos,TankDim);
+				KerInteractionForcesBound<tker> <<<sgridb,bsbound>>> (simulate2d,tslipcond,npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,divr,mirrorPos,mirrorCell,mls,row,PistonPos,TankDim,freesurface);
 				KerInteractionCorrectBoundDivr<tker> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,divr,mirrorPos,mirrorCell,boundaryfs);
 			}
 
@@ -4288,7 +4318,7 @@ void Interaction_Shifting
 			if(npbok){
 				if(simulate2d) KerMLSBoundary2D<tker> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,code,idp,mirrorPos,mirrorCell,mls);
 				else KerMLSBoundary3D<tker> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,code,idp,mirrorPos,mirrorCell,mls);
-				KerInteractionForcesBound<tker> <<<sgridb,bsbound>>> (simulate2d,tslipcond,npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,divr,mirrorPos,mirrorCell,mls,row,PistonPos,TankDim);
+				KerInteractionForcesBound<tker> <<<sgridb,bsbound>>> (simulate2d,tslipcond,npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,divr,mirrorPos,mirrorCell,mls,row,PistonPos,TankDim,freesurface);
 				KerInteractionCorrectBoundDivr<tker> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,divr,mirrorPos,mirrorCell,boundaryfs);
 			}
 
