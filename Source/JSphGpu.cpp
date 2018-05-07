@@ -186,7 +186,7 @@ void JSphGpu::AllocGpuMemoryFixed(){
 	m=sizeof(unsigned)*npb;			cudaMalloc((void**)&MirrorCellg,m);				MemGpuFixed+=m;
 	m=sizeof(float4)*npb;				cudaMalloc((void**)&MLSg,m);							MemGpuFixed+=m;
 	m=sizeof(unsigned)*(np+1);	cudaMalloc((void**)&rowIndg,m);						MemGpuFixed+=m; MemGpuMatrix+=m;
- 	m=sizeof(double)*PPEMem;		cudaMalloc((void**)&ag,m);								MemGpuFixed+=m; MemGpuMatrix+=m;
+ 	m=sizeof(float)*PPEMem;			cudaMalloc((void**)&ag,m);								MemGpuFixed+=m; MemGpuMatrix+=m;
   m=sizeof(unsigned)*PPEMem;	cudaMalloc((void**)&colIndg,m);						MemGpuFixed+=m; MemGpuMatrix+=m;
 	m=sizeof(float3)*npf;				cudaMalloc((void**)&Aceg,m);							MemGpuFixed+=m;
 															cudaMalloc((void**)&dWxCorrg,m);					MemGpuFixed+=m;
@@ -324,8 +324,8 @@ void JSphGpu::AllocGpuMemoryParticles(unsigned np,float over){
   //-Compute total number of arrays
   ArraysGpu->SetArraySize(np2);
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_2B,2);  //-code*2
-  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,5);  //-idp*2,dcell*2,divr+npfout
-	ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,2); MemGpuMatrix+=sizeof(double)*np*2;//-b,x
+  ArraysGpu->AddArrayCount(JArraysGpu::SIZE_4B,5);  MemGpuMatrix+=sizeof(double)*np*2; //-idp*2,dcell*2,divr+npfout,b,x
+	//ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,2); //-b,x
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_12B,2); //-Saving/dWyCorrg, Normals
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_16B,2); //-velrhop,velrhoppre
   ArraysGpu->AddArrayCount(JArraysGpu::SIZE_8B,3);  //-posz*2,poszpre

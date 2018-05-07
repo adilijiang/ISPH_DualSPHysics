@@ -873,8 +873,8 @@ void JSphGpuSingle::SolvePPE(double dt){
 	unsigned Numfreesurface=0;
 
 	//Create matrix
-  bg=ArraysGpu->ReserveDouble(); cudaMemset(bg,0,sizeof(double)*PPEDim);
-	Xg=ArraysGpu->ReserveDouble(); cudaMemset(Xg,0,sizeof(double)*PPEDim);
+  bg=ArraysGpu->ReserveFloat(); cudaMemset(bg,0,sizeof(float)*PPEDim);
+	Xg=ArraysGpu->ReserveFloat(); cudaMemset(Xg,0,sizeof(float)*PPEDim);
 
   MatrixASetup(np,npb,npbok,PPEDim,rowIndg,Divrg,FreeSurface,Nnz,Numfreesurface,BoundaryFS);	
 
@@ -882,7 +882,7 @@ void JSphGpuSingle::SolvePPE(double dt){
 	CheckCudaError(met,"Nnz");
 
   cudaMemset(colIndg,0,sizeof(int)*Nnz);
-	cudaMemset(ag,0,sizeof(double)*Nnz);
+	cudaMemset(ag,0,sizeof(float)*Nnz);
 	const bool wavegen=(WaveGen?true:false);
   cusph::PopulateMatrix(TKernel,Schwaiger,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,ag,bg,rowIndg,colIndg,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLSg,dt,sumFrg,BoundaryFS,Taog,PaddleAccel,wavegen,PistonPos);
 	
