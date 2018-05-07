@@ -490,7 +490,7 @@ llong JSphGpu::GetAllocMemoryGpu()const{
 void JSphGpu::PrintAllocMemory(llong mcpu,llong mgpu,llong mMatrixgpu)const{
   Log->Printf("Allocated memory in CPU: %lld (%.2f MB)",mcpu,double(mcpu)/(1024*1024));
   Log->Printf("Allocated memory in GPU: %lld (%.2f MB)",mgpu,double(mgpu)/(1024*1024));
-	Log->Printf("Allocated matrix memory in GPU: %lld (%.2f MB)",mMatrixgpu,double(mgpu)/(1024*1024));
+	Log->Printf("Allocated matrix memory in GPU: %lld (%.2f MB)",mMatrixgpu,double(mMatrixgpu)/(1024*1024));
 }
 
 //==============================================================================
@@ -1007,7 +1007,7 @@ void JSphGpu::RunShifting(double dt){
 	bool maxShift=false;
 	if(TShifting==SHIFT_Max) maxShift=true;
 	const bool wavegen=(WaveGen?true:false);
-  cusph::RunShifting(OPS,wavegen,Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velrhopg,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift0,AlphaShift1,AlphaShift2,BetaShift0,BetaShift1,BetaShift2,rowIndg,Posxyg,DampingPointX,DampingLengthX,smoothNormal,PistonPos);
+  cusph::RunShifting(OPS,wavegen,Simulate2D,Np,Npb,dt,ShiftCoef,FreeSurface,Velrhopg,Divrg,ShiftPosg,maxShift,Tensileg,ShiftOffset,AlphaShift0,AlphaShift1,AlphaShift2,BetaShift0,BetaShift1,BetaShift2,rowIndg,Posxyg,Poszg,DampingPointX,DampingLengthX,smoothNormal,PistonPos,rowIndg,Idpg,MirrorPosg);
 }
 
 //==============================================================================

@@ -864,7 +864,7 @@ void JSph::LoadCodeParticles(unsigned np,const unsigned *idp,word *code,tdouble3
 					if(OZlayer<=CLayers){
 						pos[p]=TDouble3(CylinderCentre.x+CylinderRadius*sin(Otheta*pOcyN),CylinderCentre.y+CylinderRadius*cos(Otheta*pOcyN),FullCylinderLength.x+OZlayer*Dp);
 						pOcyN++;
-						if(pOcyN>Nouter){ pOcyN=0; OZlayer++;}
+						if(pOcyN==Nouter){ pOcyN=0; OZlayer++;}
 					}
 					else pos[p]=TDouble3(CylinderCentre.x,CylinderCentre.y,FullCylinderLength.y);
 				}

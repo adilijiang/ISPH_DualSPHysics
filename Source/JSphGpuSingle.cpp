@@ -822,7 +822,7 @@ void JSphGpuSingle::MirrorBoundary(){
 /// Initial advection
 //==============================================================================
 void JSphGpuSingle::InitAdvection(double dt){
-    const char met[]="InitAdvection";
+    const char met[]="SolvePPE";
     PosxyPreg=ArraysGpu->ReserveDouble2();
     PoszPreg=ArraysGpu->ReserveDouble();
     VelrhopPreg=ArraysGpu->ReserveFloat4();
@@ -967,7 +967,7 @@ void JSphGpuSingle::RunShifting(double dt){
 	cudaMemset(Normal,0,sizeof(float3)*np);
 	cudaMemset(smoothNormal,0,sizeof(float3)*npf);
 	cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
-
+	cusph::ResetrowIndg(np+1,rowIndg,Npb);
 
   //-Cambia datos a variables Pre para calcular nuevos datos.
   //-Changes data of predictor variables for calculating the new data

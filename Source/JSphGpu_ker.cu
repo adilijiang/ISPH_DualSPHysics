@@ -1008,36 +1008,37 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesFlui
 	,bool ftp1,double3 posdp1,float3 velp1,float pressp1,float3 &acep1,unsigned *row,float &nearestBound,const float *divr,const float boundaryfs)
 {
 	const float volumep2=massp2/CTE.rhopzero; //Volume of particle j
-  for(int p2=pini;p2<pfin;p2++)if(!(boundp2&&divr[p2]<boundaryfs)){
+  for(int p2=pini;p2<pfin;p2++){
     float drx,dry,drz;
 		float pressp2=velrhop[p2].w;
     KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
     float rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
-      //-Wendland kernel.
-      float frx,fry,frz;
-      if(tker==KERNEL_Quintic) KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
-			else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
+			if(!(boundp2&&divr[p2]<boundaryfs)){
+				//-Wendland kernel.
+				float frx,fry,frz;
+				if(tker==KERNEL_Quintic) KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
+				else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
 
-      //-Obtiene masa de particula p2 en caso de existir floatings.
-	  //-Obtains mass of particle p2 if any floating bodies exist.
-      //bool ftp2;         //-Indica si es floating. //-indicates if it is floating.
-      //float ftmassp2;    //-Contiene masa de particula floating o massp2 si es bound o fluid. //-Contains mass of floating body or massf if fluid.
-     /* if(USE_FLOATING){
-        const word cod=code[p2];
-        ftp2=(CODE_GetType(cod)==CODE_TYPE_FLOATING);
-        ftmassp2=(ftp2? ftomassp[CODE_GetTypeValue(cod)]: massp2);
-        if(ftp2 && (tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt))deltap1=FLT_MAX;
-        if(ftp2 && shift && tshifting==SHIFT_NoBound)shiftposp1.x=FLT_MAX; //-Con floatings anula shifting. //-Cancels shifting with floating bodies
-        compute=!(USE_DEM && ftp1 && (boundp2 || ftp2)); //-Se desactiva cuando se usa DEM y es float-float o float-bound. //-Deactivated when DEM is used and is float-float or float-bound.
-      }*/
-      //===== Aceleration ===== 
-			const float temp_x=frx*dwxcorrg.x+fry*dwycorrg.x+frz*dwzcorrg.x;
-      const float temp_y=frx*dwxcorrg.y+fry*dwycorrg.y+frz*dwzcorrg.y;
-		  const float temp_z=frx*dwxcorrg.z+fry*dwycorrg.z+frz*dwzcorrg.z;
-      const float temp=volumep2*(pressp2-pressp1);
-      acep1.x+=temp*temp_x; acep1.y+=temp*temp_y; acep1.z+=temp*temp_z;
-
+				//-Obtiene masa de particula p2 en caso de existir floatings.
+				//-Obtains mass of particle p2 if any floating bodies exist.
+				//bool ftp2;         //-Indica si es floating. //-indicates if it is floating.
+				//float ftmassp2;    //-Contiene masa de particula floating o massp2 si es bound o fluid. //-Contains mass of floating body or massf if fluid.
+			 /* if(USE_FLOATING){
+					const word cod=code[p2];
+					ftp2=(CODE_GetType(cod)==CODE_TYPE_FLOATING);
+					ftmassp2=(ftp2? ftomassp[CODE_GetTypeValue(cod)]: massp2);
+					if(ftp2 && (tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt))deltap1=FLT_MAX;
+					if(ftp2 && shift && tshifting==SHIFT_NoBound)shiftposp1.x=FLT_MAX; //-Con floatings anula shifting. //-Cancels shifting with floating bodies
+					compute=!(USE_DEM && ftp1 && (boundp2 || ftp2)); //-Se desactiva cuando se usa DEM y es float-float o float-bound. //-Deactivated when DEM is used and is float-float or float-bound.
+				}*/
+				//===== Aceleration ===== 
+				const float temp_x=frx*dwxcorrg.x+fry*dwycorrg.x+frz*dwzcorrg.x;
+				const float temp_y=frx*dwxcorrg.y+fry*dwycorrg.y+frz*dwzcorrg.y;
+				const float temp_z=frx*dwxcorrg.z+fry*dwycorrg.z+frz*dwzcorrg.z;
+				const float temp=volumep2*(pressp2-pressp1);
+				acep1.x+=temp*temp_x; acep1.y+=temp*temp_y; acep1.z+=temp*temp_z;
+			}
 			if(boundp2){
 				if(rr2<=nearestBound){
 					nearestBound=rr2;
@@ -1307,7 +1308,8 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerViscousSchwaiger
 		r.z-=mu2*(dwd.x*sumfr.x+dwd.y*sumfr.y+dwd.z*sumfr.z);
 		taop1.x=1.0/(taop1.x+CTE.eta2); taop1.z=1.0/(taop1.z+CTE.eta2);
 		if(!simulate2d) taop1.y=1.0/(taop1.y+CTE.eta2);
-		double taoFinal=-0.5*(taop1.x+taop1.y+taop1.z);
+		double dimension=(simulate2d?2.0:3.0);
+		double taoFinal=-(taop1.x+taop1.y+taop1.z)/dimension;
     ace[Correctp1]=r;
 		if(divr[p1]>freesurface){ ace[Correctp1].x=ace[Correctp1].x*taoFinal; ace[Correctp1].z=ace[Correctp1].z*taoFinal;}
 		tao[Correctp1]=float(taoFinal);
@@ -1622,10 +1624,34 @@ __device__ void KerDampingZone(const double xp1,float3 &shift,const double dampi
 	}
 }
 
+__device__ void KerCorrectShiftBound(const unsigned p1,const unsigned nearestBound,const double2 *posxy,const double *posz,float4 &rvelrhop,float4 velrhop,const unsigned *idpg,const double3 *mirrorPos)
+{
+	float3 NormDir=make_float3(0,0,0), NormVelWall=make_float3(0,0,0), NormVelp1=make_float3(0,0,0);
+	const unsigned nearestID=idpg[nearestBound];
+	const float3 velp1=make_float3(rvelrhop.x,rvelrhop.y,rvelrhop.z);
+	NormDir.x=float(mirrorPos[nearestID].x-posxy[nearestBound].x);
+	NormDir.y=float(mirrorPos[nearestID].y-posxy[nearestBound].y);
+	NormDir.z=float(mirrorPos[nearestID].z-posz[nearestBound]);
+
+	if(NormDir.x){
+		NormDir.x=NormDir.x/abs(NormDir.x);
+		if((NormDir.x>0&&rvelrhop.x<0)||(NormDir.x<0&&rvelrhop.x>0))rvelrhop.x=0;
+	}
+	if(NormDir.y){
+		NormDir.y=NormDir.y/abs(NormDir.y);
+		if((NormDir.y>0&&rvelrhop.y<0)||(NormDir.y<0&&rvelrhop.y>0))rvelrhop.y=0;
+	}
+	if(NormDir.z){
+		NormDir.z=NormDir.z/abs(NormDir.z);
+		if((NormDir.z>0&&rvelrhop.z<0)||(NormDir.z<0&&rvelrhop.z>0))rvelrhop.z=0;
+	}
+
+}
+
 __global__ void KerRunShifting(const bool ops,const bool wavegen,const bool simulate2d,unsigned n,unsigned pini,double dt
 	,float shiftcoef,float freesurface,float4 *velrhop,const float *divr,float3 *shiftpos,const float ShiftOffset,const bool maxShift
 	,float3 *sumtensile,const double alpha0,const double alpha1,const double alpha2,const double beta0,const double beta1
-	,const double beta2,const unsigned *nearFS,const double2 *posxy,const double dampingpoint,const double dampinglength,float3 *normal,const tdouble3 PistonPos)
+	,const double beta2,const unsigned *nearFS,const double2 *posxy,const double *posz,const double dampingpoint,const double dampinglength,float3 *normal,const tdouble3 PistonPos,const unsigned *row,const unsigned *idpg,const double3 *mirrorPos)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
   if(p<n){
@@ -1638,23 +1664,7 @@ __global__ void KerRunShifting(const bool ops,const bool wavegen,const bool simu
 		double dp=double(CTE.dp);
 		double umagn=-double(shiftcoef)*h*h;
 
-		if(ops){
-			if(divrp1<freesurface+ShiftOffset/*||nearFS[p1]*/){
-				float3 N=normal[p1];
-				float3 direction=make_float3(0,0,0);
-				float3 tProdx=make_float3(0,0,0);
- 				float3 tPrody=make_float3(0,0,0);
- 				float3 tProdz=make_float3(0,0,0);
- 				tProdx.x=N.x*N.x; tProdx.y=N.x*N.y; tProdx.z=N.x*N.z;
- 				tPrody.x=N.y*N.x; tPrody.y=N.y*N.y; tPrody.z=N.y*N.z;
- 				tProdz.x=N.z*N.x; tProdz.y=N.z*N.y; tProdz.z=N.z*N.z;
- 				direction.x=(1.0-tProdx.x)*rshiftpos.x-tProdx.y*rshiftpos.y-tProdx.z*rshiftpos.z;
- 				direction.y=-tPrody.x*rshiftpos.x+(1.0-tPrody.y)*rshiftpos.y-tPrody.z*rshiftpos.z;
- 				direction.z=-tProdz.x*rshiftpos.x-tProdz.y*rshiftpos.y+(1.0-tProdz.z)*rshiftpos.z;
- 				rshiftpos=direction;
-			}
-		}
-		else{
+		if(divrp1<freesurface+ShiftOffset){
 			float3 norm=normal[Correctp1];
 			if(simulate2d) norm.y=0;
 			float3 tang=make_float3(0,0,0);
@@ -1680,26 +1690,12 @@ __global__ void KerRunShifting(const bool ops,const bool wavegen,const bool simu
 			float dcdn=norm.x*rshiftpos.x+norm.z*rshiftpos.z+norm.y*rshiftpos.y;
 			float dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
 
-			if(divrp1<freesurface+ShiftOffset){
-				dcdn-=beta0;
-				rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*alpha0);
-				if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*alpha0);
-				rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*alpha0);
-			}
-		/*	else if(nearFS[p1]==1){ 
-				dcdn-=beta1;
-				rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*alpha1);
-				if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*alpha1);
-				rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*alpha1);
-			}
-			else if(nearFS[p1]==2){ 
-				dcdn-=beta2;
-				rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*alpha2);
-				if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*alpha2);
-				rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*alpha2);
-			}*/
+		
+			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*alpha0);
+			if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*alpha0);
+			rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*alpha0);
 		}
-
+		
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
     if(!simulate2d) rshiftpos.y=float(double(rshiftpos.y)*umagn);
     rshiftpos.z=float(double(rshiftpos.z)*umagn);
@@ -1718,6 +1714,16 @@ __global__ void KerRunShifting(const bool ops,const bool wavegen,const bool simu
 			if(posxy[p1].x+rshiftpos.x<PistonPos.x) rshiftpos.x=0;
 		}
 		
+		
+		float4 shift4=make_float4(rshiftpos.x,rshiftpos.y,rshiftpos.z,0);
+		float4 shift0=make_float4(0,0,0,0);
+		if(row[p1]!=pini){
+			KerCorrectShiftBound(p1,row[p1],posxy,posz,shift4,shift0,idpg,mirrorPos);
+			rshiftpos.x=shift4.x;
+			rshiftpos.y=shift4.y;
+			rshiftpos.z=shift4.z;
+		}
+
     shiftpos[Correctp1]=rshiftpos;
   }
 }
@@ -1729,11 +1735,11 @@ __global__ void KerRunShifting(const bool ops,const bool wavegen,const bool simu
 void RunShifting(const bool ops,const bool wavegen,const bool simulate2d,unsigned np,unsigned npb,double dt,double shiftcoef
 	,float freesurface,float4 *velrhop,const float *divr,float3 *shiftpos,bool maxShift,float3 *sumtensile,const float shiftoffset
 	,const double alpha0,const double alpha1,const double alpha2,const double beta0,const double beta1,const double beta2
-	,const unsigned *nearFS,const double2 *posxy,const double dampingpoint,const double dampinglength,float3 *opsN,const tdouble3 PistonPos){
+	,const unsigned *nearFS,const double2 *posxy,const double *posz,const double dampingpoint,const double dampinglength,float3 *opsN,const tdouble3 PistonPos,const unsigned *row,const unsigned *idpg,const double3 *mirrorPos){
   const unsigned npf=np-npb;
   if(npf){
     dim3 sgrid=GetGridSize(npf,SPHBSIZE);
-    KerRunShifting <<<sgrid,SPHBSIZE>>> (ops,wavegen,simulate2d,npf,npb,dt,shiftcoef,freesurface,velrhop,divr,shiftpos,shiftoffset,maxShift,sumtensile,alpha0,alpha1,alpha2,beta0,beta1,beta2,nearFS,posxy,dampingpoint,dampinglength,opsN,PistonPos);
+    KerRunShifting <<<sgrid,SPHBSIZE>>> (ops,wavegen,simulate2d,npf,npb,dt,shiftcoef,freesurface,velrhop,divr,shiftpos,shiftoffset,maxShift,sumtensile,alpha0,alpha1,alpha2,beta0,beta1,beta2,nearFS,posxy,posz,dampingpoint,dampinglength,opsN,PistonPos,row,idpg,mirrorPos);
   }
 }
 
@@ -1844,12 +1850,23 @@ __device__ void KerCorrectCylinderVelocity(const unsigned p1,const double2 *posx
 	const double rr2=dx*dx+dy*dy+dz*dz;
 	if(rr2<=(CylinderRadius+CTE.dp)*(CylinderRadius+CTE.dp)){
 		float3 NormDir=make_float3(0,0,0), NormVelWall=make_float3(0,0,0), NormVelp1=make_float3(0,0,0);
+		const float3 velwall=make_float3(0,0,0);
+		const float3 velp1=make_float3(rvelrhop.x,rvelrhop.y,rvelrhop.z);
 		const double temp=sqrt(rr2);
 		NormDir.x=float(dx/temp);
 		NormDir.y=float(dy/temp);
 		NormDir.z=float(dz/temp);
-		float NormProdVelp1=rvelrhop.x*NormDir.x+rvelrhop.y*NormDir.y+rvelrhop.z*NormDir.z;
-		float VelNorm=NormDir.x*NormProdVelp1*NormDir.x+NormDir.y*NormProdVelp1*NormDir.y+NormDir.z*NormProdVelp1*NormDir.z;
+		float NormProdVelWall=velwall.x*NormDir.x+velwall.y*NormDir.y+velwall.z*NormDir.z;
+		float NormProdVelp1=velp1.x*NormDir.x+velp1.y*NormDir.y+velp1.z*NormDir.z;
+		NormVelWall.x=NormDir.x*NormProdVelWall; NormVelp1.x=NormDir.x*NormProdVelp1;
+		NormVelWall.y=NormDir.y*NormProdVelWall; NormVelp1.y=NormDir.y*NormProdVelp1;
+		NormVelWall.z=NormDir.z*NormProdVelWall; NormVelp1.z=NormDir.z*NormProdVelp1;
+
+		float dux=NormVelp1.x-NormVelWall.x;
+		float duy=NormVelp1.y-NormVelWall.y;
+		float duz=NormVelp1.z-NormVelWall.z;
+
+		float VelNorm=dux*NormDir.x+duy*NormDir.y+duz*NormDir.z;
 		if(VelNorm<0){
 			rvelrhop.x-=VelNorm*NormDir.x;
 			rvelrhop.y-=VelNorm*NormDir.y;
@@ -3851,54 +3868,62 @@ template<TpKernel tker,TpFtMode ftmode> __device__ void KerInteractionForcesShif
   ,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,float massp2,float ftmassp1,bool ftp1
   ,double3 posdp1,float3 velp1,TpShifting tshifting,double3 &shiftposp1,float Wab1,const float tensilen
 	,const float tensiler,float &divrp1,double3 &sumtensilep1,const float *divr,const float freesurface
-	,const float boundaryfs,double3 &dwxp1,double3 &dwyp1,double3 &dwzp1,double3 &bxp1,double3 &bzp1)
+	,const float boundaryfs,double3 &dwxp1,double3 &dwyp1,double3 &dwzp1,double3 &bxp1,double3 &bzp1,float &nearestBound,unsigned *row)
 {
-  for(int p2=pini;p2<pfin;p2++)if(!(boundp2&&divr[p2]<boundaryfs)){
+  for(int p2=pini;p2<pfin;p2++){
     float drx,dry,drz;
     KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
     float rr2=drx*drx+dry*dry+drz*drz;
     if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
-      //-Wendland kernel.
-      float frx,fry,frz,Wab;
-      if(tker==KERNEL_Quintic){
-				KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
-				Wab=KerGetKernelQuinticWab(rr2);
-			}
-			else if(tker==KERNEL_Wendland){
-				KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
-				Wab=KerGetKernelWendlandWab(rr2);
-			}
+			if(!(boundp2&&divr[p2]<boundaryfs)){
+				//-Wendland kernel.
+				float frx,fry,frz,Wab;
+				if(tker==KERNEL_Quintic){
+					KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
+					Wab=KerGetKernelQuinticWab(rr2);
+				}
+				else if(tker==KERNEL_Wendland){
+					KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
+					Wab=KerGetKernelWendlandWab(rr2);
+				}
 	  
-      //-Obtiene masa de particula p2 en caso de existir floatings.
-	  //-Obtains mass of particle p2 if any floating bodies exist.
-     // bool ftp2;         //-Indica si es floating. //-indicates if it is floating.
-      //float ftmassp2;    //-Contiene masa de particula floating o massp2 si es bound o fluid. //-Contains mass of floating body or massf if fluid.
-     // bool compute=true; //-Se desactiva cuando se usa DEM y es float-float o float-bound. //-Deactivated when DEM is used and is float-float or float-bound.
-      /*if(USE_FLOATING){
-        const word cod=code[p2];
-        ftp2=(CODE_GetType(cod)==CODE_TYPE_FLOATING);
-        ftmassp2=(ftp2? ftomassp[CODE_GetTypeValue(cod)]: massp2);
-        //if(ftp2 && (tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt))deltap1=FLT_MAX;
-				//if(ftp2 && tshifting==SHIFT_NoBound)shiftposp1.x=FLT_MAX; //-Con floatings anula shifting. //-Cancels shifting with floating bodies
-        //compute=!(USE_DEM && ftp1 && (boundp2 || ftp2)); //-Se desactiva cuando se usa DEM y es float-float o float-bound. //-Deactivated when DEM is used and is float-float or float-bound.
-      }*/
+				//-Obtiene masa de particula p2 en caso de existir floatings.
+			//-Obtains mass of particle p2 if any floating bodies exist.
+			 // bool ftp2;         //-Indica si es floating. //-indicates if it is floating.
+				//float ftmassp2;    //-Contiene masa de particula floating o massp2 si es bound o fluid. //-Contains mass of floating body or massf if fluid.
+			 // bool compute=true; //-Se desactiva cuando se usa DEM y es float-float o float-bound. //-Deactivated when DEM is used and is float-float or float-bound.
+				/*if(USE_FLOATING){
+					const word cod=code[p2];
+					ftp2=(CODE_GetType(cod)==CODE_TYPE_FLOATING);
+					ftmassp2=(ftp2? ftomassp[CODE_GetTypeValue(cod)]: massp2);
+					//if(ftp2 && (tdelta==DELTA_Dynamic || tdelta==DELTA_DynamicExt))deltap1=FLT_MAX;
+					//if(ftp2 && tshifting==SHIFT_NoBound)shiftposp1.x=FLT_MAX; //-Con floatings anula shifting. //-Cancels shifting with floating bodies
+					//compute=!(USE_DEM && ftp1 && (boundp2 || ftp2)); //-Se desactiva cuando se usa DEM y es float-float o float-bound. //-Deactivated when DEM is used and is float-float or float-bound.
+				}*/
 
-      //-Shifting correction
-      const float volume=massp2/CTE.rhopzero;
-      const float tensile=tensiler*powf(Wab/Wab1,tensilen);
-      shiftposp1.x+=volume*frx; //-For boundary do not use shifting / Con boundary anula shifting.
-      shiftposp1.y+=volume*fry;
-      shiftposp1.z+=volume*frz;
-			sumtensilep1.x+=volume*tensile*frx;
-			sumtensilep1.y+=volume*tensile*fry;
-			sumtensilep1.z+=volume*tensile*frz;
-      divrp1-=volume*(drx*frx+dry*fry+drz*frz);
-			dwxp1.x-=volume*frx*drx; dwxp1.y-=volume*frx*dry; dwxp1.z-=volume*frx*drz;
-			dwyp1.x-=volume*fry*drx; dwyp1.y-=volume*fry*dry; dwyp1.z-=volume*fry*drz;
-			dwzp1.x-=volume*frz*drx; dwzp1.y-=volume*frz*dry; dwzp1.z-=volume*frz*drz;
-			/*bxp1.x+=volume*drx*frx;	bxp1.z+=volume*drx*frz;
-			bzp1.x+=volume*drz*frx; bzp1.z+=volume*drz*frz;*/
-    }
+				//-Shifting correction
+				const float volume=massp2/CTE.rhopzero;
+				const float tensile=tensiler*powf(Wab/Wab1,tensilen);
+				shiftposp1.x+=volume*frx; //-For boundary do not use shifting / Con boundary anula shifting.
+				shiftposp1.y+=volume*fry;
+				shiftposp1.z+=volume*frz;
+				sumtensilep1.x+=volume*tensile*frx;
+				sumtensilep1.y+=volume*tensile*fry;
+				sumtensilep1.z+=volume*tensile*frz;
+				divrp1-=volume*(drx*frx+dry*fry+drz*frz);
+				dwxp1.x-=volume*frx*drx; dwxp1.y-=volume*frx*dry; dwxp1.z-=volume*frx*drz;
+				dwyp1.x-=volume*fry*drx; dwyp1.y-=volume*fry*dry; dwyp1.z-=volume*fry*drz;
+				dwzp1.x-=volume*frz*drx; dwzp1.y-=volume*frz*dry; dwzp1.z-=volume*frz*drz;
+				/*bxp1.x+=volume*drx*frx;	bxp1.z+=volume*drx*frz;
+				bzp1.x+=volume*drz*frx; bzp1.z+=volume*drz*frz;*/
+			}
+			if(boundp2){
+				if(rr2<=nearestBound){
+					nearestBound=rr2;
+					row[p1]=p2;
+				}
+			}
+		}
   }
 }
 
@@ -3906,7 +3931,7 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesShif
   (bool ops,unsigned n,unsigned pinit,int hdiv,uint4 nc,unsigned cellfluid,float viscob,float viscof,const int2 *begincell,int3 cellzero
 	,const unsigned *dcell,const float *ftomassp,const double2 *posxy,const double *posz,float4 *velrhop,const word *code
 	,TpShifting tshifting,float3 *shiftpos,float *divr,const float tensilen,const float tensiler,float3 *sumtensile
-	,const float freesurface,const float boundaryfs,float3 *dwxcorrg,float3 *dwycorrg,float3 *dwzcorrg,float3 *normal)
+	,const float freesurface,const float boundaryfs,float3 *dwxcorrg,float3 *dwycorrg,float3 *dwzcorrg,float3 *normal,unsigned *row)
 {
   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<n){
@@ -3917,6 +3942,7 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesShif
 		else if(tker==KERNEL_Wendland) Wab1=KerGetKernelWendlandWab(CTE.dp*CTE.dp);
 		double3 bxp1=make_double3(0,0,0);
 		double3 bzp1=make_double3(0,0,0);
+		float nearestBound=float(CTE.dp*CTE.dp);
     //-Vars para Shifting.
 		//-Variables for Shifting.
     double3 shiftposp1=make_double3(0,0,0);
@@ -3961,7 +3987,7 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesShif
           }
         }
         if(pfin){
-		      KerInteractionForcesShifting2<tker,ftmode> (false,p1,pini,pfin,viscob,ftomassp,posxy,posz,velrhop,code,CTE.massf,ftmassp1,ftp1,posdp1,velp1,tshifting,shiftposp1,Wab1,tensilen,tensiler,divrp1,sumtensilep1,divr,freesurface,boundaryfs,dwxp1,dwyp1,dwzp1,bxp1,bzp1);
+		      KerInteractionForcesShifting2<tker,ftmode> (false,p1,pini,pfin,viscob,ftomassp,posxy,posz,velrhop,code,CTE.massf,ftmassp1,ftp1,posdp1,velp1,tshifting,shiftposp1,Wab1,tensilen,tensiler,divrp1,sumtensilep1,divr,freesurface,boundaryfs,dwxp1,dwyp1,dwzp1,bxp1,bzp1,nearestBound,row);
         }
 	    }
     }
@@ -3981,7 +4007,7 @@ template<TpKernel tker,TpFtMode ftmode> __global__ void KerInteractionForcesShif
           }
         }
         if(pfin){
-		      KerInteractionForcesShifting2<tker,ftmode> (true,p1,pini,pfin,viscof,ftomassp,posxy,posz,velrhop,code,CTE.massf,ftmassp1,ftp1,posdp1,velp1,tshifting,shiftposp1,Wab1,tensilen,tensiler,divrp1,sumtensilep1,divr,freesurface,boundaryfs,dwxp1,dwyp1,dwzp1,bxp1,bzp1);
+		      KerInteractionForcesShifting2<tker,ftmode> (true,p1,pini,pfin,viscof,ftomassp,posxy,posz,velrhop,code,CTE.massf,ftmassp1,ftp1,posdp1,velp1,tshifting,shiftposp1,Wab1,tensilen,tensiler,divrp1,sumtensilep1,divr,freesurface,boundaryfs,dwxp1,dwyp1,dwzp1,bxp1,bzp1,nearestBound,row);
         }
       }
     }
@@ -4112,18 +4138,6 @@ template<TpKernel tker> __global__ void KerSmoothNormals
 	}
 }
 
-__device__ void KerFindFSVicinityCalc
-  (unsigned p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
-  ,double3 posdp1,const float *divr,const float freesurface,const double layer1,const double layer2,float &nearestFS)
-{
-	for(int p2=pini;p2<pfin;p2++)if(divr[p2]<freesurface){
-    float drx,dry,drz;
-		KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
-    float rr2=drx*drx+dry*dry+drz*drz;
-		if(rr2<=nearestFS) nearestFS=rr2;
-  }
-}
-
  template<TpKernel tker> __device__ void KerBoundaryNormalCalc
   (const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz,const float mass,const float rhop,double3 posmp1,float3 &Sum,const float4 mlsp1,const float3 *normal)
 {
@@ -4233,57 +4247,6 @@ template<TpKernel tker> __global__ void KerBoundaryNormal
 	}
 }
 
- template<TpKernel tker> __global__ void KerFindFSVicinity
-   (unsigned n,unsigned pinit,int hdiv,uint4 nc,unsigned cellfluid,const int2 *begincell,int3 cellzero
- 	,const unsigned *dcell,const double2 *posxy,const double *posz,const float *divr,const float freesurface
- 	,const float boundaryfs,unsigned *row,const unsigned np)
- {
-   unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
-   if(p<n){
-     unsigned p1=p+pinit;      //-Nº de particula. //-NI of particle
- 		if(divr[p1]>=freesurface){
- 			double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
-			float nearestFS=CTE.fourh2;
-			double layer1, layer2;
-			if(tker==KERNEL_Quintic){
-				layer1=CTE.h*CTE.h;
-				layer2=4.0*CTE.h*CTE.h;
-			}
-			else if(tker==KERNEL_Wendland){
-				layer1=CTE.h*CTE.h;
-				layer2=0;
-			}
- 			//-Obtiene limites de interaccion
- 		//-Obtains interaction limits
- 			int cxini,cxfin,yini,yfin,zini,zfin;
- 			KerGetInteractionCells(dcell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
- 
- 			//-Interaccion con Fluidas.
- 		//-Interaction with fluids.
- 			for(int z=zini;z<zfin;z++){
- 				int zmod=(nc.w)*z+cellfluid; //-Le suma donde empiezan las celdas de fluido. //-The sum showing where fluid cells start
- 				for(int y=yini;y<yfin;y++){
- 					int ymod=zmod+nc.x*y;
- 					unsigned pini,pfin=0;
- 					for(int x=cxini;x<cxfin;x++){
- 						int2 cbeg=begincell[x+ymod];
- 						if(cbeg.y){
- 							if(!pfin)pini=cbeg.x;
- 							pfin=cbeg.y;
- 						}
- 					}
- 					if(pfin){
- 						KerFindFSVicinityCalc(p1,pini,pfin,posxy,posz,posdp1,divr,freesurface,layer1,layer2,nearestFS);
- 					}
- 				}
- 			}
-
-			if(nearestFS<=layer1)	row[p1]=1;
-			else if(nearestFS<=layer2) row[p1]=2;
-     }
-   }
- }
-
 void Interaction_Shifting
   (TpKernel tkernel,TpSlipCond tslipcond,bool simulate2d,bool floating,bool usedem,bool ops,TpCellMode cellmode,float viscob,float viscof
 	,unsigned bsfluid,unsigned bsbound,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
@@ -4311,17 +4274,15 @@ void Interaction_Shifting
 				KerInteractionCorrectBoundDivr<tker> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,divr,mirrorPos,mirrorCell,boundaryfs);
 			}
 
-			if(!floating)   KerInteractionForcesShifting1<tker,FTMODE_None> <<<sgridf,bsfluid>>> (ops,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,tshifting,shiftpos,divr,tensilen,tensiler,sumtensile,freesurface,boundaryfs,dwxcorrg,dwycorrg,dwzcorrg,normal);
-			else if(!usedem)KerInteractionForcesShifting1<tker,FTMODE_Sph> <<<sgridf,bsfluid>>> (ops,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,tshifting,shiftpos,divr,tensilen,tensiler,sumtensile,freesurface,boundaryfs,dwxcorrg,dwycorrg,dwzcorrg,normal);
-			else            KerInteractionForcesShifting1<tker,FTMODE_Dem> <<<sgridf,bsfluid>>> (ops,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,tshifting,shiftpos,divr,tensilen,tensiler,sumtensile,freesurface,boundaryfs,dwxcorrg,dwycorrg,dwzcorrg,normal);
+			if(!floating)   KerInteractionForcesShifting1<tker,FTMODE_None> <<<sgridf,bsfluid>>> (ops,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,tshifting,shiftpos,divr,tensilen,tensiler,sumtensile,freesurface,boundaryfs,dwxcorrg,dwycorrg,dwzcorrg,normal,row);
+			else if(!usedem)KerInteractionForcesShifting1<tker,FTMODE_Sph> <<<sgridf,bsfluid>>> (ops,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,tshifting,shiftpos,divr,tensilen,tensiler,sumtensile,freesurface,boundaryfs,dwxcorrg,dwycorrg,dwzcorrg,normal,row);
+			else            KerInteractionForcesShifting1<tker,FTMODE_Dem> <<<sgridf,bsfluid>>> (ops,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,tshifting,shiftpos,divr,tensilen,tensiler,sumtensile,freesurface,boundaryfs,dwxcorrg,dwycorrg,dwzcorrg,normal,row);
 			
 			if(npbok) KerBoundaryNormal<tker> <<<sgridb,bsbound>>>(simulate2d,npf,npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,code,idp,mirrorPos,mirrorCell,mls,normal,PistonPos,TankDim);
 			KerSmoothNormals<tker> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,divr,boundaryfs,normal,smoothNormal);
 
 			if(simulate2d) KerInverseKernelCor2D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwzcorrg,code);
 			else KerInverseKernelCor3D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwycorrg,dwzcorrg,code);
-
-			//KerFindFSVicinity<tker> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,divr,freesurface,boundaryfs,row,np);
 		}
 		else if(tkernel==KERNEL_Wendland){    const TpKernel tker=KERNEL_Wendland;
 			if(npbok){
@@ -4331,17 +4292,15 @@ void Interaction_Shifting
 				KerInteractionCorrectBoundDivr<tker> <<<sgridb,bsbound>>> (npbok,hdiv,nc,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,idp,divr,mirrorPos,mirrorCell,boundaryfs);
 			}
 
-			if(!floating)   KerInteractionForcesShifting1<tker,FTMODE_None> <<<sgridf,bsfluid>>> (ops,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,tshifting,shiftpos,divr,tensilen,tensiler,sumtensile,freesurface,boundaryfs,dwxcorrg,dwycorrg,dwzcorrg,normal);
-			else if(!usedem)KerInteractionForcesShifting1<tker,FTMODE_Sph> <<<sgridf,bsfluid>>> (ops,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,tshifting,shiftpos,divr,tensilen,tensiler,sumtensile,freesurface,boundaryfs,dwxcorrg,dwycorrg,dwzcorrg,normal);
-			else            KerInteractionForcesShifting1<tker,FTMODE_Dem> <<<sgridf,bsfluid>>> (ops,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,tshifting,shiftpos,divr,tensilen,tensiler,sumtensile,freesurface,boundaryfs,dwxcorrg,dwycorrg,dwzcorrg,normal);
+			if(!floating)   KerInteractionForcesShifting1<tker,FTMODE_None> <<<sgridf,bsfluid>>> (ops,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,tshifting,shiftpos,divr,tensilen,tensiler,sumtensile,freesurface,boundaryfs,dwxcorrg,dwycorrg,dwzcorrg,normal,row);
+			else if(!usedem)KerInteractionForcesShifting1<tker,FTMODE_Sph> <<<sgridf,bsfluid>>> (ops,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,tshifting,shiftpos,divr,tensilen,tensiler,sumtensile,freesurface,boundaryfs,dwxcorrg,dwycorrg,dwzcorrg,normal,row);
+			else            KerInteractionForcesShifting1<tker,FTMODE_Dem> <<<sgridf,bsfluid>>> (ops,npf,npb,hdiv,nc,cellfluid,viscob,viscof,begincell,cellzero,dcell,ftomassp,posxy,posz,velrhop,code,tshifting,shiftpos,divr,tensilen,tensiler,sumtensile,freesurface,boundaryfs,dwxcorrg,dwycorrg,dwzcorrg,normal,row);
 			
 			if(npbok) KerBoundaryNormal<tker> <<<sgridb,bsbound>>>(simulate2d,npf,npbok,hdiv,nc,begincell,cellzero,dcell,posxy,posz,code,idp,mirrorPos,mirrorCell,mls,normal,PistonPos,TankDim);
 			KerSmoothNormals<tker> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,code,divr,boundaryfs,normal,smoothNormal);
 
 			if(simulate2d) KerInverseKernelCor2D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwzcorrg,code);
 			else KerInverseKernelCor3D <<<sgridf,bsfluid>>> (npf,npb,dwxcorrg,dwycorrg,dwzcorrg,code);
-
-			//KerFindFSVicinity<tker> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,divr,freesurface,boundaryfs,row,np);
 		}
 	}
 }
