@@ -197,8 +197,9 @@ protected:
   void AddAccInput();
 
   void PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb);
-  void PreInteraction_Forces(TpInter tinter,double dt);
-  
+  void Stage1PreInteraction_ForcesPre(double dt);
+  void Stage3PreInteraction_ForcesCor(double dt);
+
   void ComputeSymplecticPre(double dt);
   void ComputeSymplecticCorr(double dt);
   double DtVariable(bool final);

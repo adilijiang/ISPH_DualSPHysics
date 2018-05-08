@@ -663,7 +663,8 @@ void JSphGpu::ConfigBlockSizes(bool usezone,bool useperi){
     //-Collects kernel information.
     StKerInfo kerinfo;
     memset(&kerinfo,0,sizeof(StKerInfo));
-    cusph::Interaction_Forces(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,0,0,0,0,INTER_Forces,100,50,20,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Simulate2D,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,TDouble3(0),TDouble3(0),NULL,&kerinfo,NULL);
+    cusph::Stage1Interaction_ForcesPre(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,0,0,0,0,100,50,20,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Simulate2D,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,TDouble3(0),TDouble3(0),NULL,&kerinfo,NULL);
+    cusph::Stage3Interaction_ForcesCor(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,0,0,0,0,100,50,20,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Simulate2D,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,TDouble3(0),TDouble3(0),NULL,&kerinfo,NULL);
     //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&kerinfo);
     //Log->Printf("====> bound -> r:%d  bs:%d  bsmax:%d",kerinfo.forcesbound_rg,kerinfo.forcesbound_bs,kerinfo.forcesbound_bsmax);
     //Log->Printf("====> fluid -> r:%d  bs:%d  bsmax:%d",kerinfo.forcesfluid_rg,kerinfo.forcesfluid_bs,kerinfo.forcesfluid_bsmax);
@@ -891,26 +892,23 @@ void JSphGpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
 /// Prepara variables para interaccion "INTER_Forces" o "INTER_ForcesCorr".
 /// Prepares variables for interaction "INTER_Forces" or "INTER_ForcesCorr".
 //==============================================================================
-void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
+void JSphGpu::Stage1PreInteraction_ForcesPre(double dt){
   TmgStart(Timers,TMG_CfPreForces);
 	const unsigned np=Np;
 	const unsigned npb=Npb;
 	const unsigned npf=np-npb;
   //-Asigna memoria.ddd
   //-Allocates memory.
-  if(tinter==1){
-		cudaMemset(dWxCorrg,0,sizeof(float3)*npf);
-		dWyCorrg=ArraysGpu->ReserveFloat3();	cudaMemset(dWyCorrg,0,sizeof(float3)*npf); 
-		cudaMemset(dWzCorrg,0,sizeof(float3)*npf);
-		Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
-		cudaMemset(MLSg,0,sizeof(float4)*npb);
-		cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
-		if(Schwaiger){
-			cudaMemset(sumFrg,0,sizeof(float3)*npf);
-			cudaMemset(Taog,0,sizeof(float)*npf);
-		}
+  cudaMemset(dWxCorrg,0,sizeof(float3)*npf);
+	dWyCorrg=ArraysGpu->ReserveFloat3();	cudaMemset(dWyCorrg,0,sizeof(float3)*npf); 
+	cudaMemset(dWzCorrg,0,sizeof(float3)*npf);
+	Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
+	cudaMemset(MLSg,0,sizeof(float4)*npb);
+	cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
+	if(Schwaiger){
+		cudaMemset(sumFrg,0,sizeof(float3)*npf);
+		cudaMemset(Taog,0,sizeof(float)*npf);
 	}
-	else cusph::ResetrowIndg(np+1,rowIndg,Npb);
 
 	cudaMemset(Aceg,0,sizeof(tfloat3)*npf);
 
@@ -930,6 +928,17 @@ void JSphGpu::PreInteraction_Forces(TpInter tinter,double dt){
     CheckCudaError("PreInteraction_Forces","Failed calculating VelMax.");
   }*/
 
+  TmgStop(Timers,TMG_CfPreForces);
+}
+
+void JSphGpu::Stage3PreInteraction_ForcesCor(double dt){
+  TmgStart(Timers,TMG_CfPreForces);
+	const unsigned np=Np;
+	const unsigned npb=Npb;
+	const unsigned npf=np-npb;
+
+  cusph::ResetrowIndg(np+1,rowIndg,npb);
+	cudaMemset(Aceg,0,sizeof(tfloat3)*npf);
   TmgStop(Timers,TMG_CfPreForces);
 }
 

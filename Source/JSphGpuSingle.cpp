@@ -418,17 +418,37 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
 /// Interaccion para el calculo de fuerzas.
 /// Interaction for force computation.
 //==============================================================================
-void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
+void JSphGpuSingle::Stage1Interaction_ForcesPre(double dt){
   const char met[]="Interaction_Forces";
   TmgStart(Timers,TMG_CfForces);
-  PreInteraction_Forces(tinter,dt);
+  Stage1PreInteraction_ForcesPre(dt);
 
   const unsigned bsfluid=BlockSizes.forcesfluid;
   const unsigned bsbound=BlockSizes.forcesbound;
 	CheckCudaError(met,"Failed checkin.");
   //-Interaccion Fluid-Fluid/Bound & Bound-Fluid.
-  cusph::Interaction_Forces(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,tinter,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,BoundaryFS,FreeSurface,PistonPos,TankDim,Taog,NULL,NULL);	
-	if(TSlipCond&&tinter==2){
+  cusph::Stage1Interaction_ForcesPre(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,BoundaryFS,FreeSurface,PistonPos,TankDim,Taog,NULL,NULL);	
+  //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
+  //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
+  //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,FtRidpg,DemDatag,float(DemDtForce),Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,ViscDtg,Aceg);
+  //-Para simulaciones 2D anula siempre la 2º componente
+  //-For 2D simulations always overrides the 2nd component (Y axis)
+  if(Simulate2D)cusph::ResetAcey(Np-Npb,Aceg);
+  TmgStop(Timers,TMG_CfForces);
+  CheckCudaError(met,"Failed while executing kernels of interaction. Predictor");
+}
+
+void JSphGpuSingle::Stage3Interaction_ForcesCor(double dt){
+  const char met[]="Interaction_Forces";
+  TmgStart(Timers,TMG_CfForces);
+  Stage3PreInteraction_ForcesCor(dt);
+
+  const unsigned bsfluid=BlockSizes.forcesfluid;
+  const unsigned bsbound=BlockSizes.forcesbound;
+	CheckCudaError(met,"Failed checkin.");
+  //-Interaccion Fluid-Fluid/Bound
+  cusph::Stage3Interaction_ForcesCor(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,BoundaryFS,FreeSurface,PistonPos,TankDim,Taog,NULL,NULL);	
+	if(TSlipCond){
 		cusph::ResetBoundVel(Npb,bsbound,Velrhopg,VelrhopPreg);
 		ArraysGpu->Free(dWyCorrg);	    dWyCorrg=NULL;
 	}
@@ -439,8 +459,7 @@ void JSphGpuSingle::Interaction_Forces(TpInter tinter,double dt){
   //-For 2D simulations always overrides the 2nd component (Y axis)
   if(Simulate2D)cusph::ResetAcey(Np-Npb,Aceg);
   TmgStop(Timers,TMG_CfForces);
-  if(tinter==1) CheckCudaError(met,"Failed while executing kernels of interaction. Predictor");
-	else CheckCudaError(met,"Failed while executing kernels of interaction. Corrector");
+  CheckCudaError(met,"Failed while executing kernels of interaction. Corrector");
 }
 
 //==============================================================================
@@ -471,7 +490,7 @@ double JSphGpuSingle::ComputeStep_Sym(double dt){
 	TmgStart(Timers,TMG_Stage1);
   InitAdvection(dt);
 	RunCellDivide(true);
-	Interaction_Forces(INTER_Forces,dt);      //-Interaction
+	Stage1Interaction_ForcesPre(dt);      //-Interaction
 	ComputeSymplecticPre(dt);                 //-Applies Symplectic-Predictor to the particles
 	//-Pressure Poisson equation
   //-----------
@@ -480,7 +499,7 @@ double JSphGpuSingle::ComputeStep_Sym(double dt){
   //-Corrector
   //-----------
 	TmgStart(Timers,TMG_Stage3);
-  Interaction_Forces(INTER_ForcesCorr,dt);  //-Interaccion //-interaction
+  Stage3Interaction_ForcesCor(dt);  //-Interaccion //-interaction
   ComputeSymplecticCorr(dt);								//Applies Symplectic-Corrector to the particles
 	TmgStop(Timers,TMG_Stage3);
 	//-Shifting
