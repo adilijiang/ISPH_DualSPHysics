@@ -447,7 +447,7 @@ void JSphGpuSingle::Stage3Interaction_ForcesCor(double dt){
   const unsigned bsbound=BlockSizes.forcesbound;
 	CheckCudaError(met,"Failed checkin.");
   //-Interaccion Fluid-Fluid/Bound
-  cusph::Stage3Interaction_ForcesCor(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,BoundaryFS,FreeSurface,PistonPos,TankDim,Taog,NULL,NULL);	
+  cusph::Stage3Interaction_ForcesCor(TKernel,WithFloating,UseDEM,CellMode,bsfluid,Np,Npb,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Divrg,rowIndg,BoundaryFS,FreeSurface,NULL,NULL);	
 	if(TSlipCond){
 		cusph::ResetBoundVel(Npb,bsbound,Velrhopg,VelrhopPreg);
 		ArraysGpu->Free(dWyCorrg);	    dWyCorrg=NULL;
