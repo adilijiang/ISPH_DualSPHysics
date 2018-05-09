@@ -977,7 +977,6 @@ void JSphGpuSingle::RunShifting(double dt){
 
 	Divrg=ArraysGpu->ReserveFloat(); cudaMemset(Divrg,0,sizeof(float)*np);
   cudaMemset(ShiftPosg,0,sizeof(float3)*npf);
-	cudaMemset(Tensileg,0,sizeof(float3)*npf);
 	cudaMemset(dWxCorrg,0,sizeof(float3)*npf);
 	dWyCorrg=ArraysGpu->ReserveFloat3();	cudaMemset(dWyCorrg,0,sizeof(float3)*npf); 
 	cudaMemset(dWzCorrg,0,sizeof(float3)*npf);
@@ -1005,7 +1004,8 @@ void JSphGpuSingle::RunShifting(double dt){
   const unsigned bsbound=BlockSizes.forcesbound;
   const unsigned bsfluid=BlockSizes.forcesfluid;
 
-  cusph::Interaction_Shifting(TKernel,HydrodynamicCorrection,TSlipCond,Simulate2D,WithFloating,UseDEM,OPS,CellMode,Visco*ViscoBoundFactor,Visco,bsfluid,bsbound,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,FtoMasspg,TShifting,ShiftPosg,Divrg,TensileN,TensileR,Tensileg,FreeSurface,BoundaryFS,Idpg,MirrorPosg,MirrorCellg,dWxCorrg,dWyCorrg,dWzCorrg,MLSg,rowIndg,PistonPos,TankDim,Normal,smoothNormal);
+  cusph::Interaction_Shifting(TKernel,HydrodynamicCorrection,Simulate2D,WithFloating,UseDEM,CellMode,bsfluid,bsbound,Np,Npb,NpbOk,CellDivSingle->GetNcells()
+		,CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Codeg,FtoMasspg,ShiftPosg,Divrg,TensileN,TensileR,BoundaryFS,Idpg,MirrorPosg,MirrorCellg,dWxCorrg,dWyCorrg,dWzCorrg,MLSg,rowIndg,PistonPos,TankDim,Normal,smoothNormal);
 
   CheckCudaError(met,"Failed in calculating concentration");
 	
