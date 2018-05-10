@@ -232,12 +232,12 @@ protected:
 	float3 *Normal;
 	float3 *smoothNormal;
   //matrix variables 
-  float *bg;
-  float *ag;
+  double *bg;
+  double *ag;
   unsigned PPEDim;
   unsigned *colIndg;
   unsigned *rowIndg;
-  float *Xg;
+  double *Xg;
 	float PaddleAccel;
   unsigned *counterNnzGPU;
   unsigned *counterNnzCPU;

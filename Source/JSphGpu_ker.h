@@ -179,18 +179,18 @@ void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,cons
 
 //# Kernels for marking the freesurface
 void FreeSurfaceMark(const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,float *divr
-  ,float *matrixInd,float *matrixb,unsigned int *row,const word *code,const double pi,const float freesurface,const float shiftoffset);
+  ,double *matrixInd,double *matrixb,unsigned int *row,const word *code,const double pi,const float freesurface,const float shiftoffset);
 
 //# Kernels for Populating matrix A
 void PopulateMatrix(TpKernel tkernel,bool schwaiger,TpCellMode cellmode,const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok
 	,tuint3 ncells,const int2 *begincell,tuint3 cellmin,const unsigned *dcell,tfloat3 gravity,const double2 *posxy,const double *posz,const float4 *velrhop
-	,const float3 *dwxCorr,const float3 *dwyCorr,const float3 *dwzCorr,float *matrixInd,float *matrixb,unsigned int *row,unsigned int *col,const unsigned *idp
+	,const float3 *dwxCorr,const float3 *dwyCorr,const float3 *dwzCorr,double *matrixInd,double *matrixb,unsigned int *row,unsigned int *col,const unsigned *idp
 	,const float *divr,const word *code,const float freesurface,const double3 *mirrorPos,const unsigned *mirrorCell,const float4 *mls,const double dt
 	,const float3 *SumFr,const float boundaryfs,const float *tao,const float paddleaccel,const bool wavegen,const tdouble3 PistonPos);
 
 //# Kernels for Assigning Pressure
 void PressureAssign(const unsigned bsbound,const unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,const tfloat3 gravity,const double2 *posxy
-	,const double *posz,float4 *velrhop,float *press,const unsigned *idp,const word *code,const double3 *mirrorPos,const float paddleaccel,const bool wavegen
+	,const double *posz,float4 *velrhop,double *press,const unsigned *idp,const word *code,const double3 *mirrorPos,const float paddleaccel,const bool wavegen
 	,const tdouble3 PistonPos,const float *divr,const float boundaryfs,const float freesurface);
 
 //# Kernels for ArrayInitialisation
@@ -198,7 +198,8 @@ void InitArrayPOrder(unsigned n,unsigned *v,unsigned value);
 void InitArrayCol(unsigned n,unsigned int *v,int value);
 
 //# Kernels for solving with ViennaCL
-void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,int restart,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,int coarselevels,float *matrixa,float *matrixx,float *matrixb,unsigned int *row,unsigned int *col,const unsigned nnz,const unsigned ppedim,const unsigned numfreesurface);
+void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,int restart,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,int coarselevels
+	,double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned nnz,const unsigned ppedim,const unsigned numfreesurface);
 
 //Kernels for shifting
 void Interaction_Shifting(TpKernel tkernel,bool HydroCorr,bool simulate2d,bool floating,bool usedem,TpCellMode cellmode,unsigned bsfluid,unsigned bsbound,unsigned np,unsigned npb,unsigned npbok
@@ -213,7 +214,7 @@ void CorrectShiftVelocity(TpKernel tkernel,TpCellMode cellmode,const unsigned bs
 	,const unsigned *dcell,const double2 *posxy,const double *posz,float4 *velrhop,const float3 *dwxCorr,const float3 *dwyCorr,const float3 *dwzCorr
   ,const unsigned *idp,const float *divr,const word *code,const float boundaryfs,float3 *shiftpos,float3 *shftvel);
 
-void SolverResultArrange(const unsigned bsbound,const unsigned bsfluid,const unsigned npb,const unsigned npbok,const unsigned npf,float4 *velrhop,float *X);
+void SolverResultArrange(const unsigned bsbound,const unsigned bsfluid,const unsigned npb,const unsigned npbok,const unsigned npf,float4 *velrhop,double *X);
 
 void CalculateSpectrum(double *fn,double *Sp,double *Ak,double *Stroke2,double *apm,double *FocussedSum,const unsigned nspec,const double f1,const double df,const double fp,const double D,const double gamma,tfloat3 gravity,const double AN);
 
