@@ -545,7 +545,6 @@ template<TpKernel tker> __global__ void KerMLSBoundary3D
 {
 	unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<n){
-		unsigned idpg1=idp[p1];
 		const double3 posmp1=make_double3(mirrorPos[p1].x,mirrorPos[p1].y,mirrorPos[p1].z);
 		double b11=0.0; double b12=0.0; double b13=0.0; double b14=0.0;
 		double b21=0.0; double b22=0.0; double b23=0.0; double b24=0.0;
@@ -620,7 +619,6 @@ template<TpKernel tker> __global__ void KerMLSBoundary2D
 {
 	unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<n){
-		unsigned idpg1=idp[p1];
 		const double3 posmp1=make_double3(mirrorPos[p1].x,mirrorPos[p1].y,mirrorPos[p1].z);
 		double b11 = 0.0; double b12 = 0.0; double b13 = 0.0;
 		double b21 = 0.0; double b22 = 0.0; double b23 = 0.0;
@@ -777,7 +775,6 @@ template<TpKernel tker> __global__ void KerInteractionForcesBound
     double3 posdp1;
     float3 velp1;
     KerGetParticleData(p1,posxy,posz,velrhop,velp1,posdp1);
-    unsigned idpg1=idp[p1];
 		double3 Sum=make_double3(0,0,0);
 		float divrp1=0;
 		const float4 mlsp1=mls[p1];
@@ -951,7 +948,6 @@ template<TpKernel tker> __device__ void KerCorrectDivr
  		//-Loads particle p1 data.
      double3 posdp1;
      KerGetParticleData(p1,posxy,posz,posdp1);
-     unsigned idpg1=idp[p1];
  		float divrp1=divr[p1];
  		const double3 posmp1=make_double3(mirrorPos[p1].x,mirrorPos[p1].y,mirrorPos[p1].z);
  			
@@ -1899,7 +1895,7 @@ __global__ void KerRunShifting(const bool wavegen,const bool simulate2d,unsigned
 			if(posxy[p1].x+rshiftpos.x<PistonPos.x) rshiftpos.x=0;
 		}
 		
-		if(row[p1]!=pini) KerCorrectShiftBound(row[p1],posxy,posz,rshiftpos,idpg,mirrorPos);
+		//if(row[p1]!=pini) KerCorrectShiftBound(row[p1],posxy,posz,rshiftpos,idpg,mirrorPos);
 
     shiftpos[Correctp1]=rshiftpos;
   }
@@ -2342,15 +2338,14 @@ template<bool periactive> __global__ void KerMoveLinBound(unsigned n,unsigned in
 	  //-Computes velocity.
       velrhop[pid]=make_float4(mvvel.x,mvvel.y,mvvel.z,velrhop[pid].w);
 
-			unsigned idp1=idpg[pid];
-			mirrorPos[p1].x+=mvpos.x;
-			mirrorPos[p1].y+=mvpos.y;
-			mirrorPos[p1].z+=mvpos.z;
-			double dx=mirrorPos[p1].x-CTE.maprealposminx;
-			double dy=mirrorPos[p1].y-CTE.maprealposminy;
-			double dz=mirrorPos[p1].z-CTE.maprealposminz;
+			mirrorPos[p].x+=mvpos.x;
+			mirrorPos[p].y+=mvpos.y;
+			mirrorPos[p].z+=mvpos.z;
+			double dx=mirrorPos[p].x-CTE.maprealposminx;
+			double dy=mirrorPos[p].y-CTE.maprealposminy;
+			double dz=mirrorPos[p].z-CTE.maprealposminz;
 			unsigned cx=unsigned(dx/CTE.scell),cy=unsigned(dy/CTE.scell),cz=unsigned(dz/CTE.scell);
-			mirrorCell[p1]=PC__Cell(CTE.cellcode,cx,cy,cz);
+			mirrorCell[p]=PC__Cell(CTE.cellcode,cx,cy,cz);
     }
   }
 }
@@ -2426,7 +2421,6 @@ __global__ void KerPistonCorner(const unsigned npb,double2 *posxy,const unsigned
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
 		if(CODE_GetType(code[p1])!=CODE_TYPE_MOVING){
-			const unsigned idp1=idp[p1];		
 			const double posxp1=posxy[p1].x;
 			double dist=posxp1-PistonPos.x;
 			if(dist*dist<2*CTE.fourh2){
@@ -3098,20 +3092,16 @@ void ComputeRStar(bool floating,const bool wavegen,unsigned npf,unsigned npb,con
 ///Find Irelation
 //==============================================================================
 __global__ void KerWaveGenBoundary
-  (const bool simulate2d,unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,const tdouble3 PistonPos,const tdouble3 TankDim,float3 *boundarynormal)
+  (const bool simulate2d,unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,const tdouble3 PistonPos,const tdouble3 TankDim)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
 		if(CODE_GetType(code[p1])==CODE_TYPE_MOVING){
-			const unsigned idp1=idp[p1];
 			mirrorPos[p1].x=2.0*PistonPos.x-posxy[p1].x;
 			mirrorPos[p1].y=posxy[p1].y;
 			mirrorPos[p1].z=posz[p1];
-			boundarynormal[p1]=make_float3(1.0,0,0);
 		}
 		else if(posxy[p1].x<PistonPos.x){
-			const unsigned idp1=idp[p1];
-
 			double3 mirPoint=make_double3(PistonPos.x,PistonPos.y,PistonPos.z);
 			float dp05=0.5f*CTE.dp;
 			float3 normal=make_float3(dp05,0,dp05); 
@@ -3138,7 +3128,6 @@ __global__ void KerWaveGenBoundary
 
 			double temp=sqrt(normal.x*normal.x+normal.y*normal.y+normal.z*normal.z);
 			normal.x=normal.x/temp; normal.y=normal.y/temp; normal.z=normal.z/temp;
-			boundarynormal[p1]=normal;
 		}
 	}
 }
@@ -3148,7 +3137,6 @@ __global__ void KerMirrorCell
 {
 	unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
-			const unsigned idp1=idp[p1];
 			double dx=mirrorPos[p1].x-CTE.maprealposminx;
 			double dy=mirrorPos[p1].y-CTE.maprealposminy;
 			double dz=mirrorPos[p1].z-CTE.maprealposminz;
@@ -3163,11 +3151,8 @@ __global__ void KerCreateMirrorsCodeZero
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
 		if(CODE_GetTypeValue(code[p1])==0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC&&!(wavegen&&CODE_GetType(code[p1])==CODE_TYPE_MOVING)){
-			unsigned idp1=idp[p1];
 			double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
-			const unsigned Physparticle=Physrelation[p1];
-			const unsigned mirIdp1=idp[Physparticle];
-			const double3 mirrorPoint=make_double3(mirrorPos[mirIdp1].x,mirrorPos[mirIdp1].y,mirrorPos[mirIdp1].z);
+			const double3 mirrorPoint=make_double3(mirrorPos[p1].x,mirrorPos[p1].y,mirrorPos[p1].z);
 
 			mirrorPos[p1].x=2.0*mirrorPoint.x-posdp1.x;
 			mirrorPos[p1].y=2.0*mirrorPoint.y-posdp1.y;
@@ -3177,17 +3162,15 @@ __global__ void KerCreateMirrorsCodeZero
 }
 
 __global__ void KerCreateMirrorsCodeNonZero
-  (unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,unsigned *Physrelation,const bool wavegen,float3 *boundarynormal)
+  (unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,unsigned *Physrelation,const bool wavegen)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
 		if(CODE_GetTypeValue(code[p1])==1&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC&&!(wavegen&&CODE_GetType(code[p1])==CODE_TYPE_MOVING)){
-			unsigned idp1=idp[p1];
 			double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
 			const unsigned Physparticle=Physrelation[p1];
-			const unsigned mirIdp1=idp[Physparticle];
-			const double3 mirrorPoint=make_double3(mirrorPos[mirIdp1].x,mirrorPos[mirIdp1].y,mirrorPos[mirIdp1].z);
-			boundarynormal[idp1]=boundarynormal[mirIdp1];
+			const double3 mirrorPoint=make_double3(mirrorPos[Physparticle].x,mirrorPos[Physparticle].y,mirrorPos[Physparticle].z);
+
 			if(Physparticle!=npb){
 				mirrorPos[p1].x=2.0*mirrorPoint.x-posdp1.x;
 				mirrorPos[p1].y=2.0*mirrorPoint.y-posdp1.y;
@@ -3253,21 +3236,18 @@ __device__ void KerSumNorm(const bool simulate2d,const unsigned p1,const unsigne
 }
 
 __global__ void KerFindMirrorPoints
-  (const bool simulate2d,unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,unsigned *Physrelation,const bool wavegen,float3 *boundarynormal)
+  (const bool simulate2d,unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,unsigned *Physrelation,const bool wavegen)
 {
   unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
 		const float Dp=CTE.dp;
 		if(CODE_GetTypeValue(code[p1])==0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC&&!(wavegen&&CODE_GetType(code[p1])==CODE_TYPE_MOVING)){
-			const unsigned idp1=idp[p1];
 			const double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
 			double3 NormDir=make_double3(0,0,0);
 			KerSumNorm(simulate2d,p1,npb,NormDir,posdp1,posxy,posz,Physrelation,code);
 
 			double MagNorm=NormDir.x*NormDir.x+NormDir.y*NormDir.y+NormDir.z*NormDir.z;
 			if(MagNorm){MagNorm=sqrt(MagNorm); NormDir.x=NormDir.x/MagNorm; NormDir.y=NormDir.y/MagNorm; NormDir.z=NormDir.z/MagNorm;}
-
-			boundarynormal[idp1].x=NormDir.x; boundarynormal[idp1].y=NormDir.y; boundarynormal[idp1].z=NormDir.z;
 
 			//Scale Norm to dp in each direction.
 			double largestDir=abs(NormDir.x);
@@ -3356,14 +3336,13 @@ __global__ void KerConnectBoundary
 }
 
 __global__ void KerCylinder
-  (unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,float3 *boundarynormal,double CylinderRadius,tdouble3 CylinderCentre,tdouble2 CylinderLength
+  (unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,double CylinderRadius,tdouble3 CylinderCentre,tdouble2 CylinderLength
 	,TpCylinder cylinderaxis)
 {
 	unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
 		if(CODE_GetTypeValue(code[p1])==2||CODE_GetTypeValue(code[p1])==3){
 			const double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
-			const unsigned idp1=idp[p1];
 			double3 radialVector=make_double3(0,0,0);
 			radialVector.x=posdp1.x-CylinderCentre.x;
 			radialVector.y=posdp1.y-CylinderCentre.y;
@@ -3394,25 +3373,21 @@ __global__ void KerCylinder
 				normal.y=normal.z*normal.y/temp;
 			}
 			temp=sqrt(normal.x*normal.x+normal.y*normal.y+normal.z*normal.z);
-
-			boundarynormal[idp1].x=normal.x/temp;
-			boundarynormal[idp1].y=normal.y/temp;
-			boundarynormal[idp1].z=normal.z/temp;
 		}
 	}
 }
 
 void MirrorBoundary(TpKernel tkernel,const bool simulate2d,const unsigned bsbound,unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp
-	,double3 *mirrorPos,unsigned *Physrelation,const bool wavegen,const tdouble3 PistonPos,const tdouble3 TankDim,float3 *boundarynormal,double CylinderRadius,tdouble3 CylinderCentre,tdouble2 CylinderLength
+	,double3 *mirrorPos,unsigned *Physrelation,const bool wavegen,const tdouble3 PistonPos,const tdouble3 TankDim,double CylinderRadius,tdouble3 CylinderCentre,tdouble2 CylinderLength
 	,TpCylinder cylinderaxis){
   if(npb){
     dim3 sgridb=GetGridSize(npb,bsbound);
 		KerConnectBoundary<<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,Physrelation,wavegen);
-		KerFindMirrorPoints<<<sgridb,bsbound>>> (simulate2d,npb,posxy,posz,code,idp,mirrorPos,Physrelation,wavegen,boundarynormal);
-		if(cylinderaxis) KerCylinder<<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,boundarynormal,CylinderRadius,CylinderCentre,CylinderLength,cylinderaxis);
-		KerCreateMirrorsCodeNonZero <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,Physrelation,wavegen,boundarynormal);
+		KerFindMirrorPoints<<<sgridb,bsbound>>> (simulate2d,npb,posxy,posz,code,idp,mirrorPos,Physrelation,wavegen);
+		if(cylinderaxis) KerCylinder<<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,CylinderRadius,CylinderCentre,CylinderLength,cylinderaxis);
+		KerCreateMirrorsCodeNonZero <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,Physrelation,wavegen);
 		KerCreateMirrorsCodeZero <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,Physrelation,wavegen);
-		if(wavegen) KerWaveGenBoundary <<<sgridb,bsbound>>> (simulate2d,npb,posxy,posz,code,idp,mirrorPos,PistonPos,TankDim,boundarynormal);
+		if(wavegen) KerWaveGenBoundary <<<sgridb,bsbound>>> (simulate2d,npb,posxy,posz,code,idp,mirrorPos,PistonPos,TankDim);
 		KerMirrorCell <<<sgridb,bsbound>>> (npb,idp,mirrorPos,Physrelation);
 	}
 }
@@ -3629,7 +3604,6 @@ template<TpKernel tker> __global__ void KerPopulateMatrixABound
   if(p<npbok){
     unsigned p1=p;      //-Nº de particula. //-NI of particle
     if(CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC)/*if(divr[p1]>=boundaryfs)*/{
-			const unsigned idpg1=idp[p1];
       unsigned oi=p1;
 			const float4 mlsp1=mls[p1];
 
@@ -4421,7 +4395,6 @@ template<TpKernel tker> __global__ void KerInteractionForcesBoundDivr
 		//-Loads particle p1 data.
     double3 posdp1;
     KerGetParticleData(p1,posxy,posz,posdp1);
-    unsigned idpg1=idp[p1];
 		float divrp1=0;
 		const float volume=CTE.massf/CTE.rhopzero;
 		const double3 posmp1=make_double3(mirrorPos[p1].x,mirrorPos[p1].y,mirrorPos[p1].z);
@@ -4786,9 +4759,8 @@ __global__ void KerBoundaryNormals
 {
 	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle
   if(p<npb){
-		const unsigned idp1=id[p];
 		const double3 posp1=make_double3(posxy[p].x,posxy[p].y,posz[p]);
-		const double3 mposp1=mirrorPos[p1];
+		const double3 mposp1=mirrorPos[p];
 		normal[p].x=mposp1.x-posp1.x;
 		normal[p].y=mposp1.y-posp1.y;
 		normal[p].z=mposp1.z-posp1.z;

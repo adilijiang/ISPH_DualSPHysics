@@ -836,7 +836,19 @@ void JSphGpuSingle::MirrorBoundary(){
 	const char met[]="MirrorBoundary";
   const unsigned bsbound=BlockSizes.forcesbound;
 	const bool wavegen=(WaveGen? true:false);
-  cusph::MirrorBoundary(TKernel,Simulate2D,bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,MirrorPosg,MirrorCellg,wavegen,PistonPos,TankDim,BoundaryNormal,CylinderRadius,CylinderCentre,CylinderLength,TCylinderAxis);
+  cusph::MirrorBoundary(TKernel,Simulate2D,bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,MirrorPosg,MirrorCellg,wavegen,PistonPos,TankDim,CylinderRadius,CylinderCentre,CylinderLength,TCylinderAxis);
+	double3 *mirrorpos=new double3[Npb]; cudaMemcpy(mirrorpos,MirrorPosg,sizeof(double3)*Npb,cudaMemcpyDeviceToHost);
+	unsigned *mirrorcell=new unsigned[Npb]; cudaMemcpy(mirrorcell,MirrorCellg,sizeof(unsigned)*Npb,cudaMemcpyDeviceToHost);
+	double2 *posxy=new double2[Np]; cudaMemcpy(posxy,Posxyg,sizeof(double2)*Np,cudaMemcpyDeviceToHost);
+	double *posz=new double[Np]; cudaMemcpy(posz,Poszg,sizeof(double)*Np,cudaMemcpyDeviceToHost);
+	unsigned *id=new unsigned[Np]; cudaMemcpy(id,Idpg,sizeof(unsigned)*Np,cudaMemcpyDeviceToHost);
+
+	for(int i=0;i<Npb;i++){
+		if(id[i]==0||id[i]==5628||id[i]==15912){
+			std::cout<<id[i]<<"\t"<<i<<"\t"<<posxy[i].x<<"\t"<<posz[i]<<"\t"<<mirrorpos[i].x<<"\t"<<mirrorpos[i].z<<"\n";
+		}
+	}
+	system("PAUSE");
   CheckCudaError(met,"findIrelation");
 }
 

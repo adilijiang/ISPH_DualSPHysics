@@ -172,7 +172,7 @@ void ComputeRStar(bool floating,const bool wavegen,unsigned np,unsigned npb,cons
 
 //# Kernels for finding a dummy particles corresponding wall particle
 void MirrorBoundary(TpKernel tkernel,const bool simulate2d,const unsigned bsbound,unsigned npbok,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirror
-	,unsigned *Physrelation,const bool wavegen,const tdouble3 PistonPos,const tdouble3 TankDim,float3 *boundarynormal,double CylinderRadius,tdouble3 CylinderCentre,tdouble2 CylinderLength,TpCylinder cylinderaxis);
+	,unsigned *Physrelation,const bool wavegen,const tdouble3 PistonPos,const tdouble3 TankDim,double CylinderRadius,tdouble3 CylinderCentre,tdouble2 CylinderLength,TpCylinder cylinderaxis);
 
 //# Kernels for particle matrix order
 void MatrixASetup(const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim,unsigned int*row,unsigned *nnz,unsigned *numfreesurface,const float *divr,const float freesurface,const float boundaryfs);
