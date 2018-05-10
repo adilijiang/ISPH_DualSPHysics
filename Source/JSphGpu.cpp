@@ -103,7 +103,9 @@ void JSphGpu::InitVars(){
 	PaddleAccel=NULL;
   Divrg=NULL;
 	MirrorPosg=NULL;
+	mirrorposgswap=NULL;
 	MirrorCellg=NULL;
+	mirrorcellgswap=NULL;
   RidpMoveg=NULL;
   FtRidpg=NULL;    FtoMasspg=NULL;               //-Floatings.
   FtoDatag=NULL;   FtoForcesg=NULL;              //-Calculo de fuerzas en floatings.  //-Calculates forces on floating bodies
@@ -141,7 +143,9 @@ void JSphGpu::FreeGpuMemoryFixed(){
 	MemGpuMatrix=0;
   if(rowIndg)cudaFree(rowIndg);										rowIndg=NULL;
   if(MirrorPosg)cudaFree(MirrorPosg);							MirrorPosg=NULL;
+	if(mirrorposgswap)cudaFree(mirrorposgswap);			mirrorposgswap=NULL;
 	if(MirrorCellg)cudaFree(MirrorCellg);						MirrorCellg=NULL;
+	if(mirrorcellgswap)cudaFree(mirrorcellgswap);		mirrorcellgswap=NULL;
 	if(ag)cudaFree(ag);															ag=NULL;
   if(colIndg)cudaFree(colIndg);										colIndg=NULL;
   if(counterNnzGPU)cudaFree(counterNnzGPU);				counterNnzGPU=NULL;
@@ -179,10 +183,11 @@ void JSphGpu::AllocGpuMemoryFixed(){
   unsigned PPEMem=MatrixMemory*np; //Predicts max number of neighbours per particle dependant on kernel support size
 
   size_t m;
-	
 	m=sizeof(double3)*npb;			cudaMalloc((void**)&MirrorPosg,m);				MemGpuFixed+=m;
+	m=sizeof(double3)*npb;			cudaMalloc((void**)&mirrorposgswap,m);		MemGpuFixed+=m;
 	m=sizeof(float3)*npb;				cudaMalloc((void**)&BoundaryNormal,m);		MemGpuFixed+=m;
 	m=sizeof(unsigned)*npb;			cudaMalloc((void**)&MirrorCellg,m);				MemGpuFixed+=m;
+	m=sizeof(unsigned)*npb;			cudaMalloc((void**)&mirrorcellgswap,m);		MemGpuFixed+=m;
 	m=sizeof(float4)*npb;				cudaMalloc((void**)&MLSg,m);							MemGpuFixed+=m;
 	m=sizeof(unsigned)*(np+1);	cudaMalloc((void**)&rowIndg,m);						MemGpuFixed+=m; MemGpuMatrix+=m;
  	m=sizeof(double)*PPEMem;		cudaMalloc((void**)&ag,m);								MemGpuFixed+=m; MemGpuMatrix+=m;

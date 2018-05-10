@@ -540,6 +540,17 @@ __global__ void KerSortDataParticles(unsigned n,unsigned pini,const unsigned *so
     velrhop2[p]=velrhop[oldpos];
   }
 }
+
+__global__ void KerSortDataMirrorPoints(unsigned n,unsigned pini,const unsigned *sortpart,const double3 *mirrorpos,const unsigned *mirrorcell,double3 *mirrorpos2,unsigned *mirrorcell2)
+{
+  const unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula
+  if(p<n){
+    const unsigned oldpos=(p<pini? p: sortpart[p]);
+    mirrorpos2[p]=mirrorpos[oldpos];
+    mirrorcell2[p]=mirrorcell[oldpos];
+  }
+}
+
 //------------------------------------------------------------------------------
 __global__ void KerSortDataParticles(unsigned n,unsigned pini,const unsigned *sortpart,const float4 *a,float4 *a2)
 {
@@ -584,11 +595,16 @@ __global__ void KerSortDataParticles(unsigned n,unsigned pini,const unsigned *so
 /// Reordena datos de particulas segun sortpart.
 /// Reorders particle data according to sortpart.
 //==============================================================================
-void SortDataParticles(unsigned np,unsigned pini,const unsigned *sortpart,const unsigned *idp,const word *code,const unsigned *dcell,const double2 *posxy,const double *posz,const float4 *velrhop,unsigned *idp2,word *code2,unsigned *dcell2,double2 *posxy2,double *posz2,float4 *velrhop2){
+void SortDataParticles(unsigned np,unsigned npb,unsigned pini,const unsigned *sortpart,const unsigned *idp,const word *code,const unsigned *dcell,const double2 *posxy,const double *posz,const float4 *velrhop,const double3 *mirrorpos,const unsigned *mirrorcell,unsigned *idp2,word *code2,unsigned *dcell2,double2 *posxy2,double *posz2,float4 *velrhop2,double3 *mirrorpos2,unsigned *mirrorcell2){
   if(np){
     dim3 sgrid=GetGridSize(np,DIVBSIZE);
     KerSortDataParticles <<<sgrid,DIVBSIZE>>>(np,pini,sortpart,idp,code,dcell,posxy,posz,velrhop,idp2,code2,dcell2,posxy2,posz2,velrhop2);
   }
+
+	if(!pini&&npb){
+		dim3 sgrid=GetGridSize(npb,DIVBSIZE);
+    KerSortDataMirrorPoints <<<sgrid,DIVBSIZE>>>(npb,pini,sortpart,mirrorpos,mirrorcell,mirrorpos2,mirrorcell2);
+	}
 }
 //==============================================================================
 void SortDataParticles(unsigned np,unsigned pini,const unsigned *sortpart,const float4 *a,float4 *a2){

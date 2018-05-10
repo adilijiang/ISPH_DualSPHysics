@@ -546,14 +546,14 @@ template<TpKernel tker> __global__ void KerMLSBoundary3D
 	unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<n){
 		unsigned idpg1=idp[p1];
-		const double3 posmp1=make_double3(mirrorPos[idpg1].x,mirrorPos[idpg1].y,mirrorPos[idpg1].z);
+		const double3 posmp1=make_double3(mirrorPos[p1].x,mirrorPos[p1].y,mirrorPos[p1].z);
 		double b11=0.0; double b12=0.0; double b13=0.0; double b14=0.0;
 		double b21=0.0; double b22=0.0; double b23=0.0; double b24=0.0;
 		double b31=0.0; double b32=0.0; double b33=0.0; double b34=0.0;
 		double b41=0.0; double b42=0.0; double b43=0.0; double b44=0.0;
 
 		int cxini,cxfin,yini,yfin,zini,zfin;
-		KerGetInteractionCells(mirrorCell[idpg1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+		KerGetInteractionCells(mirrorCell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
 				
 		for(int z=zini;z<zfin;z++){
 			int zmod=(nc.w)*z+(nc.w*nc.z+1);//-Le suma Nct+1 que es la primera celda de fluido. //-Adds Nct + 1 which is the first cell fluid.	
@@ -621,13 +621,13 @@ template<TpKernel tker> __global__ void KerMLSBoundary2D
 	unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<n){
 		unsigned idpg1=idp[p1];
-		const double3 posmp1=make_double3(mirrorPos[idpg1].x,mirrorPos[idpg1].y,mirrorPos[idpg1].z);
+		const double3 posmp1=make_double3(mirrorPos[p1].x,mirrorPos[p1].y,mirrorPos[p1].z);
 		double b11 = 0.0; double b12 = 0.0; double b13 = 0.0;
 		double b21 = 0.0; double b22 = 0.0; double b23 = 0.0;
 		double b31 = 0.0; double b32 = 0.0; double b33 = 0.0;
 
 		int cxini,cxfin,yini,yfin,zini,zfin;
-		KerGetInteractionCells(mirrorCell[idpg1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+		KerGetInteractionCells(mirrorCell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
 				
 		for(int z=zini;z<zfin;z++){
 			int zmod=(nc.w)*z+(nc.w*nc.z+1);//-Le suma Nct+1 que es la primera celda de fluido. //-Adds Nct + 1 which is the first cell fluid.	
@@ -782,10 +782,10 @@ template<TpKernel tker> __global__ void KerInteractionForcesBound
 		float divrp1=0;
 		const float4 mlsp1=mls[p1];
 		unsigned rowCount=0;
-		const double3 posmp1=make_double3(mirrorPos[idpg1].x,mirrorPos[idpg1].y,mirrorPos[idpg1].z);
+		const double3 posmp1=make_double3(mirrorPos[p1].x,mirrorPos[p1].y,mirrorPos[p1].z);
 			
 		int cxini,cxfin,yini,yfin,zini,zfin;
-		KerGetInteractionCells(mirrorCell[idpg1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+		KerGetInteractionCells(mirrorCell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
 				
 		for(int z=zini;z<zfin;z++){
 			int zmod=(nc.w)*z+(nc.w*nc.z+1);//-Le suma Nct+1 que es la primera celda de fluido. //-Adds Nct + 1 which is the first cell fluid.	
@@ -953,10 +953,10 @@ template<TpKernel tker> __device__ void KerCorrectDivr
      KerGetParticleData(p1,posxy,posz,posdp1);
      unsigned idpg1=idp[p1];
  		float divrp1=divr[p1];
- 		const double3 posmp1=make_double3(mirrorPos[idpg1].x,mirrorPos[idpg1].y,mirrorPos[idpg1].z);
+ 		const double3 posmp1=make_double3(mirrorPos[p1].x,mirrorPos[p1].y,mirrorPos[p1].z);
  			
  		int cxini,cxfin,yini,yfin,zini,zfin;
- 		KerGetInteractionCells(mirrorCell[idpg1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+ 		KerGetInteractionCells(mirrorCell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
  				
  		for(int z=zini;z<zfin;z++){
  			int zmod=(nc.w)*z;	
@@ -2343,14 +2343,14 @@ template<bool periactive> __global__ void KerMoveLinBound(unsigned n,unsigned in
       velrhop[pid]=make_float4(mvvel.x,mvvel.y,mvvel.z,velrhop[pid].w);
 
 			unsigned idp1=idpg[pid];
-			mirrorPos[idp1].x+=mvpos.x;
-			mirrorPos[idp1].y+=mvpos.y;
-			mirrorPos[idp1].z+=mvpos.z;
-			double dx=mirrorPos[idp1].x-CTE.maprealposminx;
-			double dy=mirrorPos[idp1].y-CTE.maprealposminy;
-			double dz=mirrorPos[idp1].z-CTE.maprealposminz;
+			mirrorPos[p1].x+=mvpos.x;
+			mirrorPos[p1].y+=mvpos.y;
+			mirrorPos[p1].z+=mvpos.z;
+			double dx=mirrorPos[p1].x-CTE.maprealposminx;
+			double dy=mirrorPos[p1].y-CTE.maprealposminy;
+			double dz=mirrorPos[p1].z-CTE.maprealposminz;
 			unsigned cx=unsigned(dx/CTE.scell),cy=unsigned(dy/CTE.scell),cz=unsigned(dz/CTE.scell);
-			mirrorCell[idp1]=PC__Cell(CTE.cellcode,cx,cy,cz);
+			mirrorCell[p1]=PC__Cell(CTE.cellcode,cx,cy,cz);
     }
   }
 }
@@ -2431,20 +2431,20 @@ __global__ void KerPistonCorner(const unsigned npb,double2 *posxy,const unsigned
 			double dist=posxp1-PistonPos.x;
 			if(dist*dist<2*CTE.fourh2){
 				if(posxp1<PistonPos.x){
-					mirrorpos[idp1].x=2.0*PistonPos.x-posxp1;
+					mirrorpos[p1].x=2.0*PistonPos.x-posxp1;
 					velrhop[p1].x=pistonvel;
 				}
 				else{
-					mirrorpos[idp1].x=posxp1;
+					mirrorpos[p1].x=posxp1;
 					velrhop[p1].x=0;
 				}
 			}
 
-			double dx=mirrorpos[idp1].x-CTE.maprealposminx;
-			double dy=mirrorpos[idp1].y-CTE.maprealposminy;
-			double dz=mirrorpos[idp1].z-CTE.maprealposminz;
+			double dx=mirrorpos[p1].x-CTE.maprealposminx;
+			double dy=mirrorpos[p1].y-CTE.maprealposminy;
+			double dz=mirrorpos[p1].z-CTE.maprealposminz;
 			unsigned cx=unsigned(dx/CTE.scell),cy=unsigned(dy/CTE.scell),cz=unsigned(dz/CTE.scell);
-			mirrorCell[idp1]=PC__Cell(CTE.cellcode,cx,cy,cz);
+			mirrorCell[p1]=PC__Cell(CTE.cellcode,cx,cy,cz);
 		}
 	}
 }
@@ -3104,10 +3104,10 @@ __global__ void KerWaveGenBoundary
   if(p1<npb){
 		if(CODE_GetType(code[p1])==CODE_TYPE_MOVING){
 			const unsigned idp1=idp[p1];
-			mirrorPos[idp1].x=2.0*PistonPos.x-posxy[p1].x;
-			mirrorPos[idp1].y=posxy[p1].y;
-			mirrorPos[idp1].z=posz[p1];
-			boundarynormal[idp1]=make_float3(1.0,0,0);
+			mirrorPos[p1].x=2.0*PistonPos.x-posxy[p1].x;
+			mirrorPos[p1].y=posxy[p1].y;
+			mirrorPos[p1].z=posz[p1];
+			boundarynormal[p1]=make_float3(1.0,0,0);
 		}
 		else if(posxy[p1].x<PistonPos.x){
 			const unsigned idp1=idp[p1];
@@ -3132,13 +3132,13 @@ __global__ void KerWaveGenBoundary
 				}
 			}
 
-			mirrorPos[idp1].x=2.0*mirPoint.x-posxy[p1].x;
-			if(!simulate2d) mirrorPos[idp1].y=2.0*mirPoint.y-posxy[p1].y; 
-			mirrorPos[idp1].z=2.0*mirPoint.z-posz[p1];
+			mirrorPos[p1].x=2.0*mirPoint.x-posxy[p1].x;
+			if(!simulate2d) mirrorPos[p1].y=2.0*mirPoint.y-posxy[p1].y; 
+			mirrorPos[p1].z=2.0*mirPoint.z-posz[p1];
 
 			double temp=sqrt(normal.x*normal.x+normal.y*normal.y+normal.z*normal.z);
 			normal.x=normal.x/temp; normal.y=normal.y/temp; normal.z=normal.z/temp;
-			boundarynormal[idp1]=normal;
+			boundarynormal[p1]=normal;
 		}
 	}
 }
@@ -3149,11 +3149,11 @@ __global__ void KerMirrorCell
 	unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
   if(p1<npb){
 			const unsigned idp1=idp[p1];
-			double dx=mirrorPos[idp1].x-CTE.maprealposminx;
-			double dy=mirrorPos[idp1].y-CTE.maprealposminy;
-			double dz=mirrorPos[idp1].z-CTE.maprealposminz;
+			double dx=mirrorPos[p1].x-CTE.maprealposminx;
+			double dy=mirrorPos[p1].y-CTE.maprealposminy;
+			double dz=mirrorPos[p1].z-CTE.maprealposminz;
 			unsigned cx=unsigned(dx/CTE.scell),cy=unsigned(dy/CTE.scell),cz=unsigned(dz/CTE.scell);
-			mirrorCell[idp1]=PC__Cell(CTE.cellcode,cx,cy,cz);
+			mirrorCell[p1]=PC__Cell(CTE.cellcode,cx,cy,cz);
 	}
 }
 
@@ -3169,9 +3169,9 @@ __global__ void KerCreateMirrorsCodeZero
 			const unsigned mirIdp1=idp[Physparticle];
 			const double3 mirrorPoint=make_double3(mirrorPos[mirIdp1].x,mirrorPos[mirIdp1].y,mirrorPos[mirIdp1].z);
 
-			mirrorPos[idp1].x=2.0*mirrorPoint.x-posdp1.x;
-			mirrorPos[idp1].y=2.0*mirrorPoint.y-posdp1.y;
-			mirrorPos[idp1].z=2.0*mirrorPoint.z-posdp1.z;
+			mirrorPos[p1].x=2.0*mirrorPoint.x-posdp1.x;
+			mirrorPos[p1].y=2.0*mirrorPoint.y-posdp1.y;
+			mirrorPos[p1].z=2.0*mirrorPoint.z-posdp1.z;
 		}
 	}
 }
@@ -3189,14 +3189,14 @@ __global__ void KerCreateMirrorsCodeNonZero
 			const double3 mirrorPoint=make_double3(mirrorPos[mirIdp1].x,mirrorPos[mirIdp1].y,mirrorPos[mirIdp1].z);
 			boundarynormal[idp1]=boundarynormal[mirIdp1];
 			if(Physparticle!=npb){
-				mirrorPos[idp1].x=2.0*mirrorPoint.x-posdp1.x;
-				mirrorPos[idp1].y=2.0*mirrorPoint.y-posdp1.y;
-				mirrorPos[idp1].z=2.0*mirrorPoint.z-posdp1.z;
+				mirrorPos[p1].x=2.0*mirrorPoint.x-posdp1.x;
+				mirrorPos[p1].y=2.0*mirrorPoint.y-posdp1.y;
+				mirrorPos[p1].z=2.0*mirrorPoint.z-posdp1.z;
 			}
 			else{
-				mirrorPos[idp1].x=mirrorPos[idp1].x;
-				mirrorPos[idp1].y=mirrorPos[idp1].y;
-				mirrorPos[idp1].z=mirrorPos[idp1].z;
+				mirrorPos[p1].x=mirrorPos[p1].x;
+				mirrorPos[p1].y=mirrorPos[p1].y;
+				mirrorPos[p1].z=mirrorPos[p1].z;
 			}
 		}
 	}
@@ -3281,94 +3281,13 @@ __global__ void KerFindMirrorPoints
 			}
 			else KerNormNoRelation(npb,NormDir,posdp1,posxy,posz,code);
 
-			mirrorPos[idp1].x=posdp1.x+0.5*Dp*NormDir.x;
-			if(!simulate2d) mirrorPos[idp1].y=posdp1.y+0.5*Dp*NormDir.y;
-			mirrorPos[idp1].z=posdp1.z+0.5*Dp*NormDir.z;
+			mirrorPos[p1].x=posdp1.x+0.5*Dp*NormDir.x;
+			if(!simulate2d) mirrorPos[p1].y=posdp1.y+0.5*Dp*NormDir.y;
+			mirrorPos[p1].z=posdp1.z+0.5*Dp*NormDir.z;
 			Physrelation[p1]=p1;
 		}
 	}
 }
-
-/*template<TpKernel tker> __device__ void KerSumNormImproved(const bool simulate2d,const unsigned p1,const unsigned npb,const double3 posdp1,const double2 *posxy,const double *posz,const unsigned *Physrelation,const word *code,double3 &bxp1,double3 &byp1,double3 &bzp1,double3 &conc)
-{
-	for(int p2=0;p2<int(npb);p2++){
-		float drx,dry,drz;
-    KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
-    float rr2=drx*drx+dry*dry+drz*drz;
-    if(rr2<=CTE.fourh2 && rr2>=ALMOSTZERO){
-      //-Wendland kernel.
-      float frx,fry,frz;
-      if(tker==KERNEL_Quintic) KerGetKernelQuintic(rr2,drx,dry,drz,frx,fry,frz);
-			else if(tker==KERNEL_Wendland) KerGetKernelWendland(rr2,drx,dry,drz,frx,fry,frz);
-
-      //-Shifting correction
-			bxp1.x+=drx*frx; bxp1.y+=drx*fry;	bxp1.z+=drx*frz;
-			byp1.x+=dry*frx; byp1.y+=dry*fry; byp1.z+=dry*frz;
-			bzp1.x+=drz*frx; bzp1.y+=drz*fry; bzp1.z+=drz*frz;
-			conc.x+=frx; conc.y+=fry; conc.z+=frz;
-		}
-	}
-}
-
-template<TpKernel tker> __global__ void KerFindMirrorPointsImproved
-  (const bool simulate2d,unsigned npb,const double2 *posxy,const double *posz,const word *code,const unsigned *idp,double3 *mirrorPos,unsigned *Physrelation,const bool wavegen,
-	float3 *boundarynormal)
-{
-  unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
-  if(p1<npb){
-		const float Dp=CTE.dp;
-		if(CODE_GetTypeValue(code[p1])==0&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC&&!(wavegen&&CODE_GetType(code[p1])==CODE_TYPE_MOVING)){
-			const unsigned idp1=idp[p1];
-			const double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
-			double3 bxp1=make_double3(0,0,0);
-			double3 byp1=make_double3(0,0,0);
-			double3 bzp1=make_double3(0,0,0);
-			double3 Norm=make_double3(0,0,0);
-			KerSumNormImproved<tker>(simulate2d,p1,npb,posdp1,posxy,posz,Physrelation,code,bxp1,byp1,bzp1,Norm);
-
-			double3 Bx; Bx.x=bxp1.x; Bx.y=bxp1.y; Bx.z=bxp1.z;
-			double3 By; By.x=byp1.x; By.y=byp1.y; By.z=byp1.z;
-			double3 Bz; Bz.x=bzp1.x; Bz.y=bzp1.y; Bz.z=bzp1.z;
-		
-			double det=(Bx.x*By.y*Bz.z+Bx.y*By.z*Bz.x+By.x*Bz.y*Bx.z)-(Bz.x*By.y*Bx.z+By.x*Bx.y*Bz.z+By.z*Bz.y*Bx.x);
-
-			det=1.0/(det+CTE.eta2);
-			bxp1.x=float((By.y*Bz.z-By.z*Bz.y)*det);
-			bxp1.y=-float((Bx.y*Bz.z-Bx.z*Bz.y)*det);
-			bxp1.z=float((Bx.y*By.z-Bx.z*By.y)*det);
-			byp1.x=-float((By.x*Bz.z-By.z*Bz.x)*det);
-			byp1.y=float((Bx.x*Bz.z-Bx.z*Bz.x)*det);
-			byp1.z=-float((Bx.x*By.z-Bx.z*By.x)*det);
-			bzp1.x=float((By.x*Bz.y-By.y*Bz.x)*det);
-			bzp1.y=-float((Bx.x*Bz.y-Bx.y*Bz.x)*det);
-			bzp1.z=float((Bx.x*By.y-Bx.y*By.x)*det);
-			
-			double3 BC=make_double3(0,0,0);
-			BC.x=bxp1.x*Norm.x+bxp1.y*Norm.y+bxp1.z*Norm.z;
-			BC.y=byp1.x*Norm.x+byp1.y*Norm.y+byp1.z*Norm.z;
- 			BC.z=bzp1.x*Norm.x+bzp1.y*Norm.y+bzp1.z*Norm.z;
- 			const double absB=sqrt(BC.x*BC.x+BC.y*BC.y+BC.z*BC.z+CTE.eta2);
- 			Norm.x=float(-BC.x/absB);
-			Norm.y=float(-BC.y/absB);
- 			Norm.z=float(-BC.z/absB);
-			
-			//Scale Norm to dp in each direction.
-			double largestDir=abs(Norm.x);
-			if(abs(Norm.y)>largestDir)largestDir=abs(Norm.y);
-			if(abs(Norm.z)>largestDir)largestDir=abs(Norm.z);
-
-			Norm.x=-Norm.x/largestDir;
-			Norm.y=-Norm.y/largestDir;
-			Norm.z=-Norm.z/largestDir;
-
-			mirrorPos[idp1].x=posdp1.x+0.5*Dp*Norm.x;
-			if(!simulate2d) mirrorPos[idp1].y=posdp1.y+0.5*Dp*Norm.y;
-			mirrorPos[idp1].z=posdp1.z+0.5*Dp*Norm.z;
-			Physrelation[p1]=p1;
-		}
-	}
-}*/
-
 
 __device__ void KerMirrorTwoPoints(const unsigned p1,unsigned &Physparticle,const unsigned secondIrelation,const double3 posp1,const double2 *posxy,const double *posz,const unsigned npb)
 {
@@ -3464,9 +3383,9 @@ __global__ void KerCylinder
 			mirrorPoint.y=CylinderCentre.y+CylinderRadius*radialVector.y;
 			mirrorPoint.z=(posdp1.z>CylinderLength.x?posdp1.z:CylinderLength.x);
 
-			mirrorPos[idp1].x=2.0*mirrorPoint.x-posdp1.x;
-			mirrorPos[idp1].y=2.0*mirrorPoint.y-posdp1.y;
-			mirrorPos[idp1].z=2.0*mirrorPoint.z-posdp1.z;
+			mirrorPos[p1].x=2.0*mirrorPoint.x-posdp1.x;
+			mirrorPos[p1].y=2.0*mirrorPoint.y-posdp1.y;
+			mirrorPos[p1].z=2.0*mirrorPoint.z-posdp1.z;
 
 			double3 normal=make_double3(mirrorPoint.x-posdp1.x,mirrorPoint.y-posdp1.y,mirrorPoint.z-posdp1.z);
 			if(posdp1.z<CylinderLength.x){
@@ -3490,8 +3409,6 @@ void MirrorBoundary(TpKernel tkernel,const bool simulate2d,const unsigned bsboun
     dim3 sgridb=GetGridSize(npb,bsbound);
 		KerConnectBoundary<<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,Physrelation,wavegen);
 		KerFindMirrorPoints<<<sgridb,bsbound>>> (simulate2d,npb,posxy,posz,code,idp,mirrorPos,Physrelation,wavegen,boundarynormal);
-		/*if(tkernel==KERNEL_Wendland){ KerFindMirrorPointsImproved<KERNEL_Wendland> <<<sgridb,bsbound>>> (simulate2d,npb,posxy,posz,code,idp,mirrorPos,Physrelation,wavegen,boundarynormal);}
-		else if(tkernel==KERNEL_Quintic){ KerFindMirrorPointsImproved<KERNEL_Quintic> <<<sgridb,bsbound>>> (simulate2d,npb,posxy,posz,code,idp,mirrorPos,Physrelation,wavegen,boundarynormal);}*/
 		if(cylinderaxis) KerCylinder<<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,boundarynormal,CylinderRadius,CylinderCentre,CylinderLength,cylinderaxis);
 		KerCreateMirrorsCodeNonZero <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,Physrelation,wavegen,boundarynormal);
 		KerCreateMirrorsCodeZero <<<sgridb,bsbound>>> (npb,posxy,posz,code,idp,mirrorPos,Physrelation,wavegen);
@@ -3609,9 +3526,9 @@ template<TpKernel tker,bool schwaiger> __device__ void KerMatrixAFluid
 
 			//=====dp/dn=====
 			if(!fluid){
-				double distz=posz[p2]-mirrorPos[idp[p2]].z;
+				double distz=posz[p2]-mirrorPos[p2].z;
 				double distx=0;
-				if(wavegen&&posxy[p2].x<PistonPos.x/*&&divr[p2]>=freesurface*/) distx=posxy[p2].x-mirrorPos[idp[p2]].x;
+				if(wavegen&&posxy[p2].x<PistonPos.x/*&&divr[p2]>=freesurface*/) distx=posxy[p2].x-mirrorPos[p2].x;
 			  double temp2=temp*RhopZero*(gravity.z*distz-paddleAccel*distx);
 			  Neumann+=temp2; 
 			}
@@ -3722,12 +3639,12 @@ template<TpKernel tker> __global__ void KerPopulateMatrixABound
       if(row[oi+1]-row[oi]>1){
         //-Obtiene datos basicos de particula p1.
   	    //-Obtains basic data of particle p1.
-        double3 posdp1=make_double3(mirrorPos[idpg1].x,mirrorPos[idpg1].y,mirrorPos[idpg1].z);
+        double3 posdp1=make_double3(mirrorPos[p1].x,mirrorPos[p1].y,mirrorPos[p1].z);
     
         //-Obtiene limites de interaccion
 	      //-Obtains interaction limits
         int cxini,cxfin,yini,yfin,zini,zfin;
-        KerGetInteractionCells(mirrorCell[idpg1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+        KerGetInteractionCells(mirrorCell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
         
 				for(int z=zini;z<zfin;z++){
 					int zmod=(nc.w)*z+cellfluid; //-Le suma donde empiezan las celdas de fluido. //-The sum showing where fluid cells start
@@ -3927,9 +3844,9 @@ __global__ void KerPressureAssignBound
   if(p<npbok){
     unsigned p1=p;      //-Nº de particula. //-NI of particle
 		if(divr[p1]>=boundaryfs){
-			double distz=posz[p1]-mirrorPos[idp[p1]].z;
+			double distz=posz[p1]-mirrorPos[p1].z;
 			double distx=0;
-			if(wavegen&&posxy[p1].x<PistonPos.x/*&&divr[p1]>=freesurface*/) distx=posxy[p1].x-mirrorPos[idp[p1]].x;
+			if(wavegen&&posxy[p1].x<PistonPos.x/*&&divr[p1]>=freesurface*/) distx=posxy[p1].x-mirrorPos[p1].x;
 			double Neumann=double(CTE.rhopzero)*(gravity.z*distz-paddleAccel*distx);
 			velrhop[p1].w=float(press[p1]+Neumann);
 		}
@@ -4409,13 +4326,13 @@ template<TpKernel tker,const bool simulate2d> __global__ void KerBoundaryNormal
 		//-Carga datos de particula p1.
 		//-Loads particle p1 data.
     double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
-    unsigned idpg1=idp[p1];
+    //unsigned idpg1=idp[p1];
 		float3 Sum=make_float3(0,0,0);
 		const float4 mlsp1=mls[p1];
-		const double3 posmp1=make_double3(mirrorPos[idpg1].x,mirrorPos[idpg1].y,mirrorPos[idpg1].z);
+		const double3 posmp1=make_double3(mirrorPos[p1].x,mirrorPos[p1].y,mirrorPos[p1].z);
 		const float volume=CTE.massf/CTE.rhopzero;
 		int cxini,cxfin,yini,yfin,zini,zfin;
-		KerGetInteractionCells(mirrorCell[idpg1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+		KerGetInteractionCells(mirrorCell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
 				
 		for(int z=zini;z<zfin;z++){
 			int zmod=(nc.w)*z+nc.w*nc.z+1;//-Le suma Nct+1 que es la primera celda de fluido. //-Adds Nct + 1 which is the first cell fluid.	
@@ -4507,10 +4424,10 @@ template<TpKernel tker> __global__ void KerInteractionForcesBoundDivr
     unsigned idpg1=idp[p1];
 		float divrp1=0;
 		const float volume=CTE.massf/CTE.rhopzero;
-		const double3 posmp1=make_double3(mirrorPos[idpg1].x,mirrorPos[idpg1].y,mirrorPos[idpg1].z);
+		const double3 posmp1=make_double3(mirrorPos[p1].x,mirrorPos[p1].y,mirrorPos[p1].z);
 			
 		int cxini,cxfin,yini,yfin,zini,zfin;
-		KerGetInteractionCells(mirrorCell[idpg1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
+		KerGetInteractionCells(mirrorCell[p1],hdiv,nc,cellzero,cxini,cxfin,yini,yfin,zini,zfin);
 				
 		for(int z=zini;z<zfin;z++){
 			int zmod=(nc.w)*z+(nc.w*nc.z+1);//-Le suma Nct+1 que es la primera celda de fluido. //-Adds Nct + 1 which is the first cell fluid.	
@@ -4871,7 +4788,7 @@ __global__ void KerBoundaryNormals
   if(p<npb){
 		const unsigned idp1=id[p];
 		const double3 posp1=make_double3(posxy[p].x,posxy[p].y,posz[p]);
-		const double3 mposp1=mirrorPos[idp1];
+		const double3 mposp1=mirrorPos[p1];
 		normal[p].x=mposp1.x-posp1.x;
 		normal[p].y=mposp1.y-posp1.y;
 		normal[p].z=mposp1.z-posp1.z;

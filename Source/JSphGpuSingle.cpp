@@ -372,15 +372,18 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
     double2*  posxyg=ArraysGpu->ReserveDouble2();
     double*   poszg=ArraysGpu->ReserveDouble();
     float4*   velrhopg=ArraysGpu->ReserveFloat4();
-    CellDivSingle->SortBasicArrays(Idpg,Codeg,Dcellg,Posxyg,Poszg,Velrhopg,idpg,codeg,dcellg,posxyg,poszg,velrhopg);
-    swap(Idpg,idpg);           ArraysGpu->Free(idpg);
-    swap(Codeg,codeg);         ArraysGpu->Free(codeg);
-    swap(Dcellg,dcellg);       ArraysGpu->Free(dcellg);
-    swap(Posxyg,posxyg);       ArraysGpu->Free(posxyg);
-    swap(Poszg,poszg);         ArraysGpu->Free(poszg);
-    swap(Velrhopg,velrhopg);   ArraysGpu->Free(velrhopg);
+    CellDivSingle->SortBasicArrays(Npb,Idpg,Codeg,Dcellg,Posxyg,Poszg,Velrhopg,MirrorPosg,MirrorCellg,idpg,codeg,dcellg,posxyg,poszg,velrhopg,mirrorposgswap,mirrorcellgswap);
+    swap(Idpg,idpg);									ArraysGpu->Free(idpg);
+    swap(Codeg,codeg);								ArraysGpu->Free(codeg);
+    swap(Dcellg,dcellg);							ArraysGpu->Free(dcellg);
+    swap(Posxyg,posxyg);							ArraysGpu->Free(posxyg);
+    swap(Poszg,poszg);								ArraysGpu->Free(poszg);
+    swap(Velrhopg,velrhopg);					ArraysGpu->Free(velrhopg);
+		swap(MirrorPosg,mirrorposgswap);	
+		swap(MirrorCellg,mirrorcellgswap);	
   }
-  if(TStep==STEP_Symplectic && (PosxyPreg || PoszPreg || VelrhopPreg)){//En realidad solo es necesario en el divide del corrector, no en el predictor??? //In reality, only necessary in the corrector not the predictor step?
+  
+	if(PosxyPreg || PoszPreg || VelrhopPreg){//En realidad solo es necesario en el divide del corrector, no en el predictor??? //In reality, only necessary in the corrector not the predictor step?
     if(!PosxyPreg || !PoszPreg || !VelrhopPreg)RunException(met,"Symplectic data is invalid.") ;
     double2* posxyg=ArraysGpu->ReserveDouble2();
     double* poszg=ArraysGpu->ReserveDouble();
@@ -389,7 +392,7 @@ void JSphGpuSingle::RunCellDivide(bool updateperiodic){
     swap(PosxyPreg,posxyg);      ArraysGpu->Free(posxyg);
     swap(PoszPreg,poszg);        ArraysGpu->Free(poszg);
     swap(VelrhopPreg,velrhopg);  ArraysGpu->Free(velrhopg);
-  }
+	}
 
   //-Recupera datos del divide.
   //-Retrieves division data.
@@ -994,7 +997,6 @@ void JSphGpuSingle::RunShifting(double dt){
   cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
 
   RunCellDivide(true);
-
   TmgStart(Timers,TMG_SuShifting);
   tuint3 ncells=CellDivSingle->GetNcells();
   const int2 *begincell=CellDivSingle->GetBeginCell();
