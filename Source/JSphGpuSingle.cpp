@@ -429,8 +429,8 @@ void JSphGpuSingle::Stage1Interaction_ForcesPre(double dt){
   const unsigned bsfluid=BlockSizes.forcesfluid;
   const unsigned bsbound=BlockSizes.forcesbound;
 	CheckCudaError(met,"Failed checkin.");
-  //-Interaccion Fluid-Fluid/Bound & Bound-Fluid.
-  cusph::Stage1Interaction_ForcesPre(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,Idpg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,BoundaryFS,FreeSurface,PistonPos,TankDim,Taog,NULL,NULL);	
+  //-Interaccion Fluid-Fluid/Bound & Bound-Fluid.																																																																																															
+  cusph::Stage1Interaction_ForcesPre(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Velrhopg,Codeg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,BoundaryFS,FreeSurface,PistonPos,TankDim,Taog,NULL,NULL);	
   //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
   //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
   //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,FtRidpg,DemDatag,float(DemDtForce),Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,ViscDtg,Aceg);
@@ -835,7 +835,7 @@ void JSphGpuSingle::MirrorBoundary(){
 	const char met[]="MirrorBoundary";
   const unsigned bsbound=BlockSizes.forcesbound;
 	const bool wavegen=(WaveGen? true:false);
-  cusph::MirrorBoundary(TKernel,Simulate2D,bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,MirrorPosg,MirrorCellg,wavegen,PistonPos,TankDim,CylinderRadius,CylinderCentre,CylinderLength,TCylinderAxis); 
+  cusph::MirrorBoundary(TKernel,Simulate2D,bsbound,Npb,Posxyg,Poszg,Codeg,MirrorPosg,MirrorCellg,wavegen,PistonPos,TankDim,CylinderRadius,CylinderCentre,CylinderLength,TCylinderAxis); 
   CheckCudaError(met,"findIrelation");
 }
 
@@ -905,7 +905,7 @@ void JSphGpuSingle::SolvePPE(double dt){
   cudaMemset(colIndg,0,sizeof(int)*Nnz);
 	cudaMemset(ag,0,sizeof(double)*Nnz);
 	const bool wavegen=(WaveGen?true:false);
-  cusph::PopulateMatrix(TKernel,Schwaiger,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,ag,bg,rowIndg,colIndg,Idpg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLSg,dt,sumFrg,BoundaryFS,Taog,PaddleAccel,wavegen,PistonPos);
+  cusph::PopulateMatrix(TKernel,Schwaiger,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,ag,bg,rowIndg,colIndg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLSg,dt,sumFrg,BoundaryFS,Taog,PaddleAccel,wavegen,PistonPos);
 	
 	/*unsigned *rowInd=new unsigned[PPEDim]; cudaMemcpy(rowInd,rowIndg,sizeof(unsigned)*PPEDim,cudaMemcpyDeviceToHost);
 	unsigned *colInd=new unsigned[Nnz]; cudaMemcpy(colInd,colIndg,sizeof(unsigned)*Nnz,cudaMemcpyDeviceToHost);
@@ -954,7 +954,7 @@ void JSphGpuSingle::SolvePPE(double dt){
 	cusph::SolverResultArrange(bsbound,bsfluid,npb,npbok,npf,Velrhopg,Xg);
   cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,Restart,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Xg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
   CheckCudaError(met,"Matrix Solve");
-  cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Posxyg,Poszg,Velrhopg,Xg,Idpg,Codeg,MirrorPosg,PaddleAccel,wavegen,PistonPos,Divrg,BoundaryFS,FreeSurface);
+  cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Posxyg,Poszg,Velrhopg,Xg,Codeg,MirrorPosg,PaddleAccel,wavegen,PistonPos,Divrg,BoundaryFS,FreeSurface);
 
   CheckCudaError(met,"Pressure assign");
   
@@ -995,29 +995,8 @@ void JSphGpuSingle::RunShifting(double dt){
   cudaMemcpy(PoszPreg,Poszg,sizeof(double)*np,cudaMemcpyDeviceToDevice);        //Es decir... PoszPre[] <= Posz[] //i.e. PoszPre[] <= Posz[]
   cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
 	
-/*	double3 *mirrorpos=new double3[Npb]; cudaMemcpy(mirrorpos,MirrorPosg,sizeof(double3)*Npb,cudaMemcpyDeviceToHost);
-	double2 *posxy=new double2[Np]; cudaMemcpy(posxy,Posxyg,sizeof(double2)*Np,cudaMemcpyDeviceToHost);
-	double *posz=new double[Np]; cudaMemcpy(posz,Poszg,sizeof(double)*Np,cudaMemcpyDeviceToHost);
-	unsigned *id=new unsigned[Np]; cudaMemcpy(id,Idpg,sizeof(unsigned)*Np,cudaMemcpyDeviceToHost);
-
-	for(int i=0;i<int(Npb);i++){
-		if(id[i]==3||id[i]==4||id[i]==5||id[i]==6){
-			std::cout<<id[i]<<"\t"<<i<<"\t"<<posxy[i].x<<"\t"<<posz[i]<<"\t"<<mirrorpos[i].x<<"\t"<<mirrorpos[i].z<<"\n";
-		}
-	}	*/
 	RunCellDivide(true);
-	/*cudaMemcpy(mirrorpos,MirrorPosg,sizeof(double3)*Npb,cudaMemcpyDeviceToHost);
-	cudaMemcpy(posxy,Posxyg,sizeof(double2)*Np,cudaMemcpyDeviceToHost);
-	cudaMemcpy(posz,Poszg,sizeof(double)*Np,cudaMemcpyDeviceToHost);
-	cudaMemcpy(id,Idpg,sizeof(unsigned)*Np,cudaMemcpyDeviceToHost);
 
-	for(int i=0;i<int(Npb);i++){
-		if(id[i]==3||id[i]==4||id[i]==5||id[i]==6){
-			std::cout<<id[i]<<"\t"<<i<<"\t"<<posxy[i].x<<"\t"<<posz[i]<<"\t"<<mirrorpos[i].x<<"\t"<<mirrorpos[i].z<<" after\n";
-		}
-	}
-	system("PAUSE");
-		delete[] mirrorpos; mirrorpos=NULL; delete[] posxy; posxy=NULL; delete[] posz; posz=NULL; delete[] id; id=NULL;*/
   TmgStart(Timers,TMG_SuShifting);
   tuint3 ncells=CellDivSingle->GetNcells();
   const int2 *begincell=CellDivSingle->GetBeginCell();
@@ -1028,14 +1007,14 @@ void JSphGpuSingle::RunShifting(double dt){
   const unsigned bsfluid=BlockSizes.forcesfluid;
 
   cusph::Interaction_Shifting(TKernel,HydrodynamicCorrection,Simulate2D,WithFloating,UseDEM,CellMode,bsfluid,bsbound,Np,Npb,NpbOk,CellDivSingle->GetNcells()
-		,CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Codeg,FtoMasspg,ShiftPosg,Divrg,TensileN,TensileR,BoundaryFS,Idpg,MirrorPosg,MirrorCellg,dWxCorrg,dWyCorrg,dWzCorrg,MLSg,rowIndg,PistonPos,TankDim,Normal,smoothNormal);
+		,CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,Codeg,FtoMasspg,ShiftPosg,Divrg,TensileN,TensileR,BoundaryFS,MirrorPosg,MirrorCellg,dWxCorrg,dWyCorrg,dWzCorrg,MLSg,rowIndg,PistonPos,TankDim,Normal,smoothNormal);
 
   CheckCudaError(met,"Failed in calculating concentration");
 	
   JSphGpu::RunShifting(dt);
   TmgStop(Timers,TMG_SuShifting);
   CheckCudaError(met,"Failed in calculating shifting distance");
-	if(HydrodynamicCorrection) cusph::CorrectShiftVelocity(TKernel,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,Idpg,Divrg,Codeg,BoundaryFS,ShiftPosg,Aceg);
+	if(HydrodynamicCorrection) cusph::CorrectShiftVelocity(TKernel,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,Velrhopg,dWxCorrg,dWyCorrg,dWzCorrg,Divrg,BoundaryFS,ShiftPosg,Aceg);
 	Shift(dt,bsfluid);
 	
   ArraysGpu->Free(PosxyPreg);     PosxyPreg=NULL;
