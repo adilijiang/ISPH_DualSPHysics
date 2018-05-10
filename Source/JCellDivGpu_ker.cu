@@ -599,10 +599,7 @@ void SortDataParticles(unsigned np,unsigned npb,unsigned pini,const unsigned *so
   if(np){
     dim3 sgrid=GetGridSize(np,DIVBSIZE);
     KerSortDataParticles <<<sgrid,DIVBSIZE>>>(np,pini,sortpart,idp,code,dcell,posxy,posz,velrhop,idp2,code2,dcell2,posxy2,posz2,velrhop2);
-  }
-
-	if(!pini&&npb){
-		dim3 sgrid=GetGridSize(npb,DIVBSIZE);
+		sgrid=GetGridSize(npb,DIVBSIZE);
     KerSortDataMirrorPoints <<<sgrid,DIVBSIZE>>>(npb,pini,sortpart,mirrorpos,mirrorcell,mirrorpos2,mirrorcell2);
 	}
 }

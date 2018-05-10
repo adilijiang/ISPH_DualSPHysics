@@ -593,9 +593,8 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 		MirrorBoundary();
 	}
 
-	Normal=ArraysGpu->ReserveFloat3(); cudaMemset(Normal,0,sizeof(float3)*Np); 
 	while(TimeStep<TimeMax){
-		if(CaseNmoving)RunMotion(stepdt);
+		if(CaseNmoving)RunMotion(stepdt); 
     stepdt=ComputeStep_Sym(stepdt);
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
     TimeStep+=stepdt;
@@ -836,19 +835,7 @@ void JSphGpuSingle::MirrorBoundary(){
 	const char met[]="MirrorBoundary";
   const unsigned bsbound=BlockSizes.forcesbound;
 	const bool wavegen=(WaveGen? true:false);
-  cusph::MirrorBoundary(TKernel,Simulate2D,bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,MirrorPosg,MirrorCellg,wavegen,PistonPos,TankDim,CylinderRadius,CylinderCentre,CylinderLength,TCylinderAxis);
-	double3 *mirrorpos=new double3[Npb]; cudaMemcpy(mirrorpos,MirrorPosg,sizeof(double3)*Npb,cudaMemcpyDeviceToHost);
-	unsigned *mirrorcell=new unsigned[Npb]; cudaMemcpy(mirrorcell,MirrorCellg,sizeof(unsigned)*Npb,cudaMemcpyDeviceToHost);
-	double2 *posxy=new double2[Np]; cudaMemcpy(posxy,Posxyg,sizeof(double2)*Np,cudaMemcpyDeviceToHost);
-	double *posz=new double[Np]; cudaMemcpy(posz,Poszg,sizeof(double)*Np,cudaMemcpyDeviceToHost);
-	unsigned *id=new unsigned[Np]; cudaMemcpy(id,Idpg,sizeof(unsigned)*Np,cudaMemcpyDeviceToHost);
-
-	for(int i=0;i<Npb;i++){
-		if(id[i]==0||id[i]==5628||id[i]==15912){
-			std::cout<<id[i]<<"\t"<<i<<"\t"<<posxy[i].x<<"\t"<<posz[i]<<"\t"<<mirrorpos[i].x<<"\t"<<mirrorpos[i].z<<"\n";
-		}
-	}
-	system("PAUSE");
+  cusph::MirrorBoundary(TKernel,Simulate2D,bsbound,Npb,Posxyg,Poszg,Codeg,Idpg,MirrorPosg,MirrorCellg,wavegen,PistonPos,TankDim,CylinderRadius,CylinderCentre,CylinderLength,TCylinderAxis); 
   CheckCudaError(met,"findIrelation");
 }
 
@@ -997,7 +984,7 @@ void JSphGpuSingle::RunShifting(double dt){
 	cudaMemset(dWzCorrg,0,sizeof(float3)*npf);
 	cudaMemset(MLSg,0,sizeof(float4)*npb);
   cudaMemset(Aceg,0,sizeof(float3)*npf);
-	cudaMemset(Normal,0,sizeof(float3)*np);
+	Normal=ArraysGpu->ReserveFloat3(); cudaMemset(Normal,0,sizeof(float3)*np);
 	cudaMemset(smoothNormal,0,sizeof(float3)*npf);
 	cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
 	cusph::ResetrowIndg(np+1,rowIndg,Npb);
@@ -1007,8 +994,30 @@ void JSphGpuSingle::RunShifting(double dt){
   cudaMemcpy(PosxyPreg,Posxyg,sizeof(double2)*np,cudaMemcpyDeviceToDevice);     //Es decir... PosxyPre[] <= Posxy[] //i.e. PosxyPre[] <= Posxy[]
   cudaMemcpy(PoszPreg,Poszg,sizeof(double)*np,cudaMemcpyDeviceToDevice);        //Es decir... PoszPre[] <= Posz[] //i.e. PoszPre[] <= Posz[]
   cudaMemcpy(VelrhopPreg,Velrhopg,sizeof(float4)*np,cudaMemcpyDeviceToDevice); //Es decir... VelrhopPre[] <= Velrhop[] //i.e. VelrhopPre[] <= Velrhop[]
+	
+/*	double3 *mirrorpos=new double3[Npb]; cudaMemcpy(mirrorpos,MirrorPosg,sizeof(double3)*Npb,cudaMemcpyDeviceToHost);
+	double2 *posxy=new double2[Np]; cudaMemcpy(posxy,Posxyg,sizeof(double2)*Np,cudaMemcpyDeviceToHost);
+	double *posz=new double[Np]; cudaMemcpy(posz,Poszg,sizeof(double)*Np,cudaMemcpyDeviceToHost);
+	unsigned *id=new unsigned[Np]; cudaMemcpy(id,Idpg,sizeof(unsigned)*Np,cudaMemcpyDeviceToHost);
 
-  RunCellDivide(true);
+	for(int i=0;i<int(Npb);i++){
+		if(id[i]==3||id[i]==4||id[i]==5||id[i]==6){
+			std::cout<<id[i]<<"\t"<<i<<"\t"<<posxy[i].x<<"\t"<<posz[i]<<"\t"<<mirrorpos[i].x<<"\t"<<mirrorpos[i].z<<"\n";
+		}
+	}	*/
+	RunCellDivide(true);
+	/*cudaMemcpy(mirrorpos,MirrorPosg,sizeof(double3)*Npb,cudaMemcpyDeviceToHost);
+	cudaMemcpy(posxy,Posxyg,sizeof(double2)*Np,cudaMemcpyDeviceToHost);
+	cudaMemcpy(posz,Poszg,sizeof(double)*Np,cudaMemcpyDeviceToHost);
+	cudaMemcpy(id,Idpg,sizeof(unsigned)*Np,cudaMemcpyDeviceToHost);
+
+	for(int i=0;i<int(Npb);i++){
+		if(id[i]==3||id[i]==4||id[i]==5||id[i]==6){
+			std::cout<<id[i]<<"\t"<<i<<"\t"<<posxy[i].x<<"\t"<<posz[i]<<"\t"<<mirrorpos[i].x<<"\t"<<mirrorpos[i].z<<" after\n";
+		}
+	}
+	system("PAUSE");
+		delete[] mirrorpos; mirrorpos=NULL; delete[] posxy; posxy=NULL; delete[] posz; posz=NULL; delete[] id; id=NULL;*/
   TmgStart(Timers,TMG_SuShifting);
   tuint3 ncells=CellDivSingle->GetNcells();
   const int2 *begincell=CellDivSingle->GetBeginCell();
@@ -1033,6 +1042,7 @@ void JSphGpuSingle::RunShifting(double dt){
   ArraysGpu->Free(PoszPreg);      PoszPreg=NULL;
   ArraysGpu->Free(VelrhopPreg);   VelrhopPreg=NULL;
   ArraysGpu->Free(Divrg);         Divrg=NULL;
+	ArraysGpu->Free(Normal);				Normal=NULL;
 	ArraysGpu->Free(dWyCorrg);	    dWyCorrg=NULL;
 }
 

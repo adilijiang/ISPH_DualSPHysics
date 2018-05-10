@@ -1813,10 +1813,9 @@ __device__ void KerDampingZone(const double xp1,float3 &shift,const double dampi
 __device__ void KerCorrectShiftBound(const unsigned nearestBound,const double2 *posxy,const double *posz,float3 &shift,const unsigned *idpg,const double3 *mirrorPos)
 {
 	float3 NormDir=make_float3(0,0,0);
-	const unsigned nearestID=idpg[nearestBound];
-	NormDir.x=float(mirrorPos[nearestID].x-posxy[nearestBound].x);
-	NormDir.y=float(mirrorPos[nearestID].y-posxy[nearestBound].y);
-	NormDir.z=float(mirrorPos[nearestID].z-posz[nearestBound]);
+	NormDir.x=float(mirrorPos[nearestBound].x-posxy[nearestBound].x);
+	NormDir.y=float(mirrorPos[nearestBound].y-posxy[nearestBound].y);
+	NormDir.z=float(mirrorPos[nearestBound].z-posz[nearestBound]);
 
 	if(NormDir.x){
 		NormDir.x=NormDir.x/abs(NormDir.x);
@@ -1895,7 +1894,7 @@ __global__ void KerRunShifting(const bool wavegen,const bool simulate2d,unsigned
 			if(posxy[p1].x+rshiftpos.x<PistonPos.x) rshiftpos.x=0;
 		}
 		
-		//if(row[p1]!=pini) KerCorrectShiftBound(row[p1],posxy,posz,rshiftpos,idpg,mirrorPos);
+		if(row[p1]!=pini) KerCorrectShiftBound(row[p1],posxy,posz,rshiftpos,idpg,mirrorPos);
 
     shiftpos[Correctp1]=rshiftpos;
   }
@@ -1986,12 +1985,11 @@ __device__ void KerDampingZone(const double xp1,float4 &rvelrhop,const double da
 __device__ void KerCorrectVelocity(const unsigned p1,const unsigned nearestBound,const double2 *posxy,const double *posz,float4 &rvelrhop,float4 *velrhop,const unsigned *idpg,const double3 *mirrorPos)
 {
 	float3 NormDir=make_float3(0,0,0), NormVelWall=make_float3(0,0,0), NormVelp1=make_float3(0,0,0);
-	const unsigned nearestID=idpg[nearestBound];
 	const float3 velwall=make_float3(velrhop[nearestBound].x,velrhop[nearestBound].y,velrhop[nearestBound].z);
 	const float3 velp1=make_float3(rvelrhop.x,rvelrhop.y,rvelrhop.z);
-	NormDir.x=float(mirrorPos[nearestID].x-posxy[nearestBound].x);
-	NormDir.y=float(mirrorPos[nearestID].y-posxy[nearestBound].y);
-	NormDir.z=float(mirrorPos[nearestID].z-posz[nearestBound]);
+	NormDir.x=float(mirrorPos[nearestBound].x-posxy[nearestBound].x);
+	NormDir.y=float(mirrorPos[nearestBound].y-posxy[nearestBound].y);
+	NormDir.z=float(mirrorPos[nearestBound].z-posz[nearestBound]);
 	float MagNorm=NormDir.x*NormDir.x+NormDir.y*NormDir.y+NormDir.z*NormDir.z;
 	if(MagNorm){MagNorm=sqrtf(MagNorm); NormDir.x=NormDir.x/MagNorm; NormDir.y=NormDir.y/MagNorm; NormDir.z=NormDir.z/MagNorm;}
 	float NormProdVelWall=velwall.x*NormDir.x+velwall.y*NormDir.y+velwall.z*NormDir.z;
@@ -2338,14 +2336,14 @@ template<bool periactive> __global__ void KerMoveLinBound(unsigned n,unsigned in
 	  //-Computes velocity.
       velrhop[pid]=make_float4(mvvel.x,mvvel.y,mvvel.z,velrhop[pid].w);
 
-			mirrorPos[p].x+=mvpos.x;
-			mirrorPos[p].y+=mvpos.y;
-			mirrorPos[p].z+=mvpos.z;
-			double dx=mirrorPos[p].x-CTE.maprealposminx;
-			double dy=mirrorPos[p].y-CTE.maprealposminy;
-			double dz=mirrorPos[p].z-CTE.maprealposminz;
+			mirrorPos[pid].x+=mvpos.x;
+			mirrorPos[pid].y+=mvpos.y;
+			mirrorPos[pid].z+=mvpos.z;
+			double dx=mirrorPos[pid].x-CTE.maprealposminx;
+			double dy=mirrorPos[pid].y-CTE.maprealposminy;
+			double dz=mirrorPos[pid].z-CTE.maprealposminz;
 			unsigned cx=unsigned(dx/CTE.scell),cy=unsigned(dy/CTE.scell),cz=unsigned(dz/CTE.scell);
-			mirrorCell[p]=PC__Cell(CTE.cellcode,cx,cy,cz);
+			mirrorCell[pid]=PC__Cell(CTE.cellcode,cx,cy,cz);
     }
   }
 }
