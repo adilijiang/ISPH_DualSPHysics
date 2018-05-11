@@ -100,6 +100,8 @@ protected:
   //-Lista de arrays en Gpu para particulas.
   //-List of arrays in the GPU gor the particles
   JArraysGpu* ArraysGpu;
+	JArraysGpu* ArraysGpuNpf;
+	JArraysGpu* ArraysGpuPPEMem;
   //-Variables con datos de las particulas para ejecucion (size=ParticlesSize).
   //-Variables holding particle data for the execution (size=ParticlesSize)
   unsigned *Idpg;   ///<ES: Identificador de particula. EN: Particle identifier
@@ -154,7 +156,7 @@ protected:
   void FreeCpuMemoryParticles();
   void AllocCpuMemoryParticles(unsigned np);
   void FreeGpuMemoryParticles();
-  void AllocGpuMemoryParticles(unsigned np,float over);
+  void AllocGpuMemoryParticles(unsigned np,unsigned npb,float over);
 
   void ResizeGpuMemoryParticles(unsigned np);
   void ReserveBasicArraysGpu();
@@ -228,11 +230,13 @@ protected:
   float3 *dWzCorrg; //Kernel correction in the z direction
   float4 *MLSg;
 	float3 *sumFrg;
-	float *Divrg; //Divergence of position
-	float3 *ShiftPosg;
 	float *Taog;
+	float *Divrg; //Divergence of position
+	float *VelMag; //Velocity magnitude for variable timestep
+	float3 *ShiftPosg;
 	float3 *Normal;
 	float3 *smoothNormal;
+	float3 *ShiftVelg;
   //matrix variables 
   double *bg;
   double *ag;
@@ -240,13 +244,12 @@ protected:
   unsigned *colIndg;
   unsigned *rowIndg;
   double *Xg;
-	float PaddleAccel;
+	unsigned *nearestBoundg;
   unsigned *counterNnzGPU;
   unsigned *counterNnzCPU;
 	unsigned *NumFreeSurfaceGPU;
 	unsigned *NumFreeSurfaceCPU;
 
-	float3 *BoundaryNormal;
 	double TFocus;
 	double *Focussed_f;
 	double *Focussed_Sp;

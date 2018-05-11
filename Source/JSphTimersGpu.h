@@ -60,9 +60,10 @@ typedef enum{
 	,TMG_Stage2b=19
 	,TMG_Stage3=20
 	,TMG_Stage4=21
+	,TMG_MatrixParallelScan=22
   ,
 }CsTypeTimerGPU;
-#define TMG_COUNT 22
+#define TMG_COUNT 23
 
 typedef StSphTimerGpu TimersGpu[TMG_COUNT];
 
@@ -93,6 +94,7 @@ inline const char* TmgGetName(CsTypeTimerGPU ct){
 		case TMG_Stage2b:						return("Stage2b");
 		case TMG_Stage3:						return("Stage3");
 		case TMG_Stage4:						return("Stage4");
+		case TMG_MatrixParallelScan:return("MatrixParallelScan");
 	}
   return("???");
 }
