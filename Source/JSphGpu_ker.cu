@@ -4004,7 +4004,7 @@ template<TpKernel tker,TpFtMode ftmode,const bool hydrocorr> __global__ void Ker
 		shiftpos[Correctp1]=shiftr;
 
 		float3 normalr;
-    normalr.x=float(-shiftposp1.x); normalr.y=float(-shiftposp1.y); normalr.z=float(-shiftposp1.z);
+    normalr.x=float(-normalp1.x); normalr.y=float(-normalp1.y); normalr.z=float(-normalp1.z);
 		normal[p1]=normalr;
 
     divr[p1]+=divrp1;
@@ -4455,7 +4455,7 @@ template<const bool wavegen,const bool simulate2d,const bool maxShift> __global_
     //Max Shifting
 		if(maxShift){
       float absShift=sqrtf(rshiftpos.x*rshiftpos.x+rshiftpos.y*rshiftpos.y+rshiftpos.z*rshiftpos.z);
-			const float maxDist=0.1*dp;
+			const float maxDist=0.2*dp;
       if(fabs(rshiftpos.x)>maxDist) rshiftpos.x=float(maxDist*rshiftpos.x/absShift);
       if(fabs(rshiftpos.y)>maxDist) rshiftpos.y=float(maxDist*rshiftpos.y/absShift);
       if(fabs(rshiftpos.z)>maxDist) rshiftpos.z=float(maxDist*rshiftpos.z/absShift);

@@ -906,121 +906,6 @@ void JSphGpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
 }
 
 //==============================================================================
-/// Prepara variables para interaccion "INTER_Forces" o "INTER_ForcesCorr".
-/// Prepares variables for interaction "INTER_Forces" or "INTER_ForcesCorr".
-//==============================================================================
-void JSphGpu::Stage1PreInteraction_ForcesPre(double dt){
-  TmgStart(Timers,TMG_CfPreForces);
-	const unsigned np=Np;
-	const unsigned npb=Npb;
-	const unsigned npf=np-npb;
-  //-Asigna memoria.ddd
-  //-Allocates memory.
-	Aceg=ArraysGpuNpf->ReserveFloat3();							cudaMemset(Aceg,0,sizeof(float3)*npf); 
-  dWxCorrg=ArraysGpuNpf->ReserveFloat3();					cudaMemset(dWxCorrg,0,sizeof(float3)*npf);
-	dWyCorrg=ArraysGpuNpf->ReserveFloat3();					cudaMemset(dWyCorrg,0,sizeof(float3)*npf); 
-	dWzCorrg=ArraysGpuNpf->ReserveFloat3();					cudaMemset(dWzCorrg,0,sizeof(float3)*npf);
-	Divrg=ArraysGpu->ReserveFloat();								cudaMemset(Divrg,0,sizeof(float)*np);
-	cudaMemset(MLSg,0,sizeof(float4)*npb);
-	cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
-	if(Schwaiger){
-		sumFrg=ArraysGpuNpf->ReserveFloat3();					cudaMemset(sumFrg,0,sizeof(float3)*npf);
-		Taog=ArraysGpuNpf->ReserveFloat();						cudaMemset(Taog,0,sizeof(float)*npf);
-	}
-
-  //-Inicializa arrays.
-  //-Initialises arrays.
-  //PreInteractionVars_Forces(tinter,Np,Npb);
-
-  //-Calcula VelMax: Se incluyen las particulas floatings y no afecta el uso de condiciones periodicas.
-  //-Computes VelMax: Includes the particles from floating bodies and does not affect the periodic conditions.
- /* if(tinter==1){
-    const unsigned pini=(DtAllParticles? 0: Npb);
-    cusph::ComputeVelMod(Np-pini,Velrhopg+pini,ViscDtg);
-    float velmax=cusph::ReduMaxFloat(Np-pini,0,ViscDtg,CellDiv->GetAuxMem(cusph::ReduMaxFloatSize(Np-pini)));
-    VelMax=sqrt(velmax);
-    cudaMemset(ViscDtg,0,sizeof(float)*Np);           //ViscDtg[]=0
-    ViscDtMax=0;
-    CheckCudaError("PreInteraction_Forces","Failed calculating VelMax.");
-  }*/
-
-  TmgStop(Timers,TMG_CfPreForces);
-}
-
-void JSphGpu::Stage3PreInteraction_ForcesCor(double dt){
-  TmgStart(Timers,TMG_CfPreForces);
-	const unsigned np=Np;
-	const unsigned npb=Npb;
-	const unsigned npf=np-npb;
-	nearestBoundg=ArraysGpu->ReserveUint(); cusph::ResetrowIndg(np,nearestBoundg,npb);
-	Aceg=ArraysGpuNpf->ReserveFloat3(); cudaMemset(Aceg,0,sizeof(float3)*npf); 
-  TmgStop(Timers,TMG_CfPreForces);
-}
-
-//==============================================================================
-/// Actualizacion de particulas segun fuerzas y dt usando Symplectic-Predictor.
-/// Updates particles according to forces and dt using Symplectic-Predictor.
-//==============================================================================
-void JSphGpu::ComputeSymplecticPre(double dt){
-  TmgStart(Timers,TMG_SuComputeStep);
-  //-Allocate memory to compute the diplacement
-  double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*Np);
-  double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*Np);
-	//-Update velocity
-  cusph::ComputeStepSymplecticPre(WithFloating,Np,Npb,VelPressPreg,Aceg,dt,Codeg,movxyg,movzg,VelPressg);
-  ArraysGpu->Free(movxyg);   movxyg=NULL;
-  ArraysGpu->Free(movzg);    movzg=NULL;
-	ArraysGpuNpf->Free(Aceg);  Aceg=NULL;
-  TmgStop(Timers,TMG_SuComputeStep);
-}
-
-//==============================================================================
-/// Actualizacion de particulas segun fuerzas y dt usando Symplectic-Corrector.
-/// Updates particles according to forces and dt using Symplectic-Corrector.
-//==============================================================================
-void JSphGpu::ComputeSymplecticCorr(double dt){
-  TmgStart(Timers,TMG_SuComputeStep);
-  const bool shift=TShifting!=SHIFT_None;
-  //-Asigna memoria para calcular el desplazamiento.
-  //-Allocates memory to calculate the displacement.
-  double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*Np);
-  double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*Np);
-  //-Calcula desplazamiento, velocidad y densidad.
-  //-Computes displacement, velocity and density.
-  const double dt05=dt*.5;
-	const bool wavegen=(WaveGen? true:false);
-  cusph::ComputeStepSymplecticCor(WithFloating,Np,Npb,VelPressPreg,Aceg,dt05,dt,Codeg,movxyg,movzg,VelPressg,Gravity,nearestBoundg,Posxyg,Poszg,Idpg,MirrorPosg,wavegen,DampingPointX,DampingLengthX,PistonPos,TCylinderAxis,CylinderRadius,CylinderCentre);
-  //-Aplica desplazamiento a las particulas fluid no periodicas.
-  //-Applies displacement to non-periodic fluid particles.
-  cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
-  //-Libera memoria asignada al desplazamiento.
-  //-Releases memory allocated for diplacement.
-  ArraysGpu->Free(movxyg);   movxyg=NULL;
-  ArraysGpu->Free(movzg);    movzg=NULL;
-  //-Libera memoria asignada a variables Pre en ComputeSymplecticPre().
-  //-Releases memory allocated for the predictor variables in ComputeSymplecticPre().
-  ArraysGpu->Free(PosxyPreg);			PosxyPreg=NULL;
-  ArraysGpu->Free(PoszPreg);			PoszPreg=NULL;
-  ArraysGpu->Free(VelPressPreg);	VelPressPreg=NULL;
-	ArraysGpu->Free(Divrg);					Divrg=NULL;
-	ArraysGpuNpf->Free(Aceg);				Aceg=NULL;
-	ArraysGpu->Free(nearestBoundg); nearestBoundg=NULL;
-  TmgStop(Timers,TMG_SuComputeStep);
-}
-
-//==============================================================================
-/// Calcula Shifting final para posicion de particulas.
-/// Computes final shifting distance for the particle position.
-//==============================================================================
-void JSphGpu::RunShifting(double dt){
-	bool maxShift=false;
-	if(TShifting==SHIFT_Max) maxShift=true;
-	const bool wavegen=(WaveGen?true:false);
-	if(smoothShiftNorm) cusph::RunShifting(wavegen,Simulate2D,maxShift,true,Np,Npb,dt,ShiftCoef,FreeSurface,Divrg,ShiftPosg,ShiftOffset,AlphaShift,Posxyg,Poszg,DampingPointX,DampingLengthX,smoothNormal,PistonPos,nearestBoundg,MirrorPosg);
-	else								cusph::RunShifting(wavegen,Simulate2D,maxShift,false,Np,Npb,dt,ShiftCoef,FreeSurface,Divrg,ShiftPosg,ShiftOffset,AlphaShift,Posxyg,Poszg,DampingPointX,DampingLengthX,Normal,PistonPos,nearestBoundg,MirrorPosg);
-}
-
-//==============================================================================
 /// Procesa movimiento de boundary particles
 /// Processes boundary particle movement
 //==============================================================================
@@ -1165,25 +1050,63 @@ void JSphGpu::RunMotion(double stepdt){
 }
 
 //==============================================================================
-/// Muestra los temporizadores activos.
-/// Displays the active timers.
+/// Prepara variables para interaccion "INTER_Forces" o "INTER_ForcesCorr".
+/// Prepares variables for interaction "INTER_Forces" or "INTER_ForcesCorr".
 //==============================================================================
-void JSphGpu::ShowTimers(bool onlyfile){
-  JLog2::TpMode_Out mode=(onlyfile? JLog2::Out_File: JLog2::Out_ScrFile);
-  Log->Print("\n[GPU Timers]",mode);
-  if(!SvTimers)Log->Print("none",mode);
-  else for(unsigned c=0;c<TimerGetCount();c++)if(TimerIsActive(c))Log->Print(TimerToText(c),mode);
+void JSphGpu::Stage1PreInteraction_ForcesPre(double dt){
+  TmgStart(Timers,TMG_CfPreForces);
+	const unsigned np=Np;
+	const unsigned npb=Npb;
+	const unsigned npf=np-npb;
+  //-Asigna memoria.ddd
+  //-Allocates memory.
+	Aceg=ArraysGpuNpf->ReserveFloat3();							cudaMemset(Aceg,0,sizeof(float3)*npf); 
+  dWxCorrg=ArraysGpuNpf->ReserveFloat3();					cudaMemset(dWxCorrg,0,sizeof(float3)*npf);
+	dWyCorrg=ArraysGpuNpf->ReserveFloat3();					cudaMemset(dWyCorrg,0,sizeof(float3)*npf); 
+	dWzCorrg=ArraysGpuNpf->ReserveFloat3();					cudaMemset(dWzCorrg,0,sizeof(float3)*npf);
+	Divrg=ArraysGpu->ReserveFloat();								cudaMemset(Divrg,0,sizeof(float)*np);
+	cudaMemset(MLSg,0,sizeof(float4)*npb);
+	cudaMemset(rowIndg,0,sizeof(unsigned)*(np+1));
+	if(Schwaiger){
+		sumFrg=ArraysGpuNpf->ReserveFloat3();					cudaMemset(sumFrg,0,sizeof(float3)*npf);
+		Taog=ArraysGpuNpf->ReserveFloat();						cudaMemset(Taog,0,sizeof(float)*npf);
+	}
+
+  //-Inicializa arrays.
+  //-Initialises arrays.
+  //PreInteractionVars_Forces(tinter,Np,Npb);
+
+  //-Calcula VelMax: Se incluyen las particulas floatings y no afecta el uso de condiciones periodicas.
+  //-Computes VelMax: Includes the particles from floating bodies and does not affect the periodic conditions.
+ /* if(tinter==1){
+    const unsigned pini=(DtAllParticles? 0: Npb);
+    cusph::ComputeVelMod(Np-pini,Velrhopg+pini,ViscDtg);
+    float velmax=cusph::ReduMaxFloat(Np-pini,0,ViscDtg,CellDiv->GetAuxMem(cusph::ReduMaxFloatSize(Np-pini)));
+    VelMax=sqrt(velmax);
+    cudaMemset(ViscDtg,0,sizeof(float)*Np);           //ViscDtg[]=0
+    ViscDtMax=0;
+    CheckCudaError("PreInteraction_Forces","Failed calculating VelMax.");
+  }*/
+
+  TmgStop(Timers,TMG_CfPreForces);
 }
 
 //==============================================================================
-/// Devuelve string con nombres y valores de los timers activos.
-/// Returns string with numbers and values of the active timers. 
+/// Actualizacion de particulas segun fuerzas y dt usando Symplectic-Predictor.
+/// Updates particles according to forces and dt using Symplectic-Predictor.
 //==============================================================================
-void JSphGpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
-  for(unsigned c=0;c<TimerGetCount();c++)if(TimerIsActive(c)){
-    hinfo=hinfo+";"+TimerGetName(c);
-    dinfo=dinfo+";"+fun::FloatStr(TimerGetValue(c)/1000.f);
-  }
+void JSphGpu::ComputeSymplecticPre(double dt){
+  TmgStart(Timers,TMG_SuComputeStep);
+  //-Allocate memory to compute the diplacement
+  double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*Np);
+  double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*Np);
+	//-Update velocity
+  cusph::ComputeStepSymplecticPre(WithFloating,Np,Npb,VelPressPreg,Aceg,dt,Codeg,movxyg,movzg,VelPressg);
+  ArraysGpu->Free(movxyg);   movxyg=NULL;
+  ArraysGpu->Free(movzg);    movzg=NULL;
+	ArraysGpuNpf->Free(Aceg);  Aceg=NULL;
+  TmgStop(Timers,TMG_SuComputeStep);
+	TmgStop(Timers,TMG_Stage1);
 }
 
 //===============================================================================
@@ -1202,6 +1125,63 @@ void JSphGpu::MatrixASetup(const unsigned np,const unsigned npb,const unsigned n
 
   nnz=counterNnzCPU[0];
 	numFreeSurface=NumFreeSurfaceCPU[0];
+}
+
+void JSphGpu::Stage3PreInteraction_ForcesCor(double dt){
+  TmgStart(Timers,TMG_CfPreForces);
+	const unsigned np=Np;
+	const unsigned npb=Npb;
+	const unsigned npf=np-npb;
+	nearestBoundg=ArraysGpu->ReserveUint(); cusph::ResetrowIndg(np,nearestBoundg,npb);
+	Aceg=ArraysGpuNpf->ReserveFloat3(); cudaMemset(Aceg,0,sizeof(float3)*npf); 
+  TmgStop(Timers,TMG_CfPreForces);
+}
+
+//==============================================================================
+/// Actualizacion de particulas segun fuerzas y dt usando Symplectic-Corrector.
+/// Updates particles according to forces and dt using Symplectic-Corrector.
+//==============================================================================
+void JSphGpu::ComputeSymplecticCorr(double dt){
+  TmgStart(Timers,TMG_SuComputeStep);
+  const bool shift=TShifting!=SHIFT_None;
+  //-Asigna memoria para calcular el desplazamiento.
+  //-Allocates memory to calculate the displacement.
+  double2 *movxyg=ArraysGpu->ReserveDouble2();  cudaMemset(movxyg,0,sizeof(double2)*Np);
+  double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*Np);
+  //-Calcula desplazamiento, velocidad y densidad.
+  //-Computes displacement, velocity and density.
+  const double dt05=dt*.5;
+	const bool wavegen=(WaveGen? true:false);
+  cusph::ComputeStepSymplecticCor(WithFloating,Np,Npb,VelPressPreg,Aceg,dt05,dt,Codeg,movxyg,movzg,VelPressg,Gravity,nearestBoundg,Posxyg,Poszg,Idpg,MirrorPosg,wavegen,DampingPointX,DampingLengthX,PistonPos,TCylinderAxis,CylinderRadius,CylinderCentre);
+  //-Aplica desplazamiento a las particulas fluid no periodicas.
+  //-Applies displacement to non-periodic fluid particles.
+  cusph::ComputeStepPos2(PeriActive,WithFloating,Np,Npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
+  //-Libera memoria asignada al desplazamiento.
+  //-Releases memory allocated for diplacement.
+  ArraysGpu->Free(movxyg);   movxyg=NULL;
+  ArraysGpu->Free(movzg);    movzg=NULL;
+  //-Libera memoria asignada a variables Pre en ComputeSymplecticPre().
+  //-Releases memory allocated for the predictor variables in ComputeSymplecticPre().
+  ArraysGpu->Free(PosxyPreg);			PosxyPreg=NULL;
+  ArraysGpu->Free(PoszPreg);			PoszPreg=NULL;
+  ArraysGpu->Free(VelPressPreg);	VelPressPreg=NULL;
+	ArraysGpu->Free(Divrg);					Divrg=NULL;
+	ArraysGpuNpf->Free(Aceg);				Aceg=NULL;
+	ArraysGpu->Free(nearestBoundg); nearestBoundg=NULL;
+  TmgStop(Timers,TMG_SuComputeStep);
+	TmgStop(Timers,TMG_Stage3);
+}
+
+//==============================================================================
+/// Calcula Shifting final para posicion de particulas.
+/// Computes final shifting distance for the particle position.
+//==============================================================================
+void JSphGpu::RunShifting(double dt){
+	bool maxShift=false;
+	if(TShifting==SHIFT_Max) maxShift=true;
+	const bool wavegen=(WaveGen?true:false);
+	if(smoothShiftNorm) cusph::RunShifting(wavegen,Simulate2D,maxShift,true,Np,Npb,dt,ShiftCoef,FreeSurface,Divrg,ShiftPosg,ShiftOffset,AlphaShift,Posxyg,Poszg,DampingPointX,DampingLengthX,smoothNormal,PistonPos,nearestBoundg,MirrorPosg);
+	else								cusph::RunShifting(wavegen,Simulate2D,maxShift,false,Np,Npb,dt,ShiftCoef,FreeSurface,Divrg,ShiftPosg,ShiftOffset,AlphaShift,Posxyg,Poszg,DampingPointX,DampingLengthX,Normal,PistonPos,nearestBoundg,MirrorPosg);
 }
 
 //===============================================================================
@@ -1242,4 +1222,26 @@ double JSphGpu::ComputeVariable(){
 	if(0.1*H*H/Visco<dt)dt=0.5*CFLnumber*H*H/Visco;
 	if(dt>0.01) dt=0.01;
 	return dt;
+}
+
+//==============================================================================
+/// Muestra los temporizadores activos.
+/// Displays the active timers.
+//==============================================================================
+void JSphGpu::ShowTimers(bool onlyfile){
+  JLog2::TpMode_Out mode=(onlyfile? JLog2::Out_File: JLog2::Out_ScrFile);
+  Log->Print("\n[GPU Timers]",mode);
+  if(!SvTimers)Log->Print("none",mode);
+  else for(unsigned c=0;c<TimerGetCount();c++)if(TimerIsActive(c))Log->Print(TimerToText(c),mode);
+}
+
+//==============================================================================
+/// Devuelve string con nombres y valores de los timers activos.
+/// Returns string with numbers and values of the active timers. 
+//==============================================================================
+void JSphGpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
+  for(unsigned c=0;c<TimerGetCount();c++)if(TimerIsActive(c)){
+    hinfo=hinfo+";"+TimerGetName(c);
+    dinfo=dinfo+";"+fun::FloatStr(TimerGetValue(c)/1000.f);
+  }
 }
