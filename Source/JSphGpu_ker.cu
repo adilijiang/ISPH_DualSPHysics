@@ -1789,146 +1789,6 @@ void Interaction_ForcesDem(bool psimple,TpCellMode cellmode,unsigned bsize
 }
 */
 
-//##############################################################################
-//# Kernels para Shifting.
-//# Shifting kernels.
-//##############################################################################
-//------------------------------------------------------------------------------
-/// Calcula Shifting final para posicion de particulas.
-/// Computes final shifting for the particle position.
-//------------------------------------------------------------------------------
-
-__device__ void KerDampingZone(const double xp1,float3 &shift,const double dampingpoint,const double dampinglength)
-{
-	if(xp1>dampingpoint){
-		double fx=1.0-exp(-2.0*(dampinglength-(xp1-dampingpoint)));
-		shift.x=shift.x*fx;
-		shift.y=shift.y*fx;
-		shift.z=shift.z*fx;
-	}
-}
-
-__device__ void KerCorrectShiftBound(const unsigned nearestBound,const double2 *posxy,const double *posz,float3 &shift,const double3 *mirrorPos)
-{
-	float3 NormDir=make_float3(0,0,0);
-	NormDir.x=float(mirrorPos[nearestBound].x-posxy[nearestBound].x);
-	NormDir.y=float(mirrorPos[nearestBound].y-posxy[nearestBound].y);
-	NormDir.z=float(mirrorPos[nearestBound].z-posz[nearestBound]);
-
-	if(NormDir.x){
-		NormDir.x=NormDir.x/abs(NormDir.x);
-		if((NormDir.x>0&&shift.x<0)||(NormDir.x<0&&shift.x>0))shift.x=0;
-	}
-	if(NormDir.y){
-		NormDir.y=NormDir.y/abs(NormDir.y);
-		if((NormDir.y>0&&shift.y<0)||(NormDir.y<0&&shift.y>0))shift.y=0;
-	}
-	if(NormDir.z){
-		NormDir.z=NormDir.z/abs(NormDir.z);
-		if((NormDir.z>0&&shift.z<0)||(NormDir.z<0&&shift.z>0))shift.z=0;
-	}
-
-}
-
-template<const bool wavegen,const bool simulate2d,const bool maxShift> __global__ void KerRunShifting(unsigned n,unsigned pini
-	,const bool smoothShiftNorm,double dt,float shiftcoef,float freesurface,const float *divr,float3 *shiftpos
-	,const float ShiftOffset,const double alpha,const double2 *posxy,const double *posz,const double dampingpoint
-	,const double dampinglength,const tdouble3 PistonPos,const float3 *normal,const unsigned *nearestBound,const double3 *mirrorPos)
-{
-  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
-  if(p<n){
-    const unsigned p1=p+pini;
-		const unsigned Correctp1=p;
-    float3 rshiftpos=shiftpos[Correctp1];
-    float divrp1=divr[p1];
-		double h=double(CTE.h);
-		double dp=double(CTE.dp);
-		double umagn=-double(shiftcoef)*h*h;
-
-		if(divrp1<freesurface+ShiftOffset){
-			unsigned normPtr=(smoothShiftNorm?Correctp1:p1);
-			float3 norm=normal[normPtr];
-			if(simulate2d) norm.y=0;
-			float3 tang=make_float3(0,0,0);
-			float3 bitang=make_float3(0,0,0);
-			
-			if(simulate2d)  rshiftpos.y=0;
-			double temp=sqrt(norm.x*norm.x+norm.y*norm.y+norm.z*norm.z);
-			if(temp){ norm.x=norm.x/temp; norm.y=norm.y/temp; norm.z=norm.z/temp;}
-
-			//-tangent and bitangent calculation
-			tang.x=-norm.z+norm.y;		
-			if(!simulate2d)tang.y=-(norm.x+norm.z);	
-			tang.z=norm.x+norm.y;
-			
-			if(!simulate2d){
-				bitang.x=tang.y*norm.z-norm.y*tang.z;
-				bitang.y=norm.x*tang.z-tang.x*norm.z;
-				bitang.z=tang.x*norm.y-norm.x*tang.y;
-			}
-
-			//-gradient calculation
-			float dcds=tang.x*rshiftpos.x+tang.z*rshiftpos.z+tang.y*rshiftpos.y;
-			float dcdn=norm.x*rshiftpos.x+norm.z*rshiftpos.z+norm.y*rshiftpos.y;
-			float dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
-
-			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*alpha);
-			if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*alpha);
-			rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*alpha);
-		}
-		
-    rshiftpos.x=float(double(rshiftpos.x)*umagn);
-    if(!simulate2d) rshiftpos.y=float(double(rshiftpos.y)*umagn);
-    rshiftpos.z=float(double(rshiftpos.z)*umagn);
-
-    //Max Shifting
-		if(maxShift){
-      float absShift=sqrtf(rshiftpos.x*rshiftpos.x+rshiftpos.y*rshiftpos.y+rshiftpos.z*rshiftpos.z);
-			const float maxDist=0.2*dp;
-      if(fabs(rshiftpos.x)>maxDist) rshiftpos.x=float(maxDist*rshiftpos.x/absShift);
-      if(fabs(rshiftpos.y)>maxDist) rshiftpos.y=float(maxDist*rshiftpos.y/absShift);
-      if(fabs(rshiftpos.z)>maxDist) rshiftpos.z=float(maxDist*rshiftpos.z/absShift);
-		}
-		
-		if(wavegen){
-			KerDampingZone(posxy[p1].x,rshiftpos,dampingpoint,dampinglength);
-			if(posxy[p1].x+rshiftpos.x<PistonPos.x) rshiftpos.x=0;
-		}
-		
-		if(nearestBound[p1]!=pini) KerCorrectShiftBound(nearestBound[p1],posxy,posz,rshiftpos,mirrorPos);
-
-    shiftpos[Correctp1]=rshiftpos;
-  }
-}
-
-//==============================================================================
-/// Calcula Shifting final para posicion de particulas.
-/// Computes final shifting for the particle position.
-//==============================================================================
-void RunShifting(const bool wavegen,const bool simulate2d,const bool maxShift,const bool smoothShiftNorm,unsigned np,unsigned npb,double dt,double shiftcoef,float freesurface
-	,const float *divr,float3 *shiftpos,const float shiftoffset,const double alpha,const double2 *posxy
-	,const double *posz,const double dampingpoint,const double dampinglength,const float3 *normal,const tdouble3 PistonPos
-	,const unsigned *nearestBound,const double3 *mirrorPos){
-  const unsigned npf=np-npb;
-  if(npf){
-    dim3 sgrid=GetGridSize(npf,SPHBSIZE);
-		if(wavegen)
-			if(simulate2d)
-				if(maxShift)	KerRunShifting<true,true,true> <<<sgrid,SPHBSIZE>>> (npf,npb,smoothShiftNorm,dt,shiftcoef,freesurface,divr,shiftpos,shiftoffset,alpha,posxy,posz,dampingpoint,dampinglength,PistonPos,normal,nearestBound,mirrorPos);
-				else					KerRunShifting<true,true,false> <<<sgrid,SPHBSIZE>>> (npf,npb,smoothShiftNorm,dt,shiftcoef,freesurface,divr,shiftpos,shiftoffset,alpha,posxy,posz,dampingpoint,dampinglength,PistonPos,normal,nearestBound,mirrorPos);
-			else
-				if(maxShift)	KerRunShifting<true,false,true> <<<sgrid,SPHBSIZE>>> (npf,npb,smoothShiftNorm,dt,shiftcoef,freesurface,divr,shiftpos,shiftoffset,alpha,posxy,posz,dampingpoint,dampinglength,PistonPos,normal,nearestBound,mirrorPos);
-				else					KerRunShifting<true,false,false> <<<sgrid,SPHBSIZE>>> (npf,npb,smoothShiftNorm,dt,shiftcoef,freesurface,divr,shiftpos,shiftoffset,alpha,posxy,posz,dampingpoint,dampinglength,PistonPos,normal,nearestBound,mirrorPos);
-		else
-			if(simulate2d)
-				if(maxShift)	KerRunShifting<false,true,true> <<<sgrid,SPHBSIZE>>> (npf,npb,smoothShiftNorm,dt,shiftcoef,freesurface,divr,shiftpos,shiftoffset,alpha,posxy,posz,dampingpoint,dampinglength,PistonPos,normal,nearestBound,mirrorPos);
-				else					KerRunShifting<false,true,false> <<<sgrid,SPHBSIZE>>> (npf,npb,smoothShiftNorm,dt,shiftcoef,freesurface,divr,shiftpos,shiftoffset,alpha,posxy,posz,dampingpoint,dampinglength,PistonPos,normal,nearestBound,mirrorPos);
-			else
-				if(maxShift)	KerRunShifting<false,false,true> <<<sgrid,SPHBSIZE>>> (npf,npb,smoothShiftNorm,dt,shiftcoef,freesurface,divr,shiftpos,shiftoffset,alpha,posxy,posz,dampingpoint,dampinglength,PistonPos,normal,nearestBound,mirrorPos);
-				else					KerRunShifting<false,false,false> <<<sgrid,SPHBSIZE>>> (npf,npb,smoothShiftNorm,dt,shiftcoef,freesurface,divr,shiftpos,shiftoffset,alpha,posxy,posz,dampingpoint,dampinglength,PistonPos,normal,nearestBound,mirrorPos);
-	}
-}
-
 //------------------------------------------------------------------------------
 /// Calcula los nuevos valores de Pos, Vel y Rhop (usando para Symplectic-Predictor)
 /// Computes new values for Pos, Check, Vel and Ros (used with Symplectic-Predictor).
@@ -3848,32 +3708,8 @@ void PressureAssign(const unsigned bsbound,const unsigned bsfluid,unsigned np,un
 }
 
 //==============================================================================
-/// Initialises array with the indicated value.
+/// Rearrange pressure values to within range of ppedim
 //==============================================================================
-__global__ void KerInitArrayPOrder(unsigned n,unsigned *v,unsigned value)
-{
-  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la particula //-NI of the particle
-  if(p<n)v[p]=value;
-}
-
-void InitArrayPOrder(unsigned n,unsigned *v, unsigned value){
-  if(n){
-    dim3 sgrid=GetGridSize(n,SPHBSIZE);
-    KerInitArrayPOrder <<<sgrid,SPHBSIZE>>> (n,v,value);
-  }
-}
-
-__global__ void KerInitArrayCol(unsigned n,unsigned int *v,int value)
-{
-  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la particula //-NI of the particle
-  if(p<n)v[p]=value;
-}
-void InitArrayCol(unsigned n,unsigned int *v,int value){
-  if(n){
-    dim3 sgrid=GetGridSize(n,SPHBSIZE);
-    KerInitArrayCol <<<sgrid,SPHBSIZE>>> (n,v,value);
-  }
-}
 __global__ void KerArrangePressureTemp(const unsigned matorder,const unsigned ini,const unsigned n,const float4 *velrhop,double *pressure)
 {
 	unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la particula //-NI of the particle
@@ -3882,9 +3718,6 @@ __global__ void KerArrangePressureTemp(const unsigned matorder,const unsigned in
 	}
 }
 
-//==============================================================================
-/// Rearrange pressure values to within range of ppedim
-//==============================================================================
 void SolverResultArrange(const unsigned bsbound,const unsigned bsfluid,const unsigned npb,const unsigned npbok,const unsigned npf,float4 *velrhop,double *pressure){
 	if(npf){
 		dim3 sgridb=GetGridSize(npbok,bsbound);
@@ -4524,6 +4357,146 @@ void Interaction_Shifting
 				KerSmoothNormals<tker> <<<sgridf,bsfluid>>> (npf,npb,hdiv,nc,cellfluid,begincell,cellzero,dcell,posxy,posz,divr,boundaryfs,normal,smoothNormal);
 			}
 		}
+	}
+}
+
+//##############################################################################
+//# Kernels para Shifting.
+//# Shifting kernels.
+//##############################################################################
+//------------------------------------------------------------------------------
+/// Calcula Shifting final para posicion de particulas.
+/// Computes final shifting for the particle position.
+//------------------------------------------------------------------------------
+
+__device__ void KerDampingZone(const double xp1,float3 &shift,const double dampingpoint,const double dampinglength)
+{
+	if(xp1>dampingpoint){
+		double fx=1.0-exp(-2.0*(dampinglength-(xp1-dampingpoint)));
+		shift.x=shift.x*fx;
+		shift.y=shift.y*fx;
+		shift.z=shift.z*fx;
+	}
+}
+
+__device__ void KerCorrectShiftBound(const unsigned nearestBound,const double2 *posxy,const double *posz,float3 &shift,const double3 *mirrorPos)
+{
+	float3 NormDir=make_float3(0,0,0);
+	NormDir.x=float(mirrorPos[nearestBound].x-posxy[nearestBound].x);
+	NormDir.y=float(mirrorPos[nearestBound].y-posxy[nearestBound].y);
+	NormDir.z=float(mirrorPos[nearestBound].z-posz[nearestBound]);
+
+	if(NormDir.x){
+		NormDir.x=NormDir.x/abs(NormDir.x);
+		if((NormDir.x>0&&shift.x<0)||(NormDir.x<0&&shift.x>0))shift.x=0;
+	}
+	if(NormDir.y){
+		NormDir.y=NormDir.y/abs(NormDir.y);
+		if((NormDir.y>0&&shift.y<0)||(NormDir.y<0&&shift.y>0))shift.y=0;
+	}
+	if(NormDir.z){
+		NormDir.z=NormDir.z/abs(NormDir.z);
+		if((NormDir.z>0&&shift.z<0)||(NormDir.z<0&&shift.z>0))shift.z=0;
+	}
+
+}
+
+template<const bool wavegen,const bool simulate2d,const bool maxShift> __global__ void KerRunShifting(unsigned n,unsigned pini
+	,const bool smoothShiftNorm,double dt,float shiftcoef,float freesurface,const float *divr,float3 *shiftpos
+	,const float ShiftOffset,const double alpha,const double2 *posxy,const double *posz,const double dampingpoint
+	,const double dampinglength,const tdouble3 PistonPos,const float3 *normal,const unsigned *nearestBound,const double3 *mirrorPos)
+{
+  unsigned p=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of the particle.
+  if(p<n){
+    const unsigned p1=p+pini;
+		const unsigned Correctp1=p;
+    float3 rshiftpos=shiftpos[Correctp1];
+    float divrp1=divr[p1];
+		double h=double(CTE.h);
+		double dp=double(CTE.dp);
+		double umagn=-double(shiftcoef)*h*h;
+
+		if(divrp1<freesurface+ShiftOffset){
+			unsigned normPtr=(smoothShiftNorm?Correctp1:p1);
+			float3 norm=normal[normPtr];
+			if(simulate2d) norm.y=0;
+			float3 tang=make_float3(0,0,0);
+			float3 bitang=make_float3(0,0,0);
+			
+			if(simulate2d)  rshiftpos.y=0;
+			double temp=sqrt(norm.x*norm.x+norm.y*norm.y+norm.z*norm.z);
+			if(temp){ norm.x=norm.x/temp; norm.y=norm.y/temp; norm.z=norm.z/temp;}
+
+			//-tangent and bitangent calculation
+			tang.x=-norm.z+norm.y;		
+			if(!simulate2d)tang.y=-(norm.x+norm.z);	
+			tang.z=norm.x+norm.y;
+			
+			if(!simulate2d){
+				bitang.x=tang.y*norm.z-norm.y*tang.z;
+				bitang.y=norm.x*tang.z-tang.x*norm.z;
+				bitang.z=tang.x*norm.y-norm.x*tang.y;
+			}
+
+			//-gradient calculation
+			float dcds=tang.x*rshiftpos.x+tang.z*rshiftpos.z+tang.y*rshiftpos.y;
+			float dcdn=norm.x*rshiftpos.x+norm.z*rshiftpos.z+norm.y*rshiftpos.y;
+			float dcdb=bitang.x*rshiftpos.x+bitang.z*rshiftpos.z+bitang.y*rshiftpos.y;
+
+			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*alpha);
+			if(!simulate2d) rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*alpha);
+			rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*alpha);
+		}
+		
+    rshiftpos.x=float(double(rshiftpos.x)*umagn);
+    if(!simulate2d) rshiftpos.y=float(double(rshiftpos.y)*umagn);
+    rshiftpos.z=float(double(rshiftpos.z)*umagn);
+
+    //Max Shifting
+		if(maxShift){
+      float absShift=sqrtf(rshiftpos.x*rshiftpos.x+rshiftpos.y*rshiftpos.y+rshiftpos.z*rshiftpos.z);
+			const float maxDist=0.1*dp;
+      if(fabs(rshiftpos.x)>maxDist) rshiftpos.x=float(maxDist*rshiftpos.x/absShift);
+      if(fabs(rshiftpos.y)>maxDist) rshiftpos.y=float(maxDist*rshiftpos.y/absShift);
+      if(fabs(rshiftpos.z)>maxDist) rshiftpos.z=float(maxDist*rshiftpos.z/absShift);
+		}
+		
+		if(wavegen){
+			KerDampingZone(posxy[p1].x,rshiftpos,dampingpoint,dampinglength);
+			if(posxy[p1].x+rshiftpos.x<PistonPos.x) rshiftpos.x=0;
+		}
+		
+		if(nearestBound[p1]!=pini) KerCorrectShiftBound(nearestBound[p1],posxy,posz,rshiftpos,mirrorPos);
+
+    shiftpos[Correctp1]=rshiftpos;
+  }
+}
+
+//==============================================================================
+/// Calcula Shifting final para posicion de particulas.
+/// Computes final shifting for the particle position.
+//==============================================================================
+void RunShifting(const bool wavegen,const bool simulate2d,const bool maxShift,const bool smoothShiftNorm,unsigned np,unsigned npb,double dt,double shiftcoef,float freesurface
+	,const float *divr,float3 *shiftpos,const float shiftoffset,const double alpha,const double2 *posxy
+	,const double *posz,const double dampingpoint,const double dampinglength,const float3 *normal,const tdouble3 PistonPos
+	,const unsigned *nearestBound,const double3 *mirrorPos){
+  const unsigned npf=np-npb;
+  if(npf){
+    dim3 sgrid=GetGridSize(npf,SPHBSIZE);
+		if(wavegen)
+			if(simulate2d)
+				if(maxShift)	KerRunShifting<true,true,true> <<<sgrid,SPHBSIZE>>> (npf,npb,smoothShiftNorm,dt,shiftcoef,freesurface,divr,shiftpos,shiftoffset,alpha,posxy,posz,dampingpoint,dampinglength,PistonPos,normal,nearestBound,mirrorPos);
+				else					KerRunShifting<true,true,false> <<<sgrid,SPHBSIZE>>> (npf,npb,smoothShiftNorm,dt,shiftcoef,freesurface,divr,shiftpos,shiftoffset,alpha,posxy,posz,dampingpoint,dampinglength,PistonPos,normal,nearestBound,mirrorPos);
+			else
+				if(maxShift)	KerRunShifting<true,false,true> <<<sgrid,SPHBSIZE>>> (npf,npb,smoothShiftNorm,dt,shiftcoef,freesurface,divr,shiftpos,shiftoffset,alpha,posxy,posz,dampingpoint,dampinglength,PistonPos,normal,nearestBound,mirrorPos);
+				else					KerRunShifting<true,false,false> <<<sgrid,SPHBSIZE>>> (npf,npb,smoothShiftNorm,dt,shiftcoef,freesurface,divr,shiftpos,shiftoffset,alpha,posxy,posz,dampingpoint,dampinglength,PistonPos,normal,nearestBound,mirrorPos);
+		else
+			if(simulate2d)
+				if(maxShift)	KerRunShifting<false,true,true> <<<sgrid,SPHBSIZE>>> (npf,npb,smoothShiftNorm,dt,shiftcoef,freesurface,divr,shiftpos,shiftoffset,alpha,posxy,posz,dampingpoint,dampinglength,PistonPos,normal,nearestBound,mirrorPos);
+				else					KerRunShifting<false,true,false> <<<sgrid,SPHBSIZE>>> (npf,npb,smoothShiftNorm,dt,shiftcoef,freesurface,divr,shiftpos,shiftoffset,alpha,posxy,posz,dampingpoint,dampinglength,PistonPos,normal,nearestBound,mirrorPos);
+			else
+				if(maxShift)	KerRunShifting<false,false,true> <<<sgrid,SPHBSIZE>>> (npf,npb,smoothShiftNorm,dt,shiftcoef,freesurface,divr,shiftpos,shiftoffset,alpha,posxy,posz,dampingpoint,dampinglength,PistonPos,normal,nearestBound,mirrorPos);
+				else					KerRunShifting<false,false,false> <<<sgrid,SPHBSIZE>>> (npf,npb,smoothShiftNorm,dt,shiftcoef,freesurface,divr,shiftpos,shiftoffset,alpha,posxy,posz,dampingpoint,dampinglength,PistonPos,normal,nearestBound,mirrorPos);
 	}
 }
 
