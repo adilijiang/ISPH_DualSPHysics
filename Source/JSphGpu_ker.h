@@ -122,13 +122,14 @@ void AddDelta(unsigned n,const float *delta,float *ar);
 
 //# Kernels para Shifting
 //# Kernels for Shifting
-void RunShifting(const bool wavegen,const bool simulate2d,unsigned np,unsigned npb,double dt,double shiftcoef
-	,float freesurface,const float *divr,float3 *shiftpos,bool maxShift,const float shiftoffset
-	,const double alpha0,const double2 *posxy,const double *posz,const double dampingpoint,const double dampinglength,const float3 *normal,const tdouble3 PistonPos,const unsigned *nearestBound,const unsigned *idpg,const double3 *mirrorPos);
+void RunShifting(const bool wavegen,const bool simulate2d,const bool maxShift,const bool smoothShiftNorm,unsigned np,unsigned npb,double dt,double shiftcoef,float freesurface
+	,const float *divr,float3 *shiftpos,const float shiftoffset,const double alpha,const double2 *posxy
+	,const double *posz,const double dampingpoint,const double dampinglength,const float3 *normal,const tdouble3 PistonPos
+	,const unsigned *nearestBound,const double3 *mirrorPos);
 
-void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb,const float4 *velrhoppre,const float3 *ace,double dtm,float rhopoutmin,float rhopoutmax,word *code,double2 *movxy,double *movz,float4 *velrhop);
+void ComputeStepSymplecticPre(bool floating,unsigned np,unsigned npb,const float4 *velrhoppre,const float3 *ace,double dtm,word *code,double2 *movxy,double *movz,float4 *velrhop);
 
-void ComputeStepSymplecticCor(bool floating,unsigned np,unsigned npb,const float4 *velrhoppre,const float3 *ace,double dtm,double dt,float rhopoutmin,float rhopoutmax,word *code,double2 *movxy,double *movz
+void ComputeStepSymplecticCor(bool floating,unsigned np,unsigned npb,const float4 *velrhoppre,const float3 *ace,double dtm,double dt,word *code,double2 *movxy,double *movz
 	,float4 *velrhop,tfloat3 gravity,const unsigned *nearestBound,const double2 *posxy,const double *posz,const unsigned *idp,const double3 *mirrorPos,const bool WaveGen,const double dampingpoint,const double dampinglength
 	,const tdouble3 PistonPos,TpCylinder TCylinderAxis,const double Cylinder,const tdouble3 CylinderCentre);
 
@@ -198,11 +199,11 @@ void InitArrayPOrder(unsigned n,unsigned *v,unsigned value);
 void InitArrayCol(unsigned n,unsigned int *v,int value);
 
 //# Kernels for solving with ViennaCL
-void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,int restart,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,int coarselevels
+void solveVienna(TpPrecond tprecond,TpAMGInter tamginter,double tolerance,int iterations,float strongconnection,float jacobiweight, int presmooth,int postsmooth,int coarsecutoff,int coarselevels
 	,double *matrixa,double *matrixx,double *matrixb,unsigned int *row,unsigned int *col,const unsigned nnz,const unsigned ppedim,const unsigned numfreesurface);
 
 //Kernels for shifting
-void Interaction_Shifting(TpKernel tkernel,bool HydroCorr,bool simulate2d,bool floating,bool usedem,TpCellMode cellmode,unsigned bsfluid,unsigned bsbound,unsigned np,unsigned npb,unsigned npbok
+void Interaction_Shifting(TpKernel tkernel,bool HydroCorr,bool simulate2d,bool smoothShiftNorm,bool floating,bool usedem,TpCellMode cellmode,unsigned bsfluid,unsigned bsbound,unsigned np,unsigned npb,unsigned npbok
 	,tuint3 ncells,const int2 *begincell,tuint3 cellmin,const unsigned *dcell,const double2 *posxy,const double *posz,const word *code,const float *ftomassp,float3 *shiftpos
 	,float *divr,const float tensilen,const float tensiler,const float boundaryfs,const double3 *mirrorPos,const unsigned *mirrorCell,float3 *dwxcorrg
 	,float3 *dwycorrg,float3 *dwzcorrg,float4 *mls,unsigned *nearestBound,const tdouble3 PistonPos,const tdouble3 TankDim,float3 *normal,float3 *smoothNormal);

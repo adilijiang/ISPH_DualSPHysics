@@ -80,13 +80,13 @@ protected:
   unsigned *Dcell; ///<ES: Celda dentro de DomCells codificada con DomCellCode. EN: Cell within DomCells encoded with DomCellCode.
   tdouble2 *Posxy;
   double *Posz;
-  tfloat4 *Velrhop;
+  tfloat4 *VelPress;
 
   //-Variables auxiliares para conversion (size=ParticlesSize).
   //-Auxiliary variables for the conversion (size=ParticlesSize)
   tdouble3 *AuxPos;
   tfloat3 *AuxVel; 
-  float *AuxRhop;
+  float *AuxPress;
 
   unsigned GpuParticlesSize;  ///<ES: Numero de particulas para las cuales se reservo memoria en gpu. EN: Number of particles for which GPU memory was allocated
   llong MemGpuParticles;      ///<ES: Mermoria reservada para vectores de datos de particulas. EN: Allocated GPU memory for arrays with particle data
@@ -109,13 +109,13 @@ protected:
   unsigned *Dcellg; ///<ES: Celda dentro de DomCells codificada con DomCellCode. EN: Cell within DomCells encoded within DomCellCode
   double2 *Posxyg;
   double *Poszg;
-  float4 *Velrhopg;
+  float4 *VelPressg;
     
   //-Vars. para compute step: SYMPLECTIC
   //-Variables for compute step: Symplectic
   double2 *PosxyPreg;  ///<ES: Sympletic: para guardar valores en predictor EN: Symplectic: for maintaining predictor values
   double *PoszPreg;
-  float4 *VelrhopPreg;
+  float4 *VelPressPreg;
   double DtPre;   
 
   //-Variables for floating bodies.
@@ -137,8 +137,6 @@ protected:
 
   //-Vars. para computo de fuerzas.
   //-Variables for computing forces
- 
-  //float *ViscDtg;
   float3 *Aceg;      ///<ES: Acumula fuerzas de interaccion EN: Accumulates acceleration of the particles
 
   double VelMax;      ///<Maximum value of Vel[] sqrt(vel.x^2 + vel.y^2 + vel.z^2) computed in PreInteraction_Forces().

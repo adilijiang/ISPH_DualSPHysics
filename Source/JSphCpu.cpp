@@ -1354,23 +1354,6 @@ void JSphCpu::CorrectVelocity(const unsigned p1,const unsigned nearestBound,cons
 }
 
 //==============================================================================
-/// Calcula un Dt variable.
-/// Calculat variable Dt.
-//==============================================================================
-double JSphCpu::DtVariable(bool final){
-  //-dt1 depends on force per unit mass.
-  const double dt1=(AceMax? (sqrt(double(H)/AceMax)): DBL_MAX); 
-  //-dt2 combines the Courant and the viscous time-step controls.
-  const double dt2=double(H)/(max(Cs0,VelMax*10.)+double(H)*ViscDtMax);
-  //-dt new value of time step.
-  double dt=double(CFLnumber)*min(dt1,dt2);
-  if(DtFixed)dt=DtFixed->GetDt(float(TimeStep),float(dt));
-  if(dt<double(DtMin)){ dt=double(DtMin); DtModif++; }
-  if(SaveDt && final)SaveDt->AddValues(TimeStep,dt,dt1*CFLnumber,dt2*CFLnumber,AceMax,ViscDtMax,VelMax);
-  return(dt);
-}
-
-//==============================================================================
 /// Calcula Shifting final para posicion de particulas.
 /// Calculate final Shifting for particles' position.
 //==============================================================================
@@ -1435,9 +1418,9 @@ void JSphCpu::RunShifting(double dt){
 			rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z);
     }
     else if(divrp1<=FreeSurface+ShiftOffset){ 
-			rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*AlphaShift1);
-			rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*AlphaShift1);
-			rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*AlphaShift1);
+			//rshiftpos.x=float(dcds*tang.x+dcdb*bitang.x+dcdn*norm.x*AlphaShift1);
+			//rshiftpos.y=float(dcds*tang.y+dcdb*bitang.y+dcdn*norm.y*AlphaShift1);
+			//rshiftpos.z=float(dcds*tang.z+dcdb*bitang.z+dcdn*norm.z*AlphaShift1);
     }
 
     rshiftpos.x=float(double(rshiftpos.x)*umagn);
