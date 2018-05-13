@@ -28,6 +28,7 @@
 #include "JWaveGen.h"
 #include "JSphAccInput.h"
 #include "JXml.h"
+#include "iomanip"
 
 #ifndef WIN32
   #include <unistd.h>
@@ -680,8 +681,8 @@ void JSphGpu::ConfigBlockSizes(bool usezone,bool useperi){
     //-Collects kernel information.
     StKerInfo kerinfo;
     memset(&kerinfo,0,sizeof(StKerInfo));
-    if(WaveGen) cusph::Stage1Interaction_ForcesPre(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,true,CellMode,0,0,0,0,100,50,20,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Simulate2D,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,TDouble3(0),TDouble3(0),NULL,&kerinfo,NULL);
-    cusph::Stage1Interaction_ForcesPre(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,false,CellMode,0,0,0,0,100,50,20,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Simulate2D,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,TDouble3(0),TDouble3(0),NULL,&kerinfo,NULL);
+		const bool wavegen=(WaveGen? true:false);
+    cusph::Stage1ParticleSweep1(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,true,CellMode,0,0,0,0,100,50,20,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Simulate2D,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,TDouble3(0),TDouble3(0),NULL,&kerinfo,NULL);
 		//cusph::Stage3Interaction_ForcesCor(TKernel,WithFloating,UseDEM,CellMode,0,100,50,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&kerinfo,NULL);
     //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&kerinfo);
     //Log->Printf("====> bound -> r:%d  bs:%d  bsmax:%d",kerinfo.forcesbound_rg,kerinfo.forcesbound_bs,kerinfo.forcesbound_bsmax);
@@ -903,7 +904,7 @@ void JSphGpu::PreInteractionVars_Forces(TpInter tinter,unsigned np,unsigned npb)
   const unsigned npf=np-npb;
   
   //-Apply the extra forces to the correct particle sets.
-  if(AccInput)AddAccInput();
+  
 }
 
 //==============================================================================
@@ -1073,21 +1074,7 @@ void JSphGpu::Stage1PreInteraction_ForcesPre(double dt){
 		Taog=ArraysGpuNpf->ReserveFloat();						cudaMemset(Taog,0,sizeof(float)*npf);
 	}
 
-  //-Inicializa arrays.
-  //-Initialises arrays.
-  //PreInteractionVars_Forces(tinter,Np,Npb);
-
-  //-Calcula VelMax: Se incluyen las particulas floatings y no afecta el uso de condiciones periodicas.
-  //-Computes VelMax: Includes the particles from floating bodies and does not affect the periodic conditions.
- /* if(tinter==1){
-    const unsigned pini=(DtAllParticles? 0: Npb);
-    cusph::ComputeVelMod(Np-pini,Velrhopg+pini,ViscDtg);
-    float velmax=cusph::ReduMaxFloat(Np-pini,0,ViscDtg,CellDiv->GetAuxMem(cusph::ReduMaxFloatSize(Np-pini)));
-    VelMax=sqrt(velmax);
-    cudaMemset(ViscDtg,0,sizeof(float)*Np);           //ViscDtg[]=0
-    ViscDtMax=0;
-    CheckCudaError("PreInteraction_Forces","Failed calculating VelMax.");
-  }*/
+	if(AccInput)AddAccInput();
 
   TmgStop(Timers,TMG_CfPreForces);
 }
@@ -1245,4 +1232,39 @@ void JSphGpu::GetTimersInfo(std::string &hinfo,std::string &dinfo)const{
     hinfo=hinfo+";"+TimerGetName(c);
     dinfo=dinfo+";"+fun::FloatStr(TimerGetValue(c)/1000.f);
   }
+}
+
+void JSphGpu::PrintMatrix(const int part,const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim
+	,const unsigned nnz,const unsigned *rowindg,const unsigned *colindg,const double *vecbg,const double *matrixag
+	,const unsigned *idpg)const{
+	unsigned *rowInd=new unsigned[ppedim]; cudaMemcpy(rowInd,rowindg,sizeof(unsigned)*ppedim,cudaMemcpyDeviceToHost);
+	unsigned *colInd=new unsigned[nnz]; cudaMemcpy(colInd,colindg,sizeof(unsigned)*nnz,cudaMemcpyDeviceToHost);
+	double *b=new double[ppedim]; cudaMemcpy(b,vecbg,sizeof(double)*ppedim,cudaMemcpyDeviceToHost);
+	double *a=new double[nnz]; cudaMemcpy(a,matrixag,sizeof(double)*nnz,cudaMemcpyDeviceToHost);
+	unsigned *Idpc=new unsigned[np]; cudaMemcpy(Idpc,idpg,sizeof(unsigned)*Np,cudaMemcpyDeviceToHost);
+
+	ofstream FileOutput;
+  string TimeFile;
+  ostringstream TimeNum;
+  ostringstream FileNum;
+  FileNum << part;
+
+  TimeFile =  "Matrix_" + FileNum.str() + ".txt";
+
+  FileOutput.open(TimeFile.c_str());
+
+  for(int i=0;i<int(npbok);i++){ //Print matrix rows for boundary particles
+		if(Idpc[i]==0){ //Only print matrix rows of all particles, prevents printing entire matrix!!
+			FileOutput << fixed << setprecision(19) << "particle "<< Idpc[i] << "\t Order " << i << "\t b " << b[i] << "\n";
+			for(int j=int(rowInd[i]);j<int(rowInd[i+1]);j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j]  << "\t"<<Idpc[colInd[j]]<< "\n";
+		}
+	}
+
+  for(int i=int(npb);i<int(np);i++){ //Print matrix rows for fluid particles
+		if(Idpc[i]==npb){ //Only print matrix rows of all particles, prevents printing entire matrix!!
+			FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << (i-npb)+npbok << "\t b " << b[(i-npb)+npbok] << "\n";
+			for(int j=int(rowInd[(i-npb)+npbok]);j<int(rowInd[(i-npb)+npbok+1]);j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\t"<<Idpc[colInd[j]]<<"\n";
+		}
+	}
+  FileOutput.close();
 }

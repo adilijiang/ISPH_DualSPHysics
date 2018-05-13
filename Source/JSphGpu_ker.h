@@ -145,10 +145,10 @@ void MirrorBoundary(TpKernel tkernel,const bool simulate2d,const unsigned bsboun
 	,unsigned *Physrelation,const bool wavegen,const tdouble3 PistonPos,const tdouble3 TankDim,double CylinderRadius,tdouble3 CylinderCentre,tdouble2 CylinderLength,TpCylinder cylinderaxis);
 
 //# Kernels for initial advection
-void ComputeRStar(bool floating,const bool wavegen,unsigned np,unsigned npb,const float4 *velrhoppre,double dtm,word *code,double2 *movxy,double *movz,const double2 *posxy,const tdouble3 PistonPos);
+void ComputeRStar(const bool wavegen,unsigned np,unsigned npb,const float4 *velrhoppre,double dtm,word *code,double2 *movxy,double *movz,const double2 *posxy,const tdouble3 PistonPos);
 
 //# Kernels for computing acceleration due to viscous forces
-void Stage1Interaction_ForcesPre(TpKernel tkernel,bool floating,bool usedem,TpSlipCond tslipcond,bool schwaiger,bool wavegen,TpCellMode cellmode,float viscob,float viscof
+void Stage1ParticleSweep1(TpKernel tkernel,bool floating,bool usedem,TpSlipCond tslipcond,bool schwaiger,bool wavegen,TpCellMode cellmode,float viscob,float viscof
 	,unsigned bsbound,unsigned bsfluid,unsigned np,unsigned npb,unsigned npbok,tuint3 ncells,const int2 *begincell,tuint3 cellmin
 	,const unsigned *dcell,const double2 *posxy,const double *posz,float4 *velrhop,const word *code,float3 *dwxcorrg,float3 *dwycorrg
 	,float3 *dwzcorrg,const float *ftomassp,float3 *ace,bool simulate2d,float *divr,const double3 *mirrorPos,const unsigned *mirrorCell,float4 *mls

@@ -266,6 +266,10 @@ protected:
 	void Shift(double dt,const unsigned bsfluid);
 	double ComputeVariable();
 
+	void PrintMatrix(const int part,const unsigned np,const unsigned npb,const unsigned npbok,const unsigned ppedim
+	,const unsigned nnz,const unsigned *rowindg,const unsigned *colindg,const double *vecbg,const double *matrixag
+	,const unsigned *idpg)const;
+
 public:
   JSphGpu(bool withmpi);
   ~JSphGpu();

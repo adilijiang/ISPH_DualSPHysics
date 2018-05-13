@@ -463,10 +463,10 @@ void JSphGpuSingle::MirrorBoundary(){
 }
 
 //==============================================================================
-/// Initial advection
+/// Stage 1 - Intermediate step: Initial advection, r*
 //==============================================================================
 void JSphGpuSingle::InitAdvection(double dt){
-    const char met[]="SolvePPE";
+    const char met[]="InitAdvection";
 		TmgStart(Timers,TMG_Stage1);
 
     PosxyPreg=ArraysGpu->ReserveDouble2();
@@ -476,7 +476,7 @@ void JSphGpuSingle::InitAdvection(double dt){
     unsigned np=Np;
     unsigned npb=Npb;
     unsigned npf=np-npb;
-    //-Cambia datos a variables Pre para calcular nuevos datos.
+
     //-Changes data of predictor variables for calculating the new data
     cudaMemcpy(PosxyPreg,Posxyg,sizeof(double2)*np,cudaMemcpyDeviceToDevice);     //Es decir... PosxyPre[] <= Posxy[] //i.e. PosxyPre[] <= Posxy[]
     cudaMemcpy(PoszPreg,Poszg,sizeof(double)*np,cudaMemcpyDeviceToDevice);        //Es decir... PoszPre[] <= Posz[] //i.e. PoszPre[] <= Posz[]
@@ -486,7 +486,9 @@ void JSphGpuSingle::InitAdvection(double dt){
     double *movzg=ArraysGpu->ReserveDouble();     cudaMemset(movzg,0,sizeof(double)*np);
 
     const bool wavegen=(WaveGen? true:false);
-    cusph::ComputeRStar(WithFloating,wavegen,npf,npb,VelPressPreg,dt,Codeg,movxyg,movzg,Posxyg,PistonPos);
+		
+		//-Compute r*, Chow et al. (2018) Eq. (10)
+    cusph::ComputeRStar(wavegen,npf,npb,VelPressPreg,dt,Codeg,movxyg,movzg,Posxyg,PistonPos);
 	  cusph::ComputeStepPos2(PeriActive,WithFloating,np,npb,PosxyPreg,PoszPreg,movxyg,movzg,Posxyg,Poszg,Dcellg,Codeg);
 
     ArraysGpu->Free(movxyg);   movxyg=NULL;
@@ -495,33 +497,37 @@ void JSphGpuSingle::InitAdvection(double dt){
 }
 
 //==============================================================================
-/// Interaccion para el calculo de fuerzas.
-/// Interaction for force computation.
+/// Stage 1 - Intermediate step: Particle sweep 1
 //==============================================================================
 void JSphGpuSingle::Stage1Interaction_ForcesPre(double dt){
   const char met[]="Interaction_Forces";
   TmgStart(Timers,TMG_CfForces);
-  Stage1PreInteraction_ForcesPre(dt);
+
+	//-Assign and initialise memory
+  Stage1PreInteraction_ForcesPre(dt); //-Aceg,dWxCorrg,dWyCorrg,dWzCorrg,Taog,SumFrg,rowIndg,MLSg,Divrg
 
   const unsigned bsfluid=BlockSizes.forcesfluid;
   const unsigned bsbound=BlockSizes.forcesbound;
 	CheckCudaError(met,"Failed checkin.");
-  //-Interaccion Fluid-Fluid/Bound & Bound-Fluid.																																																																																															
-  if(WaveGen) cusph::Stage1Interaction_ForcesPre(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,true,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,VelPressg,Codeg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,BoundaryFS,FreeSurface,PistonPos,TankDim,Taog,NULL,NULL);	
-	else cusph::Stage1Interaction_ForcesPre(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,false,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,VelPressg,Codeg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,BoundaryFS,FreeSurface,PistonPos,TankDim,Taog,NULL,NULL);	
-	
-	//-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
+
+  //-Particle Sweep 1 (see Chow et al. (2018) Section 4.2
+	//-Calculate MLS variables, velocity boundary conditions, acceleration due to viscous forces, variables for stage 2
+	const bool wavegen=(WaveGen? true:false);
+  cusph::Stage1ParticleSweep1(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,wavegen,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,VelPressg,Codeg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,BoundaryFS,FreeSurface,PistonPos,TankDim,Taog,NULL,NULL);	
+	CheckCudaError(met,"Failed while executing Particle sweep 1");
+
   //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
   //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,FtRidpg,DemDatag,float(DemDtForce),Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,ViscDtg,Aceg);
-  //-Para simulaciones 2D anula siempre la 2º componente
+
   //-For 2D simulations always overrides the 2nd component (Y axis)
   if(Simulate2D)cusph::ResetAcey(Np-Npb,Aceg);
+	CheckCudaError(met,"Failed while overriding Accel-Y");
+
   TmgStop(Timers,TMG_CfForces);
-  CheckCudaError(met,"Failed while executing kernels of interaction. Predictor");
 }
 
 //==============================================================================
-/// PPE Solver
+/// Stage 2 - Setup and solve PPE matrix
 //==============================================================================
 #include <fstream>
 #include <sstream>
@@ -561,43 +567,9 @@ void JSphGpuSingle::SolvePPE(double dt){
 	const bool wavegen=(WaveGen?true:false);
   cusph::PopulateMatrix(TKernel,Schwaiger,CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Gravity,Posxyg,Poszg,VelPressg,dWxCorrg,dWyCorrg,dWzCorrg,ag,bg,rowIndg,colIndg,Divrg,Codeg,FreeSurface,MirrorPosg,MirrorCellg,MLSg,dt,sumFrg,BoundaryFS,Taog,wavegen,PistonPos);
 	
-	/*unsigned *rowInd=new unsigned[PPEDim]; cudaMemcpy(rowInd,rowIndg,sizeof(unsigned)*PPEDim,cudaMemcpyDeviceToHost);
-	unsigned *colInd=new unsigned[Nnz]; cudaMemcpy(colInd,colIndg,sizeof(unsigned)*Nnz,cudaMemcpyDeviceToHost);
-	double *b=new double[PPEDim]; cudaMemcpy(b,bg,sizeof(double)*PPEDim,cudaMemcpyDeviceToHost);
-	double *a=new double[Nnz]; cudaMemcpy(a,ag,sizeof(double)*Nnz,cudaMemcpyDeviceToHost);
-	unsigned *Idpc=new unsigned[Np]; cudaMemcpy(Idpc,Idpg,sizeof(unsigned)*Np,cudaMemcpyDeviceToHost);
+	//PrintMatrix(Part,np,npb,npbok,PPEDim,Nnz,rowIndg,colIndg,bg,ag,Idpg); //Print matrix for debugging
 
-	ofstream FileOutput;
-    string TimeFile;
-		unsigned count=1;
-    ostringstream TimeNum;
-    TimeNum << count;
-    ostringstream FileNum;
-    FileNum << count;
-
-    TimeFile =  "CPU Fluid Properties_" + FileNum.str() + ", T = " + TimeNum.str() + ".txt";
-
-    FileOutput.open(TimeFile.c_str());
-
-  for(int i=0;i<npbok;i++){
-    FileOutput << fixed << setprecision(19) << "particle "<< Idpc[i] << "\t Order " << i << "\t b " << b[i] << "\n";
-    for(int j=rowInd[i];j<rowInd[i+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j]  << "\t"<<Idpc[colInd[j]]<< "\n";
-  }
-
-  for(int i=npb;i<np;i++){
-		if(Idpc[i]==208956||Idpc[i]==492056||Idpc[i]==492956||Idpc[i]==209856){
-			FileOutput << fixed << setprecision(20) <<"particle "<< Idpc[i] << "\t Order " << (i-npb)+npbok << "\t b " << b[(i-npb)+npbok] << "\n";
-			for(int j=rowInd[(i-npb)+npbok];j<rowInd[(i-npb)+npbok+1];j++) FileOutput << fixed << setprecision(16) << j << "\t" << a[j] << "\t" << colInd[j] << "\t"<<Idpc[colInd[j]]<<"\n";
-		}
-	}
-  FileOutput.close();
-	count++;*/
-
-	if(PeriActive){
-		//CellDivSingle->MatrixMirrorDCellSingle(bsbound,bsfluid,npf,npb,npbok,Posxyg,Poszg,Codeg,Idpg,rowIndg,colIndg,DomRealPosMin,DomRealPosMax,DomPosMin,Scell,DomCellCode,PeriActive,MapRealPosMin,MapRealSize,PeriXinc,PeriYinc,PeriZinc);
-		//cusph::PopulatePeriodic(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,a,rowInd,colInd,Idpg,Codeg,MirrorCellg);
-	}
-
+	if(PeriActive) //cusph::PopulatePeriodic(CellMode,bsbound,bsfluid,np,npb,npbok,ncells,begincell,cellmin,dcell,Posxyg,Poszg,a,rowInd,colInd,Idpg,Codeg,MirrorCellg);
 	CheckCudaError(met,"Matrix Setup");
 
 	if(SkillenFSPressure) cusph::FreeSurfaceMark(bsbound,bsfluid,np,npb,npbok,Divrg,ag,bg,rowIndg,Codeg,PI,SkillenFreeSurface,SkillenOffset);
@@ -608,9 +580,9 @@ void JSphGpuSingle::SolvePPE(double dt){
 	if(SolverInitialisation) cusph::SolverResultArrange(bsbound,bsfluid,npb,npbok,npf,VelPressg,Xg);
   cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Xg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
   CheckCudaError(met,"Matrix Solve");
-  cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Posxyg,Poszg,VelPressg,Xg,Codeg,MirrorPosg,wavegen,PistonPos,Divrg,BoundaryFS,FreeSurface);
-
-  CheckCudaError(met,"Pressure assign");
+  
+	cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Posxyg,Poszg,VelPressg,Xg,Codeg,MirrorPosg,wavegen,PistonPos,Divrg,BoundaryFS,FreeSurface);
+	CheckCudaError(met,"Pressure assign");
   
   ArraysGpu->Free(bg);             bg=NULL;
   ArraysGpu->Free(Xg);             Xg=NULL;
