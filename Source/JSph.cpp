@@ -463,6 +463,12 @@ void JSph::LoadCaseConfig(){
 		}
   }
 
+	switch(eparms.GetValueInt("SolverInitialisation",true,1)){
+			case 0:  SolverInitialisation=false;  break;
+			case 1:  SolverInitialisation=true;  break;
+			default: RunException(met,"SolverInitialisation choice is not valid.");
+		}
+
   FreeSurface=eparms.GetValueFloat("FreeSurface",true,1.5f);
 	BoundaryFS=eparms.GetValueFloat("BoundaryFS",true,1.0f);
 	SkillenFreeSurface=eparms.GetValueFloat("SkillenFreeSurface",true,1.5f);

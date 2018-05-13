@@ -450,7 +450,9 @@ void JSphGpuSingle::RunFloating(double dt,bool predictor){
 }
 
 //==============================================================================
-/// Irelation - Dummy particles' respective Wall particle
+/// Setup Marrone et al. boundary conditions 
+/// Find unique interpolation points 
+/// (Chow et al. (2018) - Section 3.1)
 //==============================================================================
 void JSphGpuSingle::MirrorBoundary(){
 	const char met[]="MirrorBoundary";
@@ -505,8 +507,10 @@ void JSphGpuSingle::Stage1Interaction_ForcesPre(double dt){
   const unsigned bsbound=BlockSizes.forcesbound;
 	CheckCudaError(met,"Failed checkin.");
   //-Interaccion Fluid-Fluid/Bound & Bound-Fluid.																																																																																															
-  cusph::Stage1Interaction_ForcesPre(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,VelPressg,Codeg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,BoundaryFS,FreeSurface,PistonPos,TankDim,Taog,NULL,NULL);	
-  //-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
+  if(WaveGen) cusph::Stage1Interaction_ForcesPre(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,true,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,VelPressg,Codeg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,BoundaryFS,FreeSurface,PistonPos,TankDim,Taog,NULL,NULL);	
+	else cusph::Stage1Interaction_ForcesPre(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,false,CellMode,Visco*ViscoBoundFactor,Visco,bsbound,bsfluid,Np,Npb,NpbOk,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,Posxyg,Poszg,VelPressg,Codeg,dWxCorrg,dWyCorrg,dWzCorrg,FtoMasspg,Aceg,Simulate2D,Divrg,MirrorPosg,MirrorCellg,MLSg,rowIndg,sumFrg,BoundaryFS,FreeSurface,PistonPos,TankDim,Taog,NULL,NULL);	
+	
+	//-Interaccion DEM Floating-Bound & Floating-Floating //(DEM)
   //-Interaction DEM Floating-Bound & Floating-Floating //(DEM)
   //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,CellDivSingle->GetNcells(),CellDivSingle->GetBeginCell(),CellDivSingle->GetCellDomainMin(),Dcellg,FtRidpg,DemDatag,float(DemDtForce),Posxyg,Poszg,PsPospressg,Velrhopg,Codeg,Idpg,ViscDtg,Aceg);
   //-Para simulaciones 2D anula siempre la 2º componente
@@ -601,7 +605,7 @@ void JSphGpuSingle::SolvePPE(double dt){
 	TmgStop(Timers,TMG_Stage2a);
 	TmgStart(Timers,TMG_Stage2b);
 
-	cusph::SolverResultArrange(bsbound,bsfluid,npb,npbok,npf,VelPressg,Xg);
+	if(SolverInitialisation) cusph::SolverResultArrange(bsbound,bsfluid,npb,npbok,npf,VelPressg,Xg);
   cusph::solveVienna(TPrecond,TAMGInter,Tolerance,Iterations,StrongConnection,JacobiWeight,Presmooth,Postsmooth,CoarseCutoff,CoarseLevels,ag,Xg,bg,rowIndg,colIndg,Nnz,PPEDim,Numfreesurface); 
   CheckCudaError(met,"Matrix Solve");
   cusph::PressureAssign(bsbound,bsfluid,np,npb,npbok,Gravity,Posxyg,Poszg,VelPressg,Xg,Codeg,MirrorPosg,wavegen,PistonPos,Divrg,BoundaryFS,FreeSurface);
@@ -727,26 +731,26 @@ void JSphGpuSingle::RunShifting(double dt){
 /// Particle interaction and update of particle data according to
 /// the computed forces using the Symplectic time stepping scheme
 //==============================================================================
-double JSphGpuSingle::ComputeStep_Sym(double dt){
-  //-Predictor
+double JSphGpuSingle::ProjectionStep(double dt){
+  //-Stage 1-Intermediate step
   //----------- 
-  InitAdvection(dt);
-	RunCellDivide(true);
-	Stage1Interaction_ForcesPre(dt);
-	ComputeSymplecticPre(dt);         
+  InitAdvection(dt);								//Calculate Initial advection, r* - Chow et al. (2018) Eq. (10)
+	RunCellDivide(true);							//Create cell-linked list
+	Stage1Interaction_ForcesPre(dt);	//Particle sweep 1 - Acceleration due to viscous forces - Chow et al. (2018) Eqs (7)(18)(19)(24)(25), Section 4.2
+	ComputeSymplecticPre(dt);					//Calculate Intermediate velocity, u* - Chow et al. (2018) Eq. (11)    
 
-	//-Stage 2-Pressure Poisson equation
+	//-Stage 2-Setup and solve PPE matrix
   //-----------
-	SolvePPE(dt);				
+	SolvePPE(dt);	//Particle sweep 2 - Setup PPE matrix Chow et al. (2018) Eqs (12)(29)(30)(20), Section 4.3			
 
   //-Stage 3-Corrector
   //-----------
-  Stage3Interaction_ForcesCor(dt); 
-  ComputeSymplecticCorr(dt);			
+  Stage3Interaction_ForcesCor(dt);	//Particle sweep 3 - Accerelation due to pressure gradient - Chow et al. (2018) Eq. (15)
+  ComputeSymplecticCorr(dt);				//Calculate new velocity, u^(n+1) and position, r^(n+1) - Chow et al. (2018) Eqs (11)(16)  
 
 	//-Stage 4-Shifting
 	//-----------
-	if(TShifting)RunShifting(dt);		
+	if(TShifting)RunShifting(dt);			//Particle sweep 4 - Shifting - Chow et al. (2018) Eq. (16)(23)(26)
 
   return(dt);
 }
@@ -814,7 +818,7 @@ void JSphGpuSingle::Run(std::string appname,JCfgRun *cfg,JLog2 *log){
 
 	while(TimeStep<TimeMax){
 		if(CaseNmoving)RunMotion(stepdt); 
-    stepdt=ComputeStep_Sym(stepdt);
+    stepdt=ProjectionStep(stepdt);
     if(PartDtMin>stepdt)PartDtMin=stepdt; if(PartDtMax<stepdt)PartDtMax=stepdt;
     TimeStep+=stepdt;
     partoutstop=(Np<NpMinimum || !Np);

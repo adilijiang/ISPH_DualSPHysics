@@ -48,7 +48,7 @@ protected:
 	void Stage3Interaction_ForcesCor(double dt);
   double ComputeAceMax(float *auxmem);
 
-  double ComputeStep_Sym(double dt);
+  double ProjectionStep(double dt);
 
   void RunFloating(double dt,bool predictor);
 

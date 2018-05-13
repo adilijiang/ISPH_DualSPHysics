@@ -680,8 +680,9 @@ void JSphGpu::ConfigBlockSizes(bool usezone,bool useperi){
     //-Collects kernel information.
     StKerInfo kerinfo;
     memset(&kerinfo,0,sizeof(StKerInfo));
-    cusph::Stage1Interaction_ForcesPre(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,CellMode,0,0,0,0,100,50,20,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Simulate2D,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,TDouble3(0),TDouble3(0),NULL,&kerinfo,NULL);
-    //cusph::Stage3Interaction_ForcesCor(TKernel,WithFloating,UseDEM,CellMode,0,100,50,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&kerinfo,NULL);
+    if(WaveGen) cusph::Stage1Interaction_ForcesPre(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,true,CellMode,0,0,0,0,100,50,20,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Simulate2D,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,TDouble3(0),TDouble3(0),NULL,&kerinfo,NULL);
+    cusph::Stage1Interaction_ForcesPre(TKernel,WithFloating,UseDEM,TSlipCond,Schwaiger,false,CellMode,0,0,0,0,100,50,20,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,Simulate2D,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,TDouble3(0),TDouble3(0),NULL,&kerinfo,NULL);
+		//cusph::Stage3Interaction_ForcesCor(TKernel,WithFloating,UseDEM,CellMode,0,100,50,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&kerinfo,NULL);
     //if(UseDEM)cusph::Interaction_ForcesDem(Psimple,CellMode,BlockSizes.forcesdem,CaseNfloat,TUint3(0),NULL,TUint3(0),NULL,NULL,NULL,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&kerinfo);
     //Log->Printf("====> bound -> r:%d  bs:%d  bsmax:%d",kerinfo.forcesbound_rg,kerinfo.forcesbound_bs,kerinfo.forcesbound_bsmax);
     //Log->Printf("====> fluid -> r:%d  bs:%d  bsmax:%d",kerinfo.forcesfluid_rg,kerinfo.forcesfluid_bs,kerinfo.forcesfluid_bsmax);

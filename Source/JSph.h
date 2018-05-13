@@ -193,6 +193,7 @@ protected:
   int CoarseCutoff;
   int CoarseLevels;
 	bool VariableTimestep;
+	bool SolverInitialisation;
 
 	TpWaveLoading TWaveLoading;
 	double wL;
