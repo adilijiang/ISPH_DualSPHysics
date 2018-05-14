@@ -855,9 +855,16 @@ template<TpKernel tker> __global__ void KerInteractionForcesBound
 					velpress[p1].z=2.0f*velpress[p1].z+TangVel.z-NormVel.z;
 				}
 				else if(posz[p1]<PistonPos.z&&posxy[p1].x>PistonPos.x&&posxy[p1].x<TankDim.x&&posxy[p1].y>PistonPos.y&&posxy[p1].y<TankDim.y){
-					velpress[p1].x=2.0f*velpress[p1].x+TangVel.x-NormVel.x;
-					velpress[p1].y=2.0f*velpress[p1].y+TangVel.y-NormVel.y;
-					velpress[p1].z=2.0f*velpress[p1].z+TangVel.z-NormVel.z;
+					if(NormDir.x==NormDir.z||NormDir.x==NormDir.y||NormDir.z==NormDir.y){
+						velpress[p1].x=2.0f*velpress[p1].x-Sum.x;
+						velpress[p1].y=2.0f*velpress[p1].y-Sum.y;
+						velpress[p1].z=2.0f*velpress[p1].z-Sum.z;
+					}
+					else{
+						velpress[p1].x=2.0f*velpress[p1].x+TangVel.x-NormVel.x;
+						velpress[p1].y=2.0f*velpress[p1].y+TangVel.y-NormVel.y;
+						velpress[p1].z=2.0f*velpress[p1].z+TangVel.z-NormVel.z;
+					}
 				}
 				else{
 					velpress[p1].x=2.0f*velpress[p1].x-Sum.x;
@@ -2962,9 +2969,10 @@ void ComputeRStar(const bool wavegen,unsigned npf,unsigned npb,const float4 *vel
 /// Setup Marrone et al. boundary conditions 
 /// Find unique interpolation points 
 //==============================================================================
-__device__ void KerMultiplePhysPoints(const unsigned p1,unsigned &firstPhysparticle,const unsigned secondPhysparticle,const unsigned thirdPhysparticle
+__device__ unsigned KerMultiplePhysPoints(const unsigned p1,const unsigned firstPhysparticle,const unsigned secondPhysparticle,const unsigned thirdPhysparticle,
 	const bool thirdPoint,const double3 posp1,const double2 *posxy,const double *posz,const unsigned npb)
 {
+	//-Calculate distances between non-edge boundary particle, i, (mk=1) and closest edge particles (mk=0)
 	const double3 Phys1=make_double3(posxy[firstPhysparticle].x,posxy[firstPhysparticle].y,posz[firstPhysparticle]);
 	const double3 Phys2=make_double3(posxy[secondPhysparticle].x,posxy[secondPhysparticle].y,posz[secondPhysparticle]);
 	const double drx1=Phys1.x-posp1.x;
@@ -2974,7 +2982,7 @@ __device__ void KerMultiplePhysPoints(const unsigned p1,unsigned &firstPhysparti
 	const double dry2=Phys2.y-posp1.y;
 	const double drz2=Phys2.z-posp1.z;
 	
-	double drx3=0; double dry3=0; double drz3=0; double3 Phys3=make_double(0,0,0);
+	double drx3=0; double dry3=0; double drz3=0; double3 Phys3=make_double3(0,0,0);
 	if(thirdPoint){
 		Phys3=make_double3(posxy[thirdPhysparticle].x,posxy[thirdPhysparticle].y,posz[thirdPhysparticle]);
 		drx3=Phys3.x-posp1.x;
@@ -2982,20 +2990,33 @@ __device__ void KerMultiplePhysPoints(const unsigned p1,unsigned &firstPhysparti
 		drz3=Phys3.z-posp1.z;
 	}
 
+	//-Create scaling vector, sum of distances
 	double3 scalingVector=make_double3(0,0,0);
-	int
-	searchPoint.x=posp1.x+(drx1+drx2);
-	searchPoint.y=posp1.y+(dry1+dry2);
-	searchPoint.z=posp1.z+(drz1+drz2);
+	scalingVector.x=drx1+drx2+drx3;
+	scalingVector.y=dry1+dry2+dry3;
+	scalingVector.z=drz1+drz2+drz3;
 
-	for(int i=0;i<int(npb);i++){
-		const double drx=searchPoint.x-posxy[i].x;
-		const double dry=searchPoint.y-posxy[i].y;
-		const double drz=searchPoint.z-posz[i];
+	//-Prevention of adding the same distance more than once to correct scaling vector
+	if(drx1==drx2||drx1==drx3||drx2==drx3) scalingVector.x/=2.0;
+	if(dry1==dry2||dry1==dry3||dry2==dry3) scalingVector.y/=2.0;
+	if(drz1==drz2||drz1==drz3||drz2==drz3) scalingVector.z/=2.0;
 
-		double rr2=drx*drx+dry*dry+drz*drz;
-		if(rr2<=ALMOSTZERO){ firstPhysparticle=i; break;}
+	//-Search for correct edge particle (mk=0)
+	unsigned particle; 
+	for(int j=0;j<int(npb);j++){
+		const double3 searchPoint=make_double3(posxy[j].x,posxy[j].y,posz[j]);
+		//-Find factor to times scaling vector by to get from pos[i].x to pos[j].x
+		const double factor=(searchPoint.x-posp1.x)/scalingVector.x;
+
+		//-See if the other directions match particle j , if they match, return j
+		if((posp1.z+factor*scalingVector.z)-searchPoint.z<=ALMOSTZERO){
+			if((posp1.y+factor*scalingVector.y)-searchPoint.y<=ALMOSTZERO){
+				particle=j; break;
+			}
+		}
 	}
+
+	return particle;
 }
 
 __device__ void KerConnectBoundaryCalc
@@ -3045,9 +3066,12 @@ __global__ void KerConnectBoundary
 			bool thirdPoint=false; //For 3D
 			unsigned thirdPhysparticle=npb; //For 3D
 
+			//-Find closest edge boundary particle (mk=0) to the non-edge boundary particle 
 			KerConnectBoundaryCalc(p1,0,npb,posxy,posz,code,posdp1,firstPhysparticle,closestR,secondPoint,secondPhysparticle,thirdPoint,thirdPhysparticle);
-			//if(Physparticle!=npb&&secondPoint)
-			if(secondPoint) KerMultiplePhysPoints(p1,firstPhysparticle,secondPhysparticle,thirdPhysparticle,thirdPoint,posdp1,posxy,posz,npb);
+
+			//-For the case of multiple closest edge boundary particles
+			if(secondPoint) firstPhysparticle=KerMultiplePhysPoints(p1,firstPhysparticle,secondPhysparticle,thirdPhysparticle,thirdPoint,posdp1,posxy,posz,npb);
+
 			Physparticle[p1]=firstPhysparticle;
 		}
 	}
