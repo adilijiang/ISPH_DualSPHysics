@@ -2962,6 +2962,97 @@ void ComputeRStar(const bool wavegen,unsigned npf,unsigned npb,const float4 *vel
 /// Setup Marrone et al. boundary conditions 
 /// Find unique interpolation points 
 //==============================================================================
+__device__ void KerMultiplePhysPoints(const unsigned p1,unsigned &firstPhysparticle,const unsigned secondPhysparticle,const unsigned thirdPhysparticle
+	const bool thirdPoint,const double3 posp1,const double2 *posxy,const double *posz,const unsigned npb)
+{
+	const double3 Phys1=make_double3(posxy[firstPhysparticle].x,posxy[firstPhysparticle].y,posz[firstPhysparticle]);
+	const double3 Phys2=make_double3(posxy[secondPhysparticle].x,posxy[secondPhysparticle].y,posz[secondPhysparticle]);
+	const double drx1=Phys1.x-posp1.x;
+	const double dry1=Phys1.y-posp1.y;
+	const double drz1=Phys1.z-posp1.z;
+	const double drx2=Phys2.x-posp1.x;
+	const double dry2=Phys2.y-posp1.y;
+	const double drz2=Phys2.z-posp1.z;
+	
+	double drx3=0; double dry3=0; double drz3=0; double3 Phys3=make_double(0,0,0);
+	if(thirdPoint){
+		Phys3=make_double3(posxy[thirdPhysparticle].x,posxy[thirdPhysparticle].y,posz[thirdPhysparticle]);
+		drx3=Phys3.x-posp1.x;
+		dry3=Phys3.y-posp1.y;
+		drz3=Phys3.z-posp1.z;
+	}
+
+	double3 scalingVector=make_double3(0,0,0);
+	int
+	searchPoint.x=posp1.x+(drx1+drx2);
+	searchPoint.y=posp1.y+(dry1+dry2);
+	searchPoint.z=posp1.z+(drz1+drz2);
+
+	for(int i=0;i<int(npb);i++){
+		const double drx=searchPoint.x-posxy[i].x;
+		const double dry=searchPoint.y-posxy[i].y;
+		const double drz=searchPoint.z-posz[i];
+
+		double rr2=drx*drx+dry*dry+drz*drz;
+		if(rr2<=ALMOSTZERO){ firstPhysparticle=i; break;}
+	}
+}
+
+__device__ void KerConnectBoundaryCalc
+  (const unsigned &p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
+  ,const word *code,double3 posdp1,unsigned &firstPhysparticle,float closestR,bool &secondPoint,unsigned &secondPhysparticle
+	,bool &thirdPoint,unsigned &thirdPhysparticle)
+{
+	for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==0){
+		float drx,dry,drz;
+		KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
+		float rr2=drx*drx+dry*dry+drz*drz;
+		if(rr2==closestR){
+			if(secondPoint){
+				thirdPoint=true;
+				thirdPhysparticle=p2;
+			}
+			else if(!secondPoint){
+				secondPoint=true;
+				secondPhysparticle=p2;
+			}
+		}
+		else if(rr2<closestR){
+			closestR=rr2;
+			firstPhysparticle=p2;
+			if(secondPoint){
+				secondPoint=false;
+				thirdPoint=false;
+			}
+		}
+	}
+}
+
+__global__ void KerConnectBoundary
+  (unsigned npb,const double2 *posxy,const double *posz,const word *code,unsigned *Physparticle,const bool wavegen)
+{
+  unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
+  if(p1<npb){ 
+		//-Link non-edge boundary particles (mk=1) to edge boundary particles (mk=0), ignore piston wavemaker and periodic particles
+		if(CODE_GetTypeValue(code[p1])==1&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC&&!(wavegen&&CODE_GetType(code[p1])==CODE_TYPE_MOVING)){
+			const double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
+			float closestR=5.0*CTE.fourh2;
+			unsigned firstPhysparticle=npb; //-Physparticle=(mk=0) edge particle number that (mk=1) particle p1 is closest too, npb=>not connected
+			
+			//-For external corners, (mk=1) particle p1 may be equidistant to more than one (mk=0) edge particle
+			bool secondPoint=false; //For 2D
+			unsigned secondPhysparticle=npb; //For 2D
+			bool thirdPoint=false; //For 3D
+			unsigned thirdPhysparticle=npb; //For 3D
+
+			KerConnectBoundaryCalc(p1,0,npb,posxy,posz,code,posdp1,firstPhysparticle,closestR,secondPoint,secondPhysparticle,thirdPoint,thirdPhysparticle);
+			//if(Physparticle!=npb&&secondPoint)
+			if(secondPoint) KerMultiplePhysPoints(p1,firstPhysparticle,secondPhysparticle,thirdPhysparticle,thirdPoint,posdp1,posxy,posz,npb);
+			Physparticle[p1]=firstPhysparticle;
+		}
+	}
+}
+
 __global__ void KerWaveGenBoundary
 	(const bool simulate2d,unsigned npb,const double2 *posxy,const double *posz,const word *code,double3 *mirrorPos
 	,const tdouble3 PistonPos,const tdouble3 TankDim)
@@ -3137,72 +3228,6 @@ __global__ void KerFindMirrorPoints
 			if(!simulate2d) mirrorPos[p1].y=posdp1.y+0.5*Dp*NormDir.y;
 			mirrorPos[p1].z=posdp1.z+0.5*Dp*NormDir.z;
 			Physrelation[p1]=p1;
-		}
-	}
-}
-
-__device__ void KerMirrorTwoPoints(const unsigned p1,unsigned &Physparticle,const unsigned secondIrelation,const double3 posp1,const double2 *posxy,const double *posz,const unsigned npb)
-{
-	const double drx1=posp1.x-posxy[Physparticle].x;
-	const double dry1=posp1.y-posxy[Physparticle].y;
-	const double drz1=posp1.z-posz[Physparticle];
-	const double drx2=posp1.x-posxy[secondIrelation].x;
-	const double dry2=posp1.y-posxy[secondIrelation].y;
-	const double drz2=posp1.z-posz[secondIrelation];
-
-	double3 searchPoint=make_double3(0,0,0);
-	searchPoint.x=posp1.x-(drx1+drx2);
-	searchPoint.y=posp1.y-(dry1+dry2);
-	searchPoint.z=posp1.z-(drz1+drz2);
-
-	for(int i=0;i<int(npb);i++) {
-		const double drx=searchPoint.x-posxy[i].x;
-		const double dry=searchPoint.y-posxy[i].y;
-		const double drz=searchPoint.z-posz[i];
-
-		double rr2=drx*drx+dry*dry+drz*drz;
-		if(rr2<=ALMOSTZERO) Physparticle=i;
-	}
-}
-
-__device__ void KerConnectBoundaryCalc
-  (const unsigned &p1,const unsigned &pini,const unsigned &pfin,const double2 *posxy,const double *posz
-  ,const word *code,double3 posdp1,unsigned &Physparticle,float closestR,bool &secondPoint,unsigned &secondIrelation)
-{
-	for(int p2=pini;p2<pfin;p2++)if(CODE_GetTypeValue(code[p2])==0){
-		float drx,dry,drz;
-		KerGetParticlesDr(p2,posxy,posz,posdp1,drx,dry,drz);
-		float rr2=drx*drx+dry*dry+drz*drz;
-		if(rr2==closestR){
-					secondPoint=true;
-					secondIrelation=p2;
-			}
-			else if(rr2<closestR){
-				closestR=rr2;
-				Physparticle=p2;
-				if(secondPoint) secondPoint=false;
-			}
-	}
-}
-
-__global__ void KerConnectBoundary
-  (unsigned npb,const double2 *posxy,const double *posz,const word *code,unsigned *Physrelation,const bool wavegen)
-{
-  unsigned p1=blockIdx.y*gridDim.x*blockDim.x + blockIdx.x*blockDim.x + threadIdx.x; //-Nº de la partícula //-NI of particle.
-  if(p1<npb){
-		if(CODE_GetTypeValue(code[p1])==1&&CODE_GetSpecialValue(code[p1])!=CODE_PERIODIC&&!(wavegen&&CODE_GetType(code[p1])==CODE_TYPE_MOVING)){
-			const double3 posdp1=make_double3(posxy[p1].x,posxy[p1].y,posz[p1]);
-			float closestR=5.0*CTE.fourh2;
-			unsigned Physparticle=npb;
-			Physrelation[p1]=npb;
-			bool secondPoint=false;
-			unsigned secondIrelation=npb;
-
-			KerConnectBoundaryCalc(p1,0,npb,posxy,posz,code,posdp1,Physparticle,closestR,secondPoint,secondIrelation);
-			if(Physparticle!=npb){
-				if(secondPoint) KerMirrorTwoPoints(p1,Physparticle,secondIrelation,posdp1,posxy,posz,npb);
-				Physrelation[p1]=Physparticle;
-			}
 		}
 	}
 }
