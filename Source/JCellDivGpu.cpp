@@ -279,9 +279,9 @@ int2 JCellDivGpu::CellBeginEnd(unsigned cell)const{
 /// Ordena arrays basicos segun SortPart. 
 /// Reorders basic arrays according to SortPart
 //==============================================================================
-void JCellDivGpu::SortBasicArrays(const unsigned *idp,const word *code,const unsigned *dcell,const double2 *posxy,const double *posz,const float4 *velrhop,unsigned *idp2,word *code2,unsigned *dcell2,double2 *posxy2,double *posz2,float4 *velrhop2){
+void JCellDivGpu::SortBasicArrays(const unsigned npb,const unsigned *idp,const word *code,const unsigned *dcell,const double2 *posxy,const double *posz,const float4 *velrhop,const double3 *mirrorpos,const unsigned *mirrorcell,unsigned *idp2,word *code2,unsigned *dcell2,double2 *posxy2,double *posz2,float4 *velrhop2,double3 *mirrorpos2,unsigned *mirrorcell2){
   const unsigned pini=(DivideFull? 0: NpbFinal);
-  cudiv::SortDataParticles(Nptot,pini,SortPart,idp,code,dcell,posxy,posz,velrhop,idp2,code2,dcell2,posxy2,posz2,velrhop2);
+  cudiv::SortDataParticles(Nptot,npb,pini,SortPart,idp,code,dcell,posxy,posz,velrhop,mirrorpos,mirrorcell,idp2,code2,dcell2,posxy2,posz2,velrhop2,mirrorpos2,mirrorcell2);
 }
 
 //==============================================================================

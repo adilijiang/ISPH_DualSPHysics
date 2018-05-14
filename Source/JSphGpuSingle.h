@@ -44,10 +44,11 @@ protected:
   void RunPeriodic();
   void RunCellDivide(bool updateperiodic);
 
-  void Interaction_Forces(TpInter tinter,double dt);
+  void Stage1Interaction_ForcesPre(double dt);
+	void Stage3Interaction_ForcesCor(double dt);
   double ComputeAceMax(float *auxmem);
 
-  double ComputeStep_Sym(double dt);
+  double ProjectionStep(double dt);
 
   void RunFloating(double dt,bool predictor);
 

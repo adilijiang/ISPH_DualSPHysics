@@ -125,11 +125,11 @@ private:
 
   //-Numero acumulado de particulas excluidas segun motivo.
   //-Total number of excluded particles according to reason for exclusion.
-  unsigned OutPosCount,OutRhopCount,OutMoveCount;
+  unsigned OutPosCount,OutMoveCount;
 
   void InitVars();
   std::string CalcRunCode()const;
-  void AddOutCount(unsigned outpos,unsigned outrhop,unsigned outmove){ OutPosCount+=outpos; OutRhopCount+=outrhop; OutMoveCount+=outmove; }
+  void AddOutCount(unsigned outpos,unsigned outmove){ OutPosCount+=outpos; OutMoveCount+=outmove; }
   void ClearCfgDomain();
   void ConfigDomainFixed(tdouble3 vmin,tdouble3 vmax);
   void ConfigDomainParticles(tdouble3 vmin,tdouble3 vmax);
@@ -157,26 +157,20 @@ protected:
   TpKernel TKernel;           //-Tipo de kernel: Cubic o Wendland.												//-Kernel type: Cubic or Wendland.
   float Awen;                 //-Constante para kernel wendland (awen).											//-Wendland kernel constant (awen).
   float Bwen;                 //-Constante para kernel wendland (bwen).											//-Wendland kernel constant (bwen).
-  TpVisco TVisco;             //-Tipo de viscosidad: Artificial,...												//-Viscosity type: Artificial,...
 
   TpShifting TShifting; //-Tipo de Shifting: None, NoBound, NoFixed, Full.										//-Shifting type: None, NoBound, NoFixed, Full.	
   float ShiftCoef;      //-Coefficient for shifting computation.
   float ShiftOffset;    //-Coefficient for shifting near-free-surface and marking pressure near free-surface
 	float FreeSurface;    //-Threshold to detect free surface.
-	double	AlphaShift0;		//-Coefficient for amount of allowable shifting to the normal of the free-surface
-	double	AlphaShift1;		//-Coefficient for amount of allowable shifting to the normal of the near free-surface
-	double	AlphaShift2;		//-Coefficient for amount of allowable shifting to the normal of the near free-surface
+	double	AlphaShift;		//-Coefficient for amount of allowable shifting to the normal of the free-surface
 	bool HydrodynamicCorrection;
 	bool SkillenFSPressure;
 	float SkillenFreeSurface;
 	float SkillenOffset;
   float TensileN;       //-Tensile Instability Coefficient
   float TensileR;       //-Tensile Instability Coefficient
-	double BetaShift0;			//-Beta value for free-surface shifting
-	double BetaShift1;			//-Beta value for near free-surface shifting
-	double BetaShift2;			//-Beta value for near free-surface shifting
 	float BoundaryFS; 
-	bool OPS;
+	bool smoothShiftNorm;
   TpSlipCond TSlipCond;
 
 	double CylinderRadius;
@@ -191,7 +185,6 @@ protected:
   TpAMGInter TAMGInter;
 	unsigned MatrixMemory;
 	int Iterations;
-	int Restart;
   double Tolerance;
   float StrongConnection;
   float JacobiWeight;
@@ -200,6 +193,7 @@ protected:
   int CoarseCutoff;
   int CoarseLevels;
 	bool VariableTimestep;
+	bool SolverInitialisation;
 
 	TpWaveLoading TWaveLoading;
 	double wL;
@@ -218,9 +212,6 @@ protected:
   float Visco;  
   float ViscoBoundFactor;     //-Para interaccion con contorno usa Visco*ViscoBoundFactor.						//-Forboundary interaction use Visco*ViscoBoundFactor.
   JSphVisco* ViscoTime;       //-Proporciona un valor de viscosidad en funcion del instante de la simulacion.	//-Provides a viscosity value as a function of simulation time.
-
-  bool RhopOut;                //Indica si activa la correccion de densidad RhopOut o no.						//-Indicates whether the RhopOut density correction is active or not.
-  float RhopOutMin,RhopOutMax; //Limites para la correccion de RhopOut.											//-Limits for Rhopout correction.
 
   double TimeMax;
   double TimePart;
@@ -245,10 +236,8 @@ protected:
 
   //-Constantes para calculo.
   //-Computation constants.
-  float H,CteB,Gamma,CFLnumber,RhopZero;
+  float H,CFLnumber,RhopZero;
   double Dp;
-  double Cs0;
-  float Delta2H;     ///<Constant for DeltaSPH. Delta2H=DeltaSph*H*2
   float MassFluid,MassBound;  
   tfloat3 Gravity;
   tdouble3 GravityDbl;
@@ -431,7 +420,6 @@ protected:
   void ShowResume(bool stop,float tsim,float ttot,bool all,std::string infoplus);
 
   unsigned GetOutPosCount()const{ return(OutPosCount); }
-  unsigned GetOutRhopCount()const{ return(OutRhopCount); }
   unsigned GetOutMoveCount()const{ return(OutMoveCount); }
 	void CalcCylinder(unsigned &outerN,double &theta,const double radius)const;
 
@@ -442,8 +430,6 @@ public:
   static std::string GetPosDoubleName(bool psimple,bool svdouble);
   static std::string GetStepName(TpStep tstep);
   static std::string GetKernelName(TpKernel tkernel);
-  static std::string GetViscoName(TpVisco tvisco);
-  static std::string GetDeltaSphName(TpDeltaSph tdelta);
   static std::string GetShiftingName(TpShifting tshift);
 
   static std::string TimerToText(const std::string &name,float value);

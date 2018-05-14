@@ -90,7 +90,7 @@ JSph::~JSph(){
 //==============================================================================
 void JSph::InitVars(){
   ClearCfgDomain();
-  OutPosCount=OutRhopCount=OutMoveCount=0;
+  OutPosCount=OutMoveCount=0;
   Simulate2D=false;
   Stable=false;
   SvDouble=false;
@@ -101,7 +101,6 @@ void JSph::InitVars(){
   TKernel=KERNEL_Wendland;
 	Schwaiger=false;
   Awen=Bwen=0;
-  TVisco=VISCO_None;
   TShifting=SHIFT_None; ShiftCoef=0;
   FreeSurface=0;
 	SkillenFSPressure=false;
@@ -117,7 +116,7 @@ void JSph::InitVars(){
 	CylinderLength=TDouble2(0,0);
 	FullCylinderLength=TDouble2(0,0);
 	TCylinderAxis=CYLINDER_NONE;
-	OPS=false;
+	smoothShiftNorm=false;
 	VariableTimestep=false;
   StrongConnection=0; JacobiWeight=0; Presmooth=0; Postsmooth=0; CoarseCutoff=0;
 	PistonPos=TDouble3(0);
@@ -125,7 +124,6 @@ void JSph::InitVars(){
   UseDEM=false;  //(DEM)
   DemDtForce=0;  //(DEM)
   memset(DemObjs,0,sizeof(StDemData)*DemObjsSize);  //(DEM)
-  RhopOut=true; RhopOutMin=700; RhopOutMax=1300;
   TimeMax=TimePart=0;
   DtIni=DtMin=0; CoefDtMin=0; DtAllParticles=false;
   PartsOutMax=0;
@@ -136,10 +134,8 @@ void JSph::InitVars(){
   SvTimers=false;
   SvDomainVtk=false;
 
-  H=CteB=Gamma=RhopZero=CFLnumber=0;
+  H=RhopZero=CFLnumber=0;
   Dp=0;
-  Cs0=0;
-  Delta2H=0;
   MassFluid=MassBound=0;
   Gravity=TFloat3(0);
   Dosh=H2=Fourh2=Eta2=0;
@@ -328,7 +324,6 @@ void JSph::LoadConfig(const JCfgRun *cfg){
   else if(cfg->PosDouble==1){ SvDouble=false; }
   else if(cfg->PosDouble==2){ SvDouble=true;  }
   if(cfg->TStep)TStep=cfg->TStep;
-  if(cfg->TVisco){ TVisco=cfg->TVisco; Visco=cfg->Visco; }
   if(cfg->ViscoBoundFactor>=0)ViscoBoundFactor=cfg->ViscoBoundFactor;
 
   if(cfg->Shifting>=0){
@@ -365,11 +360,6 @@ void JSph::LoadConfig(const JCfgRun *cfg){
     ConfigDomainParticlesPrc(cfg->DomainParticlesPrcMin,cfg->DomainParticlesPrcMax);
   }
   else if(cfg->DomainMode==2)ConfigDomainFixed(cfg->DomainFixedMin,cfg->DomainFixedMax);
-  if(cfg->RhopOutModif){
-    RhopOutMin=cfg->RhopOutMin; RhopOutMax=cfg->RhopOutMax;
-  }
-  RhopOut=(RhopOutMin<RhopOutMax);
-  if(!RhopOut){ RhopOutMin=-FLT_MAX; RhopOutMax=FLT_MAX; }
 }
 
 //==============================================================================
@@ -425,16 +415,6 @@ void JSph::LoadCaseConfig(){
     default: RunException(met,"HydrodynamicCorrection choice is not valid.");
   }
 
-	switch(eparms.GetValueInt("OPS",true,0)){
-    case 0:  OPS=false;  break;
-		case 1:  OPS=true;  break;
-    default: RunException(met,"OPS choice is not valid.");
-  }
-
-  switch(eparms.GetValueInt("ViscoTreatment",true,1)){
-    case 1:  TVisco=VISCO_Artificial;  break;
-    default: RunException(met,"Viscosity treatment is not valid.");
-  }
   Visco=eparms.GetValueFloat("Visco");
   ViscoBoundFactor=eparms.GetValueFloat("ViscoBoundFactor",true,1.f);
   string filevisco=eparms.GetValueStr("ViscoTime",true);
@@ -475,22 +455,27 @@ void JSph::LoadCaseConfig(){
     ShiftOffset=eparms.GetValueFloat("ShiftOffset",true,0.2f);
     TensileN=eparms.GetValueFloat("TensileN",true,4.0f);
     TensileR=eparms.GetValueFloat("TensileR",true,0.2f);
-		BetaShift0=eparms.GetValueDouble("BetaShift0",true,0.0f);
-		BetaShift1=eparms.GetValueDouble("BetaShift1",true,0.0f);
-		BetaShift2=eparms.GetValueDouble("BetaShift2",true,0.0f);
-		AlphaShift0=eparms.GetValueDouble("AlphaShift0",true,0.0f);
-		AlphaShift1=eparms.GetValueDouble("AlphaShift1",true,0.0f);
-		AlphaShift2=eparms.GetValueDouble("AlphaShift2",true,0.0f);
+		AlphaShift=eparms.GetValueDouble("AlphaShift",true,0.0f);
+		switch(eparms.GetValueInt("smoothShiftNorm",true,0)){
+			case 0:  smoothShiftNorm=false;  break;
+			case 1:  smoothShiftNorm=true;  break;
+			default: RunException(met,"smoothShiftNorm choice is not valid.");
+		}
   }
 
-  FreeSurface=eparms.GetValueFloat("FreeSurface",true,1.6f);
-	BoundaryFS=eparms.GetValueFloat("BoundaryFS",true,1.2f);
-	SkillenFreeSurface=eparms.GetValueFloat("SkillenFreeSurface",true,1.4f);
+	switch(eparms.GetValueInt("SolverInitialisation",true,1)){
+			case 0:  SolverInitialisation=false;  break;
+			case 1:  SolverInitialisation=true;  break;
+			default: RunException(met,"SolverInitialisation choice is not valid.");
+		}
+
+  FreeSurface=eparms.GetValueFloat("FreeSurface",true,1.5f);
+	BoundaryFS=eparms.GetValueFloat("BoundaryFS",true,1.0f);
+	SkillenFreeSurface=eparms.GetValueFloat("SkillenFreeSurface",true,1.5f);
 	SkillenOffset=eparms.GetValueFloat("SkillenOffset",true,0.2f);
 
-  Tolerance=eparms.GetValueDouble("Solver Tolerance",true,1e-5f);
-  Iterations=eparms.GetValueInt("Max Iterations",true,100);
-	Restart=eparms.GetValueInt("Restart",true,50);
+  Tolerance=eparms.GetValueDouble("Solver Tolerance",true,1e-6f);
+  Iterations=eparms.GetValueInt("Max Iterations",true,4000);
 	MatrixMemory=eparms.GetValueInt("MatrixMemory",true,80);
 
   switch(eparms.GetValueInt("Preconditioner",true,0)){
@@ -533,8 +518,7 @@ void JSph::LoadCaseConfig(){
     DtFixed=new JSphDtFixed();
     DtFixed->LoadFile(DirCase+filedtfixed);
   }
-  if(eparms.Exists("RhopOutMin"))RhopOutMin=eparms.GetValueFloat("RhopOutMin");
-  if(eparms.Exists("RhopOutMax"))RhopOutMax=eparms.GetValueFloat("RhopOutMax");
+
   PartsOutMax=eparms.GetValueFloat("PartsOutMax",true,1);
 
   //-Configuration of periodic boundaries.
@@ -571,8 +555,6 @@ void JSph::LoadCaseConfig(){
   //-Predefined constantes.
   if(ctes.GetEps()!=0)Log->Print("\n*** Attention: Eps value is not used (this correction is deprecated).\n");
   H=(float)ctes.GetH();
-  CteB=(float)ctes.GetB();
-  Gamma=(float)ctes.GetGamma();
   RhopZero=(float)ctes.GetRhop0();
   CFLnumber=(float)ctes.GetCFLnumber();
   Dp=ctes.GetDp();
@@ -921,9 +903,8 @@ void JSph::ConfigConstants(bool simulate2d){
   const char* met="ConfigConstants";
   //-Computation of constants.
   const double h=H;
-  Cs0=sqrt(double(Gamma)*double(CteB)/double(RhopZero));
-  if(!DtIni)DtIni=h/Cs0;
-  if(!DtMin)DtMin=(h/Cs0)*CoefDtMin; 
+  if(!DtIni)DtIni=CFLnumber*h/1.0;
+  if(!DtMin)DtMin=CFLnumber*h/10.0;
   Eta2=float((h*1.0e-5)*(h*1.0e-5));
   H2=float(h*h);
 	
@@ -970,7 +951,6 @@ void JSph::VisuConfig()const{
   Log->Print(fun::VarStr("StepAlgorithm",GetStepName(TStep)));
   if(TStep==STEP_None)RunException(met,"StepAlgorithm value is invalid.");
   Log->Print(fun::VarStr("Kernel",GetKernelName(TKernel)));
-  Log->Print(fun::VarStr("Viscosity",GetViscoName(TVisco)));
   Log->Print(fun::VarStr("Visco",Visco));
   Log->Print(fun::VarStr("ViscoBoundFactor",ViscoBoundFactor));
   if(ViscoTime)Log->Print(fun::VarStr("ViscoTime",ViscoTime->GetFile()));
@@ -1000,11 +980,7 @@ void JSph::VisuConfig()const{
   Log->Print(fun::VarStr("Dx",Dp));
   Log->Print(fun::VarStr("H",H));
   Log->Print(fun::VarStr("CoefficientH",H/(Dp*sqrt(Simulate2D? 2.f: 3.f))));
-  Log->Print(fun::VarStr("CteB",CteB));
-  Log->Print(fun::VarStr("Gamma",Gamma));
   Log->Print(fun::VarStr("RhopZero",RhopZero));
-  Log->Print(fun::VarStr("Eps",0));
-  Log->Print(fun::VarStr("Cs0",Cs0));
   Log->Print(fun::VarStr("CFLnumber",CFLnumber));
   Log->Print(fun::VarStr("DtIni",DtIni));
   Log->Print(fun::VarStr("DtMin",DtMin));
@@ -1021,11 +997,6 @@ void JSph::VisuConfig()const{
   Log->Print(fun::VarStr("TimePart",TimePart));
   Log->Print(fun::VarStr("Gravity",Gravity));
   Log->Print(fun::VarStr("NpMinimum",NpMinimum));
-  Log->Print(fun::VarStr("RhopOut",RhopOut));
-  if(RhopOut){
-    Log->Print(fun::VarStr("RhopOutMin",RhopOutMin));
-    Log->Print(fun::VarStr("RhopOutMax",RhopOutMax));
-  }
 }
 
 //==============================================================================
@@ -1345,7 +1316,7 @@ void JSph::ConfigSaveData(unsigned piece,unsigned pieces,std::string div){
     DataBi4=new JPartDataBi4();
     DataBi4->ConfigBasic(piece,pieces,RunCode,AppName,CaseName,Simulate2D,DirOut);
     DataBi4->ConfigParticles(CaseNp,CaseNfixed,CaseNmoving,CaseNfloat,CaseNfluid,CasePosMin,CasePosMax,NpDynamic,ReuseIds);
-    DataBi4->ConfigCtes(Dp,H,CteB,RhopZero,Gamma,MassBound,MassFluid);
+    DataBi4->ConfigCtes(Dp,H,0,RhopZero,0,MassBound,MassFluid);
     DataBi4->ConfigSimMap(OrderDecode(MapRealPosMin),OrderDecode(MapRealPosMax));
     JPartDataBi4::TpPeri tperi=JPartDataBi4::PERI_None;
     if(PeriodicConfig.PeriActive){
@@ -1369,7 +1340,7 @@ void JSph::ConfigSaveData(unsigned piece,unsigned pieces,std::string div){
     DataOutBi4=new JPartOutBi4Save();
     DataOutBi4->ConfigBasic(piece,pieces,RunCode,AppName,Simulate2D,DirOut);
     DataOutBi4->ConfigParticles(CaseNp,CaseNfixed,CaseNmoving,CaseNfloat,CaseNfluid);
-    DataOutBi4->ConfigLimits(OrderDecode(MapRealPosMin),OrderDecode(MapRealPosMax),(RhopOut? RhopOutMin: 0),(RhopOut? RhopOutMax: 0));
+    DataOutBi4->ConfigLimits(OrderDecode(MapRealPosMin),OrderDecode(MapRealPosMax),0,0);
     DataOutBi4->SaveInitial();
   }
   //-Configura objeto para grabacion de datos de floatings.
@@ -1505,7 +1476,7 @@ void JSph::SaveData(unsigned npok,const unsigned *idp,const tdouble3 *pos,const 
   //-Contabiliza nuevas particulas excluidas
   const unsigned noutpos=PartsOut->GetOutPosCount(),noutrhop=PartsOut->GetOutRhopCount(),noutmove=PartsOut->GetOutMoveCount();
   const unsigned nout=noutpos+noutrhop+noutmove;
-  AddOutCount(noutpos,noutrhop,noutmove);
+  AddOutCount(noutpos,noutmove);
 
   //-Graba ficheros con datos de particulas.
   SavePartData(npok,nout,idp,pos,vel,rhop,ndom,vdom,infoplus);
@@ -1562,15 +1533,14 @@ void JSph::GetResInfo(float tsim,float ttot,const std::string &headplus,const st
   dinfo=dinfo+ RunName+ ";"+ RunCode+ ";"+ RunTimeDate+ ";"+ fun::UintStr(CaseNp);
   dinfo=dinfo+ ";"+ fun::FloatStr(tsim)+ ";"+ fun::FloatStr(tsim/float(TimeStep))+ ";"+ fun::FloatStr(ttot);
   dinfo=dinfo+ ";"+ fun::LongStr(MaxMemoryCpu)+ ";"+ fun::LongStr(MaxMemoryGpu);
-  const unsigned nout=GetOutPosCount()+GetOutRhopCount()+GetOutMoveCount();
+  const unsigned nout=GetOutPosCount()+GetOutMoveCount();
   dinfo=dinfo+ ";"+ fun::IntStr(Nstep)+ ";"+ fun::IntStr(Part)+ ";"+ fun::UintStr(nout);
   dinfo=dinfo+ ";"+ fun::UintStr(MaxParticles)+ ";"+ fun::UintStr(MaxCells);
-  dinfo=dinfo+ ";"+ Hardware+ ";"+ GetStepName(TStep)+ ";"+ GetKernelName(TKernel)+ ";"+ GetViscoName(TVisco)+ ";"+ fun::FloatStr(Visco);
+  dinfo=dinfo+ ";"+ Hardware+ ";"+ GetStepName(TStep)+ ";"+ GetKernelName(TKernel)+ ";"+ fun::FloatStr(Visco);
   dinfo=dinfo+ ";"+ fun::FloatStr(float(TimeMax));
   dinfo=dinfo+ ";"+ fun::UintStr(CaseNbound)+ ";"+ fun::UintStr(CaseNfixed)+ ";"+ fun::FloatStr(H);
   std::string rhopcad;
-  if(RhopOut)rhopcad=fun::PrintStr("(%G-%G)",RhopOutMin,RhopOutMax); else rhopcad="None";
-  dinfo=dinfo+ ";"+ rhopcad+ ";"+ fun::UintStr(GetOutRhopCount())+ ";"+ fun::UintStr(GetOutMoveCount())+ ";"+ GetNameCellMode(CellMode)+ detplus;
+  dinfo=dinfo+ ";"+ rhopcad+ ";"+ fun::UintStr(GetOutMoveCount())+ ";"+ GetNameCellMode(CellMode)+ detplus;
 }
 
 //==============================================================================
@@ -1600,10 +1570,9 @@ void JSph::ShowResume(bool stop,float tsim,float ttot,bool all,std::string infop
   if(NpDynamic)Log->Printf("Particles of simulation (total)..: %llu",TotalNp);
   if(all){
     Log->Printf("DTs adjusted to DtMin............: %d",DtModif);
-    const unsigned nout=GetOutPosCount()+GetOutRhopCount()+GetOutMoveCount();
+    const unsigned nout=GetOutPosCount()+GetOutMoveCount();
     Log->Printf("Excluded particles...............: %d",nout);
 		if(GetOutPosCount())Log->Printf("Excluded particles due to DomainPosition: %u",GetOutPosCount());
-    if(GetOutRhopCount())Log->Printf("Excluded particles due to RhopOut: %u",GetOutRhopCount());
     if(GetOutMoveCount())Log->Printf("Excluded particles due to Velocity: %u",GetOutMoveCount());
   }
   Log->Printf("Total Runtime....................: %f sec.",ttot);
@@ -1648,28 +1617,6 @@ std::string JSph::GetKernelName(TpKernel tkernel){
   string tx;
 	if(tkernel==KERNEL_Quintic)tx="Quintic";
   else if(tkernel==KERNEL_Wendland)tx="Wendland";
-  else tx="???";
-  return(tx);
-}
-
-//==============================================================================
-// Devuelve el nombre de la viscosidad en texto.
-//==============================================================================
-std::string JSph::GetViscoName(TpVisco tvisco){
-  string tx;
-  if(tvisco==VISCO_Artificial)tx="Artificial";
-  else tx="???";
-  return(tx);
-}
-
-//==============================================================================
-// Devuelve el valor de DeltaSPH en texto.
-//==============================================================================
-std::string JSph::GetDeltaSphName(TpDeltaSph tdelta){
-  string tx;
-  if(tdelta==DELTA_None)tx="None";
-  else if(tdelta==DELTA_Dynamic)tx="Dynamic";
-  else if(tdelta==DELTA_DynamicExt)tx="DynamicExt";
   else tx="???";
   return(tx);
 }
